@@ -25,6 +25,9 @@ import {
 } from 'lucide-react';
 
 import NotificationToneModal from './components/NotificationToneModal';
+import SplashScreen from './components/SplashScreen';
+import OnboardingFlow from './components/OnboardingFlow';
+import TransitionStudioModal, { getTransitionVariants } from './components/TransitionStudioModal';
 import {
   NOTIFICATION_TONES,
   getSelectedToneId,
@@ -638,14 +641,31 @@ function PortalSwitcher({ activePortal, setActivePortal }) {
 // CUSTOMER PORTAL
 // ============================================================
 function CustomerPortal() {
-  const { user, login, logout, token } = useAuth();
+  const { user, login, logout, silentRegister, token } = useAuth();
   const { cart, itemCount, subtotal, addItem, clearCart } = useCart();
   const toast = useToast();
   const ws = useWS();
   const { isDark, toggleDark } = useTheme();
 
+  const [appStage, setAppStage] = useState(() => {
+    try {
+      const onboarded = localStorage.getItem('fmx_onboarded');
+      return onboarded === 'true' ? 'quick-splash' : 'splash';
+    } catch {
+      return 'splash';
+    }
+  });
+
   const [screen, setScreen] = useState('main');
   const [activeTab, setActiveTab] = useState('home');
+  const prevTabRef = useRef('home');
+  const TAB_ORDER = { home: 0, menu: 1, favorites: 2, orders: 3, profile: 4 };
+  const tabDirection = (TAB_ORDER[activeTab] ?? 0) >= (TAB_ORDER[prevTabRef.current] ?? 0) ? 1 : -1;
+
+  useEffect(() => {
+    prevTabRef.current = activeTab;
+  }, [activeTab]);
+
   const [mobileView, setMobileView] = useState(() => {
     try {
       const s = localStorage.getItem('fmx_mobile_simulator');
@@ -723,6 +743,14 @@ function CustomerPortal() {
 
   const [returnTabAfterTracking, setReturnTabAfterTracking] = useState(null);
   const [toneModalOpen, setToneModalOpen] = useState(false);
+  const [transitionStyle, setTransitionStyle] = useState(() => {
+    try {
+      return localStorage.getItem('fmx_transition_style') || 'ios-parallax';
+    } catch {
+      return 'ios-parallax';
+    }
+  });
+  const [transitionModalOpen, setTransitionModalOpen] = useState(false);
   const [flyingDrops, setFlyingDrops] = useState([]);
 
   // 3D Cart Drop animation listener
@@ -1173,6 +1201,36 @@ function CustomerPortal() {
            : 'max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-5xl h-full min-h-[100dvh] md:border-x shadow-2xl ' + (isDark ? 'border-white/5' : 'border-slate-200/70')
          }`}>
 
+        {/* SPLASH SCREEN & ONBOARDING / PERMISSIONS / SILENT REGISTRATION */}
+        <AnimatePresence>
+          {(appStage === 'splash' || appStage === 'quick-splash') && (
+            <SplashScreen 
+              onFinish={() => {
+                if (appStage === 'quick-splash') {
+                  setAppStage('ready');
+                } else {
+                  setAppStage('onboarding');
+                }
+              }} 
+              isQuick={appStage === 'quick-splash'}
+            />
+          )}
+          {appStage === 'onboarding' && (
+            <OnboardingFlow
+              onComplete={() => setAppStage('ready')}
+              onRegister={async ({ full_name, phone }) => {
+                const res = await silentRegister({ full_name, phone });
+                toast(`Welcome to FoodMaxx, ${full_name}! ₦1,000 credit added.`, 'success');
+                return res;
+              }}
+              onGuest={() => {
+                setAppStage('ready');
+                toast('Browsing FoodMaxx as Guest 🍽️', 'info');
+              }}
+            />
+          )}
+        </AnimatePresence>
+
         {/* REAL-TIME SLIDE-DOWN ORDER STATUS NOTIFICATION BANNER */}
         <AnimatePresence>
           {liveStatusBanner && (
@@ -1288,54 +1346,14 @@ function CustomerPortal() {
             </motion.div>
           </div>
 
-          {/* HIGH-VISIBILITY CIRCULAR SHOCKWAVE / IRIS EXPANSION OVERLAY */}
-          <div className="pointer-events-none absolute inset-0 overflow-hidden z-30">
-            <AnimatePresence>
-              <motion.div
-                key={`circle-wave-${activeTab}`}
-                initial={{ scale: 0, opacity: 0.95 }}
-                animate={{ scale: 3.8, opacity: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.56, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[220px] h-[220px] rounded-full border-[3.5px] border-[#EA4C2A] dark:border-[#FF6B4A] shadow-[0_0_50px_rgba(234,76,42,0.7),inset_0_0_35px_rgba(234,76,42,0.35)] bg-[radial-gradient(circle,rgba(234,76,42,0.24)_0%,rgba(234,76,42,0.06)_55%,transparent_75%)]"
-                style={{ willChange: 'transform, opacity' }}
-              />
-              <motion.div
-                key={`circle-echo-${activeTab}`}
-                initial={{ scale: 0, opacity: 0.7 }}
-                animate={{ scale: 3.2, opacity: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.62, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[180px] h-[180px] rounded-full border border-[#FF8C66]/80 dark:border-[#FFA07A]/60 shadow-[0_0_35px_rgba(255,140,102,0.45)]"
-                style={{ willChange: 'transform, opacity' }}
-              />
-            </AnimatePresence>
-          </div>
-
-          <AnimatePresence mode="wait">
+          {/* DYNAMIC SCREEN TRANSITIONS (20 STYLES AVAILABLE) */}
+          <AnimatePresence mode="wait" custom={tabDirection}>
             <motion.div
               key={activeTab}
-              initial={{
-                clipPath: 'circle(0% at 50% 38%)',
-                scale: 0.92,
-                opacity: 0.1
-              }}
-              animate={{
-                clipPath: 'circle(150% at 50% 38%)',
-                scale: 1,
-                opacity: 1
-              }}
-              exit={{
-                clipPath: 'circle(0% at 50% 38%)',
-                scale: 0.94,
-                opacity: 0
-              }}
-              transition={{
-                duration: 0.48,
-                ease: [0.16, 1, 0.3, 1]
-              }}
-              className="w-full"
-              style={{ willChange: 'clip-path, transform, opacity' }}
+              custom={tabDirection}
+              {...getTransitionVariants(transitionStyle, tabDirection)}
+              className="w-full relative"
+              style={{ willChange: 'transform, opacity' }}
             >
               {/* MAIN NATIVE WEB APP HEADER (HOME TAB) */}
               {activeTab === 'home' && (
@@ -1495,12 +1513,14 @@ function CustomerPortal() {
               {activeTab === 'profile' && (
                 <ProfileTab
                   user={user} wallet={wallet}
-                  onLogin={() => setLoginOpen(true)}
+                  onLogin={() => setAppStage('onboarding')}
+                  onOpenOnboarding={() => setAppStage('onboarding')}
                   onLogout={() => { logout(); setActiveTab('home'); toast('Logged out successfully', 'info'); }}
                   onOpenWallet={() => setWalletOpen(true)}
                   onOpenSupport={() => setSupportOpen(true)}
                   onOpenAddresses={() => setLocationsModalOpen(true)}
                   onOpenToneStudio={() => setToneModalOpen(true)}
+                  onOpenTransitionStudio={() => setTransitionModalOpen(true)}
                   isDark={isDark} toggleDark={toggleTheme}
                 />
               )}
@@ -1944,6 +1964,22 @@ function CustomerPortal() {
         open={toneModalOpen}
         onClose={() => setToneModalOpen(false)}
       />
+
+      {/* 20 SCREEN TRANSITION STYLES STUDIO MODAL */}
+      <TransitionStudioModal
+        open={transitionModalOpen}
+        onClose={() => setTransitionModalOpen(false)}
+        currentStyle={transitionStyle}
+        onSelectStyle={(id) => {
+          setTransitionStyle(id);
+          try {
+            localStorage.setItem('fmx_transition_style', id);
+          } catch (e) {
+            console.warn(e);
+          }
+        }}
+        isDark={isDark}
+      />
     </div>
   );
 }
@@ -2340,9 +2376,9 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
       </div>
       
       {/* Content Container */}
-      <div className="p-3 flex flex-col justify-between h-[106px]">
+      <div className="p-3 flex flex-col justify-between h-[84px]">
         <div>
-          <div className="flex items-center justify-between gap-1 mb-0.5">
+          <div className="flex items-center justify-between gap-1">
             <h3 className="font-bold text-[13.5px] sm:text-sm text-slate-900 dark:text-white leading-tight truncate flex-1 transition-colors">
               {item.name}
             </h3>
@@ -2351,17 +2387,12 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
               <span>{item.rating || 4.9}</span>
             </div>
           </div>
-          
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed font-normal">
-            {item.description || 'Freshly prepared with authentic ingredients.'}
-          </p>
         </div>
         
         {/* Price & Add to Cart Footer */}
-        <div className="flex justify-between items-center mt-2 pt-1.5 border-t border-slate-100 dark:border-white/5">
+        <div className="flex justify-between items-center pt-1 border-t border-slate-100 dark:border-white/5">
           <div className="flex flex-col">
-            <span className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">Price</span>
-            <span className="font-black text-sm sm:text-base text-slate-950 dark:text-white tracking-tight leading-none mt-0.5">
+            <span className="font-black text-sm sm:text-base text-slate-950 dark:text-white tracking-tight leading-none">
               {fmt(item.price || 4500)}
             </span>
           </div>
@@ -2656,10 +2687,6 @@ function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false,
             <h3 className="font-bold text-[13.5px] sm:text-sm text-slate-900 dark:text-white leading-snug line-clamp-1 transition-colors">
               {item.name}
             </h3>
-
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">
-              {item.description || 'Authentic Nigerian dish made fresh to order with choice ingredients.'}
-            </p>
           </div>
 
           <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-slate-100 dark:border-white/5">
@@ -3002,12 +3029,7 @@ function MenuDishRow({ item, onSelect, onQuickAdd, onToggleFavorite, isFavorite,
           </button>
         </div>
 
-        {/* Row 2: Description */}
-        <p className="text-[10.5px] sm:text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5 leading-snug font-normal">
-          {item.description}
-        </p>
-
-        {/* Row 3: Rating */}
+        {/* Row 2: Rating */}
         <div className="flex items-center gap-2 mt-1 text-[10.5px]">
           <div className="flex items-center gap-1">
             <Star size={11} className="fill-amber-400 text-amber-400" />
@@ -3324,57 +3346,51 @@ function MenuTab({
 // ORDERS TAB & CARDS (CLEAN, MODERN, EYE-FRIENDLY)
 // ============================================================
 // ============================================================
-// ORDERS TAB & CARDS (CLEAN, MINIMALIST & INTUITIVE UI/UX)
+// ORDERS TAB & CARDS (ULTRA-CLEAN, MODERN & MINIMALIST UI/UX)
 // ============================================================
 function OrdersTab({ orders, onOpenTracking, onReview, onExplore, onBack, onRefresh, isDark }) {
   const activeOrders = (orders || []).filter(o => !['DELIVERED','CANCELLED'].includes(o.order_status));
   const pastOrders = (orders || []).filter(o => ['DELIVERED','CANCELLED'].includes(o.order_status));
 
   const [filter, setFilter] = useState(() => {
-    return activeOrders.length > 0 ? 'active' : 'all';
+    return activeOrders.length > 0 ? 'active' : 'completed';
   });
 
   const displayedOrders = filter === 'active'
     ? activeOrders
-    : filter === 'completed'
-    ? pastOrders
-    : (orders || []);
+    : pastOrders;
 
   if (!orders || orders.length === 0) {
     return (
-      <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
+      <div className="p-4 sm:p-6 max-w-md mx-auto space-y-6">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onBack || onExplore}
-            className={`w-9 h-9 rounded-full border transition-all active:scale-90 flex items-center justify-center cursor-pointer ${
-              isDark ? 'bg-white/6 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs'
+            className={`w-9 h-9 rounded-full border transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
+              isDark ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs'
             }`}
-            title="Go back"
           >
             <ChevronLeft size={18} />
           </button>
-          <div>
-            <h2 className={`font-bold text-xl tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>My Orders</h2>
-            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Real-time food delivery tracking</p>
-          </div>
+          <h2 className={`font-black text-xl tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>My Orders</h2>
         </div>
 
-        <div className={`flex flex-col items-center justify-center min-h-[46vh] px-6 text-center rounded-3xl border ${
-          isDark ? 'bg-[#181B24]/70 border-white/6' : 'bg-white border-slate-200/80 shadow-xs'
+        <div className={`flex flex-col items-center justify-center py-16 px-6 text-center rounded-3xl border ${
+          isDark ? 'bg-[#161822] border-white/8' : 'bg-white border-slate-100 shadow-sm'
         }`}>
-          <div className="w-20 h-20 bg-orange-500/10 dark:bg-orange-500/15 rounded-3xl flex items-center justify-center mb-4 text-[#EA4C2A]">
-            <ShoppingBag size={34} className="stroke-[1.6]" />
+          <div className="w-16 h-16 rounded-2xl bg-orange-500/10 flex items-center justify-center mb-3 text-[#EA4C2A]">
+            <ShoppingBag size={28} className="stroke-[1.8]" />
           </div>
-          <h3 className={`font-bold text-lg mb-1.5 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>No Orders Yet</h3>
-          <p className={`text-xs max-w-xs mb-6 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            When you place a chow order, it will appear here so you can track your meal live to your doorstep.
+          <h3 className={`font-bold text-base mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>No Orders Yet</h3>
+          <p className={`text-xs max-w-xs mb-5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            Ready for fresh gourmet chow? Place an order to track your food live.
           </p>
           <button
             onClick={onExplore}
-            className="bg-[#EA4C2A] hover:bg-[#d83f1d] active:scale-95 text-white px-7 py-3 rounded-2xl font-bold text-xs shadow-md shadow-[#EA4C2A]/25 transition-all cursor-pointer"
+            className="bg-[#EA4C2A] hover:bg-[#d83f1d] active:scale-95 text-white px-6 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-[#EA4C2A]/25 transition-all cursor-pointer"
           >
-            Explore Menu & Order
+            Explore Menu
           </button>
         </div>
       </div>
@@ -3382,40 +3398,29 @@ function OrdersTab({ orders, onOpenTracking, onReview, onExplore, onBack, onRefr
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-4 pb-28">
-      {/* Clean Top Header */}
+    <div className="p-4 sm:p-5 max-w-md mx-auto space-y-4 pb-28">
+      {/* Clean Minimalist Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onBack || onExplore}
-            className={`w-9 h-9 rounded-full border transition-all active:scale-90 flex items-center justify-center cursor-pointer ${
-              isDark ? 'bg-white/6 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs'
+            className={`w-9 h-9 rounded-full border transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
+              isDark ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs'
             }`}
-            title="Go back"
           >
             <ChevronLeft size={18} />
           </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className={`font-bold text-xl tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>My Orders</h2>
-              {activeOrders.length > 0 && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#EA4C2A]/15 text-[#EA4C2A] dark:text-[#FF7752] border border-[#EA4C2A]/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#EA4C2A] animate-ping" />
-                  {activeOrders.length} Active
-                </span>
-              )}
-            </div>
-            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Track live food deliveries & view order history
-            </p>
-          </div>
+          <h2 className={`font-black text-xl tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            My Orders
+          </h2>
         </div>
+
         <button
           type="button"
           onClick={onRefresh}
-          className={`p-2.5 rounded-xl border transition-all active:scale-90 cursor-pointer ${
-            isDark ? 'bg-white/6 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 shadow-xs'
+          className={`w-9 h-9 rounded-full border transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
+            isDark ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 shadow-xs'
           }`}
           title="Refresh orders"
         >
@@ -3423,229 +3428,174 @@ function OrdersTab({ orders, onOpenTracking, onReview, onExplore, onBack, onRefr
         </button>
       </div>
 
-      {/* Segmented Filter Bar - Clean, Minimalist & Low Fatigue */}
-      <div className={`flex p-1 rounded-2xl border ${isDark ? 'bg-[#151821] border-white/8' : 'bg-slate-100 border-slate-200/70'}`}>
-        {[
-          { id: 'active', label: 'Active', count: activeOrders.length },
-          { id: 'completed', label: 'Past Orders', count: pastOrders.length },
-          { id: 'all', label: 'All', count: orders.length },
-        ].map(tab => {
-          const isActive = filter === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setFilter(tab.id)}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                isActive
-                  ? (isDark ? 'bg-[#222736] text-white shadow-xs' : 'bg-white text-slate-900 shadow-xs')
-                  : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800')
-              }`}
-            >
-              <span>{tab.label}</span>
-              {tab.count > 0 && (
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                  isActive
-                    ? 'bg-[#EA4C2A] text-white'
-                    : (isDark ? 'bg-white/10 text-slate-400' : 'bg-slate-200 text-slate-600')
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      {/* Two-Pill Switcher: Active vs Past Orders */}
+      <div className={`flex p-1 rounded-2xl border ${isDark ? 'bg-[#161822] border-white/8' : 'bg-slate-100 border-slate-200/80'}`}>
+        <button
+          onClick={() => setFilter('active')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            filter === 'active'
+              ? (isDark ? 'bg-[#222736] text-white shadow-xs' : 'bg-white text-slate-900 shadow-xs')
+              : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800')
+          }`}
+        >
+          <span>Active</span>
+          {activeOrders.length > 0 && (
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full font-black bg-[#EA4C2A] text-white">
+              {activeOrders.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setFilter('completed')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            filter === 'completed'
+              ? (isDark ? 'bg-[#222736] text-white shadow-xs' : 'bg-white text-slate-900 shadow-xs')
+              : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800')
+          }`}
+        >
+          <span>Past Orders</span>
+          {pastOrders.length > 0 && (
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+              filter === 'completed' ? (isDark ? 'bg-white/15 text-slate-200' : 'bg-slate-200 text-slate-700') : 'text-slate-400'
+            }`}>
+              {pastOrders.length}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Clean Orders List (NO DUPLICATE CARDS) */}
+      {/* Clean Orders List */}
       {displayedOrders.length === 0 ? (
-        <div className={`p-8 text-center rounded-2xl border ${isDark ? 'bg-[#181B24]/50 border-white/6' : 'bg-slate-50 border-slate-100'}`}>
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center mx-auto mb-3 text-slate-400">
-            {filter === 'active' ? '🛵' : '📋'}
-          </div>
+        <div className={`py-12 px-6 text-center rounded-2xl border ${isDark ? 'bg-[#161822]/60 border-white/6' : 'bg-white border-slate-100 shadow-xs'}`}>
           <p className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-            {filter === 'active' ? 'No active deliveries right now' : `No ${filter} orders found`}
-          </p>
-          <p className={`text-[11px] mt-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-            {filter === 'active' ? 'Your past deliveries can be viewed in the Past Orders tab' : 'Place an order from the menu to see it here'}
+            {filter === 'active' ? 'No active deliveries right now' : 'No past orders yet'}
           </p>
           {filter === 'active' && pastOrders.length > 0 && (
             <button
               onClick={() => setFilter('completed')}
-              className="mt-4 text-xs font-bold text-[#EA4C2A] hover:underline cursor-pointer"
+              className="mt-2.5 text-xs font-bold text-[#EA4C2A] hover:underline cursor-pointer"
             >
-              View Past Orders ({pastOrders.length}) →
+              View past orders ({pastOrders.length}) →
             </button>
           )}
         </div>
       ) : (
-        <div className="space-y-3.5">
-          {displayedOrders.map(o => {
-            const isActive = !['DELIVERED', 'CANCELLED'].includes(o.order_status);
-            return (
-              <OrderCard
-                key={o.id}
-                order={o}
-                onTrack={() => onOpenTracking(o)}
-                onReview={() => onReview && onReview(o)}
-                active={isActive}
-                isDark={isDark}
-              />
-            );
-          })}
+        <div className="space-y-3">
+          {displayedOrders.map(o => (
+            <CleanOrderCard
+              key={o.id}
+              order={o}
+              onTrack={() => onOpenTracking(o)}
+              onReview={() => onReview && onReview(o)}
+              isDark={isDark}
+            />
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-function OrderCard({ order, onTrack, onReview, active, isDark }) {
-  const itemCount = order.items?.length || 0;
-  const restaurantName = order.restaurant?.name || 'FoodMaxx';
-  const restaurantLogo = order.restaurant?.logo_url;
-  const itemsText = order.items?.map(i => `${i.qty || 1}x ${i.name}`).join(', ') || 'Chow meal';
+// ULTRA-CLEAN ORDER CARD (AIRBNB & UBER EATS MINIMALIST STYLE)
+function CleanOrderCard({ order, onTrack, onReview, isDark }) {
+  const isActive = !['DELIVERED', 'CANCELLED'].includes(order.order_status);
   const isDelivered = order.order_status === 'DELIVERED';
-  const isCancelled = order.order_status === 'CANCELLED';
-  const destAddress = order.delivery_address || order.deliveryAddress || order.address || order.recipient_address || (order.delivery_zone ? `${order.delivery_zone}, Ibadan` : null);
+  const restaurantName = order.restaurant?.name || 'FoodMaxx';
+  const itemsSummary = (order.items || []).map(i => `${i.qty || 1}x ${i.name}`).join(', ') || 'Chow order';
+  const orderDate = new Date(order.created_at || Date.now()).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div 
+    <div
       onClick={onTrack}
-      className={`rounded-2xl p-4 sm:p-4.5 border transition-all cursor-pointer ${
-        active
-          ? (isDark ? 'bg-[#1C202C] border-[#EA4C2A]/35 shadow-sm hover:border-[#EA4C2A]/50' : 'bg-white border-orange-200/90 shadow-xs hover:border-orange-300')
-          : (isDark ? 'bg-[#181B24] border-white/6 hover:border-white/12 shadow-xs' : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-xs')
+      className={`rounded-2xl p-4 border transition-all cursor-pointer ${
+        isActive
+          ? (isDark ? 'bg-[#1A1D27] border-[#EA4C2A]/30 shadow-md hover:border-[#EA4C2A]/50' : 'bg-white border-orange-200 shadow-xs hover:border-orange-300')
+          : (isDark ? 'bg-[#161822] border-white/6 hover:border-white/12 shadow-xs' : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-xs')
       }`}
     >
-      {/* Top row: Restaurant, Date, and Status Pill */}
-      <div className="flex items-start justify-between gap-3 mb-2.5">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      {/* Row 1: Restaurant Logo + Name + Date + Total Price */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <img
-            src={restaurantLogo || "/foodmaxx-logo.png"}
+            src="/foodmaxx-logo.png"
             alt={restaurantName}
-            className="w-10 h-10 rounded-xl object-cover border border-slate-100 dark:border-white/10 shrink-0 shadow-xs"
+            className="w-9 h-9 rounded-xl object-cover border border-slate-200/60 dark:border-white/10 shrink-0"
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <h4 className={`font-bold text-sm truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{restaurantName}</h4>
-              <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
-            </div>
-            <div className="text-[11px] text-slate-400 font-medium">
-              #{order.order_reference} · {new Date(order.created_at || Date.now()).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-            </div>
+            <h4 className={`font-bold text-sm truncate leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              {restaurantName}
+            </h4>
+            <span className="text-[11px] text-slate-400 font-medium">
+              {orderDate}
+            </span>
           </div>
         </div>
 
-        {/* Clean Status Pill */}
-        <span
-          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 flex items-center gap-1.5 ${
-            active
-              ? 'bg-orange-500/10 text-[#EA4C2A] dark:text-orange-400 border border-orange-500/20'
+        <div className="text-right shrink-0">
+          <div className={`font-black text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            {fmt(order.total)}
+          </div>
+          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md mt-0.5 ${
+            isActive
+              ? 'bg-orange-500/10 text-[#EA4C2A] dark:text-orange-400'
               : isDelivered
-              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-              : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'
-          }`}
-        >
-          {active && <span className="w-1.5 h-1.5 rounded-full bg-[#EA4C2A] animate-ping" />}
-          {statusLabel[order.order_status] || order.order_status}
-        </span>
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+              : 'bg-slate-500/10 text-slate-500'
+          }`}>
+            {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#EA4C2A] animate-ping" />}
+            {statusLabel[order.order_status] || order.order_status}
+          </span>
+        </div>
       </div>
 
-      {/* Item Summary */}
-      <p className={`text-xs line-clamp-1 mb-2.5 font-normal ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-        {itemsText}
+      {/* Row 2: Dishes List (Single Clean Line) */}
+      <p className={`text-xs mt-2.5 truncate font-normal ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+        {itemsSummary}
       </p>
 
-      {/* Delivery Destination Tag */}
-      {destAddress && (
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mb-3 truncate">
-          <MapPin size={12} className="text-emerald-500 shrink-0" />
-          <span className="truncate">To: {destAddress}</span>
-        </div>
-      )}
-
-      {/* Visual Progress Stepper on Card (for active orders) */}
-      {active && (
-        <div className="mb-3 pt-2 pb-1 border-t border-slate-100 dark:border-white/5">
-          <div className="flex items-center justify-between text-[10px] font-bold mb-1.5">
-            <span className={order.order_status === 'ORDER_PLACED' || order.order_status === 'CONFIRMED' ? 'text-[#EA4C2A] font-black' : 'text-slate-400'}>
-              📝 Placed
-            </span>
-            <span className={order.order_status === 'PREPARING' || order.order_status === 'READY_FOR_PICKUP' ? 'text-[#EA4C2A] font-black' : 'text-slate-400'}>
-              🍳 Cooking
-            </span>
-            <span className={['RIDER_ASSIGNED', 'RIDER_PICKED_UP', 'ON_THE_WAY', 'ARRIVING_SOON'].includes(order.order_status) ? 'text-[#EA4C2A] font-black' : 'text-slate-400'}>
-              🛵 On the Way
-            </span>
-            <span className={order.order_status === 'DELIVERED' ? 'text-emerald-500 font-black' : 'text-slate-400'}>
-              🏡 Delivered
+      {/* Row 3: Active Courier Banner & Actions */}
+      {isActive ? (
+        <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-white/6 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-[#EA4C2A] dark:text-orange-400 min-w-0">
+            <span className="text-sm">🛵</span>
+            <span className="truncate">
+              {order.delivery_otp ? `Delivery PIN: ${order.delivery_otp}` : 'Courier on the way'}
             </span>
           </div>
-          <div className="h-1.5 w-full bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-[#EA4C2A] to-amber-500 rounded-full transition-all duration-500"
-              style={{
-                width: order.order_status === 'DELIVERED' ? '100%'
-                  : ['RIDER_ASSIGNED', 'RIDER_PICKED_UP', 'ON_THE_WAY', 'ARRIVING_SOON'].includes(order.order_status) ? '75%'
-                  : ['PREPARING', 'READY_FOR_PICKUP'].includes(order.order_status) ? '50%'
-                  : '25%'
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Info row: Item count, PIN badge (if active), and Total */}
-      <div className={`flex items-center justify-between pt-2 pb-3 border-t text-xs ${isDark ? 'border-white/6' : 'border-slate-100'}`}>
-        <div className="flex items-center gap-2">
-          <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            {itemCount} item{itemCount !== 1 ? 's' : ''}
-          </span>
-          {order.delivery_otp && active && (
-            <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-500/20">
-              PIN: {order.delivery_otp}
-            </span>
-          )}
-        </div>
-        <span className="font-black text-sm text-slate-900 dark:text-white">
-          {fmt(order.total)}
-        </span>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-        {active ? (
           <button
             onClick={onTrack}
-            className="flex-1 bg-[#EA4C2A] hover:bg-[#d83f1d] active:scale-[0.99] text-white py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
+            className="px-3.5 py-1.5 rounded-xl bg-[#EA4C2A] hover:bg-[#d83f1d] text-white font-bold text-[11px] flex items-center gap-1 shrink-0 shadow-xs cursor-pointer transition-all"
           >
-            <Navigation size={13} className="stroke-[2.5]" />
-            <span>Track Live Delivery</span>
-            <ChevronRight size={13} className="stroke-[2.5]" />
+            <span>Track</span>
+            <ChevronRight size={13} strokeWidth={3} />
           </button>
-        ) : (
-          <>
-            <button
-              onClick={onTrack}
-              className={`flex-1 py-2 px-3 rounded-xl font-semibold text-xs transition-all cursor-pointer border ${
-                isDark
-                  ? 'bg-white/6 hover:bg-white/10 border-white/8 text-slate-200'
-                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80 text-slate-700'
-              }`}
-            >
-              Order Details
-            </button>
+        </div>
+      ) : (
+        <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs" onClick={e => e.stopPropagation()}>
+          <span className="text-[11px] text-slate-400 font-mono">
+            #{order.order_reference}
+          </span>
+          <div className="flex items-center gap-2">
             {isDelivered && (
               <button
                 onClick={onReview}
-                className="flex-1 bg-amber-500/10 hover:bg-amber-500/15 text-amber-700 dark:text-amber-400 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border border-amber-500/20 transition-all cursor-pointer"
+                className="text-[11px] font-bold text-amber-500 hover:text-amber-400 flex items-center gap-1 cursor-pointer py-1 px-2 rounded-lg hover:bg-amber-500/10 transition-colors"
               >
-                <Star size={13} className="fill-amber-500 text-amber-500 stroke-[1.5]" />
-                <span>Rate Chow</span>
+                <Star size={12} className="fill-amber-500" />
+                <span>Rate</span>
               </button>
             )}
-          </>
-        )}
-      </div>
+            <button
+              onClick={onTrack}
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                isDark ? 'text-slate-300 hover:bg-white/5' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Details
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3653,7 +3603,7 @@ function OrderCard({ order, onTrack, onReview, active, isDark }) {
 // ============================================================
 // PROFILE TAB
 // ============================================================
-function ProfileTab({ user, wallet, onLogin, onLogout, onOpenWallet, onOpenSupport, onOpenAddresses, onOpenToneStudio, isDark, toggleDark }) {
+function ProfileTab({ user, wallet, onLogin, onOpenOnboarding, onLogout, onOpenWallet, onOpenSupport, onOpenAddresses, onOpenToneStudio, onOpenTransitionStudio, isDark, toggleDark }) {
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-8 text-center">
@@ -3661,7 +3611,7 @@ function ProfileTab({ user, wallet, onLogin, onLogout, onOpenWallet, onOpenSuppo
         <h3 className="font-bold text-xl mb-2">Sign in to FoodMaxx</h3>
         <p className="text-gray-400 text-xs mb-6 max-w-xs">Log in to track orders, manage your wallet balance, and unlock special promos.</p>
         <button
-          onClick={onLogin}
+          onClick={onOpenOnboarding || onLogin}
           className="w-full bg-red-600 hover:bg-red-700 active:translate-x-0.5 active:translate-y-0.5 text-white py-3.5 rounded-2xl font-bold text-sm border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-pointer transition-all"
         >
           Sign In / Register
@@ -3706,7 +3656,9 @@ function ProfileTab({ user, wallet, onLogin, onLogout, onOpenWallet, onOpenSuppo
         {[
           { icon: Wallet, label: 'My Chow Wallet', onClick: onOpenWallet, color: 'text-emerald-600 dark:text-emerald-400' },
           { icon: MapPin, label: 'Saved Addresses & Landmarks', onClick: onOpenAddresses, color: 'text-blue-600 dark:text-blue-400' },
+          { icon: SlidersHorizontal, label: 'Screen Transition Style (20 Options)', onClick: onOpenTransitionStudio, color: 'text-[#EA4C2A] dark:text-orange-400' },
           { icon: Bell, label: 'Order Alert Tones & Loud Chimes (20+)', onClick: onOpenToneStudio, color: 'text-amber-500' },
+          { icon: Compass, label: 'App Intro & Onboarding Tour', onClick: onOpenOnboarding, color: 'text-orange-500 dark:text-orange-400' },
           { icon: isDark ? Sun : Moon, label: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode', onClick: toggleDark, color: isDark ? 'text-yellow-400' : 'text-indigo-600' },
           { icon: Heart, label: 'Favourite Dishes', onClick: () => {}, color: 'text-red-600' },
           { icon: MessageSquare, label: 'Support & FAQs', onClick: onOpenSupport, color: 'text-purple-600 dark:text-purple-400' },
