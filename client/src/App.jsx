@@ -19,7 +19,7 @@ import {
   Send, Download, Upload, Globe, Award, Layers,
   Moon, Sun, Gift, Calendar, QrCode, MessageCircle, Share2, Bookmark, Sparkles, PhoneCall,
   CreditCard, Flame, ShieldCheck, Utensils, SlidersHorizontal, UserCheck, Printer,
-  Lock, Copy, Smartphone, Building2, Mic, ShoppingBag, ChevronDown, Monitor, Key,
+  Lock, Copy, Smartphone, Building2, Mic, ShoppingBag, ChevronDown, ChevronUp, Monitor, Key,
   FolderPlus, ArrowUp, ArrowDown, Video, FileText, Info, RotateCw,
   Columns, LayoutList, Grid, Bike, Edit3, Radio, Palette, Camera
 } from 'lucide-react';
@@ -28,6 +28,7 @@ import NotificationToneModal from './components/NotificationToneModal';
 import SplashScreen from './components/SplashScreen';
 import OnboardingFlow from './components/OnboardingFlow';
 import TransitionStudioModal, { getTransitionVariants } from './components/TransitionStudioModal';
+import SpinAndWinModal from './components/SpinAndWinModal';
 import {
   NOTIFICATION_TONES,
   getSelectedToneId,
@@ -733,7 +734,29 @@ function CustomerPortal() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [spinModalOpen, setSpinModalOpen] = useState(false);
   const [placedOrderSuccess, setPlacedOrderSuccess] = useState(null);
+
+  // Auto-trigger Spin & Win game popup once per day on arrival (after 1.8s)
+  useEffect(() => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const lastSpin = localStorage.getItem('fmx_last_spin_date');
+      const dismissedToday = sessionStorage.getItem('fmx_spin_dismissed_' + today);
+      if (lastSpin !== today && !dismissedToday) {
+        const timer = setTimeout(() => {
+          setSpinModalOpen(true);
+        }, 1800);
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    const handleOpenSpin = () => setSpinModalOpen(true);
+    window.addEventListener('fmx:open-spin', handleOpenSpin);
+    return () => window.removeEventListener('fmx:open-spin', handleOpenSpin);
+  }, []);
 
   useEffect(() => {
     const handleOpenCart = () => setCartOpen(true);
@@ -1787,6 +1810,26 @@ function CustomerPortal() {
         </div>
       </div>
 
+      {/* FLOATING SPIN & WIN LAUNCHER PILL */}
+      {!checkoutOpen && !cartOpen && !spinModalOpen && (
+        <motion.button
+          type="button"
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => {
+            triggerHaptic('medium');
+            setSpinModalOpen(true);
+          }}
+          className="fixed bottom-20 right-3.5 sm:right-6 z-40 px-3.5 py-2 rounded-full bg-gradient-to-r from-[#EA4C2A] to-[#FF6B6B] text-white shadow-xl shadow-red-500/30 flex items-center gap-2 border border-white/70 dark:border-white/20 cursor-pointer"
+          title="Spin & Win Rewards"
+        >
+          <span className="text-sm">🎁</span>
+          <span className="text-xs font-bold tracking-tight">Spin & Win</span>
+        </motion.button>
+      )}
+
 
       {/* RESTAURANT MODAL */}
       <AnimatePresence>
@@ -1883,11 +1926,41 @@ function CustomerPortal() {
             selectedAddress={selectedAddress}
             wallet={wallet}
             onRefreshWallet={loadWallet}
+            onChangeAddress={() => setLocationsModalOpen(true)}
             onSuccess={(order) => {
               setCheckoutOpen(false);
               loadOrders();
               loadWallet();
               setPlacedOrderSuccess(order);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* SPIN & WIN GAME POPUP */}
+      <AnimatePresence>
+        {spinModalOpen && (
+          <SpinAndWinModal
+            key="spin-win-modal"
+            open={spinModalOpen}
+            onClose={() => {
+              setSpinModalOpen(false);
+              try {
+                const today = new Date().toISOString().slice(0, 10);
+                sessionStorage.setItem('fmx_spin_dismissed_' + today, '1');
+              } catch {}
+            }}
+            isDark={isDark}
+            onRewardClaimed={(prize) => {
+              if (prize?.code) {
+                try {
+                  localStorage.setItem('fmx_active_promo', prize.code);
+                } catch {}
+                toast(`Promo code "${prize.code}" saved for checkout! 🎁`, 'success');
+              } else {
+                toast(`Reward claimed! 🎉`, 'success');
+              }
+              setSpinModalOpen(false);
             }}
           />
         )}
@@ -2370,7 +2443,7 @@ function CategoryList({ isDark, selectedCategory = 'all', onSelectCategory }) {
 }
 
 // ============================================================
-// TOP PICKS SECTION (HORIZONTAL SCROLL)
+// TOP PICKS SECTION (1 PRODUCT CARD PER COLUMN, BOLD DESIGN)
 // ============================================================
 function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite }) {
   const { cart, updateQty, addItem } = useCart();
@@ -2380,21 +2453,6 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
   );
   const inCartQty = inCartIdx >= 0 ? cart.items[inCartIdx].qty : 0;
   const isAvailable = item.is_available !== false && (item.stock_quantity === undefined || item.stock_quantity > 0);
-
-  const triggerConfetti = (e) => {
-    try {
-      const rect = e.target.getBoundingClientRect();
-      const x = (rect.left + rect.width / 2) / window.innerWidth;
-      const y = (rect.top + rect.height / 2) / window.innerHeight;
-      confetti({
-        particleCount: 35,
-        spread: 45,
-        origin: { x, y },
-        colors: ['#EA4C2A', '#FFB74D', '#10B981'],
-        disableForReducedMotion: true
-      });
-    } catch (err) {}
-  };
 
   const handleAdd = (e) => {
     e.stopPropagation();
@@ -2420,74 +2478,102 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
 
   return (
     <div 
-      className={`group relative bg-white dark:bg-[#181A20] rounded-2xl overflow-hidden shrink-0 w-52 sm:w-56 cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+      className={`group relative w-full bg-white dark:bg-[#151821] rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl ${
         inCartQty > 0 
-          ? 'border border-slate-300 dark:border-white/20 shadow-sm' 
-          : 'border border-slate-100 dark:border-white/5 shadow-xs hover:border-slate-200 dark:hover:border-white/10'
+          ? 'border-2 border-[#EA4C2A]/70 dark:border-[#EA4C2A]/80 shadow-md shadow-red-500/10' 
+          : 'border border-slate-200/80 dark:border-white/10 shadow-sm hover:border-slate-300 dark:hover:border-white/20'
       }`}
       onClick={() => onSelect(item)}
     >
-      {/* Photo Container */}
-      <div className="relative h-34 sm:h-36 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+      {/* High-Impact Hero Photo Container */}
+      <div className="relative h-48 sm:h-60 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
         <img 
-          onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80'; }} 
+          onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80'; }} 
           src={item.image_url} 
           alt={item.name} 
-          className={`w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108 ${
+          className={`w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105 ${
             !isAvailable ? 'grayscale contrast-75' : ''
           }`} 
           loading="lazy" 
           decoding="async" 
         />
 
-        {/* Top Tag & Favorite Heart Button */}
-        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1.5 pointer-events-none z-10">
-          <div>
-            {hasTag && (
-              <span className="bg-[#EA4C2A] text-white text-[9.5px] font-bold px-2.5 py-0.5 rounded-full shadow-md tracking-wide">
+        {/* Gradient dark scrim at bottom of image for readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+
+        {/* Top Badges & Favorite Heart Button */}
+        <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-10">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {hasTag ? (
+              <span className="bg-[#EA4C2A] text-white text-[10px] sm:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-lg border border-white/20">
                 {activeTag}
               </span>
+            ) : (
+              <span className="bg-[#EA4C2A] text-white text-[10px] sm:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-lg border border-white/20">
+                Popular
+              </span>
             )}
+            <span className="bg-black/60 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-full border border-white/15 flex items-center gap-1 shadow-md">
+              <Clock size={11} className="text-amber-400" />
+              <span>{item.prep_time_min ? `${item.prep_time_min}m` : '20m'}</span>
+            </span>
           </div>
 
           {/* Favorite Heart Button */}
           <button 
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(item.id); }}
-            className="pointer-events-auto w-7 h-7 rounded-full bg-black/40 hover:bg-black/65 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-90 transition-all cursor-pointer shadow-sm hover:text-red-400"
+            className="w-9 h-9 rounded-full bg-black/45 hover:bg-black/70 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-90 transition-all cursor-pointer shadow-lg hover:text-red-400"
             title={isFavorite ? "Remove from favorites" : "Save to favorites"}
           >
-            <Heart size={13} className={isFavorite ? 'fill-red-500 stroke-red-500 scale-110' : 'stroke-white'} />
+            <Heart size={16} className={isFavorite ? 'fill-red-500 stroke-red-500 scale-110' : 'stroke-white'} />
           </button>
+        </div>
+
+        {/* Floating Rating Badge bottom-left */}
+        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5">
+          <div className="bg-white/95 dark:bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-xl shadow-md border border-black/5 dark:border-white/10 flex items-center gap-1 text-xs font-black text-slate-900 dark:text-white">
+            <Star size={13} className="fill-amber-400 stroke-amber-400" />
+            <span>{item.rating ? Number(item.rating).toFixed(1) : '4.9'}</span>
+            <span className="text-[10px] text-slate-400 font-bold">({item.reviews_count || 84}+)</span>
+          </div>
         </div>
 
         {/* Sold Out Overlay */}
         {!isAvailable && (
           <div className="absolute inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center z-20">
-            <span className="bg-red-600 text-white font-black text-xs uppercase tracking-widest px-2.5 py-1 rounded-lg shadow-lg border border-white/20">
+            <span className="bg-red-600 text-white font-black text-sm uppercase tracking-widest px-4 py-2 rounded-xl shadow-2xl border-2 border-white/30">
               Sold Out
             </span>
           </div>
         )}
       </div>
       
-      {/* Content Container */}
-      <div className="p-3 flex flex-col justify-between min-h-[88px] sm:min-h-[92px] h-auto">
-        <div className="mb-1">
-          <div className="flex items-start justify-between gap-1.5">
-            <h3 className="font-bold text-[13px] sm:text-[13.5px] text-slate-900 dark:text-white leading-snug line-clamp-2 break-words flex-1 transition-colors">
+      {/* Bold Content Container */}
+      <div className="p-4 sm:p-5 flex flex-col justify-between gap-3">
+        <div>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-black text-base sm:text-lg text-slate-950 dark:text-white leading-snug break-words flex-1 group-hover:text-[#EA4C2A] transition-colors">
               {item.name}
             </h3>
-            <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#EA4C2A] bg-orange-500/10 dark:bg-orange-500/20 px-1.5 py-0.5 rounded-md shrink-0 mt-0.5">
-              Pre-order
-            </span>
+            {item.category && (
+              <span className="text-[10px] font-black uppercase tracking-wider text-[#EA4C2A] bg-rose-50 dark:bg-rose-950/40 border border-rose-200/50 dark:border-rose-900/40 px-2 py-0.5 rounded-lg shrink-0">
+                {item.category}
+              </span>
+            )}
           </div>
+          {item.description && (
+            <p className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 font-medium line-clamp-2 mt-1 leading-relaxed">
+              {item.description}
+            </p>
+          )}
         </div>
         
-        {/* Price & Add to Cart Footer */}
-        <div className="flex justify-between items-center pt-1 border-t border-slate-100 dark:border-white/5">
+        {/* Bold Price & Add to Cart Footer */}
+        <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-white/10">
           <div className="flex flex-col">
-            <span className="font-black text-sm sm:text-base text-slate-950 dark:text-white tracking-tight leading-none">
+            <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">Price</span>
+            <span className="font-black text-lg sm:text-2xl text-slate-950 dark:text-white tracking-tight leading-none mt-0.5">
               {fmt(item.price || 4500)}
             </span>
           </div>
@@ -2501,13 +2587,13 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
                   initial={{ scale: 0.85, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.85, opacity: 0 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleAdd} 
-                  className="h-8 px-2.5 rounded-xl bg-[#EA4C2A] hover:bg-[#d93f1d] active:scale-95 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                  className="h-11 px-4 sm:px-5 rounded-2xl bg-[#EA4C2A] hover:bg-[#D42222] active:scale-95 disabled:opacity-40 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md shadow-red-500/25 transition-all cursor-pointer"
                   title="Add to cart"
                 >
-                  <Plus size={14} className="stroke-[3]" />
-                  <span>Add</span>
+                  <Plus size={16} className="stroke-[3]" />
+                  <span>Add to Cart</span>
                 </motion.button>
               ) : (
                 <motion.div 
@@ -2515,7 +2601,7 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
                   initial={{ scale: 0.85, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.85, opacity: 0 }}
-                  className="bg-[#EA4C2A] text-white rounded-xl p-0.5 flex items-center gap-1.5 shadow-xs h-8"
+                  className="bg-[#EA4C2A] text-white rounded-2xl p-1 flex items-center gap-2 shadow-lg shadow-red-500/20 h-11"
                 >
                   <motion.button
                     whileTap={{ scale: 0.85 }}
@@ -2524,12 +2610,12 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
                       e.stopPropagation();
                       updateQty(inCartIdx, -1);
                     }}
-                    className="w-6 h-6 rounded-lg bg-black/15 hover:bg-black/25 text-white flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                    className="w-8 h-8 rounded-xl bg-black/20 hover:bg-black/35 text-white flex items-center justify-center cursor-pointer transition-colors shrink-0"
                     title="Decrease"
                   >
-                    <Minus size={12} className="stroke-[3]" />
+                    <Minus size={14} className="stroke-[3]" />
                   </motion.button>
-                  <span className="font-extrabold text-xs min-w-[14px] text-center select-none text-white">
+                  <span className="font-black text-sm min-w-[20px] text-center select-none text-white">
                     {inCartQty}
                   </span>
                   <motion.button
@@ -2540,10 +2626,10 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
                       updateQty(inCartIdx, 1);
                       trigger3dCartDrop(e, item);
                     }}
-                    className="w-6 h-6 rounded-lg bg-black/15 hover:bg-black/25 text-white flex items-center justify-center cursor-pointer shadow-xs transition-colors shrink-0"
+                    className="w-8 h-8 rounded-xl bg-black/20 hover:bg-black/35 text-white flex items-center justify-center cursor-pointer shadow-xs transition-colors shrink-0"
                     title="Increase"
                   >
-                    <Plus size={12} className="stroke-[3]" />
+                    <Plus size={14} className="stroke-[3]" />
                   </motion.button>
                 </motion.div>
               )}
@@ -2560,30 +2646,29 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
   if (picks.length === 0) return null;
   
   return (
-    <div className="mb-6">
-      <div className="flex justify-between items-end px-4 mb-3">
-        <h2 className="text-[17px] font-semibold text-slate-900 dark:text-white">{title}</h2>
+    <div className="mb-8">
+      <div className="flex justify-between items-center px-4 mb-3.5">
+        <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">{title}</h2>
         <button 
           onClick={onSeeAll}
-          className="bg-yellow-400 hover:bg-yellow-500 text-black text-[10px] font-bold px-2.5 py-1 rounded-full transition-colors active:scale-95"
+          className="bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black px-3 py-1.5 rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
         >
           See all
         </button>
       </div>
       
-      <div className="pl-4 overflow-x-auto no-scrollbar pb-4 pt-1 -mt-1">
-        <div className="flex gap-4 min-w-max pr-4">
-          {picks.map((item, idx) => (
-            <TopPickCard 
-              key={item.id || idx} 
-              item={item} 
-              onSelect={onSelectItem} 
-              onQuickAdd={onQuickAdd}
-              isFavorite={favorites.includes(item.id)}
-              onToggleFavorite={onToggleFavorite}
-            />
-          ))}
-        </div>
+      {/* 1 Product Card Per Column */}
+      <div className="px-4 space-y-4">
+        {picks.map((item, idx) => (
+          <TopPickCard 
+            key={item.id || idx} 
+            item={item} 
+            onSelect={onSelectItem} 
+            onQuickAdd={onQuickAdd}
+            isFavorite={favorites?.includes(item.id)}
+            onToggleFavorite={onToggleFavorite}
+          />
+        ))}
       </div>
     </div>
   );
@@ -6871,18 +6956,25 @@ function PaystackFallbackModal() {
 // ============================================================
 // CHECKOUT MODAL
 // ============================================================
-function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress, wallet, onRefreshWallet }) {
+function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress, wallet, onRefreshWallet, onChangeAddress }) {
   const { cart, subtotal, clearCart } = useCart();
   const { user, silentRegister, updateUser } = useAuth();
   const { isDark } = useTheme();
   const toast = useToast();
   const paymentMethod = 'paystack';
-  const [promoCode, setPromoCode] = useState('');
+  const [promoCode, setPromoCode] = useState(() => {
+    try {
+      return localStorage.getItem('fmx_active_promo') || '';
+    } catch {
+      return '';
+    }
+  });
   const [discount, setDiscount] = useState(0);
   const [freeDelivery, setFreeDelivery] = useState(false);
   const [instructions, setInstructions] = useState('');
   const [loading, setLoading] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(true);
   const [paystackConfig, setPaystackConfig] = useState(() => getStoredPaystackConfig());
   const [paystackKey, setPaystackKey] = useState(() => getStoredPaystackConfig().publicKey || '');
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -7201,182 +7293,160 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: '100%', opacity: 0.3, transition: { duration: 0.2, ease: 'easeIn' } }}
         transition={{ type: 'spring', damping: 30, stiffness: 320, mass: 0.85 }}
-        className={`w-full max-w-lg md:max-w-xl h-full min-h-[100dvh] sm:min-h-0 sm:h-[88vh] sm:max-h-[88vh] ${
-          isDark ? 'bg-[#121418] text-white border-white/10' : 'bg-[#FAFAFB] text-slate-900 border-slate-200'
-        } rounded-none sm:rounded-[32px] sm:border relative flex flex-col shadow-2xl overflow-hidden`}
+        className={`w-full max-w-md sm:max-w-lg h-full min-h-[100dvh] sm:min-h-0 sm:h-[90vh] sm:max-h-[92vh] ${
+          isDark ? 'bg-[#0F1117] text-white border-white/10' : 'bg-[#F7F8FA] text-slate-900 border-slate-200'
+        } rounded-none sm:rounded-[36px] sm:border relative flex flex-col shadow-2xl overflow-hidden`}
         onClick={e => e.stopPropagation()}
       >
         {/* Mobile touch grab handle */}
-        <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mt-2.5 mb-1 shrink-0 sm:hidden" />
+        <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mt-2.5 mb-0.5 shrink-0 sm:hidden" />
 
-        {/* Clean Header */}
-        <div className={`shrink-0 ${isDark ? 'bg-[#121418] border-white/10' : 'bg-white border-slate-100'} px-5 py-4 border-b flex items-center justify-between z-10`}>
+        {/* Top Header matching exact screenshot */}
+        <div className={`shrink-0 px-4 sm:px-6 pt-3 sm:pt-5 pb-3 flex items-center justify-between z-10 ${
+          isDark ? 'bg-[#0F1117]' : 'bg-[#F7F8FA]'
+        }`}>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => { triggerHaptic('selection'); onClose(); }}
-              className={`w-9 h-9 rounded-full ${isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} flex items-center justify-center active:scale-90 transition-transform cursor-pointer`}
+              className="w-11 h-11 rounded-full bg-white dark:bg-white/10 shadow-sm border border-slate-100 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-white/15 active:scale-95 transition-all cursor-pointer"
               title="Back"
             >
-              <ChevronLeft size={20} className="stroke-[2.5]" />
+              <ChevronLeft size={22} className="stroke-[2.5]" />
             </button>
-            <h2 className="font-bold text-base text-slate-900 dark:text-white leading-tight">Checkout</h2>
+            <div>
+              <h2 className="font-bold text-xl sm:text-2xl text-slate-900 dark:text-white leading-tight tracking-tight">Checkout</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">Review your details and place your order</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <img
-              src="/foodmaxx-logo.png"
-              alt="FoodMaxx"
-              className="w-7 h-7 rounded-xl object-cover shadow-xs border border-black/10 dark:border-white/10 shrink-0"
-            />
-            <span className="text-xs font-black tracking-tight text-slate-900 dark:text-white uppercase">FoodMaxx</span>
+
+          {/* Red FoodMaxx App Badge matching mockup */}
+          <div className="w-12 h-12 rounded-2xl bg-[#EA2A2A] shadow-md shadow-red-500/20 flex flex-col items-center justify-center p-1.5 shrink-0 border border-white/20 select-none">
+            <span className="text-[9px] font-black text-white leading-none tracking-wider uppercase">FOOD</span>
+            <span className="text-[10px] font-black text-white leading-tight tracking-tight uppercase">MAXX</span>
           </div>
         </div>
 
         {/* Scrollable Form Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-3.5">
-          
-          {/* 1. Delivery Destination */}
-          <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#181B22] border-white/5' : 'bg-white border-slate-100 shadow-sm'} space-y-2.5`}>
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-900 dark:text-white">
-              <MapPin size={15} className="text-[#EA4C2A]" />
-              <span>Delivery Address</span>
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-2 space-y-4">
+
+          {/* CARD 1: Delivery Address */}
+          <div className={`p-4 sm:p-5 rounded-3xl border transition-all ${
+            isDark ? 'bg-[#151821] border-white/8' : 'bg-white border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
+                  <MapPin size={18} className="text-[#EA4C2A]" />
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">Delivery Address</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('selection');
+                  if (onChangeAddress) {
+                    onChangeAddress();
+                  } else {
+                    toast('Select or update your delivery address', 'info');
+                  }
+                }}
+                className="text-xs font-semibold text-[#EA4C2A] hover:underline flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>Change</span>
+                <ChevronRight size={14} className="stroke-[2.5]" />
+              </button>
             </div>
-            <p className="text-xs text-gray-700 dark:text-gray-300 font-medium">
-              {selectedAddress ? `${selectedAddress.label}: ${selectedAddress.address}` : (selectedZone?.name || 'Selected Location')}
-            </p>
-            <input
-              type="text"
-              placeholder="Landmark (e.g. Opposite Zenith Bank ATM, Green gate)..."
-              value={landmark}
-              onChange={e => setLandmark(e.target.value)}
-              className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium ${
-                isDark ? 'bg-white/5 border-white/10 text-white placeholder:text-gray-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-gray-400'
-              }`}
-            />
+
+            {/* Address Text */}
+            <div className="mt-2.5 ml-13">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                {selectedAddress ? `${selectedAddress.label}: ${selectedAddress.address}` : (selectedZone?.name ? `${selectedZone.name}, Ibadan` : 'Bodija, Ibadan')}
+              </p>
+            </div>
+
+            {/* Landmark Pill Input matching screenshot */}
+            <div className={`mt-3.5 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all ${
+              isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-100/70 border-slate-200/50 text-slate-800'
+            }`}>
+              <FileText size={16} className="text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Add a landmark (optional)"
+                value={landmark}
+                onChange={e => setLandmark(e.target.value)}
+                className="w-full text-xs font-medium placeholder:text-slate-400 bg-transparent outline-none"
+              />
+            </div>
           </div>
 
-          {/* 2. Contact Details */}
-          <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#181B22] border-white/5' : 'bg-white border-slate-100 shadow-sm'} space-y-2.5`}>
+          {/* CARD 2: Contact Details */}
+          <div className={`p-4 sm:p-5 rounded-3xl border transition-all ${
+            isDark ? 'bg-[#151821] border-white/8' : 'bg-white border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
+          }`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-900 dark:text-white">
-                <User size={15} className="text-[#EA4C2A]" />
-                <span>Contact Details</span>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
+                  <User size={18} className="text-[#EA4C2A]" />
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">Contact Details</span>
               </div>
-              {user && !isEditingContact && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditingContact(true)}
-                  className="text-xs text-[#EA4C2A] font-semibold hover:underline cursor-pointer"
-                >
-                  Edit
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('selection');
+                  setIsEditingContact(prev => !prev);
+                }}
+                className="text-xs font-semibold text-[#EA4C2A] hover:underline flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>{isEditingContact ? 'Done' : 'Edit'}</span>
+                <ChevronRight size={14} className="stroke-[2.5]" />
+              </button>
             </div>
 
-            {user && !isEditingContact ? (
-              <div className="flex items-center justify-between bg-slate-50 dark:bg-white/5 p-2.5 rounded-xl text-xs">
-                <div>
-                  <div className="font-semibold text-slate-900 dark:text-white">{user.full_name}</div>
-                  <div className="text-gray-400 text-[11px]">{user.phone || 'No phone'}</div>
-                </div>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                  Saved
-                </span>
+            {!isEditingContact ? (
+              <div className="mt-2.5 ml-13">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                  {contactName.trim() || user?.full_name || 'FoodMaxx Super Admin'}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                  {contactPhone.trim() || user?.phone || '+234 802 345 6789'}
+                </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="mt-3.5 ml-13 space-y-2">
                 <input
                   type="text"
-                  placeholder="Full Name *"
+                  placeholder="Full Name"
                   value={contactName}
                   onChange={e => setContactName(e.target.value)}
                   className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium ${
                     isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
                   }`}
-                  required
                 />
                 <input
                   type="tel"
-                  placeholder="Phone Number (for Courier Rider) *"
+                  placeholder="Phone Number"
                   value={contactPhone}
                   onChange={e => setContactPhone(e.target.value)}
                   className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium ${
                     isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
                   }`}
-                  required
                 />
-                {isEditingContact && user && (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingContact(false)}
-                      className="text-xs text-gray-500 hover:text-gray-700 font-semibold cursor-pointer"
-                    >
-                      Done
-                    </button>
-                  </div>
-                )}
               </div>
             )}
           </div>
 
-          {/* 3. Payment Channel (Paystack Only) */}
-          <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#181B22] border-white/5' : 'bg-white border-slate-100 shadow-sm'} space-y-2.5`}>
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-900 dark:text-white">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={16} className="text-[#EA4C2A]" />
-                <span>Payment Channel</span>
-              </div>
-              <span className="text-[10px] font-bold text-[#EA4C2A] bg-[#EA4C2A]/10 dark:bg-[#EA4C2A]/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                <Lock size={10} />
-                Paystack Verified
-              </span>
-            </div>
-
-            {/* Paystack Primary Channel Card */}
-            <div className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-              isDark
-                ? 'border-[#EA4C2A]/40 bg-[#EA4C2A]/10 text-white'
-                : 'border-[#EA4C2A]/30 bg-gradient-to-r from-orange-50/70 via-white to-amber-50/30 text-slate-900 shadow-2xs'
-            }`}>
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#EA4C2A] to-[#D43D1D] text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm shadow-[#EA4C2A]/20">
-                  ⚡
+          {/* CARD 3: Payment Method */}
+          <div className={`p-4 sm:p-5 rounded-3xl border transition-all ${
+            isDark ? 'bg-[#151821] border-white/8' : 'bg-white border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
+                  <CreditCard size={18} className="text-[#EA4C2A]" />
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-900 dark:text-white">
-                      Paystack Secure Checkout
-                    </span>
-                    {isValidPaystackKey(paystackKey) ? (
-                      <span className="text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        Live Active
-                      </span>
-                    ) : (
-                      <span className="text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Demo Test Active
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-                    {isValidPaystackKey(paystackKey)
-                      ? 'Live Gateway · Debit Cards, Direct Bank Transfer & USSD'
-                      : 'Test Mode Active · Cards, Bank Transfer & USSD ready to test'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="w-5 h-5 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center shrink-0">
-                <Check size={12} className="stroke-[3]" />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-[10.5px] text-gray-400 dark:text-gray-500 px-1 pt-0.5">
-              <div className="flex items-center gap-1.5">
-                <Lock size={11} className="text-emerald-500 shrink-0" />
-                <span>100% Encrypted & processed directly via Paystack</span>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">Payment Method</span>
               </div>
               <button
                 type="button"
@@ -7384,138 +7454,167 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                   setKeyInput(paystackKey || '');
                   setShowKeyModal(true);
                 }}
-                className="text-[11px] font-semibold text-[#EA4C2A] hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-[11px] font-semibold text-slate-400 hover:text-[#EA4C2A] flex items-center gap-1 cursor-pointer"
+                title="Configure Paystack Key"
               >
-                <Key size={11} />
-                <span>{isValidPaystackKey(paystackKey) ? 'Live Key (Edit)' : 'Configure Live Key'}</span>
+                <Key size={12} />
+                <span>{isValidPaystackKey(paystackKey) ? 'Live' : 'Test Mode'}</span>
               </button>
+            </div>
+
+            {/* Highlighted Paystack Option matching screenshot */}
+            <div
+              onClick={() => triggerHaptic('selection')}
+              className="mt-3 p-3.5 sm:p-4 bg-rose-50/50 dark:bg-rose-950/20 border-2 border-rose-300 dark:border-rose-800/60 rounded-2xl flex items-center justify-between cursor-pointer transition-all hover:bg-rose-50/70"
+            >
+              <div className="flex items-center gap-3.5">
+                {/* Red Radio Dot */}
+                <div className="w-5 h-5 rounded-full border-2 border-[#EA4C2A] flex items-center justify-center shrink-0">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#EA4C2A]" />
+                </div>
+                {/* Paystack Cyan Icon */}
+                <div className="flex flex-col gap-[3px] shrink-0 justify-center">
+                  <div className="h-[2.5px] w-5 bg-[#00C3F7] rounded-full" />
+                  <div className="h-[2.5px] w-3.5 bg-[#00C3F7] rounded-full" />
+                  <div className="h-[2.5px] w-5 bg-[#00C3F7] rounded-full" />
+                  <div className="h-[2.5px] w-2.5 bg-[#00C3F7] rounded-full" />
+                </div>
+                {/* Pay with Paystack Text */}
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
+                  Pay with Paystack
+                </span>
+              </div>
+              <ChevronRight size={18} className="text-slate-400 shrink-0" />
             </div>
           </div>
 
-          {/* 4. Promo Code */}
-          <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#181B22] border-white/5' : 'bg-white border-slate-100 shadow-sm'}`}>
-            <div className="flex gap-2">
-              <input
-                className={`flex-1 px-3 py-2 rounded-xl text-xs uppercase font-bold border outline-none ${
-                  isDark ? 'bg-white/5 border-white/10 text-white placeholder:text-gray-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-gray-400'
-                }`}
-                placeholder="PROMO CODE"
-                value={promoCode}
-                onChange={e => setPromoCode(e.target.value.toUpperCase())}
-              />
+          {/* CARD 4: Order Summary (Collapsible) */}
+          <div className={`p-4 sm:p-5 rounded-3xl border transition-all ${
+            isDark ? 'bg-[#151821] border-white/8' : 'bg-white border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
+          }`}>
+            <div 
+              className="flex items-center justify-between cursor-pointer select-none"
+              onClick={() => {
+                triggerHaptic('selection');
+                setIsSummaryOpen(prev => !prev);
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
+                  <ShoppingBag size={18} className="text-[#EA4C2A]" />
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">Order Summary</span>
+              </div>
               <button
                 type="button"
-                onClick={() => { triggerHaptic('selection'); applyPromo(); }}
-                disabled={promoLoading || !promoCode}
-                className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43D1D] text-white rounded-xl font-semibold text-xs disabled:opacity-50 cursor-pointer active:scale-95"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                title={isSummaryOpen ? 'Collapse' : 'Expand'}
               >
-                {promoLoading ? '...' : 'Apply'}
+                {isSummaryOpen ? (
+                  <ChevronUp size={20} className="stroke-[2.5]" />
+                ) : (
+                  <ChevronDown size={20} className="stroke-[2.5]" />
+                )}
               </button>
             </div>
-          </div>
 
-          {/* 5. FoodMaxx Wallet Welcome Bonus Perk Card */}
-          {rawWalletBalance > 0 && (
-            <div className={`p-4 rounded-2xl border transition-all ${
-              useWalletBonus
-                ? (isDark ? 'bg-emerald-950/25 border-emerald-500/40 text-white shadow-sm' : 'bg-emerald-50/80 border-emerald-300 text-slate-900 shadow-xs')
-                : (isDark ? 'bg-[#181B22] border-white/5 opacity-70' : 'bg-white border-slate-200 opacity-70')
-            }`}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-sm shadow-emerald-500/20">
-                    🎁
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold">FoodMaxx Welcome Wallet</span>
-                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                        {fmt(rawWalletBalance)} Avail.
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-                      {useWalletBonus
-                        ? `Applying ${fmt(walletDeduction)} discount to this order!`
-                        : 'Tap toggle to apply welcome bonus to this order'}
-                    </p>
-                  </div>
+            {/* Collapsible content matching screenshot */}
+            {isSummaryOpen && (
+              <div className="mt-4 space-y-2.5">
+                <div className="flex justify-between items-center text-xs sm:text-sm">
+                  <span className="text-slate-500 dark:text-slate-400 font-normal">Subtotal</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{fmt(subtotal)}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs sm:text-sm">
+                  <span className="text-slate-500 dark:text-slate-400 font-normal">Delivery Fee</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {freeDelivery ? 'FREE' : fmt(deliveryFee)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs sm:text-sm">
+                  <span className="text-slate-500 dark:text-slate-400 font-normal">Estimated Tax</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{fmt(serviceFee)}</span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setUseWalletBonus(prev => !prev)}
-                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer shrink-0 ${
-                    useWalletBonus ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'
-                  }`}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                    useWalletBonus ? 'translate-x-5' : 'translate-x-0'
-                  }`} />
-                </button>
-              </div>
-            </div>
-          )}
+                {discount > 0 && (
+                  <div className="flex justify-between items-center text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <span>Promo Discount ({promoCode})</span>
+                    <span>−{fmt(discount)}</span>
+                  </div>
+                )}
 
-          {/* 6. Order Bill Breakdown */}
-          <div className={`p-4 rounded-2xl border space-y-2 ${isDark ? 'bg-[#181B22] border-white/5' : 'bg-white border-slate-100 shadow-sm'}`}>
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 font-medium">
-              <span>Items Subtotal</span>
-              <span className="font-semibold text-slate-900 dark:text-white">{fmt(subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 font-medium">
-              <span>Delivery Fee</span>
-              <span className="font-semibold text-slate-900 dark:text-white">
-                {freeDelivery ? 'FREE' : fmt(deliveryFee)}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 font-medium">
-              <span>Service Fee</span>
-              <span className="font-semibold text-slate-900 dark:text-white">{fmt(serviceFee)}</span>
-            </div>
-            {discount > 0 && (
-              <div className="flex justify-between text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-                <span>Promo Discount</span>
-                <span>−{fmt(discount)}</span>
+                {walletDeduction > 0 && (
+                  <div className="flex justify-between items-center text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <span>Wallet Perk Bonus</span>
+                    <span>−{fmt(walletDeduction)}</span>
+                  </div>
+                )}
+
+                {/* Promo Code Input */}
+                <div className="pt-1.5 flex gap-2">
+                  <input
+                    className={`flex-1 px-3 py-1.5 rounded-xl text-xs uppercase font-bold border outline-none ${
+                      isDark ? 'bg-white/5 border-white/10 text-white placeholder:text-gray-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-gray-400'
+                    }`}
+                    placeholder="PROMO CODE (e.g. WIN20)"
+                    value={promoCode}
+                    onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { triggerHaptic('selection'); applyPromo(); }}
+                    disabled={promoLoading || !promoCode}
+                    className="px-3.5 py-1.5 bg-[#EA4C2A] hover:bg-[#D43D1D] text-white rounded-xl font-semibold text-xs disabled:opacity-50 cursor-pointer active:scale-95"
+                  >
+                    {promoLoading ? '...' : 'Apply'}
+                  </button>
+                </div>
+
+                <div className="border-t border-slate-100 dark:border-white/10 pt-3 flex justify-between items-center">
+                  <span className="text-base font-bold text-slate-900 dark:text-white">Total</span>
+                  <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{fmt(total)}</span>
+                </div>
               </div>
             )}
-            {walletDeduction > 0 && (
-              <div className="flex justify-between text-xs text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 dark:bg-emerald-500/20 px-2.5 py-1.5 rounded-xl border border-emerald-500/20">
-                <span className="flex items-center gap-1.5">
-                  <Gift size={13} />
-                  <span>Wallet Bonus Perk</span>
-                </span>
-                <span>−{fmt(walletDeduction)}</span>
-              </div>
-            )}
-            <div className="border-t border-slate-100 dark:border-white/10 pt-2.5 flex justify-between items-center font-bold text-sm">
-              <span className="text-slate-900 dark:text-white">Total</span>
-              <span className="text-base text-[#EA4C2A]">{fmt(total)}</span>
-            </div>
           </div>
+
+          {/* Bottom spacer for comfortable scrolling above sticky dock */}
+          <div className="h-2" />
         </div>
 
-        {/* Sticky Pinned Bottom Button */}
-        <div className={`shrink-0 p-4 border-t ${isDark ? 'bg-[#121418] border-white/10' : 'bg-white border-slate-100'} pb-[max(1rem,env(safe-area-inset-bottom,1rem))]`}>
+        {/* STICKY BOTTOM DOCK MATCHING SCREENSHOT */}
+        <div className={`shrink-0 p-4 sm:p-5 border-t ${
+          isDark ? 'bg-[#151821] border-white/10' : 'bg-white border-slate-100'
+        } rounded-t-[28px] sm:rounded-t-[32px] shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.08)] flex items-center justify-between gap-4 z-20 pb-[max(1rem,env(safe-area-inset-bottom,1rem))]`}>
+          <div className="min-w-0">
+            <div className="text-[11px] text-slate-400 font-medium leading-none">Total</div>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-1">
+              {fmt(total)}
+            </div>
+          </div>
+
+          <div className="h-9 w-[1px] bg-slate-200 dark:bg-white/10 mx-1 shrink-0" />
+
           <button
             type="button"
             onClick={() => { triggerHaptic('medium'); placeOrder(); }}
             disabled={loading || cart.items.length === 0}
-            className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-white shadow-lg shadow-[#EA4C2A]/25 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer transition-all bg-[#EA4C2A] hover:bg-[#D43D1D]"
+            className="flex-1 py-3.5 sm:py-4 px-6 bg-[#EA2A2A] hover:bg-[#D42222] active:scale-[0.98] text-white font-bold text-sm sm:text-base rounded-2xl shadow-lg shadow-red-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
           >
             {loading ? (
               <>
-                <RefreshCw size={17} className="animate-spin" />
-                <span>{total === 0 ? 'Processing Wallet Order...' : 'Opening Paystack...'}</span>
+                <RefreshCw size={18} className="animate-spin" />
+                <span>{total === 0 ? 'Processing Order...' : 'Opening Paystack...'}</span>
               </>
             ) : total === 0 ? (
               <>
-                <Gift size={17} />
-                <span>🎁 Complete Order with Wallet (₦0 to Pay)</span>
+                <Gift size={18} />
+                <span>Complete Order with Wallet</span>
               </>
             ) : (
               <>
-                <Lock size={16} />
-                <span>Pay with Paystack · {fmt(total)}</span>
+                <span>Pay with Paystack</span>
+                <ArrowRight size={18} className="stroke-[2.5]" />
               </>
             )}
           </button>

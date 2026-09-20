@@ -5,8 +5,8 @@ const db = require('../config/database');
 const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
-const PAYSTACK_TEST_PUBLIC_KEY = process.env.PAYSTACK_PUBLIC_KEY || 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a';
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || '';
+const PAYSTACK_TEST_PUBLIC_KEY = process.env.PAYSTACK_PUBLIC_KEY || 'pk_test_0d51ae7f44721724cc8375bb68e04b306ef70928';
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || 'sk_test_5f0249d6c974334aa4e01ea641f6af994d21e7e6';
 
 // GET /api/payments/config - Return active Paystack gateway configuration
 router.get('/config', (req, res) => {

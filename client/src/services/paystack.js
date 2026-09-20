@@ -1,7 +1,7 @@
 import PaystackPop from '@paystack/inline-js';
 
 // Environment or default Paystack configuration
-const FALLBACK_PAYSTACK_KEY = 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a';
+const FALLBACK_PAYSTACK_KEY = 'pk_test_0d51ae7f44721724cc8375bb68e04b306ef70928';
 const ENV_PAYSTACK_KEY = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) || '';
 const DEFAULT_PAYSTACK_KEY = ENV_PAYSTACK_KEY || FALLBACK_PAYSTACK_KEY;
 
@@ -50,11 +50,13 @@ export function getStoredPaystackConfig() {
   try {
     const stored = localStorage.getItem('fmx_paystack_config');
     if (stored) {
-      const parsed = JSON.parse(stored);
-      const activeKey = (parsed.publicKey || ENV_PAYSTACK_KEY || DEFAULT_PAYSTACK_KEY).trim();
+      let activeKey = (parsed.publicKey || ENV_PAYSTACK_KEY || DEFAULT_PAYSTACK_KEY).trim();
+      if (activeKey === 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a') {
+        activeKey = DEFAULT_PAYSTACK_KEY;
+      }
       return {
         publicKey: activeKey,
-        secretKey: parsed.secretKey || '',
+        secretKey: parsed.secretKey || 'sk_test_5f0249d6c974334aa4e01ea641f6af994d21e7e6',
         isLive: parsed.isLive !== undefined ? parsed.isLive : activeKey.startsWith('pk_live_'),
         currency: parsed.currency || 'NGN'
       };
