@@ -1,0 +1,26 @@
+{
+  "folders": [
+    {
+      "name": "🍔 FoodMaxx (Root)",
+      "path": "."
+    },
+    {
+      "name": "📱 Client (React + Vite)",
+      "path": "client"
+    },
+    {
+      "name": "🔌 Server (Express + WebSocket)",
+      "path": "server"
+    }
+  ],
+  "settings": {
+    "editor.formatOnSave": true,
+    "editor.tabSize": 2,
+    "files.exclude": {
+      "**/.git": true,
+      "**/.DS_Store": true,
+      "**/node_modules": false
+    },
+    "terminal.integrated.defaultProfile.windows": "PowerShell"
+  }
+}

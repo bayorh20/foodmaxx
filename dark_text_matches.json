@@ -1,0 +1,167 @@
+[
+  {
+    "lineNum": 2172,
+    "text": "className=\"bg-yellow-400 hover:bg-yellow-500 text-black text-[10px] font-bold px-2.5 py-1 rounded-full transition-colors active:scale-95\"",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 3385,
+    "text": "className=\"bg-yellow-400 hover:bg-yellow-500 text-slate-900 px-3.5 py-1.5 rounded-xl font-semibold text-xs border border-black shadow-[1.5px_1.5px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer transition-all\"",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 3621,
+    "text": ": 'border-slate-100 bg-white hover:border-slate-300 text-slate-900 shadow-sm'",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 3667,
+    "text": ": 'border-slate-100 bg-white hover:border-slate-300 text-slate-800 shadow-sm'",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 3785,
+    "text": ": 'bg-gray-100 text-gray-800 rounded-bl-xs'",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 4152,
+    "text": ": 'bg-white border-amber-300/80 text-gray-900'",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 4241,
+    "text": "<h2 className=\"font-semibold text-sm text-gray-900 truncate leading-tight\">{r.name}</h2>",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 4305,
+    "text": "className=\"flex-1 bg-transparent text-xs text-gray-800 focus:outline-hidden placeholder-gray-400\"",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 4381,
+    "text": "className={`flex-1 py-2.5 text-xs font-medium capitalize transition-all relative ${activeTab === t ? 'text-red-600' : 'text-gray-500 hover:text-gray-800'}`}",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 4434,
+    "text": "<span className=\"font-semibold text-xs text-gray-800 uppercase tracking-wider\">{cat.category}</span>",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 4462,
+    "text": "<div className=\"text-3xl font-bold text-gray-900\">{r.rating}</div>",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 4486,
+    "text": "<div className=\"font-bold text-xs text-gray-900\">{rev.customer_name}</div>",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 4870,
+    "text": "<h3 className=\"font-semibold text-sm text-gray-800 flex items-center gap-1.5\">",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 4953,
+    "text": "<div className=\"font-semibold text-xs text-gray-900 flex items-center gap-1\">",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 4960,
+    "text": "<span className=\"font-bold text-xs text-gray-800\">{fmt(partTotal)}</span>",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 4970,
+    "text": "<span className=\"font-bold text-gray-900\">{it.qty}x </span>",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 6735,
+    "text": ": 'border-[#EA4C2A]/30 bg-gradient-to-r from-orange-50/70 via-white to-amber-50/30 text-slate-900 shadow-2xs'",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 8881,
+    "text": "<div className=\"font-bold text-gray-900 text-lg\">{deliveryOffer.order?.items_count}</div>",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 10858,
+    "text": "<div className=\"bg-white text-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 relative animate-scale-up font-mono\">",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 10892,
+    "text": "<span className=\"font-bold text-gray-900\">{order.delivery_zone || 'Bodija'}</span>",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 12096,
+    "text": "className=\"w-full bg-amber-400 hover:bg-amber-500 text-slate-900 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-98\"",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 12320,
+    "text": "<span className=\"bg-amber-400 text-slate-950 text-[10px] px-1.5 py-0.5 rounded-full font-bold\">",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 12430,
+    "text": "<span className=\"bg-amber-400 text-slate-950 text-[10px] px-1.5 py-0.5 rounded-full font-bold\">",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 12904,
+    "text": "<span className=\"bg-amber-500 text-slate-950 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full animate-pulse shadow-md shadow-amber-500/30\">",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 13063,
+    "text": "className=\"px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-slate-950 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1\"",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 13778,
+    "text": "className=\"w-full py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black rounded-xl text-xs shadow-md transition-transform active:scale-98 cursor-pointer flex items-center justify-center gap-1.5\"",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 14283,
+    "text": "className=\"px-4 py-2 bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-slate-900 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-md shadow-yellow-500/30 flex items-center gap-1.5\"",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 14779,
+    "text": "<span className=\"absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-amber-500 text-slate-900 text-[10px] font-semibold uppercase tracking-wider\">",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 15161,
+    "text": "className=\"px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md shadow-amber-500/20 shrink-0 flex items-center gap-1\"",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 15887,
+    "text": "rainSurgeActive ? 'bg-amber-400 text-slate-950 font-bold' : 'bg-[#1A1C23] text-slate-400'",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 15903,
+    "text": "? 'bg-amber-500 hover:bg-amber-600 text-slate-950'",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 16015,
+    "text": "? 'bg-amber-500 text-slate-950 shadow-sm'",
+    "hasDarkVariant": false
+  },
+  {
+    "lineNum": 16076,
+    "text": "className=\"w-full mt-2.5 py-1.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/30 font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer\"",
+    "hasDarkVariant": false
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "name": "foodmaxx",
+  "version": "1.0.0",
+  "description": "FoodMaxx — Full Food Delivery Platform (Nigerian Market)",
+  "private": true,
+  "scripts": {
+    "dev:server": "node server/src/server.js",
+    "dev:client": "npm --prefix client run dev",
+    "build:client": "npm --prefix client run build",
+    "start": "node server/src/server.js"
+  },
+  "keywords": [
+    "food-delivery",
+    "nigeria",
+    "react",
+    "express",
+    "websocket"
+  ],
+  "author": "FoodMaxx Team",
+  "license": "ISC"
+}

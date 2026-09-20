@@ -1,0 +1,89 @@
+{
+  "id": "/",
+  "name": "FoodMaxx - Hot Chow & Gourmet Grills",
+  "short_name": "FoodMaxx",
+  "description": "Ibadan's premier kitchen for hot firewood party jollof, amala specials, gourmet shawarma and grilled turkey delivered in minutes.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay", "minimal-ui"],
+  "orientation": "portrait",
+  "theme_color": "#EA4C2A",
+  "background_color": "#0D0F14",
+  "prefer_related_applications": false,
+  "categories": [
+    "food",
+    "lifestyle",
+    "shopping"
+  ],
+  "icons": [
+    {
+      "src": "/foodmaxx-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/foodmaxx-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/foodmaxx-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/foodmaxx-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/app-icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "View Menu",
+      "short_name": "Menu",
+      "description": "Browse today's hot dishes",
+      "url": "/?tab=menu",
+      "icons": [
+        {
+          "src": "/foodmaxx-logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My Orders",
+      "short_name": "Orders",
+      "description": "Track live food deliveries",
+      "url": "/?tab=orders",
+      "icons": [
+        {
+          "src": "/foodmaxx-logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Admin Portal",
+      "short_name": "Admin",
+      "description": "FoodMaxx Kitchen Admin Console",
+      "url": "/admin",
+      "icons": [
+        {
+          "src": "/foodmaxx-logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'admin@foodmaxx.ng' ||
+        request.auth.token.role == 'super_admin' ||
+        request.auth.token.role == 'admin'
+      );
+    }
+
+    // 1. Menu Items (Publicly browsable, managed by admin / store staff)
+    match /menu_items/{itemId} {
+      allow read: if true;
+      allow create, update: if (
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.price is number &&
+        request.resource.data.price >= 0
+      );
+      allow delete: if true;
+    }
+
+    // 1b. Add-ons & Extras
+    match /addons/{addonId} {
+      allow read: if true;
+      allow write: if (
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.price is number &&
+        request.resource.data.price >= 0
+      );
+      allow delete: if true;
+    }
+
+    // 1c. Categories (Food categories, icons, ordering)
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if true;
+      allow delete: if true;
+    }
+
+    // 2. Delivery Zones (Coverage, delivery fees, time estimates)
+    match /delivery_zones/{zoneId} {
+      allow read: if true;
+      allow write: if (
+        request.resource.data.name is string &&
+        request.resource.data.delivery_fee is number &&
+        request.resource.data.delivery_fee >= 0
+      );
+      allow delete: if true;
+    }
+
+    // 3. Promotions & Discounts
+    match /promotions/{promoId} {
+      allow read: if true;
+      allow write: if (
+        request.resource.data.code is string &&
+        request.resource.data.code.size() > 0
+      );
+      allow delete: if true;
+    }
+
+    // 4. Orders (Customers, Kitchen Display & Admin real-time workflow)
+    match /orders/{orderId} {
+      allow read: if true;
+      allow create: if (
+        request.resource.data.total is number &&
+        request.resource.data.total >= 0
+      );
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // 5. Riders & Fleet
+    match /riders/{riderId} {
+      allow read: if true;
+      allow write: if true;
+      allow delete: if true;
+    }
+
+    // 6. Settings & Store Info (Kitchen status, open/closed, announcements)
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 7. Wallets & Balance
+    match /wallets/{userId} {
+      allow read: if true;
+      allow create, update: if (
+        request.resource.data.balance is number &&
+        request.resource.data.balance >= 0
+      );
+      allow delete: if true;
+    }
+
+    // 8. Reviews
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create, update: if (
+        request.resource.data.rating is number &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5
+      );
+      allow delete: if true;
+    }
+
+    // 9. Users & Customers
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
+    }
+
+    // 10. Support Tickets (Live customer support & messaging)
+    match /support_tickets/{ticketId} {
+      allow read, write: if true;
+      allow delete: if true;
+    }
+
+    // 11. Settlements & Payouts
+    match /payouts/{payoutId} {
+      allow read, write: if true;
+      allow delete: if true;
+    }
+
+    // Default deny all other unspecified paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

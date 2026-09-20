@@ -1,0 +1,360 @@
+// FoodMaxx Production Menu Catalog & Regional Data
+// Primary Kitchen: 24 Awolowo Avenue, Old Bodija, Ibadan, Oyo State, Nigeria
+
+export const FOODMAXX_CATEGORIES = [
+  { id: 'cat_burgers', name: 'Burgers & Sandwiches', icon: '🍔', image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&auto=format&fit=crop&q=80', sort_order: 1 },
+  { id: 'cat_rice', name: 'Rice & Grains', icon: '🍚', image_url: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=200&auto=format&fit=crop&q=80', sort_order: 2 },
+  { id: 'cat_swallow', name: 'Swallows & Soups', icon: '🍲', image_url: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=200&auto=format&fit=crop&q=80', sort_order: 3 },
+  { id: 'cat_grills', name: 'Grills & Suya', icon: '🍗', image_url: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=200&auto=format&fit=crop&q=80', sort_order: 4 },
+  { id: 'cat_pasta', name: 'Pasta & Gourmet Bowls', icon: '🍝', image_url: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=200&auto=format&fit=crop&q=80', sort_order: 5 },
+  { id: 'cat_shawarma', name: 'Shawarma & Wraps', icon: '🌯', image_url: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=200&auto=format&fit=crop&q=80', sort_order: 6 },
+  { id: 'cat_dessert', name: 'Desserts & Chilled', icon: '🍨', image_url: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=200&auto=format&fit=crop&q=80', sort_order: 7 },
+  { id: 'cat_drinks', name: 'Drinks & Refreshers', icon: '🍹', image_url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=200&auto=format&fit=crop&q=80', sort_order: 8 }
+];
+
+export const FOODMAXX_ZONES = [
+  { id: 'zone_bodija', name: 'Bodija & Old Bodija', city: 'Ibadan', hub: 'Bodija Hub', delivery_fee: 500, min_order: 2000, estimated_delivery_time: '15–25 min', free_delivery_threshold: 10000, is_active: true },
+  { id: 'zone_uicampus', name: 'UI Campus & Agbowo', city: 'Ibadan', hub: 'Campus Hub', delivery_fee: 500, min_order: 1500, estimated_delivery_time: '15–25 min', free_delivery_threshold: 8000, is_active: true },
+  { id: 'zone_samonda', name: 'Samonda, Sango & Poly Ibadan', city: 'Ibadan', hub: 'North-West Hub', delivery_fee: 600, min_order: 2000, estimated_delivery_time: '20–30 min', free_delivery_threshold: 10000, is_active: true },
+  { id: 'zone_ikolaba', name: 'Ikolaba, Agodi GRA & Govt House', city: 'Ibadan', hub: 'Central GRA', delivery_fee: 700, min_order: 2500, estimated_delivery_time: '20–30 min', free_delivery_threshold: 12000, is_active: true },
+  { id: 'zone_mokola', name: 'Mokola & Cultural Centre', city: 'Ibadan', hub: 'Central Hub', delivery_fee: 600, min_order: 2000, estimated_delivery_time: '20–30 min', free_delivery_threshold: 10000, is_active: true },
+  { id: 'zone_dugbe', name: 'Dugbe & Cocoa House Commercial Hub', city: 'Ibadan', hub: 'Commercial Core', delivery_fee: 700, min_order: 2500, estimated_delivery_time: '25–35 min', free_delivery_threshold: 12000, is_active: true },
+  { id: 'zone_jericho', name: 'Jericho & Iyaganku GRA', city: 'Ibadan', hub: 'South-West GRA', delivery_fee: 800, min_order: 3000, estimated_delivery_time: '25–35 min', free_delivery_threshold: 12000, is_active: true },
+  { id: 'zone_ringroad', name: 'Ring Road, Osuntokun & Challenge', city: 'Ibadan', hub: 'Ring Road Corridor', delivery_fee: 900, min_order: 3000, estimated_delivery_time: '30–40 min', free_delivery_threshold: 15000, is_active: true },
+  { id: 'zone_oluyole', name: 'Oluyole Estate & Industrial Layout', city: 'Ibadan', hub: 'South Industrial', delivery_fee: 900, min_order: 3000, estimated_delivery_time: '30–40 min', free_delivery_threshold: 15000, is_active: true },
+  { id: 'zone_akobo', name: 'Akobo, General Gas & Oju-Irin', city: 'Ibadan', hub: 'East Corridor', delivery_fee: 1000, min_order: 3500, estimated_delivery_time: '35–45 min', free_delivery_threshold: 15000, is_active: true },
+  { id: 'zone_alakia', name: 'Alakia, Iwo Road & Airport Axis', city: 'Ibadan', hub: 'Airport Corridor', delivery_fee: 1200, min_order: 4000, estimated_delivery_time: '40–50 min', free_delivery_threshold: 18000, is_active: true },
+  { id: 'zone_eleyele', name: 'Eleyele, Ologuneru & NIHORT', city: 'Ibadan', hub: 'North-West Suburb', delivery_fee: 1000, min_order: 3500, estimated_delivery_time: '35–45 min', free_delivery_threshold: 15000, is_active: true },
+  { id: 'zone_ojoo', name: 'Ojoo & Moniya / Train Station Axis', city: 'Ibadan', hub: 'North Terminal', delivery_fee: 1200, min_order: 4000, estimated_delivery_time: '40–55 min', free_delivery_threshold: 18000, is_active: true },
+  { id: 'zone_apata', name: 'Apata & Odo-Ona Corridor', city: 'Ibadan', hub: 'Abeokuta Road', delivery_fee: 1100, min_order: 3500, estimated_delivery_time: '35–50 min', free_delivery_threshold: 16000, is_active: true }
+];
+
+export const FOODMAXX_MENU_ITEMS = [
+  {
+    id: 'fmx_cheeseburger',
+    name: 'Cheeseburger',
+    category: 'Burgers & Sandwiches',
+    description: 'Flame-grilled double beef patty, melted cheddar cheese, fresh crisp lettuce, ripe tomatoes, crunchy pickles, and house secret sauce on a toasted sesame brioche bun.',
+    price: 4500,
+    rating: 4.8,
+    reviews_count: '335+',
+    prep_time_min: 31,
+    badge: 'bestseller',
+    is_bestseller: true,
+    image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 80
+  },
+  {
+    id: 'fmx_bbq_bacon_burger',
+    name: 'BBQ Bacon Burger',
+    category: 'Burgers & Sandwiches',
+    description: 'Double beef patties, crispy caramelized bacon, smoky barbecue glaze, aged Monterey Jack cheese, and golden onion rings.',
+    price: 4800,
+    rating: 4.9,
+    reviews_count: '410+',
+    prep_time_min: 27,
+    badge: 'popular',
+    is_bestseller: true,
+    image_url: 'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 75
+  },
+  {
+    id: 'fmx_smoky_jollof',
+    name: 'Smoky Firewood Jollof & Asun',
+    category: 'Rice & Grains',
+    description: 'Authentic Nigerian party jollof cooked over slow firewood embers, served with spicy fire-roasted goat meat (Asun) and sweet fried plantain.',
+    price: 4800,
+    rating: 4.9,
+    reviews_count: '2.4k',
+    prep_time_min: 20,
+    badge: 'bestseller',
+    is_bestseller: true,
+    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 120
+  },
+  {
+    id: 'fmx_ofada_deluxe',
+    name: 'Ofada Rice & Ayamase Designer Stew',
+    category: 'Rice & Grains',
+    description: 'Heritage unpolished Ofada rice served in aromatic broad leaves with spicy green pepper bleaching sauce, assorted meats, boiled eggs, and iru.',
+    price: 5200,
+    rating: 4.9,
+    reviews_count: '1.6k',
+    prep_time_min: 25,
+    badge: 'chef_special',
+    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 80
+  },
+  {
+    id: 'fmx_fried_rice_turkey',
+    name: 'Golden Coconut Fried Rice & Glazed Turkey',
+    category: 'Rice & Grains',
+    description: 'Aromatic basmati stir-fried with sweet corn, carrots, liver cubes, and green peas, topped with a seasoned jumbo peppered turkey wing.',
+    price: 5500,
+    rating: 4.8,
+    reviews_count: '1.2k',
+    prep_time_min: 20,
+    badge: 'popular',
+    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 90
+  },
+  {
+    id: 'fmx_amala_special',
+    name: 'Amala Dudu & Abula Feast (Ogufe & Eja Kika)',
+    category: 'Swallows & Soups',
+    description: 'Soft fluffy hot Amala made from pure Oyo yam flour, swirled with yellow Gbegiri, fresh green Ewedu, and tender stewed goat meat (Ogufe).',
+    price: 4500,
+    rating: 5.0,
+    reviews_count: '3.1k',
+    prep_time_min: 20,
+    badge: 'bestseller',
+    is_bestseller: true,
+    image_url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 150
+  },
+  {
+    id: 'fmx_pounded_yam_egusi',
+    name: 'Iyan (Pounded Yam) & Rich Fisherman Egusi',
+    category: 'Swallows & Soups',
+    description: 'Silky pounded yam paired with slow-simmered hand-peeled Egusi soup loaded with smoked catfish, shredded stockfish, cow leg, and fresh ugwu.',
+    price: 4800,
+    rating: 4.8,
+    reviews_count: '980',
+    prep_time_min: 25,
+    badge: 'popular',
+    image_url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 75
+  },
+  {
+    id: 'fmx_turkey_wing',
+    name: 'Crispy Peppered Turkey Wing',
+    category: 'Grills & Suya',
+    description: 'Jumbo succulent turkey wing double-fried to golden crispness and tossed in authentic fiery habanero & bell pepper glaze.',
+    price: 2800,
+    rating: 4.9,
+    reviews_count: '1.4k',
+    prep_time_min: 15,
+    badge: 'bestseller',
+    image_url: 'https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 100
+  },
+  {
+    id: 'fmx_beef_suya',
+    name: 'Smoky Beef Suya Platter with Yaji',
+    category: 'Grills & Suya',
+    description: 'Thinly sliced boneless beef skewers marinated in crushed kuli-kuli spices, roasted over red-hot charcoal, garnished with onions and tomatoes.',
+    price: 3500,
+    rating: 4.9,
+    reviews_count: '2.1k',
+    prep_time_min: 15,
+    badge: 'popular',
+    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 110
+  },
+  {
+    id: 'fmx_asun_platter',
+    name: 'Spicy Fire-Roasted Asun Platter',
+    category: 'Grills & Suya',
+    description: 'Tender bite-sized goat meat seared over open fire and drenched in crushed rodo, garlic, and fresh green bell peppers.',
+    price: 4000,
+    rating: 4.9,
+    reviews_count: '1.8k',
+    prep_time_min: 20,
+    badge: 'chef_special',
+    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 85
+  },
+  {
+    id: 'fmx_truffle_pasta',
+    name: 'Truffle Alfredo Pasta Bowl',
+    category: 'Pasta & Gourmet Bowls',
+    description: 'Hand-tossed fettuccine in creamy white garlic alfredo sauce, sautéed button mushrooms, aged parmesan shavings, and aromatic truffle oil.',
+    price: 5200,
+    rating: 4.8,
+    reviews_count: '1.5k',
+    prep_time_min: 20,
+    badge: 'bestseller',
+    is_bestseller: true,
+    image_url: 'https://images.unsplash.com/photo-1621996346565-e3d5d6281223?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 95
+  },
+  {
+    id: 'fmx_pesto_pasta',
+    name: 'Creamy Basil Pesto & Grilled Chicken Bowl',
+    category: 'Pasta & Gourmet Bowls',
+    description: 'Italian penne enveloped in vibrant fresh basil pesto, blistered sweet cherry tomatoes, shaved pecorino, and chargrilled herb chicken strips.',
+    price: 4800,
+    rating: 4.7,
+    reviews_count: '760',
+    prep_time_min: 20,
+    badge: 'new',
+    is_new: true,
+    image_url: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 70
+  },
+  {
+    id: 'fmx_chicken_shawarma',
+    name: 'Double-Sausage Jumbo Chicken Shawarma',
+    category: 'Shawarma & Wraps',
+    description: 'Toasted pita flatbread wrapped with marinated chicken breast slices, two grilled beef sausages, crisp shredded cabbage, and signature sweet-spicy cream sauce.',
+    price: 3800,
+    rating: 4.9,
+    reviews_count: '2.8k',
+    prep_time_min: 15,
+    badge: 'bestseller',
+    is_bestseller: true,
+    image_url: 'https://images.unsplash.com/photo-1561651823-34feb02250e4?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 130
+  },
+  {
+    id: 'fmx_fried_dodo',
+    name: 'Crispy Sweet Golden Dodo',
+    category: 'Shawarma & Wraps',
+    description: 'Freshly cut ripe plantain cubes fried to a caramelized golden sheen. Sweet, savory, and satisfying.',
+    price: 1200,
+    rating: 4.9,
+    reviews_count: '3.1k',
+    prep_time_min: 10,
+    badge: 'popular',
+    image_url: 'https://images.unsplash.com/photo-1528736235302-52922df5c122?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 200
+  },
+  {
+    id: 'fmx_berry_parfait',
+    name: 'Greek Yogurt & Berry Bliss Parfait',
+    category: 'Desserts & Chilled',
+    description: 'Velvety unsweetened Greek yogurt layered with organic honey, crunchy almond granola, fresh strawberries, and wild blueberries.',
+    price: 3500,
+    rating: 4.8,
+    reviews_count: '1.3k',
+    prep_time_min: 10,
+    badge: 'popular',
+    image_url: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 90
+  },
+  {
+    id: 'fmx_triple_icecream',
+    name: 'Triple Scoop Artisan Gelato Bowl',
+    category: 'Desserts & Chilled',
+    description: 'Three creamy scoops of authentic Belgian dark chocolate, Madagascar vanilla bean, and ripe strawberry gelato with waffle crisps.',
+    price: 2500,
+    rating: 4.7,
+    reviews_count: '890',
+    prep_time_min: 5,
+    image_url: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 100
+  },
+  {
+    id: 'fmx_cold_chapman',
+    name: 'Authentic Bodija Chapman with Citrus',
+    category: 'Drinks & Refreshers',
+    description: 'Classic Nigerian mocktail blend of Fanta, Sprite, Angostura aromatic bitters, freshly squeezed lime, and sliced cucumbers.',
+    price: 1500,
+    rating: 4.9,
+    reviews_count: '1.7k',
+    prep_time_min: 5,
+    badge: 'popular',
+    image_url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 180
+  },
+  {
+    id: 'fmx_coke_chilled',
+    name: 'Ice Cold Coca-Cola (50cl Pet)',
+    category: 'Drinks & Refreshers',
+    description: 'Sub-zero crisp Coca-Cola served chilled for maximum thirst refreshment.',
+    price: 600,
+    rating: 4.8,
+    reviews_count: '4.2k',
+    prep_time_min: 2,
+    image_url: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=600&auto=format&fit=crop&q=80',
+    is_available: true,
+    available: true,
+    stock_quantity: 300
+  }
+];
+
+export const FOODMAXX_FLAGSHIP_RESTAURANT = {
+  id: 'rest_foodmaxx',
+  name: 'FoodMaxx Kitchen & Grills',
+  slug: 'foodmaxx-kitchen-grills',
+  description: 'The premier culinary house in Ibadan crafting authentic firewood party jollof, Abula feasts, artisan pasta bowls, and sizzling grills.',
+  logo_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=160&auto=format&fit=crop&q=80',
+  cover_url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&auto=format&fit=crop&q=80',
+  cuisine_types: ['Rice & Grains', 'Swallows & Soups', 'Grills & Suya', 'Pasta & Bowls', 'Shawarma & Wraps', 'Desserts & Refreshers'],
+  rating: 4.9,
+  reviews_count: 2450,
+  delivery_time_min: 20,
+  delivery_time_max: 30,
+  delivery_fee: 500,
+  min_order: 2000,
+  address: '24 Awolowo Avenue, Old Bodija, Ibadan',
+  is_open: true,
+  is_active: true,
+  menu: FOODMAXX_MENU_ITEMS,
+  menuByCategory: FOODMAXX_CATEGORIES.map(cat => ({
+    category: cat.name,
+    items: FOODMAXX_MENU_ITEMS.filter(item => item.category === cat.name)
+  })).filter(g => g.items.length > 0)
+};
+
+export const FOODMAXX_STORE = FOODMAXX_FLAGSHIP_RESTAURANT;
+export const FOODMAXX_RESTAURANTS = [FOODMAXX_FLAGSHIP_RESTAURANT];
+
+export const FOODMAXX_DEFAULT_USER = {
+  id: 'user_babatunde',
+  full_name: 'Babatunde Alabi',
+  email: 'babatunde@ui.edu.ng',
+  phone: '+234 803 111 2233',
+  role: 'customer',
+  avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80'
+};
+
+export const FOODMAXX_DEFAULT_WALLET = {
+  id: 'wallet_babatunde',
+  user_id: 'user_babatunde',
+  balance: 25000,
+  currency: 'NGN'
+};
+
+// Aliases for backwards compatibility with existing imports
+export const MOCK_CATEGORIES = FOODMAXX_CATEGORIES;
+export const MOCK_ZONES = FOODMAXX_ZONES;
+export const MOCK_MENU_ITEMS = FOODMAXX_MENU_ITEMS;
+export const MOCK_FLAGSHIP_RESTAURANT = FOODMAXX_FLAGSHIP_RESTAURANT;
+export const MOCK_RESTAURANTS = FOODMAXX_RESTAURANTS;
+export const MOCK_USER = FOODMAXX_DEFAULT_USER;
+export const MOCK_WALLET = FOODMAXX_DEFAULT_WALLET;

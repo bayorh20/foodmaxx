@@ -1,0 +1,1110 @@
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+  limit
+} from 'firebase/firestore';
+import { FOODMAXX_MENU_ITEMS } from './mockData.js';
+
+// LIVE FIREBASE FIRESTORE DATABASE CONFIGURATION (Standard Native Instance: projects/foodmaxxapp/databases/(default))
+const firebaseConfig = {
+  projectId: 'foodmaxxapp',
+  appId: '1:1089997088415:web:926dc33ca57ee61efba4aa',
+  storageBucket: 'foodmaxxapp.firebasestorage.app',
+  apiKey: 'AIzaSyAF6AcT8cCNQO81_1rknzUR1LYCLWE0zGM',
+  authDomain: 'foodmaxxapp.firebaseapp.com',
+  messagingSenderId: '1089997088415'
+};
+
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+
+// COLLECTIONS
+const COLL_PRODUCTS = 'menu_items';
+const COLL_ORDERS = 'orders';
+const COLL_ZONES = 'delivery_zones';
+const COLL_PROMOTIONS = 'promotions';
+const COLL_REVIEWS = 'reviews';
+const COLL_WALLETS = 'wallets';
+const COLL_USERS = 'users';
+const COLL_ADDONS = 'addons';
+const COLL_CATEGORIES = 'categories';
+const COLL_RIDERS = 'riders';
+const COLL_SETTINGS = 'settings';
+const COLL_SUPPORT = 'support_tickets';
+
+export const DEFAULT_ADDONS = [];
+
+export async function ensureLiveDatabaseSeeded() {
+  try {
+    const configRef = doc(db, COLL_SETTINGS, 'store_config');
+    const configSnap = await getDoc(configRef);
+    const configData = configSnap.exists() ? configSnap.data() : {};
+
+    // If starter demo products have already been seeded previously, respect current state
+    // so any merchant edits, replacements, or deletions are permanently preserved.
+    if (configData.starter_seeded) {
+      return true;
+    }
+
+    const snap = await getDocs(collection(db, COLL_PRODUCTS));
+    if (snap.empty) {
+      const seedPromises = FOODMAXX_MENU_ITEMS.map((item, idx) => {
+        const docRef = doc(db, COLL_PRODUCTS, item.id);
+        const data = cleanFirestoreObject({
+          ...item,
+          sort_order: idx + 1,
+          is_available: true,
+          stock_quantity: Number(item.stock_quantity) || 50,
+          prep_time_min: Number(item.prep_time_min) || 20,
+          has_portion_sizes: true,
+          portion_sizes: [
+            { name: 'Regular Portion', price_adjustment: 0, description: 'Standard single serving', image_url: '' },
+            { name: 'Medium Feast', price_adjustment: 800, description: 'Bigger portion + extra side', image_url: '' },
+            { name: 'Jumbo Executive Combo', price_adjustment: 1800, description: 'Full combo with extra protein', image_url: '' }
+          ],
+          flavors: [
+            { name: 'Mild & Herb-Infused', price: 0 },
+            { name: 'Authentic Spicy Firewood', price: 0 },
+            { name: 'Extra Fiery Pepper Glaze', price: 200 }
+          ],
+          created_at: new Date().toISOString()
+        });
+        return setDoc(docRef, data, { merge: true });
+      });
+      await Promise.all(seedPromises);
+    }
+
+    // Record that starter products are seeded in Firestore
+    await setDoc(configRef, { starter_seeded: true }, { merge: true });
+  } catch (err) {
+    console.warn('ensureLiveDatabaseSeeded notice:', err.message);
+  }
+  return true;
+}
+
+/**
+ * Recursively strips undefined values so Firestore operations never fail
+ * with "Unsupported field value: undefined" errors.
+ */
+export function cleanFirestoreObject(obj) {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanFirestoreObject(item)).filter(item => item !== undefined);
+  }
+  if (typeof obj === 'object' && !(obj instanceof Date)) {
+    const res = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (v !== undefined) {
+        res[k] = cleanFirestoreObject(v);
+      }
+    }
+    return res;
+  }
+  return obj;
+}
+
+// -------------------------------------------------------------
+// LIVE PRODUCTS (MENU ITEMS) API
+// -------------------------------------------------------------
+export async function getLiveProducts() {
+  let snap = await getDocs(collection(db, COLL_PRODUCTS));
+  if (snap.empty) {
+    await ensureLiveDatabaseSeeded();
+    snap = await getDocs(collection(db, COLL_PRODUCTS));
+  }
+  const list = [];
+  snap.forEach(d => {
+    const data = d.data();
+    list.push({
+      id: d.id,
+      ...data,
+      name: data.name || 'Dish',
+      price: Number(data.price || data.selling_price || 0),
+      category: data.category || 'Specialties',
+      is_available: data.is_available !== false && data.inStock !== false,
+      stock_quantity: Number(data.stock_quantity ?? data.stockQuantity ?? 50),
+      image_url: data.image_url || data.image || data.thumbnail || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=80'
+    });
+  });
+  list.sort((a, b) => (a.sort_order || 999) - (b.sort_order || 999) || (a.name || '').localeCompare(b.name || ''));
+  return list;
+}
+
+export function subscribeToLiveProducts(callback) {
+  const q = collection(db, COLL_PRODUCTS);
+  return onSnapshot(q, (snapshot) => {
+    const items = [];
+    snapshot.forEach(d => {
+      const data = d.data();
+      items.push({
+        id: d.id,
+        ...data,
+        name: data.name || 'Dish',
+        price: Number(data.price || data.selling_price || 0),
+        category: data.category || 'Specialties',
+        is_available: data.is_available !== false && data.inStock !== false,
+        stock_quantity: Number(data.stock_quantity ?? data.stockQuantity ?? 50),
+        image_url: data.image_url || data.image || data.thumbnail || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=80'
+      });
+    });
+    items.sort((a, b) => (a.sort_order || 999) - (b.sort_order || 999) || (a.name || '').localeCompare(b.name || ''));
+    callback(items);
+  }, (err) => {
+    console.warn('Live products onSnapshot error:', err.message);
+  });
+}
+
+export async function createLiveProduct(productData) {
+  const id = productData.id || ('fmx_' + Date.now());
+  const docRef = doc(db, COLL_PRODUCTS, id);
+  const rawData = {
+    ...productData,
+    id,
+    name: productData.name || 'New Dish',
+    price: Number(productData.price) || 0,
+    category: productData.category || 'Specialties',
+    is_available: productData.is_available !== false,
+    stock_quantity: Number(productData.stock_quantity) || 50,
+    prep_time_min: Number(productData.prep_time_min) || 20,
+    has_portion_sizes: productData.has_portion_sizes !== false,
+    portion_sizes: Array.isArray(productData.portion_sizes) ? productData.portion_sizes : [],
+    flavors: Array.isArray(productData.flavors) ? productData.flavors : (Array.isArray(productData.options) ? productData.options : []),
+    options: Array.isArray(productData.options) ? productData.options : (Array.isArray(productData.flavors) ? productData.flavors : []),
+    created_at: new Date().toISOString()
+  };
+  const data = cleanFirestoreObject(rawData);
+  await setDoc(docRef, data, { merge: true });
+  return data;
+}
+
+export async function updateLiveProduct(productId, updates) {
+  const docRef = doc(db, COLL_PRODUCTS, productId);
+  const rawUpdates = { ...updates, updated_at: new Date().toISOString() };
+  if (rawUpdates.price !== undefined) rawUpdates.price = Number(rawUpdates.price);
+  if (rawUpdates.stock_quantity !== undefined) rawUpdates.stock_quantity = Number(rawUpdates.stock_quantity);
+  if (rawUpdates.prep_time_min !== undefined) rawUpdates.prep_time_min = Number(rawUpdates.prep_time_min);
+  if (rawUpdates.has_portion_sizes !== undefined) rawUpdates.has_portion_sizes = Boolean(rawUpdates.has_portion_sizes);
+  if (rawUpdates.portion_sizes !== undefined && Array.isArray(rawUpdates.portion_sizes)) {
+    rawUpdates.portion_sizes = rawUpdates.portion_sizes;
+  }
+  if (rawUpdates.flavors !== undefined && Array.isArray(rawUpdates.flavors)) {
+    rawUpdates.flavors = rawUpdates.flavors;
+  }
+  if (rawUpdates.options !== undefined && Array.isArray(rawUpdates.options)) {
+    rawUpdates.options = rawUpdates.options;
+  }
+  const clean = cleanFirestoreObject(rawUpdates);
+  await updateDoc(docRef, clean);
+  const updatedDoc = await getDoc(docRef);
+  return { id: updatedDoc.id, ...updatedDoc.data() };
+}
+
+export async function deleteLiveProduct(productId) {
+  const docRef = doc(db, COLL_PRODUCTS, productId);
+  await deleteDoc(docRef);
+  return { success: true, id: productId };
+}
+
+// -------------------------------------------------------------
+// LIVE CATEGORIES API
+// -------------------------------------------------------------
+export async function getLiveCategories() {
+  const snap = await getDocs(collection(db, COLL_CATEGORIES));
+  const list = [];
+  snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+  list.sort((a, b) => (a.sort_order || 99) - (b.sort_order || 99));
+  return list;
+}
+
+export function subscribeToLiveCategories(callback) {
+  const q = collection(db, COLL_CATEGORIES);
+  return onSnapshot(q, (snapshot) => {
+    const list = [];
+    snapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
+    list.sort((a, b) => (a.sort_order || 99) - (b.sort_order || 99));
+    callback(list);
+  }, (err) => {
+    console.warn('Live categories onSnapshot error:', err.message);
+  });
+}
+
+export async function createLiveCategory(categoryData) {
+  const id = categoryData.id || ('cat_' + Date.now());
+  const docRef = doc(db, COLL_CATEGORIES, id);
+  const data = {
+    ...categoryData,
+    id,
+    name: categoryData.name || 'Category',
+    icon: categoryData.icon || '🍽️',
+    is_active: categoryData.is_active !== false,
+    sort_order: Number(categoryData.sort_order || 10),
+    created_at: new Date().toISOString()
+  };
+  await setDoc(docRef, data, { merge: true });
+  return data;
+}
+
+export async function updateLiveCategory(categoryId, updates) {
+  const docRef = doc(db, COLL_CATEGORIES, categoryId);
+  await updateDoc(docRef, { ...updates, updated_at: new Date().toISOString() });
+  const snap = await getDoc(docRef);
+  return { id: snap.id, ...snap.data() };
+}
+
+export async function deleteLiveCategory(categoryId) {
+  const docRef = doc(db, COLL_CATEGORIES, categoryId);
+  await deleteDoc(docRef);
+  return { success: true, id: categoryId };
+}
+
+// -------------------------------------------------------------
+// LIVE ADD-ONS & EXTRAS API
+// -------------------------------------------------------------
+export async function getLiveAddons() {
+  const snap = await getDocs(collection(db, COLL_ADDONS));
+  const list = [];
+  snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+  return list;
+}
+
+export function subscribeToLiveAddons(callback) {
+  const q = collection(db, COLL_ADDONS);
+  return onSnapshot(q, (snapshot) => {
+    const items = [];
+    snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+    items.sort((a, b) => (a.category || '').localeCompare(b.category || '') || (a.name || '').localeCompare(b.name || ''));
+    callback(items);
+  }, (err) => {
+    console.warn('Live addons onSnapshot error:', err.message);
+  });
+}
+
+export async function createLiveAddon(addonData) {
+  const id = addonData.id || ('addon_' + Date.now());
+  const docRef = doc(db, COLL_ADDONS, id);
+  const data = {
+    ...addonData,
+    id,
+    price: Number(addonData.price) || 0,
+    is_available: addonData.is_available !== false,
+    created_at: new Date().toISOString()
+  };
+  await setDoc(docRef, data, { merge: true });
+  return data;
+}
+
+export async function updateLiveAddon(addonId, updates) {
+  const docRef = doc(db, COLL_ADDONS, addonId);
+  const cleanUpdates = { ...updates, updated_at: new Date().toISOString() };
+  if (cleanUpdates.price !== undefined) cleanUpdates.price = Number(cleanUpdates.price);
+  await updateDoc(docRef, cleanUpdates);
+  const updatedDoc = await getDoc(docRef);
+  return { id: updatedDoc.id, ...updatedDoc.data() };
+}
+
+export async function deleteLiveAddon(addonId) {
+  const docRef = doc(db, COLL_ADDONS, addonId);
+  await deleteDoc(docRef);
+  return { success: true, id: addonId };
+}
+
+// -------------------------------------------------------------
+// LIVE ORDERS API (REALTIME CUSTOMER & ADMIN WORKFLOW)
+// -------------------------------------------------------------
+function normalizeOrder(docId, data) {
+  let created_at = new Date().toISOString();
+  if (data.created_at) {
+    created_at = data.created_at;
+  } else if (data.createdAt?.seconds) {
+    created_at = new Date(data.createdAt.seconds * 1000).toISOString();
+  } else if (typeof data.createdAt === 'string') {
+    created_at = data.createdAt;
+  }
+
+  let items = [];
+  if (Array.isArray(data.items)) {
+    items = data.items.map((it, idx) => {
+      if (typeof it === 'string') {
+        return { id: 'it_' + idx, name: it, price: 0, qty: 1, selectedSize: 'Standard', selectedExtras: [] };
+      }
+      return {
+        id: it.id || it.item_id || ('it_' + idx),
+        name: it.name || 'Dish',
+        price: Number(it.price || it.unit_price || 0),
+        qty: Number(it.qty || it.quantity || 1),
+        selectedSize: it.selectedSize || it.selected_size || 'Standard',
+        selectedExtras: it.selectedExtras || it.selected_extras || []
+      };
+    });
+  }
+
+  let customer = {
+    id: data.customer_id || ('cust_' + docId),
+    full_name: typeof data.customer === 'string' ? data.customer : (data.customer?.full_name || data.customer_name || 'Customer'),
+    phone: data.phone || data.customer_phone || data.customer?.phone || '',
+    email: data.email || data.customer_email || data.customer?.email || ''
+  };
+
+  const subtotal = Number(data.subtotal !== undefined ? data.subtotal : (data.total || 0));
+  const delivery_fee = Number(data.delivery_fee || 0);
+  const service_fee = Number(data.service_fee || 0);
+  const discount = Number(data.discount || 0);
+  const total = Number(data.total !== undefined ? data.total : (subtotal + delivery_fee + service_fee - discount));
+
+  const rawStatus = (data.order_status || data.status || 'ORDER_PLACED').toUpperCase();
+  const normalizedStatus = rawStatus === 'PENDING' ? 'ORDER_PLACED' : rawStatus;
+
+  return {
+    ...data,
+    id: docId,
+    order_reference: data.order_reference || docId,
+    delivery_otp: String(data.delivery_otp || '1234'),
+    order_status: normalizedStatus,
+    status: normalizedStatus,
+    payment_status: data.payment_status || data.paymentStatus || 'paid',
+    payment_method: data.payment_method || data.paymentMethod || 'paystack',
+    payment_reference: data.payment_reference || data.paymentReference || '',
+    delivery_address: data.delivery_address || data.branch || 'Bodija, Ibadan',
+    delivery_zone: data.delivery_zone || 'Bodija',
+    items,
+    customer,
+    customer_name: customer.full_name,
+    customer_phone: customer.phone,
+    customer_email: customer.email,
+    subtotal,
+    delivery_fee,
+    service_fee,
+    discount,
+    total,
+    created_at,
+    status_history: Array.isArray(data.status_history) ? data.status_history : [
+      { status: normalizedStatus, timestamp: created_at, note: 'Order placed' }
+    ]
+  };
+}
+
+export function subscribeToLiveOrders(callback) {
+  const q = collection(db, COLL_ORDERS);
+  return onSnapshot(q, (snapshot) => {
+    const orders = [];
+    snapshot.forEach(doc => {
+      orders.push(normalizeOrder(doc.id, doc.data()));
+    });
+    orders.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    callback(orders);
+  }, (err) => {
+    console.warn('Live orders onSnapshot error:', err.message);
+  });
+}
+
+export async function getLiveOrders() {
+  const snap = await getDocs(collection(db, COLL_ORDERS));
+  const orders = [];
+  snap.forEach(d => orders.push(normalizeOrder(d.id, d.data())));
+  orders.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  return orders;
+}
+
+export async function createLiveOrder(orderData) {
+  const id = orderData.id || ('ORD-' + Math.floor(100000 + Math.random() * 900000));
+  const ref = orderData.order_reference || ('FMX-' + Math.floor(100000 + Math.random() * 900000));
+  const otp = orderData.delivery_otp || String(Math.floor(1000 + Math.random() * 9000));
+
+  const items = (Array.isArray(orderData.items) && orderData.items.length > 0)
+    ? orderData.items
+    : (Array.isArray(orderData.cart_items) ? orderData.cart_items : []).map(ci => ({
+        id: ci.item_id || ci.id || ('it_' + Date.now()),
+        name: ci.name || 'FoodMaxx Dish',
+        price: Number(ci.price) || 0,
+        qty: Number(ci.quantity || ci.qty || 1),
+        selectedSize: ci.selected_size || ci.selectedSize || 'Standard',
+        selectedExtras: ci.selected_extras || ci.selectedExtras || []
+      }));
+
+  const customer = orderData.customer || {
+    id: orderData.customer_id || ('usr_' + Date.now()),
+    full_name: orderData.customer_name || 'Customer',
+    phone: orderData.customer_phone || '',
+    email: orderData.customer_email || ''
+  };
+
+  const subtotal = Number(orderData.subtotal !== undefined ? orderData.subtotal : items.reduce((sum, i) => sum + (Number(i.price || 0) * Number(i.qty || 1)), 0));
+  const delivery_fee = Number(orderData.delivery_fee !== undefined ? orderData.delivery_fee : 500);
+  const service_fee = Number(orderData.service_fee !== undefined ? orderData.service_fee : 250);
+  const discount = Number(orderData.discount || 0);
+  const total = Number(orderData.total !== undefined ? orderData.total : Math.max(0, subtotal + delivery_fee + service_fee - discount));
+
+  const nowIso = new Date().toISOString();
+  const orderDoc = {
+    ...orderData,
+    id,
+    order_reference: ref,
+    delivery_otp: otp,
+    order_status: orderData.order_status || 'ORDER_PLACED',
+    status: orderData.order_status || 'ORDER_PLACED',
+    payment_status: orderData.payment_status || 'paid',
+    payment_method: orderData.payment_method || 'paystack',
+    payment_reference: orderData.payment_reference || ('PAY-' + Date.now()),
+    items,
+    customer,
+    customer_id: customer.id,
+    customer_name: customer.full_name,
+    customer_phone: customer.phone,
+    customer_email: customer.email,
+    subtotal,
+    delivery_fee,
+    service_fee,
+    discount,
+    total,
+    delivery_address: orderData.delivery_address || 'Bodija, Ibadan',
+    delivery_zone: orderData.delivery_zone || 'Bodija',
+    created_at: nowIso,
+    status_history: [
+      { status: 'ORDER_PLACED', timestamp: nowIso, note: 'Order placed by customer via Paystack / Card' }
+    ]
+  };
+
+  const cleanedOrderDoc = cleanFirestoreObject(orderDoc);
+  const docRef = doc(db, COLL_ORDERS, id);
+  await setDoc(docRef, cleanedOrderDoc, { merge: true });
+  return cleanedOrderDoc;
+}
+
+export async function updateLiveOrderStatus(orderId, newStatus, note = '') {
+  let docRef = doc(db, COLL_ORDERS, orderId);
+  let snap = await getDoc(docRef);
+
+  if (!snap.exists()) {
+    const q = query(collection(db, COLL_ORDERS), where('order_reference', '==', orderId));
+    const querySnap = await getDocs(q);
+    if (!querySnap.empty) {
+      const matched = querySnap.docs[0];
+      docRef = doc(db, COLL_ORDERS, matched.id);
+      snap = matched;
+    } else {
+      throw new Error('Order not found');
+    }
+  }
+
+  const current = snap.data();
+  const history = current.status_history || [];
+  history.push({
+    status: newStatus,
+    timestamp: new Date().toISOString(),
+    note: note || ('Status updated to ' + newStatus)
+  });
+
+  const updates = cleanFirestoreObject({
+    order_status: newStatus,
+    status: newStatus,
+    status_notes: note || '',
+    status_history: history,
+    updated_at: new Date().toISOString()
+  });
+  await updateDoc(docRef, updates);
+  return { ...current, ...updates };
+}
+
+export async function assignLiveRider(orderId, riderData, status = 'ON_THE_WAY') {
+  let docRef = doc(db, COLL_ORDERS, orderId);
+  let snap = await getDoc(docRef);
+
+  if (!snap.exists()) {
+    const q = query(collection(db, COLL_ORDERS), where('order_reference', '==', orderId));
+    const querySnap = await getDocs(q);
+    if (!querySnap.empty) {
+      const matched = querySnap.docs[0];
+      docRef = doc(db, COLL_ORDERS, matched.id);
+      snap = matched;
+    } else {
+      throw new Error('Order not found');
+    }
+  }
+
+  const current = snap.data();
+  const history = current.status_history || [];
+  const riderName = riderData.full_name || riderData.name || 'Assigned Courier';
+  const riderPhone = riderData.phone || '';
+  const riderVehicle = riderData.vehicle_type || 'Motorcycle';
+
+  history.push({
+    status: status,
+    timestamp: new Date().toISOString(),
+    note: `Assigned dispatch rider: ${riderName} (${riderPhone})`
+  });
+
+  const normalizedRiderPayload = {
+    id: riderData.id || 'r_assigned',
+    full_name: riderName,
+    name: riderName,
+    phone: riderPhone,
+    vehicle_type: riderVehicle,
+    plate_number: riderData.plate_number || '',
+    rating: riderData.rating || 4.9
+  };
+
+  const updates = cleanFirestoreObject({
+    assigned_rider: normalizedRiderPayload,
+    riderInfo: normalizedRiderPayload,
+    rider_name: riderName,
+    rider_phone: riderPhone,
+    rider_vehicle: riderVehicle,
+    order_status: status,
+    status: status,
+    status_notes: `Assigned to ${riderName}`,
+    status_history: history,
+    updated_at: new Date().toISOString()
+  });
+
+  await updateDoc(docRef, updates);
+
+  // If rider has an ID in COLL_RIDERS, mark as busy & record active order
+  if (riderData.id) {
+    try {
+      const riderRef = doc(db, COLL_RIDERS, riderData.id);
+      await updateDoc(riderRef, {
+        status: 'busy',
+        active_order_ref: current.order_reference || snap.id,
+        updated_at: new Date().toISOString()
+      });
+    } catch (e) {
+      console.warn('Could not update rider doc status:', e.message);
+    }
+  }
+
+  return { ...current, ...updates };
+}
+
+export async function verifyLiveOrderOtp(orderId, enteredOtp) {
+  const docRef = doc(db, COLL_ORDERS, orderId);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return { success: false, message: 'Order not found' };
+  const order = snap.data();
+  if (String(order.delivery_otp).trim() === String(enteredOtp).trim()) {
+    await updateLiveOrderStatus(orderId, 'DELIVERED', 'Verified with Customer Delivery OTP');
+    return { success: true, message: 'OTP verified successfully! Order marked DELIVERED.' };
+  }
+  return { success: false, message: 'Incorrect OTP. Please check customer phone app.' };
+}
+
+// -------------------------------------------------------------
+// LIVE RIDERS API
+// -------------------------------------------------------------
+export function normalizeRider(id, data = {}) {
+  const name = data.full_name || data.name || 'Courier';
+  return {
+    ...data,
+    id: id || data.id,
+    name,
+    full_name: name,
+    phone: data.phone || data.mobile || '',
+    status: data.status || 'available',
+    is_online: data.is_online !== undefined ? Boolean(data.is_online) : (data.status !== 'offline'),
+    vehicle_type: data.vehicle_type || 'Motorcycle',
+    plate_number: data.plate_number || '',
+    rating: typeof data.rating === 'number' ? data.rating : 5.0,
+    total_deliveries: typeof data.total_deliveries === 'number' ? data.total_deliveries : 0,
+    zone: data.zone || 'Bodija'
+  };
+}
+
+export async function getLiveRiders() {
+  const snap = await getDocs(collection(db, COLL_RIDERS));
+  const list = [];
+  snap.forEach(d => list.push(normalizeRider(d.id, d.data())));
+  return list;
+}
+
+export function subscribeToLiveRiders(callback) {
+  const q = collection(db, COLL_RIDERS);
+  return onSnapshot(q, (snapshot) => {
+    const list = [];
+    snapshot.forEach(d => list.push(normalizeRider(d.id, d.data())));
+    callback(list);
+  }, (err) => {
+    console.warn('Live riders onSnapshot error:', err.message);
+  });
+}
+
+export async function createLiveRider(riderData) {
+  const id = riderData.id || ('r_' + Date.now());
+  const docRef = doc(db, COLL_RIDERS, id);
+  const data = {
+    ...riderData,
+    id,
+    name: riderData.name || riderData.full_name || 'Rider',
+    full_name: riderData.name || riderData.full_name || 'Rider',
+    phone: riderData.phone || '',
+    status: riderData.status || 'available',
+    is_online: riderData.is_online !== false,
+    created_at: new Date().toISOString()
+  };
+  await setDoc(docRef, data, { merge: true });
+  return data;
+}
+
+export async function updateLiveRider(riderId, updates) {
+  const docRef = doc(db, COLL_RIDERS, riderId);
+  await updateDoc(docRef, { ...updates, updated_at: new Date().toISOString() });
+  const snap = await getDoc(docRef);
+  return { id: snap.id, ...snap.data() };
+}
+
+export async function toggleLiveRiderStatus(riderId) {
+  const docRef = doc(db, COLL_RIDERS, riderId);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) throw new Error('Rider not found');
+  const current = snap.data();
+  const nextStatus = current.status === 'available' ? 'busy' : 'available';
+  await updateDoc(docRef, { status: nextStatus, is_online: nextStatus === 'available', updated_at: new Date().toISOString() });
+  return { ...current, status: nextStatus, is_online: nextStatus === 'available' };
+}
+
+// -------------------------------------------------------------
+// LIVE ZONES API
+// -------------------------------------------------------------
+export async function getLiveZones() {
+  const snap = await getDocs(collection(db, COLL_ZONES));
+  const zones = [];
+  snap.forEach(d => zones.push({ id: d.id, ...d.data() }));
+  return zones;
+}
+
+export function subscribeToLiveZones(callback) {
+  const q = collection(db, COLL_ZONES);
+  return onSnapshot(q, (snapshot) => {
+    const list = [];
+    snapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
+    callback(list);
+  }, (err) => {
+    console.warn('Live zones onSnapshot error:', err.message);
+  });
+}
+
+export async function updateLiveZone(zoneId, updates) {
+  const docRef = doc(db, COLL_ZONES, zoneId);
+  await updateDoc(docRef, { ...updates, updated_at: new Date().toISOString() });
+  const snap = await getDoc(docRef);
+  return { id: snap.id, ...snap.data() };
+}
+
+export async function createLiveZone(zoneData) {
+  const id = zoneData.id || ('zone_' + (zoneData.name || '').toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now().toString().slice(-4));
+  const docRef = doc(db, COLL_ZONES, id);
+  const data = {
+    ...zoneData,
+    id,
+    name: zoneData.name || 'New Delivery Zone',
+    city: zoneData.city || 'Ibadan',
+    delivery_fee: Number(zoneData.delivery_fee) || 600,
+    min_order: Number(zoneData.min_order) || 2000,
+    estimated_delivery_time: zoneData.estimated_delivery_time || '25-35 min',
+    is_active: zoneData.is_active !== false,
+    created_at: new Date().toISOString()
+  };
+  await setDoc(docRef, data, { merge: true });
+  return data;
+}
+
+export async function deleteLiveZone(zoneId) {
+  const docRef = doc(db, COLL_ZONES, zoneId);
+  await deleteDoc(docRef);
+  return { success: true, id: zoneId };
+}
+
+// -------------------------------------------------------------
+// LIVE PROMOTIONS API
+// -------------------------------------------------------------
+export async function getLivePromotions() {
+  const snap = await getDocs(collection(db, COLL_PROMOTIONS));
+  const list = [];
+  snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+  return list;
+}
+
+export async function createLivePromotion(promoData) {
+  const id = promoData.id || ('promo_' + (promoData.code || '').toLowerCase());
+  const docRef = doc(db, COLL_PROMOTIONS, id);
+  const data = {
+    ...promoData,
+    id,
+    code: (promoData.code || '').toUpperCase().trim(),
+    discount_type: promoData.discount_type || 'percentage',
+    discount_value: Number(promoData.discount_value) || 10,
+    max_discount: Number(promoData.max_discount) || 1000,
+    min_order: Number(promoData.min_order) || 2000,
+    is_active: promoData.is_active !== false,
+    created_at: new Date().toISOString()
+  };
+  await setDoc(docRef, data, { merge: true });
+  return data;
+}
+
+export async function updateLivePromotion(promoId, updates) {
+  const docRef = doc(db, COLL_PROMOTIONS, promoId);
+  await updateDoc(docRef, { ...updates, updated_at: new Date().toISOString() });
+  const snap = await getDoc(docRef);
+  return { id: snap.id, ...snap.data() };
+}
+
+export async function deleteLivePromotion(promoId) {
+  const docRef = doc(db, COLL_PROMOTIONS, promoId);
+  await deleteDoc(docRef);
+  return { success: true, id: promoId };
+}
+
+// -------------------------------------------------------------
+// LIVE STORE SETTINGS API
+// -------------------------------------------------------------
+export async function getLiveSettings() {
+  const docRef = doc(db, COLL_SETTINGS, 'store_config');
+  const snap = await getDoc(docRef);
+  if (snap.exists()) {
+    const data = snap.data();
+    return {
+      store_name: 'FoodMaxx Kitchen & Grills',
+      is_open: data.isOpen !== false,
+      kitchen_status: data.isOpen !== false ? 'open' : 'closed',
+      phone: data.supportContact || '+234 812 345 6789',
+      address: '24 Awolowo Avenue, Old Bodija, Ibadan',
+      announcement: 'Fresh firewood party jollof & gourmet grills ready for delivery!',
+      min_order: 1500,
+      default_prep_time: data.cookingBufferMinutes || 20,
+      ...data
+    };
+  }
+  return {
+    store_name: 'FoodMaxx Kitchen & Grills',
+    is_open: true,
+    kitchen_status: 'open',
+    phone: '+234 812 345 6789',
+    address: '24 Awolowo Avenue, Old Bodija, Ibadan',
+    announcement: 'Fresh firewood party jollof & gourmet grills ready for delivery!',
+    min_order: 1500,
+    default_prep_time: 20
+  };
+}
+
+export function subscribeToLiveSettings(callback) {
+  const docRef = doc(db, COLL_SETTINGS, 'store_config');
+  return onSnapshot(docRef, (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      callback({
+        store_name: 'FoodMaxx Kitchen & Grills',
+        is_open: data.isOpen !== false,
+        kitchen_status: data.isOpen !== false ? 'open' : 'closed',
+        phone: data.supportContact || '+234 812 345 6789',
+        address: '24 Awolowo Avenue, Old Bodija, Ibadan',
+        announcement: 'Fresh firewood party jollof & gourmet grills ready for delivery!',
+        min_order: 1500,
+        default_prep_time: data.cookingBufferMinutes || 20,
+        ...data
+      });
+    }
+  }, (err) => {
+    console.warn('Live settings onSnapshot error:', err.message);
+  });
+}
+
+export async function updateLiveSettings(updates) {
+  const docRef = doc(db, COLL_SETTINGS, 'store_config');
+  const clean = {
+    ...updates,
+    isOpen: updates.is_open !== undefined ? updates.is_open : updates.isOpen,
+    updated_at: new Date().toISOString()
+  };
+  await setDoc(docRef, clean, { merge: true });
+  return getLiveSettings();
+}
+
+// -------------------------------------------------------------
+// LIVE HOMEPAGE SECTIONS API
+// -------------------------------------------------------------
+export const DEFAULT_HOMEPAGE_SECTIONS = [
+  { id: 'sec_top', title: 'Top Picks on FoodMaxx', subtitle: 'Curated popular items', icon: 'Sparkles', enabled: true, filter_type: 'bestseller', display_limit: 6 },
+  { id: 'sec_trend', title: 'Trending Now', subtitle: 'Hot right now in Bodija & UI', icon: 'Flame', enabled: true, filter_type: 'popular', display_limit: 6 },
+  { id: 'sec_deals', title: 'Special Offers & Combos', subtitle: 'Great meals at best value', icon: 'Tag', enabled: true, filter_type: 'deals', display_limit: 6 },
+  { id: 'sec_fast', title: 'Quick Bites & Fast Prep', subtitle: 'Ready in 25 min or less', icon: 'Clock', enabled: true, filter_type: 'fast', display_limit: 6 },
+];
+
+export async function getLiveHomepageSections() {
+  try {
+    const docRef = doc(db, COLL_SETTINGS, 'homepage_sections');
+    const snap = await getDoc(docRef);
+    if (snap.exists() && Array.isArray(snap.data()?.sections) && snap.data().sections.length > 0) {
+      return snap.data().sections;
+    }
+  } catch (e) {
+    console.warn('Error reading live homepage sections:', e);
+  }
+  return DEFAULT_HOMEPAGE_SECTIONS;
+}
+
+export function subscribeToLiveHomepageSections(callback) {
+  const docRef = doc(db, COLL_SETTINGS, 'homepage_sections');
+  return onSnapshot(docRef, (snap) => {
+    if (snap.exists() && Array.isArray(snap.data()?.sections) && snap.data().sections.length > 0) {
+      callback(snap.data().sections);
+    } else {
+      callback(DEFAULT_HOMEPAGE_SECTIONS);
+    }
+  }, (err) => {
+    console.warn('Live homepage sections onSnapshot error:', err.message);
+  });
+}
+
+export async function updateLiveHomepageSections(sections) {
+  const docRef = doc(db, COLL_SETTINGS, 'homepage_sections');
+  const clean = cleanFirestoreObject({
+    sections: Array.isArray(sections) ? sections : DEFAULT_HOMEPAGE_SECTIONS,
+    updated_at: new Date().toISOString()
+  });
+  await setDoc(docRef, clean, { merge: true });
+  return clean.sections;
+}
+
+// -------------------------------------------------------------
+// LIVE WALLET & USER API
+// -------------------------------------------------------------
+export async function getLiveWallet(userId = 'usr_customer_default') {
+  const docRef = doc(db, COLL_WALLETS, userId);
+  const snap = await getDoc(docRef);
+  if (snap.exists()) return snap.data();
+  const initial = {
+    user_id: userId,
+    balance: 0,
+    currency: 'NGN',
+    transactions: []
+  };
+  await setDoc(docRef, initial, { merge: true });
+  return initial;
+}
+
+export async function topUpLiveWallet(userId = 'usr_customer_default', amount, reference) {
+  const docRef = doc(db, COLL_WALLETS, userId);
+  const wallet = await getLiveWallet(userId);
+  const newBalance = (wallet.balance || 0) + Number(amount);
+  const txs = wallet.transactions || [];
+  txs.unshift({
+    id: 'tx_' + Date.now(),
+    type: 'credit',
+    amount: Number(amount),
+    description: 'Wallet Top-up via Paystack',
+    reference,
+    date: new Date().toISOString()
+  });
+  await setDoc(docRef, { balance: newBalance, transactions: txs }, { merge: true });
+  return { balance: newBalance, transactions: txs };
+}
+
+export async function deductLiveWallet(userId, amount, description = 'Order Payment', reference = '') {
+  const docRef = doc(db, COLL_WALLETS, userId);
+  const wallet = await getLiveWallet(userId);
+  if ((wallet.balance || 0) < Number(amount)) {
+    throw new Error('Insufficient wallet balance');
+  }
+  const newBalance = wallet.balance - Number(amount);
+  const txs = wallet.transactions || [];
+  txs.unshift({
+    id: 'tx_' + Date.now(),
+    type: 'debit',
+    amount: Number(amount),
+    description,
+    reference,
+    date: new Date().toISOString()
+  });
+  await setDoc(docRef, { balance: newBalance, transactions: txs }, { merge: true });
+  return { balance: newBalance, transactions: txs };
+}
+
+// -------------------------------------------------------------
+// LIVE USERS & CUSTOMERS API
+// -------------------------------------------------------------
+export async function getLiveCustomers() {
+  const [usersSnap, ordersSnap] = await Promise.all([
+    getDocs(collection(db, COLL_USERS)),
+    getDocs(collection(db, COLL_ORDERS))
+  ]);
+
+  const customerMap = new Map();
+
+  usersSnap.forEach(d => {
+    const data = d.data();
+    customerMap.set(d.id, {
+      id: d.id,
+      full_name: data.name || data.full_name || 'Customer',
+      phone: data.phone || '',
+      email: data.email || '',
+      total_orders: data.orders || 0,
+      total_spent: data.spent || 0,
+      status: 'active',
+      last_ordered: data.lastOrder || data.created_at || ''
+    });
+  });
+
+  ordersSnap.forEach(d => {
+    const data = d.data();
+    const phone = data.customer_phone || data.phone || data.customer?.phone;
+    if (phone) {
+      const existing = customerMap.get(phone) || {
+        id: 'c_' + phone.replace(/\D/g, ''),
+        full_name: data.customer_name || (typeof data.customer === 'string' ? data.customer : data.customer?.full_name) || 'Customer',
+        phone,
+        email: data.customer_email || data.email || data.customer?.email || '',
+        total_orders: 0,
+        total_spent: 0,
+        status: 'active',
+        last_ordered: ''
+      };
+      existing.total_orders += 1;
+      existing.total_spent += Number(data.total || 0);
+      const oDate = data.created_at || data.createdAt;
+      if (oDate && (!existing.last_ordered || new Date(oDate) > new Date(existing.last_ordered))) {
+        existing.last_ordered = oDate;
+      }
+      customerMap.set(phone, existing);
+    }
+  });
+
+  return Array.from(customerMap.values());
+}
+
+export async function getLiveUser(userId) {
+  const docRef = doc(db, COLL_USERS, userId);
+  const snap = await getDoc(docRef);
+  if (snap.exists()) return { id: snap.id, ...snap.data() };
+  return null;
+}
+
+export async function updateLiveUser(userId, updates) {
+  const docRef = doc(db, COLL_USERS, userId);
+  await setDoc(docRef, { ...updates, updated_at: new Date().toISOString() }, { merge: true });
+  const snap = await getDoc(docRef);
+  return { id: snap.id, ...snap.data() };
+}
+
+export async function addLiveAddress(userId, addressData) {
+  const docRef = doc(db, COLL_USERS, userId);
+  const snap = await getDoc(docRef);
+  const addresses = snap.exists() ? (snap.data().savedAddresses || []) : [];
+  const newAddr = {
+    id: 'addr_' + Date.now(),
+    ...addressData
+  };
+  addresses.push(newAddr);
+  await setDoc(docRef, { savedAddresses: addresses }, { merge: true });
+  return addresses;
+}
+
+export async function deleteLiveAddress(userId, addressId) {
+  const docRef = doc(db, COLL_USERS, userId);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return [];
+  const addresses = (snap.data().savedAddresses || []).filter(a => a.id !== addressId);
+  await setDoc(docRef, { savedAddresses: addresses }, { merge: true });
+  return addresses;
+}
+
+// -------------------------------------------------------------
+// LIVE SUPPORT TICKETS API
+// -------------------------------------------------------------
+export async function getLiveSupportTickets() {
+  const snap = await getDocs(collection(db, COLL_SUPPORT));
+  const list = [];
+  snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+  list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  return list;
+}
+
+export function subscribeToLiveSupportTickets(callback) {
+  const q = collection(db, COLL_SUPPORT);
+  return onSnapshot(q, (snapshot) => {
+    const items = [];
+    snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+    items.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    callback(items);
+  }, (err) => {
+    console.warn('Live support tickets onSnapshot error:', err.message);
+  });
+}
+
+export async function createLiveSupportTicket(ticketData) {
+  const id = ticketData.id || ('st_' + Date.now());
+  const docRef = doc(db, COLL_SUPPORT, id);
+  const data = {
+    ...ticketData,
+    id,
+    ticket_number: ticketData.ticket_number || ('TK-' + Math.floor(1000 + Math.random() * 9000)),
+    status: ticketData.status || 'Open',
+    created_at: new Date().toISOString(),
+    replies: ticketData.replies || []
+  };
+  await setDoc(docRef, data, { merge: true });
+  return data;
+}
+
+export async function replyLiveSupportTicket(ticketId, message) {
+  const docRef = doc(db, COLL_SUPPORT, ticketId);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) throw new Error('Ticket not found');
+  const current = snap.data();
+  const replies = current.replies || [];
+  replies.push({
+    sender: 'admin',
+    text: message,
+    timestamp: new Date().toISOString()
+  });
+  const updates = {
+    replies,
+    status: 'Resolved',
+    updated_at: new Date().toISOString()
+  };
+  await updateDoc(docRef, updates);
+  return { ...current, ...updates };
+}
+
+export async function updateLiveTicketStatus(ticketId, status) {
+  const docRef = doc(db, COLL_SUPPORT, ticketId);
+  await updateDoc(docRef, {
+    status,
+    updated_at: new Date().toISOString()
+  });
+  const snap = await getDoc(docRef);
+  return { id: snap.id, ...snap.data() };
+}
+
+// -------------------------------------------------------------
+// LIVE REVIEWS API
+// -------------------------------------------------------------
+export async function getLiveReviews() {
+  const snap = await getDocs(collection(db, COLL_REVIEWS));
+  const list = [];
+  snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+  return list;
+}
+
+export async function createLiveReview(reviewData) {
+  const id = reviewData.id || ('rev_' + Date.now());
+  const docRef = doc(db, COLL_REVIEWS, id);
+  const data = {
+    ...reviewData,
+    id,
+    rating: Number(reviewData.rating) || 5,
+    created_at: new Date().toISOString()
+  };
+  await setDoc(docRef, data, { merge: true });
+  return data;
+}
