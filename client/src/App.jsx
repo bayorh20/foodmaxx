@@ -649,10 +649,23 @@ function CustomerPortal() {
 
   const [appStage, setAppStage] = useState(() => {
     try {
-      const onboarded = localStorage.getItem('fmx_onboarded');
-      return onboarded === 'true' ? 'quick-splash' : 'splash';
-    } catch {
+      const onboarded = localStorage.getItem('fmx_onboarded') === 'true';
+      const splashSeen = localStorage.getItem('fmx_splash_seen') === 'true' || sessionStorage.getItem('fmx_splash_seen') === 'true';
+
+      // Never show splash page on reload if user has already visited or onboarded
+      if (onboarded || splashSeen) {
+        return 'ready';
+      }
+
+      // First-time visit: record flag so subsequent reloads skip splash completely
+      try {
+        localStorage.setItem('fmx_splash_seen', 'true');
+        sessionStorage.setItem('fmx_splash_seen', 'true');
+      } catch {}
+
       return 'splash';
+    } catch {
+      return 'ready';
     }
   });
 
@@ -1228,27 +1241,48 @@ function CustomerPortal() {
 
         {/* SPLASH SCREEN & ONBOARDING / PERMISSIONS / SILENT REGISTRATION */}
         <AnimatePresence>
-          {(appStage === 'splash' || appStage === 'quick-splash') && (
+          {appStage === 'splash' && (
             <SplashScreen 
               onFinish={() => {
-                if (appStage === 'quick-splash') {
+                try {
+                  localStorage.setItem('fmx_splash_seen', 'true');
+                  sessionStorage.setItem('fmx_splash_seen', 'true');
+                } catch {}
+                if (localStorage.getItem('fmx_onboarded') === 'true') {
                   setAppStage('ready');
                 } else {
                   setAppStage('onboarding');
                 }
               }} 
-              isQuick={appStage === 'quick-splash'}
+              isQuick={false}
             />
           )}
           {appStage === 'onboarding' && (
             <OnboardingFlow
-              onComplete={() => setAppStage('ready')}
+              onComplete={() => {
+                try {
+                  localStorage.setItem('fmx_onboarded', 'true');
+                  localStorage.setItem('fmx_splash_seen', 'true');
+                  sessionStorage.setItem('fmx_splash_seen', 'true');
+                } catch {}
+                setAppStage('ready');
+              }}
               onRegister={async ({ full_name, phone }) => {
+                try {
+                  localStorage.setItem('fmx_onboarded', 'true');
+                  localStorage.setItem('fmx_splash_seen', 'true');
+                  sessionStorage.setItem('fmx_splash_seen', 'true');
+                } catch {}
                 const res = await silentRegister({ full_name, phone });
                 toast(`Welcome to FoodMaxx, ${full_name}! ₦1,000 credit added.`, 'success');
                 return res;
               }}
               onGuest={() => {
+                try {
+                  localStorage.setItem('fmx_onboarded', 'true');
+                  localStorage.setItem('fmx_splash_seen', 'true');
+                  sessionStorage.setItem('fmx_splash_seen', 'true');
+                } catch {}
                 setAppStage('ready');
                 toast('Browsing FoodMaxx as Guest 🍽️', 'info');
               }}
@@ -6818,7 +6852,7 @@ function loadPaystackScript() {
     }
     const script = document.createElement('script');
     script.id = 'paystack-inline-js';
-    script.src = 'https://js.paystack.co/v2/inline.js';
+    script.src = 'https://js.paystack.co/v1/inline.js';
     script.async = true;
     script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
@@ -6828,366 +6862,10 @@ function loadPaystackScript() {
 }
 
 // ============================================================
-// PAYSTACK SECURE CHECKOUT MODAL
-// ============================================================
-function PaystackFallbackModal({ open, paymentInfo, onClose, onComplete, isDark }) {
-  const [activeTab, setActiveTab] = useState('card');
-  const [cardNumber, setCardNumber] = useState('4084 0840 0840 0840');
-  const [cardExpiry, setCardExpiry] = useState('12/28');
-  const [cardCvv, setCardCvv] = useState('408');
-  const [cardPin, setCardPin] = useState('1111');
-  const [ussdBank, setUssdBank] = useState('gtb');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [copiedAccount, setCopiedAccount] = useState(false);
-  const toast = useToast();
-
-  if (!open || !paymentInfo) return null;
-
-  const total = paymentInfo.total || 0;
-  const formattedTotal = '₦' + Number(total).toLocaleString();
-
-  const testPresets = [
-    { label: 'Mastercard (Success)', num: '4084 0840 0840 0840', exp: '12/28', cvv: '408' },
-    { label: 'Visa (Success)', num: '4012 8888 8888 1881', exp: '09/27', cvv: '112' },
-    { label: 'Verve (Success)', num: '5061 0000 0000 0000', exp: '05/29', cvv: '789' }
-  ];
-
-  const handleCopyAccount = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText('9928371029');
-    }
-    setCopiedAccount(true);
-    toast('Paystack Account Number copied to clipboard! 📋', 'success');
-    setTimeout(() => setCopiedAccount(false), 2500);
-  };
-
-  const handleAuthorizePayment = (channel = 'card') => {
-    setIsProcessing(true);
-    const ref = `PSTK_${channel.toUpperCase()}_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
-    setTimeout(async () => {
-      try {
-        await onComplete(ref);
-      } catch (e) {
-        console.error('Paystack authorization error:', e);
-        toast(e?.message || 'Payment authorization error', 'error');
-      } finally {
-        setIsProcessing(false);
-      }
-    }, 1000);
-  };
-
-  return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div
-        className={`w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border ${
-          isDark ? 'bg-[#15171C] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-        } relative animate-scale-up max-h-[92vh] flex flex-col`}
-        onClick={e => e.stopPropagation()}
-      >
-        
-        {/* Paystack Branded Header in App Color Theme */}
-        <div className="bg-gradient-to-r from-[#EA4C2A] to-[#D43D1D] text-white p-5 relative shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isProcessing}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/20 hover:bg-black/30 flex items-center justify-center text-white cursor-pointer transition-colors"
-          >
-            <X size={18} />
-          </button>
-
-          <div className="flex items-center gap-2 mb-2">
-            <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1">
-              <Lock size={10} /> Secured by Paystack
-            </span>
-            <span className="bg-emerald-500/25 text-emerald-100 border border-emerald-400/30 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Demo Test Active
-            </span>
-          </div>
-
-          <div className="flex items-baseline justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">{formattedTotal}</h2>
-              <p className="text-xs text-white/80 font-medium">FoodMaxx Order Payment</p>
-            </div>
-            <div className="text-right text-[11px] text-white/90">
-              <div className="font-bold truncate max-w-[150px]">{paymentInfo.email}</div>
-              <div className="text-[10px] opacity-75">Instant Verification</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Channels Navigation Tabs */}
-        <div className={`flex border-b text-xs font-semibold shrink-0 ${isDark ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
-          <button
-            type="button"
-            onClick={() => setActiveTab('card')}
-            className={`flex-1 py-3 text-center border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'card'
-                ? 'border-[#EA4C2A] text-[#EA4C2A] bg-white dark:bg-[#15171C]'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white'
-            }`}
-          >
-            <CreditCard size={14} /> Pay with Card
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('bank')}
-            className={`flex-1 py-3 text-center border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'bank'
-                ? 'border-[#EA4C2A] text-[#EA4C2A] bg-white dark:bg-[#15171C]'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white'
-            }`}
-          >
-            <Building2 size={14} /> Transfer
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('ussd')}
-            className={`flex-1 py-3 text-center border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'ussd'
-                ? 'border-[#EA4C2A] text-[#EA4C2A] bg-white dark:bg-[#15171C]'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white'
-            }`}
-          >
-            <Smartphone size={14} /> USSD
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        <div className="p-5 space-y-4 overflow-y-auto">
-          {/* Card Tab */}
-          {activeTab === 'card' && (
-            <div className="space-y-3.5 text-xs">
-              <div className="flex flex-wrap gap-1.5 items-center">
-                <span className="text-[10px] text-gray-400 font-medium">Quick Fill:</span>
-                {testPresets.map((p, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setCardNumber(p.num);
-                      setCardExpiry(p.exp);
-                      setCardCvv(p.cvv);
-                    }}
-                    className={`text-[10px] px-2 py-0.5 rounded-lg border font-medium cursor-pointer transition-colors ${
-                      cardNumber === p.num
-                        ? 'border-[#EA4C2A] text-[#EA4C2A] bg-orange-50 dark:bg-orange-950/30'
-                        : 'border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-400'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              <div>
-                <label className="block font-medium text-gray-500 dark:text-gray-400 mb-1">CARD NUMBER</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={cardNumber}
-                    onChange={e => setCardNumber(e.target.value)}
-                    placeholder="0000 0000 0000 0000"
-                    className={`w-full font-mono font-bold tracking-wider px-3 py-2.5 rounded-xl border outline-none text-xs ${
-                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                    }`}
-                  />
-                  <CreditCard size={16} className="absolute right-3 top-3 text-gray-400" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2.5">
-                <div>
-                  <label className="block font-medium text-gray-500 dark:text-gray-400 mb-1">EXPIRY</label>
-                  <input
-                    type="text"
-                    value={cardExpiry}
-                    onChange={e => setCardExpiry(e.target.value)}
-                    placeholder="MM/YY"
-                    className={`w-full font-mono font-bold text-center px-2 py-2.5 rounded-xl border outline-none text-xs ${
-                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <label className="block font-medium text-gray-500 dark:text-gray-400 mb-1">CVV</label>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    value={cardCvv}
-                    onChange={e => setCardCvv(e.target.value)}
-                    placeholder="123"
-                    className={`w-full font-mono font-bold text-center px-2 py-2.5 rounded-xl border outline-none text-xs ${
-                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <label className="block font-medium text-gray-500 dark:text-gray-400 mb-1">PIN</label>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    value={cardPin}
-                    onChange={e => setCardPin(e.target.value)}
-                    placeholder="••••"
-                    className={`w-full font-mono font-bold text-center px-2 py-2.5 rounded-xl border outline-none text-xs ${
-                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                    }`}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                disabled={isProcessing}
-                onClick={() => handleAuthorizePayment('card')}
-                className="w-full mt-2 py-3.5 bg-[#EA4C2A] hover:bg-[#D43D1D] text-white rounded-2xl font-semibold text-xs uppercase tracking-wider shadow-lg shadow-[#EA4C2A]/25 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isProcessing ? (
-                  <>
-                    <RefreshCw size={16} className="animate-spin stroke-[2.5]" />
-                    <span>Processing with Paystack...</span>
-                  </>
-                ) : (
-                  <>
-                    <Lock size={14} />
-                    <span>Authorize & Pay {formattedTotal}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* Transfer Tab */}
-          {activeTab === 'bank' && (
-            <div className="space-y-3.5 text-xs">
-              <div className={`p-4 rounded-2xl border space-y-2.5 ${
-                isDark ? 'bg-white/5 border-white/10' : 'bg-orange-50/70 border-orange-200'
-              }`}>
-                <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">
-                  Paystack Dedicated Virtual Account
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[11px] text-gray-400 font-semibold">Bank Name</div>
-                    <div className="text-sm font-bold text-[#EA4C2A]">Wema Bank / Titan Paystack</div>
-                  </div>
-                  <span className="text-lg">🏦</span>
-                </div>
-                <div className="flex items-center justify-between pt-1 border-t border-gray-200/50 dark:border-white/10">
-                  <div>
-                    <div className="text-[11px] text-gray-400 font-semibold">Account Number</div>
-                    <div className="text-base font-mono font-bold tracking-wider">9928371029</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyAccount}
-                    className="flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#EA4C2A] hover:bg-[#D43D1D] text-white active:scale-95 cursor-pointer"
-                  >
-                    {copiedAccount ? <Check size={12} /> : <Copy size={12} />}
-                    <span>{copiedAccount ? 'Copied' : 'Copy'}</span>
-                  </button>
-                </div>
-                <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Beneficiary: <strong>FoodMaxx / Paystack Direct</strong>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                💡 Transfer exact sum of <strong>{formattedTotal}</strong> to this account from your bank mobile app. Payment will be confirmed immediately.
-              </div>
-
-              <button
-                type="button"
-                disabled={isProcessing}
-                onClick={() => handleAuthorizePayment('bank_transfer')}
-                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-semibold text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/25 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isProcessing ? (
-                  <>
-                    <RefreshCw size={16} className="animate-spin stroke-[2.5]" />
-                    <span>Verifying Transfer Confirmation...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle size={16} />
-                    <span>I Have Sent The Money</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* USSD Tab */}
-          {activeTab === 'ussd' && (
-            <div className="space-y-3.5 text-xs">
-              <div>
-                <label className="block font-medium text-gray-500 dark:text-gray-400 mb-1.5">SELECT YOUR BANK</label>
-                <select
-                  value={ussdBank}
-                  onChange={e => setUssdBank(e.target.value)}
-                  className={`w-full px-3.5 py-2.5 rounded-xl border font-bold text-xs outline-none ${
-                    isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                  }`}
-                >
-                  <option value="gtb">GTBank (*737#)</option>
-                  <option value="zenith">Zenith Bank (*966#)</option>
-                  <option value="access">Access Bank (*901#)</option>
-                  <option value="firstbank">First Bank (*894#)</option>
-                  <option value="uba">UBA (*919#)</option>
-                </select>
-              </div>
-
-              <div className={`p-4 rounded-2xl border text-center space-y-1.5 ${
-                isDark ? 'bg-white/5 border-white/10' : 'bg-amber-50/70 border-amber-200'
-              }`}>
-                <div className="text-[11px] text-gray-500 font-medium uppercase">DIAL USSD STRING</div>
-                <div className="text-xl font-mono font-bold text-[#EA4C2A] tracking-wider">
-                  {ussdBank === 'gtb' && `*737*2*${Math.round(total)}*8392#`}
-                  {ussdBank === 'zenith' && `*966*00*${Math.round(total)}*8392#`}
-                  {ussdBank === 'access' && `*901*00*${Math.round(total)}*8392#`}
-                  {ussdBank === 'firstbank' && `*894*00*${Math.round(total)}*8392#`}
-                  {ussdBank === 'uba' && `*919*00*${Math.round(total)}*8392#`}
-                </div>
-                <div className="text-[10px] text-gray-400 font-medium">Dial on your phone registered with the bank</div>
-              </div>
-
-              <button
-                type="button"
-                disabled={isProcessing}
-                onClick={() => handleAuthorizePayment('ussd')}
-                className="w-full py-3.5 bg-[#EA4C2A] hover:bg-[#D43D1D] text-white rounded-2xl font-semibold text-xs uppercase tracking-wider shadow-lg shadow-[#EA4C2A]/25 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isProcessing ? (
-                  <>
-                    <RefreshCw size={16} className="animate-spin stroke-[2.5]" />
-                    <span>Verifying USSD Authorization...</span>
-                  </>
-                ) : (
-                  <>
-                    <Smartphone size={14} />
-                    <span>I Have Completed USSD Payment</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Security Footer */}
-        <div className={`px-5 py-3 border-t text-[10px] flex items-center justify-between text-gray-400 ${
-          isDark ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'
-        }`}>
-          <span className="flex items-center gap-1 font-bold">
-            <ShieldCheck size={12} className="text-emerald-500" /> 256-bit SSL Encrypted
-          </span>
-          <span className="font-bold uppercase tracking-wider">Paystack Merchant Checkout</span>
-        </div>
-      </div>
-    </div>
-  );
+// PAYSTACK NATIVE CHECKOUT
+// Native Paystack checkout is handled directly via PaystackPop.setup and launchRealPaystack
+function PaystackFallbackModal() {
+  return null;
 }
 
 // ============================================================
@@ -7288,8 +6966,6 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
     }
   }
 
-  const [paystackFallbackModal, setPaystackFallbackModal] = useState(null);
-
   async function completePaystackOrder(orderData, reference) {
     try {
       // Verify payment on backend
@@ -7337,7 +7013,6 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: placedOrder }));
       } catch {}
       clearCart();
-      setPaystackFallbackModal(null);
       onSuccess(placedOrder);
     } catch (err) {
       console.error('Payment completion error:', err);
@@ -7348,27 +7023,11 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   }
 
   async function handlePaystackCheckout(orderData, activeUser) {
-    const activeKey = (paystackKey || getStoredPaystackConfig().publicKey || '').trim();
+    const activeKey = (paystackKey || getStoredPaystackConfig().publicKey || 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a').trim();
     const txRef = `FMX_PSTK_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
     const effectiveEmail = activeUser?.email || orderData.customer_email || 'customer@foodmaxx.ng';
     const effectiveName = activeUser?.full_name || orderData.customer_name || 'FoodMaxx Customer';
     const effectivePhone = activeUser?.phone || orderData.customer_phone || '';
-
-    // If custom merchant key is not provided, launch the Active Paystack Demo Test checkout directly!
-    if (!isValidPaystackKey(activeKey)) {
-      setLoading(false);
-      setPaystackFallbackModal({
-        orderData,
-        activeUser,
-        txRef,
-        email: effectiveEmail,
-        name: effectiveName,
-        phone: effectivePhone,
-        total,
-        isDemo: true
-      });
-      return;
-    }
 
     await loadPaystackScript();
 
@@ -7398,29 +7057,13 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         onError: (err) => {
           console.warn('Native Paystack popup open failed or blocked:', err);
           setLoading(false);
-          setPaystackFallbackModal({
-            orderData,
-            activeUser,
-            txRef,
-            email: effectiveEmail,
-            name: effectiveName,
-            phone: effectivePhone,
-            total
-          });
+          toast(err?.message || 'Paystack payment error. Please check your network and try again.', 'error');
         }
       });
     } catch (err) {
       console.warn('Paystack checkout initialization error:', err);
       setLoading(false);
-      setPaystackFallbackModal({
-        orderData,
-        activeUser,
-        txRef,
-        email: effectiveEmail,
-        name: effectiveName,
-        phone: effectivePhone,
-        total
-      });
+      toast(err?.message || 'Unable to open Paystack checkout', 'error');
     }
   }
 
@@ -7872,27 +7515,11 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
             ) : (
               <>
                 <Lock size={16} />
-                <span>Pay with Paystack {isValidPaystackKey(paystackKey) ? '' : '· Demo'} · {fmt(total)}</span>
+                <span>Pay with Paystack · {fmt(total)}</span>
               </>
             )}
           </button>
         </div>
-
-        {/* Paystack Secure Checkout Fallback Modal */}
-        {paystackFallbackModal && (
-          <PaystackFallbackModal
-            open={Boolean(paystackFallbackModal)}
-            paymentInfo={paystackFallbackModal}
-            onClose={() => {
-              setPaystackFallbackModal(null);
-              setLoading(false);
-            }}
-            onComplete={async (reference) => {
-              await completePaystackOrder(paystackFallbackModal.orderData, reference);
-            }}
-            isDark={isDark}
-          />
-        )}
 
         {/* Paystack API Key Setup Modal */}
         {showKeyModal && (
@@ -8071,6 +7698,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 // ============================================================
 function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) {
   const [copiedRef, setCopiedRef] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -8089,6 +7717,18 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
   const orderRef = order.order_reference || order.id?.slice(0, 8) || 'FMX-001';
   const deliveryPin = order.delivery_otp || order.pin || '4821';
   const totalAmount = order.total || order.total_amount || 0;
+
+  // Resolve full delivery address safely
+  const fullAddress = order.delivery_address || order.address || (order.delivery_zone ? `${order.delivery_zone}, Ibadan` : 'Bodija, Ibadan');
+  const landmark = order.delivery_landmark || order.landmark || '';
+
+  // Order items resolution
+  const orderItems = (Array.isArray(order.cart_items) && order.cart_items.length > 0)
+    ? order.cart_items
+    : (Array.isArray(order.items) && order.items.length > 0)
+      ? order.items
+      : [];
+  const totalItemsCount = orderItems.reduce((sum, item) => sum + Number(item.qty || item.quantity || 1), 0);
 
   const handleCopyRef = () => {
     navigator.clipboard?.writeText(orderRef);
@@ -8111,7 +7751,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
         transition={{ type: 'spring', damping: 26, stiffness: 320 }}
         className={`w-full max-w-sm sm:max-w-md ${
           isDark ? 'bg-[#151821] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200'
-        } rounded-t-[32px] sm:rounded-[32px] border shadow-2xl p-6 relative overflow-hidden flex flex-col items-center text-center`}
+        } rounded-t-[32px] sm:rounded-[32px] border shadow-2xl p-5 sm:p-6 relative max-h-[92vh] overflow-y-auto flex flex-col items-center text-center`}
       >
         {/* Soft Ambient Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-24 bg-emerald-500/15 blur-2xl pointer-events-none rounded-full" />
@@ -8121,7 +7761,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', damping: 16, stiffness: 260 }}
-          className="w-16 h-16 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center mb-3.5 border border-emerald-500/30 shadow-xs"
+          className="w-16 h-16 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center mb-3 border border-emerald-500/30 shadow-xs shrink-0"
         >
           <Check size={32} strokeWidth={3.5} />
         </motion.div>
@@ -8133,14 +7773,14 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
           Your order has been placed with <span className="font-bold text-slate-800 dark:text-slate-200">FoodMaxx Kitchen</span> and is being prepared fresh.
         </p>
 
-        {/* Clean Single Summary Box */}
-        <div className={`w-full mt-5 p-4 rounded-2xl border text-left space-y-3 ${
+        {/* Primary Order Info Card */}
+        <div className={`w-full mt-4 p-4 rounded-2xl border text-left space-y-3 ${
           isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
         }`}>
           {/* Order Ref & Amount */}
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[10.5px] text-slate-400 font-medium">Order Reference</div>
+              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Order Reference</div>
               <button
                 type="button"
                 onClick={handleCopyRef}
@@ -8152,7 +7792,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
             </div>
 
             <div className="text-right">
-              <div className="text-[10.5px] text-slate-400 font-medium">Amount Paid</div>
+              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Amount Paid</div>
               <div className="font-black text-sm text-[#EA4C2A] mt-0.5">{fmt(totalAmount)}</div>
             </div>
           </div>
@@ -8172,21 +7812,162 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
               Paid ✓
             </span>
           </div>
+        </div>
 
-          {/* ETA & Zone */}
-          <div className="flex items-center justify-between text-xs pt-1 text-slate-400">
-            <span className="flex items-center gap-1 truncate max-w-[180px]">
-              <MapPin size={12} className="text-[#EA4C2A] shrink-0" />
-              <span className="truncate">{order.delivery_zone || 'Bodija, Ibadan'}</span>
-            </span>
-            <span className="font-semibold text-slate-700 dark:text-slate-300">
-              ~20–30 mins
-            </span>
+        {/* Full Delivery Address Card */}
+        <div className={`w-full mt-3 p-3.5 rounded-2xl border text-left flex items-start gap-2.5 ${
+          isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
+        }`}>
+          <div className="w-7 h-7 rounded-xl bg-[#EA4C2A]/15 text-[#EA4C2A] flex items-center justify-center shrink-0 mt-0.5">
+            <MapPin size={14} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                Delivery Address
+              </span>
+              <span className="text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                ~20–30 mins
+              </span>
+            </div>
+            <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1 leading-snug break-words">
+              {fullAddress}
+            </div>
+            {landmark && (
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                <span className="text-[10px]">📍</span>
+                <span>Landmark: <strong className="text-slate-700 dark:text-slate-300">{landmark}</strong></span>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Collapsible Simple Order Summary */}
+        {orderItems.length > 0 && (
+          <div className={`w-full mt-3 rounded-2xl border overflow-hidden transition-all text-left ${
+            isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
+          }`}>
+            <button
+              type="button"
+              onClick={() => setShowSummary(prev => !prev)}
+              className="w-full p-3.5 flex items-center justify-between text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-[#EA4C2A]/15 text-[#EA4C2A] flex items-center justify-center shrink-0">
+                  <ShoppingBag size={12} />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                    Order Summary
+                  </span>
+                  <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-slate-200/60 dark:bg-white/10 text-slate-600 dark:text-slate-400">
+                    {totalItemsCount} {totalItemsCount === 1 ? 'item' : 'items'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-xs font-semibold text-[#EA4C2A]">
+                <span>{showSummary ? 'Hide' : 'View'}</span>
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 ${showSummary ? 'rotate-180' : ''}`}
+                />
+              </div>
+            </button>
+
+            <AnimatePresence>
+              {showSummary && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className={`p-3.5 pt-1 border-t space-y-2.5 text-xs ${
+                    isDark ? 'border-white/8 bg-black/20' : 'border-slate-200/70 bg-white/70'
+                  }`}>
+                    {/* Items list */}
+                    <div className="max-h-48 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-100 dark:divide-white/5">
+                      {orderItems.map((item, idx) => {
+                        const itemName = item.name || item.item_name || item.product_name || 'Food Item';
+                        const qty = Number(item.qty || item.quantity || 1);
+                        const unitPrice = Number(item.price || item.unit_price || 0);
+                        const lineTotal = unitPrice * qty;
+                        const size = item.selected_size || item.selectedSize;
+                        const extras = item.selected_extras || item.selectedExtras;
+
+                        return (
+                          <div key={idx} className="pt-2 first:pt-0 flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="font-semibold text-slate-800 dark:text-slate-200 leading-snug">
+                                <span className="text-[#EA4C2A] font-bold mr-1">{qty}x</span>
+                                {itemName}
+                                {size && size !== 'Regular' && (
+                                  <span className="ml-1.5 text-[9.5px] font-medium px-1.5 py-0.5 rounded bg-slate-200/60 dark:bg-white/10 text-slate-500 dark:text-slate-400">
+                                    {size}
+                                  </span>
+                                )}
+                              </div>
+                              {Array.isArray(extras) && extras.length > 0 && (
+                                <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                                  +{extras.map(e => e.name || e).join(', ')}
+                                </div>
+                              )}
+                            </div>
+                            <span className="font-mono font-medium text-slate-700 dark:text-slate-300 text-xs shrink-0">
+                              {fmt(lineTotal)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Simple summary breakdown */}
+                    <div className="pt-2.5 border-t border-dashed border-slate-200 dark:border-white/10 space-y-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                      {Number(order.subtotal) > 0 && (
+                        <div className="flex justify-between">
+                          <span>Subtotal</span>
+                          <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{fmt(order.subtotal)}</span>
+                        </div>
+                      )}
+                      {Number(order.delivery_fee) > 0 && (
+                        <div className="flex justify-between">
+                          <span>Delivery Fee</span>
+                          <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{fmt(order.delivery_fee)}</span>
+                        </div>
+                      )}
+                      {Number(order.service_fee) > 0 && (
+                        <div className="flex justify-between">
+                          <span>Service Fee</span>
+                          <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{fmt(order.service_fee)}</span>
+                        </div>
+                      )}
+                      {Number(order.discount) > 0 && (
+                        <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                          <span>Discount Promo</span>
+                          <span className="font-mono">-{fmt(order.discount)}</span>
+                        </div>
+                      )}
+                      {Number(order.wallet_deduction) > 0 && (
+                        <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                          <span>Wallet Bonus Applied</span>
+                          <span className="font-mono">-{fmt(order.wallet_deduction)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between pt-1.5 border-t border-slate-200/60 dark:border-white/10 font-bold text-xs text-slate-900 dark:text-white">
+                        <span>Total Paid</span>
+                        <span className="font-mono font-black text-sm text-[#EA4C2A]">{fmt(totalAmount)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
         {/* Action Buttons */}
-        <div className="w-full mt-5 space-y-2">
+        <div className="w-full mt-4 space-y-2">
           <button
             type="button"
             onClick={() => {
@@ -8810,7 +8591,6 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
 function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }) {
   const [amount, setAmount] = useState('2000');
   const [loading, setLoading] = useState(false);
-  const [paystackFallbackModal, setPaystackFallbackModal] = useState(null);
   const toast = useToast();
 
   const quickAmounts = [1000, 2000, 5000, 10000];
@@ -8826,7 +8606,7 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
 
     const paystackCfg = getStoredPaystackConfig();
     const envKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) || '';
-    const activeKey = (paystackCfg.publicKey || envKey || '').trim();
+    const activeKey = (paystackCfg.publicKey || envKey || 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a').trim();
 
     const effectiveEmail = (user?.email && user.email.includes('@'))
       ? user.email.trim()
@@ -8834,20 +8614,6 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
     const effectiveName = user?.name || user?.displayName || user?.full_name || 'FoodMaxx Customer';
     const effectivePhone = user?.phone || user?.phone_number || '';
     const txRef = `TOPUP_PSTK_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
-
-    // If active merchant key is missing or not live format, trigger Paystack Fallback / Demo Test Modal
-    if (!isValidPaystackKey(activeKey)) {
-      setLoading(false);
-      setPaystackFallbackModal({
-        total: numAmount,
-        email: effectiveEmail,
-        name: effectiveName,
-        phone: effectivePhone,
-        txRef,
-        isDemo: true
-      });
-      return;
-    }
 
     await loadPaystackScript();
 
@@ -8886,45 +8652,17 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
           setLoading(false);
         },
         onError: (err) => {
-          console.warn('Paystack popup initiation failed, opening secure fallback:', err);
+          console.warn('Paystack popup initiation failed:', err);
           setLoading(false);
-          setPaystackFallbackModal({
-            total: numAmount,
-            email: effectiveEmail,
-            name: effectiveName,
-            phone: effectivePhone,
-            txRef,
-            isDemo: false
-          });
+          toast(err?.message || 'Paystack payment error. Please check your network and try again.', 'error');
         }
       });
     } catch (err) {
       console.warn('Paystack inline launch error:', err);
       setLoading(false);
-      setPaystackFallbackModal({
-        total: numAmount,
-        email: effectiveEmail,
-        name: effectiveName,
-        phone: effectivePhone,
-        txRef,
-        isDemo: true
-      });
+      toast(err?.message || 'Unable to open Paystack checkout', 'error');
     }
   }
-
-  const handleFallbackComplete = async (confirmedRef) => {
-    try {
-      const numAmount = Number(paystackFallbackModal?.total || amount);
-      await api.topUpWallet(numAmount, user?.id || 'usr_customer_default', confirmedRef);
-      toast(`Wallet funded with ₦${numAmount.toLocaleString()}! 💳✨`, 'success');
-      setPaystackFallbackModal(null);
-      setAmount('2000');
-      if (onRefresh) await onRefresh();
-    } catch (e) {
-      console.error('Fallback wallet credit error:', e);
-      toast(e?.message || 'Failed to credit wallet', 'error');
-    }
-  };
 
   const hasWelcomeCredit = (wallet?.transactions || []).some(t => 
     (t.description || '').toLowerCase().includes('welcome') || (t.reference || '').toLowerCase().includes('welcome')
@@ -9076,16 +8814,6 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
           </div>
         )}
       </div>
-
-      {paystackFallbackModal && (
-        <PaystackFallbackModal
-          open={Boolean(paystackFallbackModal)}
-          paymentInfo={paystackFallbackModal}
-          onClose={() => setPaystackFallbackModal(null)}
-          onComplete={handleFallbackComplete}
-          isDark={isDark}
-        />
-      )}
     </Modal>
   );
 }

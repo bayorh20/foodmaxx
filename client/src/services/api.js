@@ -622,7 +622,7 @@ export const api = {
       const stored = localStorage.getItem('fmx_paystack_config');
       if (stored) return { data: JSON.parse(stored) };
     } catch (e) {}
-    const envKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) || '';
+    const envKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) || 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a';
     return { data: { public_key: envKey, is_live: envKey.startsWith('pk_live_') } };
   },
 

@@ -1,8 +1,9 @@
 import PaystackPop from '@paystack/inline-js';
 
 // Environment or default Paystack configuration
+const FALLBACK_PAYSTACK_KEY = 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a';
 const ENV_PAYSTACK_KEY = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) || '';
-const DEFAULT_PAYSTACK_KEY = ENV_PAYSTACK_KEY || '';
+const DEFAULT_PAYSTACK_KEY = ENV_PAYSTACK_KEY || FALLBACK_PAYSTACK_KEY;
 
 const memoryStore = {};
 const safeStorage = {
@@ -50,7 +51,7 @@ export function getStoredPaystackConfig() {
     const stored = localStorage.getItem('fmx_paystack_config');
     if (stored) {
       const parsed = JSON.parse(stored);
-      const activeKey = parsed.publicKey || ENV_PAYSTACK_KEY || DEFAULT_PAYSTACK_KEY;
+      const activeKey = (parsed.publicKey || ENV_PAYSTACK_KEY || DEFAULT_PAYSTACK_KEY).trim();
       return {
         publicKey: activeKey,
         secretKey: parsed.secretKey || '',
@@ -81,7 +82,7 @@ export function savePaystackConfig(config) {
 }
 
 /**
- * Launch Real Official Paystack Inline Checkout
+ * Launch Real Official Paystack Native Inline Checkout
  */
 export function launchRealPaystack({
   key,
@@ -96,7 +97,7 @@ export function launchRealPaystack({
   onError
 }) {
   const config = getStoredPaystackConfig();
-  const activeKey = key || config.publicKey || DEFAULT_PAYSTACK_KEY;
+  const activeKey = (key || config.publicKey || DEFAULT_PAYSTACK_KEY).trim();
   const amountInKobo = Math.round(Number(amount) * 100);
 
   if (!activeKey) {
@@ -116,6 +117,48 @@ export function launchRealPaystack({
 
   const txRef = reference || `FMX_PSTK_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
 
+  // Priority 1: Main native Paystack Screen (window.PaystackPop.setup)
+  // This is the default, standard native Paystack iframe popup known across all Paystack apps
+  if (typeof window !== 'undefined' && window.PaystackPop && typeof window.PaystackPop.setup === 'function') {
+    try {
+      const handler = window.PaystackPop.setup({
+        key: activeKey,
+        email: email.trim(),
+        amount: amountInKobo,
+        currency: 'NGN',
+        ref: txRef,
+        channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
+        metadata: {
+          custom_fields: [
+            { display_name: 'Customer Name', variable_name: 'customer_name', value: customerName || 'FoodMaxx Customer' },
+            { display_name: 'Customer Phone', variable_name: 'customer_phone', value: phone || '' },
+            ...(metadata.custom_fields || [])
+          ],
+          ...metadata
+        },
+        callback: (transaction) => {
+          if (onSuccess) {
+            onSuccess({
+              reference: transaction.reference || transaction.trxref || txRef,
+              status: 'success',
+              trans: transaction.trans,
+              transaction: transaction.transaction,
+              message: transaction.message || 'Approved'
+            });
+          }
+        },
+        onClose: () => {
+          if (onCancel) onCancel();
+        }
+      });
+      handler.openIframe();
+      return;
+    } catch (setupErr) {
+      console.warn('PaystackPop.setup failed, falling back to new PaystackPop:', setupErr);
+    }
+  }
+
+  // Priority 2: PaystackPop instance via @paystack/inline-js
   try {
     const paystack = new PaystackPop();
     paystack.newTransaction({
@@ -154,39 +197,8 @@ export function launchRealPaystack({
       }
     });
   } catch (err) {
-    console.warn('PaystackPop instance error, trying fallback:', err);
-    if (typeof window !== 'undefined' && window.PaystackPop) {
-      try {
-        if (typeof window.PaystackPop.setup === 'function') {
-          const handler = window.PaystackPop.setup({
-            key: activeKey,
-            publicKey: activeKey,
-            email: email.trim(),
-            amount: amountInKobo,
-            currency: 'NGN',
-            ref: txRef,
-            channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
-            metadata,
-            callback: (response) => {
-              if (onSuccess) {
-                onSuccess({
-                  reference: response.reference || txRef,
-                  status: 'success'
-                });
-              }
-            },
-            onClose: () => {
-              if (onCancel) onCancel();
-            }
-          });
-          handler.openIframe();
-          return;
-        }
-      } catch (fallbackErr) {
-        if (onError) onError(fallbackErr);
-        return;
-      }
-    }
+    console.warn('Paystack checkout initialization error:', err);
     if (onError) onError(err);
   }
 }
+
