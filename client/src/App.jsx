@@ -6065,53 +6065,33 @@ function FoodDetailModal({ restaurant, item, onClose }) {
               </div>
             </div>
 
-            {/* 3. Product Description Block */}
-            <div className={`p-4 rounded-2xl border leading-relaxed ${
-              isDark ? 'bg-white/5 border-white/5 text-gray-300' : 'bg-slate-50 border-slate-100 text-slate-700'
+            {/* 3. Clean Product Description Block */}
+            <p className={`text-sm leading-relaxed font-normal ${
+              isDark ? 'text-gray-300' : 'text-slate-600'
             }`}>
-              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5 flex items-center gap-1.5">
-                <ChefHat size={14} className="text-[#EA4C2A]" />
-                <span>Chef's Description</span>
-              </div>
-              <p className="text-xs sm:text-[13px] leading-relaxed">
-                {item.description || `${item.name} prepared fresh with authentic spices and slow-cooked traditional techniques. Served hot for immediate dining enjoyment.`}
-              </p>
+              {item.description || `${item.name} prepared fresh with authentic ingredients and traditional spices. Served hot and ready to enjoy.`}
+            </p>
 
-              {/* Dietary / Feature Tags */}
-              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-200/50 dark:border-white/10">
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white dark:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-gray-300 flex items-center gap-1">
-                  <span>🌿</span> Fresh Daily Ingredients
-                </span>
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white dark:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-gray-300 flex items-center gap-1">
-                  <span>🔥</span> Made to Order Hot
-                </span>
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white dark:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-gray-300 flex items-center gap-1">
-                  <span>🥡</span> Thermal Foil Sealed
-                </span>
-              </div>
-            </div>
-
-            {/* 4. Portion Sizes Selector */}
+            {/* 4. Modern Attractive Portion Sizes Selector */}
             {hasSizes && (
-              <div className="space-y-2">
+              <div className="space-y-2.5 pt-1">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Utensils size={14} className="text-[#EA4C2A]" />
-                    <h3 className={`font-bold text-xs uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      Select Portion Size
+                  <div>
+                    <h3 className={`font-bold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Choose Portion Size
                     </h3>
+                    <p className="text-[11px] text-gray-400">Select one option to continue</p>
                   </div>
-                  <span className="text-[9px] font-bold text-[#EA4C2A] bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
+                  <span className="text-[10px] font-bold text-[#EA4C2A] bg-[#EA4C2A]/10 dark:bg-[#EA4C2A]/20 px-2.5 py-1 rounded-full">
                     Required
                   </span>
                 </div>
 
-                <div className={`grid gap-2 ${sizes.length === 2 ? 'grid-cols-2' : sizes.length >= 3 ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                <div className="space-y-2">
                   {sizes.map((s, idx) => {
                     const isSelected = selectedSize === s.name;
                     const variationPrice = item.price + (s.price_adjustment || 0);
                     const isBase = (s.price_adjustment || 0) === 0;
-                    const displayName = s.name.replace(/\s*Portion\s*/i, '');
 
                     return (
                       <button
@@ -6121,40 +6101,66 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                           triggerHaptic('selection');
                           setSelectedSize(s.name);
                         }}
-                        className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center relative ${
+                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative ${
                           isSelected
-                            ? 'bg-[#EA4C2A]/10 border-[#EA4C2A] text-[#EA4C2A] shadow-xs'
+                            ? 'bg-[#EA4C2A]/[0.08] dark:bg-[#EA4C2A]/15 border-[#EA4C2A] shadow-xs'
                             : isDark
-                            ? 'bg-white/5 border-white/10 hover:border-white/20 text-slate-300'
-                            : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 shadow-xs'
+                            ? 'bg-white/[0.03] border-white/10 hover:border-white/20 hover:bg-white/[0.06]'
+                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 shadow-xs'
                         }`}
                       >
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center">
-                            <Check size={10} className="stroke-[3]" />
+                        {/* Left: Radio Indicator + Name + Description */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1 pr-3">
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all border ${
+                            isSelected
+                              ? 'border-[#EA4C2A] bg-[#EA4C2A] text-white shadow-xs'
+                              : isDark
+                              ? 'border-white/30 bg-transparent'
+                              : 'border-slate-300 bg-transparent'
+                          }`}>
+                            {isSelected && <Check size={12} className="stroke-[3]" />}
                           </div>
-                        )}
-                        <span className={`text-xs font-bold ${
-                          isSelected ? (isDark ? 'text-white' : 'text-slate-900') : (isDark ? 'text-slate-300' : 'text-slate-700')
-                        }`}>
-                          {displayName}
-                        </span>
-                        <span className="text-xs font-black mt-1 text-[#EA4C2A]">
-                          {fmt(variationPrice)}
-                        </span>
-                        <span className="text-[9.5px] text-gray-400 mt-0.5">
-                          {isBase ? 'Standard portion' : `+${fmt(s.price_adjustment)}`}
-                        </span>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-bold tracking-tight truncate ${
+                                isSelected
+                                  ? (isDark ? 'text-white' : 'text-slate-900')
+                                  : (isDark ? 'text-gray-200' : 'text-slate-700')
+                              }`}>
+                                {s.name}
+                              </span>
+                              {isBase && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300">
+                                  Standard
+                                </span>
+                              )}
+                            </div>
+                            {s.description && (
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                {s.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Right: Modern Price Pill */}
+                        <div className="shrink-0 text-right flex flex-col items-end">
+                          <span className={`text-sm font-extrabold tracking-tight ${
+                            isSelected ? 'text-[#EA4C2A]' : isDark ? 'text-white' : 'text-slate-900'
+                          }`}>
+                            {fmt(variationPrice)}
+                          </span>
+                          {!isBase && (
+                            <span className="text-[10px] font-semibold text-[#EA4C2A]">
+                              +{fmt(s.price_adjustment)}
+                            </span>
+                          )}
+                        </div>
                       </button>
                     );
                   })}
                 </div>
-
-                {currentSizeObj?.description && (
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 px-1 italic">
-                    {currentSizeObj.description}
-                  </p>
-                )}
               </div>
             )}
 
