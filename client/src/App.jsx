@@ -1522,7 +1522,7 @@ function CustomerPortal() {
                 <ProfileTab
                   user={user} wallet={wallet}
                   orders={orders}
-                  savedAddressesCount={savedAddresses.length}
+                  savedAddressesCount={savedAddresses ? savedAddresses.length : 0}
                   onLogin={() => setAppStage('onboarding')}
                   onOpenOnboarding={() => setAppStage('onboarding')}
                   onLogout={() => { logout(); setActiveTab('home'); toast('Logged out successfully', 'info'); }}
@@ -1533,7 +1533,7 @@ function CustomerPortal() {
                   onOpenTransitionStudio={() => setTransitionModalOpen(true)}
                   onOpenOrders={() => setActiveTab('orders')}
                   onOpenFavorites={() => setActiveTab('favorites')}
-                  isDark={isDark} toggleDark={toggleTheme}
+                  isDark={isDark} toggleDark={toggleDark}
                 />
               )}
             </motion.div>
@@ -3680,6 +3680,9 @@ function ProfileTab({
   }
 
   const walletBalance = Number(wallet?.balance) || 0;
+  const displayName = user?.full_name || user?.name || (user?.phone ? `Customer ${user.phone}` : 'FoodMaxx Member');
+  const displayEmail = user?.email || 'No email registered';
+  const displayPhone = user?.phone || '';
 
   return (
     <div className="p-4 sm:p-5 space-y-4 pb-28">
@@ -3694,23 +3697,23 @@ function ProfileTab({
                 e.target.onerror = null;
                 e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80';
               }}
-              src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=EA4C2A&color=fff&size=100`}
+              src={user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=EA4C2A&color=fff&size=100`}
               className="w-16 h-16 rounded-2xl object-cover shadow-sm border border-black/10 dark:border-white/10"
-              alt={user.full_name}
+              alt={displayName}
             />
             <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-[#181B22]" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-base text-slate-900 dark:text-white leading-tight truncate">
-                {user.full_name}
+                {displayName}
               </h3>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
                 VIP
               </span>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{user.email || 'No email registered'}</p>
-            <p className="text-[11px] font-mono text-gray-400 dark:text-gray-500 mt-0.5">{user.phone || 'No phone'}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{displayEmail}</p>
+            {displayPhone && <p className="text-[11px] font-mono text-gray-400 dark:text-gray-500 mt-0.5">{displayPhone}</p>}
           </div>
         </div>
 
@@ -5938,287 +5941,354 @@ function FoodDetailModal({ restaurant, item, onClose }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.22, ease: 'easeOut' }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4"
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ y: '100%', opacity: 0.95 }}
         animate={{ y: 0, opacity: 1 }}
-        exit={{ y: '100%', opacity: 0.4, transition: { duration: 0.22, ease: 'easeInOut' } }}
-        transition={{
-          type: 'spring',
-          damping: 30,
-          stiffness: 320,
-          mass: 0.85
-        }}
-        className={`w-full max-w-lg sm:max-w-xl h-full min-h-[100dvh] sm:min-h-0 sm:h-[92vh] sm:max-h-[92vh] ${
+        exit={{ y: '100%', opacity: 0.3, transition: { duration: 0.2, ease: 'easeIn' } }}
+        transition={{ type: 'spring', damping: 30, stiffness: 320, mass: 0.85 }}
+        className={`w-full max-w-lg sm:max-w-xl h-full min-h-[100dvh] sm:min-h-0 sm:h-[90vh] sm:max-h-[90vh] ${
           isDark ? 'bg-[#121418] text-white border-white/10' : 'bg-white text-slate-900 border-slate-100'
         } rounded-none sm:rounded-[36px] sm:border relative flex flex-col shadow-2xl overflow-hidden`}
         onClick={e => e.stopPropagation()}
       >
-        {/* PADDED HERO IMAGE CONTAINER WITH SPACE & BORDER GAPS */}
-        <div className="p-3 sm:p-4 pb-0 shrink-0">
-          <div className="relative h-60 sm:h-64 w-full rounded-3xl overflow-hidden bg-slate-900 border border-slate-200/50 dark:border-white/10 shadow-lg group">
+        {/* Mobile Drag Indicator Handle */}
+        <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mt-2 mb-1 shrink-0 sm:hidden" />
+
+        {/* Scrollable Content Container */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          
+          {/* 1. Immersive Hero Media Card */}
+          <div className="relative h-64 sm:h-72 w-full bg-slate-900 overflow-hidden">
             <motion.img
               key={heroImage}
-              initial={{ scale: 1.05 }}
+              initial={{ scale: 1.04 }}
               animate={{ scale: 1 }}
               transition={{ duration: 0.35, ease: 'easeOut' }}
-              onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80';
+              }}
               src={heroImage}
               alt={item.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/35 pointer-events-none" />
+            {/* Soft Ambient Vignette Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 pointer-events-none" />
 
-            {/* Floating Top Control Bar */}
-            <div className="absolute top-3 left-0 right-0 px-3 flex items-center justify-between z-20">
+            {/* Floating Top Control Pills */}
+            <div className="absolute top-3.5 left-0 right-0 px-4 flex items-center justify-between z-20">
               <button
+                type="button"
                 onClick={() => { triggerHaptic('selection'); onClose(); }}
-                className="w-9 h-9 rounded-full bg-black/55 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer border border-white/20 shadow-md"
-                title="Close"
+                className="w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-md"
+                title="Back"
               >
                 <ChevronLeft size={20} className="stroke-[2.5]" />
               </button>
 
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={handleShare}
-                  className="w-9 h-9 rounded-full bg-black/55 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer border border-white/20 shadow-md"
-                  title="Share Dish"
+                  className="w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-md"
+                  title="Share"
                 >
                   <Share2 size={16} className="stroke-[2.2]" />
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     triggerHaptic('medium');
                     setIsFavorite(f => !f);
                     toast(isFavorite ? 'Removed from favourites' : 'Saved to favourites ❤️', 'info');
                   }}
-                  className="w-9 h-9 rounded-full bg-black/55 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer border border-white/20 shadow-md"
-                  title="Save to Favourites"
+                  className="w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-md"
+                  title="Favorite"
                 >
-                  <Heart size={16} className={isFavorite ? 'text-[#FF4B26] fill-[#FF4B26] stroke-[2.2]' : 'stroke-[2.2]'} />
+                  <Heart size={16} className={isFavorite ? 'text-[#EA4C2A] fill-[#EA4C2A] stroke-[2.2]' : 'stroke-[2.2]'} />
                 </button>
               </div>
             </div>
 
-            {/* Floating Price Pill on Hero Bottom-Left */}
-            <div className="absolute bottom-3 left-3 bg-[#FF4B26] text-white font-bold text-sm sm:text-base px-3.5 py-1.5 rounded-full shadow-lg flex items-center gap-1 border border-white/20">
-              <span>{fmt(unitPrice)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* SCROLLABLE CONTENT BODY */}
-        <div className="px-5 py-4 space-y-4 flex-1 min-h-0 overflow-y-auto overscroll-contain">
-          
-          {/* Title & Description */}
-          <div>
-            <h1 className={`text-xl sm:text-2xl font-bold tracking-tight leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {item.name}
-            </h1>
-
-            {item.description && (
-              <p className={`text-xs leading-relaxed mt-2 ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                {item.description}
-              </p>
-            )}
-          </div>
-
-          {/* ULTRA-COMPACT SLEEK PORTION SELECTOR (ZERO-SCROLL, 1-ROW CARDS) */}
-          {hasSizes && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Utensils size={14} className="text-[#EA4C2A]" />
-                  <h3 className={`font-bold text-xs uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                    Portion Size
-                  </h3>
-                </div>
-                <span className="text-[9px] font-bold text-[#EA4C2A] bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
-                  1 Choice Required
+            {/* Floating Bottom Metadata Tags on Hero */}
+            <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between pointer-events-none">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md text-white border border-white/20 flex items-center gap-1">
+                  <Clock size={11} className="text-amber-400" />
+                  <span>20-25 mins</span>
+                </span>
+                <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-500/80 backdrop-blur-md text-white flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  <span>Fresh In Stock</span>
                 </span>
               </div>
+              <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-500/80 backdrop-blur-md text-white flex items-center gap-1">
+                <Star size={11} className="fill-white" />
+                <span>4.9</span>
+              </span>
+            </div>
+          </div>
 
-              {/* Horizontal Compact Segmented Control (Fast 1-tap, no vertical scrolling) */}
-              <div className={`grid gap-2 ${sizes.length === 2 ? 'grid-cols-2' : sizes.length >= 3 ? 'grid-cols-3' : 'grid-cols-1'}`}>
-                {sizes.map((s, idx) => {
-                  const isSelected = selectedSize === s.name;
-                  const variationPrice = item.price + (s.price_adjustment || 0);
-                  const isBase = (s.price_adjustment || 0) === 0;
-                  const tagLabel = idx === 1 ? '🔥 Popular' : idx === 2 ? '👑 Feast' : null;
-                  const displayName = s.name.replace(/\s*Portion\s*/i, '');
+          {/* 2. Product Information Block */}
+          <div className="p-5 space-y-4">
+            
+            {/* Title & Price Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#EA4C2A]/10 text-[#EA4C2A] dark:bg-[#EA4C2A]/20">
+                    {item.category || 'Specialty Dish'}
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-medium">Ibadan Kitchen</span>
+                </div>
+                <h1 className={`text-xl sm:text-2xl font-bold tracking-tight leading-tight ${
+                  isDark ? 'text-white' : 'text-slate-900'
+                }`}>
+                  {item.name}
+                </h1>
+              </div>
 
-                  return (
-                    <motion.button
-                      key={s.name || idx}
-                      type="button"
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        triggerHaptic('selection');
-                        setSelectedSize(s.name);
-                      }}
-                      className={`relative p-2 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center min-h-[70px] ${
-                        isSelected
-                          ? 'bg-[#EA4C2A]/10 border-[#EA4C2A] text-[#EA4C2A] ring-2 ring-[#EA4C2A]/30 shadow-xs'
-                          : isDark
-                          ? 'bg-[#181A20] border-white/10 hover:border-white/20 text-slate-300 hover:bg-[#1E2129]'
-                          : 'bg-slate-50/80 border-slate-200 hover:border-slate-300 text-slate-700 hover:bg-white'
-                      }`}
-                    >
-                      {tagLabel && (
-                        <span className="absolute -top-2 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs">
-                          {tagLabel}
-                        </span>
-                      )}
+              {/* Prominent Unit Price Tag */}
+              <div className="text-right shrink-0">
+                <div className="text-xl sm:text-2xl font-black text-[#EA4C2A] tracking-tight">
+                  {fmt(unitPrice)}
+                </div>
+                {sizeAdj > 0 && (
+                  <span className="text-[10px] text-gray-400 font-medium">
+                    Base {fmt(item.price)} + {fmt(sizeAdj)}
+                  </span>
+                )}
+              </div>
+            </div>
 
-                      {/* Optional Portion Thumbnail */}
-                      {s.image_url && (
-                        <img
-                          src={s.image_url}
-                          alt={displayName}
-                          className="w-7 h-7 rounded-lg object-cover mb-1 border border-white/10 shadow-xs"
-                        />
-                      )}
+            {/* 3. Product Description Block */}
+            <div className={`p-4 rounded-2xl border leading-relaxed ${
+              isDark ? 'bg-white/5 border-white/5 text-gray-300' : 'bg-slate-50 border-slate-100 text-slate-700'
+            }`}>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5 flex items-center gap-1.5">
+                <ChefHat size={14} className="text-[#EA4C2A]" />
+                <span>Chef's Description</span>
+              </div>
+              <p className="text-xs sm:text-[13px] leading-relaxed">
+                {item.description || `${item.name} prepared fresh with authentic spices and slow-cooked traditional techniques. Served hot for immediate dining enjoyment.`}
+              </p>
 
-                      <div className="flex items-center gap-1">
-                        <span className={`text-xs font-bold leading-tight ${
+              {/* Dietary / Feature Tags */}
+              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-200/50 dark:border-white/10">
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white dark:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-gray-300 flex items-center gap-1">
+                  <span>🌿</span> Fresh Daily Ingredients
+                </span>
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white dark:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-gray-300 flex items-center gap-1">
+                  <span>🔥</span> Made to Order Hot
+                </span>
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white dark:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-gray-300 flex items-center gap-1">
+                  <span>🥡</span> Thermal Foil Sealed
+                </span>
+              </div>
+            </div>
+
+            {/* 4. Portion Sizes Selector */}
+            {hasSizes && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Utensils size={14} className="text-[#EA4C2A]" />
+                    <h3 className={`font-bold text-xs uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Select Portion Size
+                    </h3>
+                  </div>
+                  <span className="text-[9px] font-bold text-[#EA4C2A] bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
+                    Required
+                  </span>
+                </div>
+
+                <div className={`grid gap-2 ${sizes.length === 2 ? 'grid-cols-2' : sizes.length >= 3 ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                  {sizes.map((s, idx) => {
+                    const isSelected = selectedSize === s.name;
+                    const variationPrice = item.price + (s.price_adjustment || 0);
+                    const isBase = (s.price_adjustment || 0) === 0;
+                    const displayName = s.name.replace(/\s*Portion\s*/i, '');
+
+                    return (
+                      <button
+                        key={s.name || idx}
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('selection');
+                          setSelectedSize(s.name);
+                        }}
+                        className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center relative ${
+                          isSelected
+                            ? 'bg-[#EA4C2A]/10 border-[#EA4C2A] text-[#EA4C2A] shadow-xs'
+                            : isDark
+                            ? 'bg-white/5 border-white/10 hover:border-white/20 text-slate-300'
+                            : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 shadow-xs'
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center">
+                            <Check size={10} className="stroke-[3]" />
+                          </div>
+                        )}
+                        <span className={`text-xs font-bold ${
                           isSelected ? (isDark ? 'text-white' : 'text-slate-900') : (isDark ? 'text-slate-300' : 'text-slate-700')
                         }`}>
                           {displayName}
                         </span>
-                        {isSelected && (
-                          <CheckCircle size={12} className="text-[#EA4C2A]" />
-                        )}
-                      </div>
+                        <span className="text-xs font-black mt-1 text-[#EA4C2A]">
+                          {fmt(variationPrice)}
+                        </span>
+                        <span className="text-[9.5px] text-gray-400 mt-0.5">
+                          {isBase ? 'Standard portion' : `+${fmt(s.price_adjustment)}`}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-                      <div className={`text-xs font-extrabold mt-0.5 ${isSelected ? 'text-[#EA4C2A]' : isDark ? 'text-white' : 'text-slate-900'}`}>
-                        {fmt(variationPrice)}
-                      </div>
-
-                      <span className={`text-[9px] font-medium leading-none ${isBase ? 'text-slate-400 dark:text-slate-500' : 'text-amber-500 font-semibold'}`}>
-                        {isBase ? 'Standard' : `+${fmt(s.price_adjustment)}`}
-                      </span>
-                    </motion.button>
-                  );
-                })}
+                {currentSizeObj?.description && (
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 px-1 italic">
+                    {currentSizeObj.description}
+                  </p>
+                )}
               </div>
+            )}
 
-              {/* Micro Appetite Hint Banner */}
-              {currentSizeObj && (
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 px-1 italic leading-snug">
-                  {currentSizeObj.description || (
-                    selectedSize?.includes('Regular') ? 'Standard single serving · 1 protein piece' :
-                    selectedSize?.includes('Large') ? 'Extra portion · Ideal for hearty appetites' :
-                    'Full executive feast · Generous sharing portion'
-                  )}
-                </p>
-              )}
-            </div>
-          )}
+            {/* 5. Extras & Add-ons */}
+            {extras.length > 0 && (
+              <div className={`rounded-2xl p-4 border space-y-2.5 ${
+                isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Plus size={14} className="text-[#EA4C2A]" />
+                    <h3 className={`font-bold text-xs uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Upgrades & Side Extras
+                    </h3>
+                  </div>
+                  <span className="text-[10px] text-gray-400">Optional</span>
+                </div>
 
+                <div className="space-y-2">
+                  {extras.map((e, idx) => {
+                    const eQty = getExtraQty(e.name);
+                    return (
+                      <div
+                        key={e.name || idx}
+                        className={`flex items-center justify-between p-2.5 rounded-xl border transition-colors ${
+                          eQty > 0
+                            ? (isDark ? 'bg-[#EA4C2A]/15 border-[#EA4C2A]/40' : 'bg-orange-50 border-orange-200')
+                            : (isDark ? 'bg-white/5 border-white/5' : 'bg-white border-slate-200/80')
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1 pr-2">
+                          <span className="text-xs font-bold text-slate-800 dark:text-gray-200 block truncate">{e.name}</span>
+                          <span className="text-[11px] font-semibold text-[#EA4C2A]">+{fmt(e.price_adjustment)}</span>
+                        </div>
 
-
-          {/* OPTIONAL ADD-ONS (IF ANY) */}
-          {extras.length > 0 && (
-            <div className={`rounded-2xl p-3 border ${isDark ? 'bg-[#1C1F26]/60 border-white/10' : 'bg-gray-50 border-slate-100'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className={`font-bold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>Extra Add-ons</h3>
-                <span className="text-[10px] text-gray-400">Optional</span>
-              </div>
-              <div className="space-y-1.5">
-                {extras.map((e, idx) => {
-                  const eQty = getExtraQty(e.name);
-                  return (
-                    <div key={e.name || idx} className="flex items-center justify-between py-1 text-xs">
-                      <span className="truncate pr-2 text-gray-700 dark:text-gray-300">{e.name} (+{fmt(e.price_adjustment)})</span>
-                      {eQty === 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, 1); }}
-                          className="px-2.5 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-[#FF4B26] hover:text-white font-bold text-[11px] transition-colors cursor-pointer"
-                        >
-                          Add
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, -1); }}
-                            className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center font-bold"
-                          >
-                            -
-                          </button>
-                          <span className="font-bold text-[#FF4B26]">{eQty}</span>
+                        {eQty === 0 ? (
                           <button
                             type="button"
                             onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, 1); }}
-                            className="w-5 h-5 rounded-full bg-[#FF4B26] text-white flex items-center justify-center font-bold"
+                            className="px-3 py-1 rounded-lg bg-[#EA4C2A]/10 hover:bg-[#EA4C2A] text-[#EA4C2A] hover:text-white font-bold text-xs transition-colors cursor-pointer"
                           >
-                            +
+                            + Add
                           </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        ) : (
+                          <div className="flex items-center gap-2 bg-white dark:bg-black/30 rounded-lg p-0.5 border border-slate-200 dark:border-white/10">
+                            <button
+                              type="button"
+                              onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, -1); }}
+                              className="w-6 h-6 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 flex items-center justify-center font-bold text-xs text-slate-700 dark:text-white cursor-pointer"
+                            >
+                              −
+                            </button>
+                            <span className="font-bold text-xs text-[#EA4C2A] w-4 text-center">{eQty}</span>
+                            <button
+                              type="button"
+                              onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, 1); }}
+                              className="w-6 h-6 rounded-md bg-[#EA4C2A] text-white flex items-center justify-center font-bold text-xs cursor-pointer shadow-xs"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
+            )}
+
+            {/* 6. Special Instructions Note */}
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 block mb-1">
+                Special Kitchen Notes (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Extra spicy, sauce on the side, no onions..."
+                value={instructions}
+                onChange={e => setInstructions(e.target.value)}
+                className={`w-full text-xs rounded-xl px-3.5 py-2.5 border outline-none font-medium transition-colors ${
+                  isDark ? 'bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-[#EA4C2A]' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-gray-400 focus:border-[#EA4C2A]'
+                }`}
+              />
             </div>
-          )}
-
-          {/* SPECIAL INSTRUCTIONS */}
-          <div>
-            <input
-              type="text"
-              placeholder="Special instructions for kitchen..."
-              value={instructions}
-              onChange={e => setInstructions(e.target.value)}
-              className={`w-full text-xs rounded-xl px-3 py-2 border outline-none ${
-                isDark ? 'bg-gray-900 border-white/10 text-white placeholder:text-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400'
-              }`}
-            />
           </div>
-
         </div>
 
-        {/* STICKY BOTTOM ACTION BAR WITH INTEGRATED STEPPER BUTTON MATCHING MOCKUP */}
-        <div className={`shrink-0 p-3 sm:p-4 border-t ${isDark ? 'bg-[#14161B] border-white/10' : 'bg-white border-slate-100'} pb-[max(0.75rem,env(safe-area-inset-bottom))]`}>
-          <div
+        {/* 7. Sticky Bottom Floating Bar (Quantity Stepper + Add to Cart Button) */}
+        <div className={`shrink-0 p-4 border-t ${
+          isDark ? 'bg-[#14161B] border-white/10' : 'bg-white border-slate-100'
+        } pb-[max(1rem,env(safe-area-inset-bottom,1rem))] flex items-center gap-3`}>
+          
+          {/* Left: Tactile Stepper */}
+          <div className={`flex items-center gap-2 rounded-2xl p-1 border shrink-0 ${
+            isDark ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'
+          }`}>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('selection');
+                setQty(q => Math.max(1, q - 1));
+              }}
+              disabled={qty <= 1}
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-800 dark:text-white disabled:opacity-30 hover:bg-white/10 active:scale-90 font-black text-sm cursor-pointer transition-all"
+            >
+              −
+            </button>
+            <span className="font-black text-sm select-none w-5 text-center text-slate-900 dark:text-white">
+              {qty}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('selection');
+                setQty(q => q + 1);
+              }}
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-800 dark:text-white hover:bg-white/10 active:scale-90 font-black text-sm cursor-pointer transition-all"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Right: Primary Add to Cart Button */}
+          <button
+            type="button"
             onClick={handleAdd}
-            className={`w-full bg-[#FF4B26] hover:bg-[#E03E1B] active:scale-[0.98] text-white py-3.5 px-6 rounded-full font-bold text-sm flex items-center justify-between shadow-lg shadow-[#FF4B26]/30 transition-all cursor-pointer ${
-              !isAvailable ? 'opacity-40 pointer-events-none' : ''
+            disabled={!isAvailable}
+            className={`flex-1 py-3.5 px-5 rounded-2xl font-bold text-sm text-white shadow-lg shadow-[#EA4C2A]/25 active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer ${
+              isAvailable ? 'bg-[#EA4C2A] hover:bg-[#D43D1D]' : 'bg-gray-400 opacity-50 cursor-not-allowed'
             }`}
           >
-            <span className="text-sm font-semibold tracking-wide">Add to cart</span>
-            <div className="flex items-center gap-3 bg-black/15 px-3 py-1 rounded-full">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  triggerHaptic('selection');
-                  setQty(q => Math.max(1, q - 1));
-                }}
-                disabled={qty <= 1}
-                className="text-white disabled:opacity-30 hover:scale-110 active:scale-90 font-bold text-sm cursor-pointer p-0.5"
-              >
-                —
-              </button>
-              <span className="font-bold text-sm select-none w-4 text-center">{qty}</span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  triggerHaptic('selection');
-                  setQty(q => q + 1);
-                }}
-                className="text-white hover:scale-110 active:scale-90 font-bold text-sm cursor-pointer p-0.5"
-              >
-                +
-              </button>
-            </div>
-          </div>
+            <span>{isAvailable ? 'Add to Cart' : 'Currently Sold Out'}</span>
+            <span className="font-extrabold tracking-tight">{fmt(total)}</span>
+          </button>
         </div>
 
       </motion.div>
