@@ -2409,14 +2409,13 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
       {/* Content Container */}
       <div className="p-3 flex flex-col justify-between h-[84px]">
         <div>
-          <div className="flex items-center justify-between gap-1">
+          <div className="flex items-center justify-between gap-1.5">
             <h3 className="font-bold text-[13.5px] sm:text-sm text-slate-900 dark:text-white leading-tight truncate flex-1 transition-colors">
               {item.name}
             </h3>
-            <div className="flex items-center gap-0.5 text-[10.5px] text-amber-500 font-bold shrink-0">
-              <Star size={10} className="fill-amber-400 text-amber-400" />
-              <span>{item.rating || 4.9}</span>
-            </div>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-[#EA4C2A] bg-orange-500/10 dark:bg-orange-500/20 px-1.5 py-0.5 rounded-md shrink-0">
+              Pre-order
+            </span>
           </div>
         </div>
         
@@ -2706,8 +2705,8 @@ function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false,
                 </span>
               )}
 
-              <span className="text-[10px] text-amber-500 dark:text-amber-400 font-bold flex items-center gap-0.5">
-                <Star size={10} className="fill-amber-400 text-amber-400" /> {item.rating || 4.9}
+              <span className="text-[9px] font-bold uppercase tracking-wider text-[#EA4C2A] bg-orange-500/10 dark:bg-orange-500/20 px-1.5 py-0.5 rounded-md">
+                Pre-order
               </span>
 
               <span className="text-[10px] text-slate-400 font-medium flex items-center gap-0.5">
@@ -3039,11 +3038,16 @@ function MenuDishRow({ item, onSelect, onQuickAdd, onToggleFavorite, isFavorite,
 
       {/* Right Column: Title, Heart, Desc, Ratings, Price & Stepper */}
       <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0 h-full">
-        {/* Row 1: Title + Heart */}
-        <div className="flex items-start justify-between gap-1.5">
-          <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight truncate">
-            {item.name}
-          </h3>
+        {/* Row 1: Title + Pre-order Tag + Heart */}
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight truncate">
+              {item.name}
+            </h3>
+            <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#EA4C2A] bg-orange-500/10 dark:bg-orange-500/20 px-1.5 py-0.5 rounded-md shrink-0">
+              Pre-order
+            </span>
+          </div>
           <button
             type="button"
             onClick={(e) => {
@@ -3060,18 +3064,13 @@ function MenuDishRow({ item, onSelect, onQuickAdd, onToggleFavorite, isFavorite,
           </button>
         </div>
 
-        {/* Row 2: Rating */}
-        <div className="flex items-center gap-2 mt-1 text-[10.5px]">
-          <div className="flex items-center gap-1">
-            <Star size={11} className="fill-amber-400 text-amber-400" />
-            <span className="font-bold text-slate-800 dark:text-gray-200">
-              {item.rating || 4.8}
-            </span>
-            <span className="text-gray-400 text-[10px]">
-              ({item.reviews_count || '1.2k'})
-            </span>
+        {/* Row 2: Subtle prep time note if available */}
+        {item.prep_time_min ? (
+          <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
+            <Clock size={10} />
+            <span>~{item.prep_time_min}m</span>
           </div>
-        </div>
+        ) : null}
 
         {/* Row 4: Price & Stepper / Add */}
         <div className="flex items-center justify-between mt-1.5 pt-0.5">
@@ -6026,9 +6025,8 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                   <span>Fresh In Stock</span>
                 </span>
               </div>
-              <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-500/80 backdrop-blur-md text-white flex items-center gap-1">
-                <Star size={11} className="fill-white" />
-                <span>4.9</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#EA4C2A] text-white shadow-xs">
+                Pre-order
               </span>
             </div>
           </div>
