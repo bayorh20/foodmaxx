@@ -7,7 +7,7 @@ import { api, FMXWebSocket, getStoredProducts, getStoredZones } from './services
 import { db, DEFAULT_ADDONS } from './services/firebaseDb';
 import { launchRealPaystack, getStoredPaystackConfig, savePaystackConfig, isValidPaystackKey } from './services/paystack';
 import { triggerHaptic, playNativeSound, playOrderNotificationSound, shareNative, isStandaloneMode, isIosDevice } from './services/nativeMobile';
-import { getAppContent, saveAppContent, resetAppContent, fetchLiveAppContent, DEFAULT_APP_CONTENT } from './services/appContent';
+import { getAppContent, saveAppContent, resetAppContent, fetchLiveAppContent, subscribeLiveAppContent, getCopy, DEFAULT_APP_CONTENT } from './services/appContent';
 import {
   ShoppingCart, Search, Home, Compass, ClipboardList, User, Star,
   MapPin, Clock, ChevronRight, ChevronLeft, Plus, Minus, X, Check,
@@ -799,6 +799,23 @@ function CustomerPortal() {
     return () => window.removeEventListener('fmx_icons_updated', handleIconsUpdated);
   }, []);
 
+  // Live Application Text & Copy (CMS) state
+  const [appCopy, setAppCopy] = useState(() => getAppContent());
+
+  useEffect(() => {
+    const unsub = subscribeLiveAppContent ? subscribeLiveAppContent((liveCopy) => {
+      if (liveCopy) setAppCopy(liveCopy);
+    }) : null;
+    const handleCopyUpdated = (e) => {
+      if (e.detail) setAppCopy(e.detail);
+    };
+    window.addEventListener('fmx_app_content_updated', handleCopyUpdated);
+    return () => {
+      if (typeof unsub === 'function') unsub();
+      window.removeEventListener('fmx_app_content_updated', handleCopyUpdated);
+    };
+  }, []);
+
   // Pull-To-Refresh State & Handlers
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -1448,7 +1465,7 @@ function CustomerPortal() {
                 <input
                   type="text"
                   className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-gray-400 placeholder:font-medium mx-3"
-                  placeholder="Search FoodMaxx dishes, jollof, grills..."
+                  placeholder={getCopy(appCopy, 'customer_hero', 'search_placeholder', 'Search FoodMaxx dishes, jollof, grills...')}
                   value={searchQuery}
                   onChange={(e) => {
                     if (typeof handleSearch === 'function') handleSearch(e.target.value);
@@ -1480,6 +1497,7 @@ function CustomerPortal() {
                   orders={orders}
                   loading={loading}
                   isDark={isDark}
+                  appCopy={appCopy}
                 />
               )}
               {activeTab === 'menu' && (
@@ -1869,6 +1887,7 @@ function CustomerPortal() {
           order={trackingOrder}
           user={user}
           isDark={isDark}
+          appCopy={appCopy}
           onClose={handleCloseTracking}
           onRefresh={async () => {
             const res = await api.getOrder(trackingOrder.id);
@@ -2176,19 +2195,23 @@ function LiveOrderBanner({ orders, onGoToOrders }) {
 // ============================================================
 // PROMO BANNER (MATCHING MOCKUP)
 // ============================================================
-function PromoBanner({ onOrderNow }) {
+function PromoBanner({ onOrderNow, appCopy }) {
+  const code = getCopy(appCopy, 'customer_hero', 'promo_banner_code', 'FIRST50');
+  const promoText = getCopy(appCopy, 'customer_hero', 'promo_banner_text', '50% off your first order up to ₦2,500');
+  const heroTitle = getCopy(appCopy, 'customer_hero', 'hero_title', 'Get 50% Off\nYour First Order!');
+
   return (
     <div className="px-4 mb-5">
       <div className="bg-[#FF5525] rounded-3xl p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between min-h-[140px] shadow-lg shadow-orange-500/20">
         <div className="relative z-10 w-2/3">
           <p className="text-white text-[10px] sm:text-xs font-semibold mb-1 opacity-90">
-            Use code <span className="bg-white/20 px-1.5 py-0.5 rounded text-white font-bold ml-0.5 mr-0.5">FIRST50</span> at checkout.<br/>
-            Hurry, offer ends soon!
+            Use code <span className="bg-white/20 px-1.5 py-0.5 rounded text-white font-bold ml-0.5 mr-0.5">{code}</span> at checkout.<br/>
+            {promoText}
           </p>
-          <h2 className="text-white text-lg sm:text-xl font-bold leading-tight mb-3">
-            Get 50% Off<br/>Your First Order!
+          <h2 className="text-white text-lg sm:text-xl font-bold leading-tight mb-3 whitespace-pre-line">
+            {heroTitle}
           </h2>
-          <button onClick={onOrderNow} className="bg-[#111111] hover:bg-black text-white text-[10px] sm:text-xs font-bold py-2 px-4 rounded-full w-fit active:scale-95 transition-transform">
+          <button onClick={onOrderNow} className="bg-[#111111] hover:bg-black text-white text-[10px] sm:text-xs font-bold py-2 px-4 rounded-full w-fit active:scale-95 transition-transform cursor-pointer">
             Order Now
           </button>
         </div>
@@ -2798,7 +2821,8 @@ function HomeTab({
   user,
   orders,
   loading,
-  isDark
+  isDark,
+  appCopy
 }) {
   const [selectedHomeCat, setSelectedHomeCat] = useState('all');
   const [homepageSections, setHomepageSections] = useState(() => {
@@ -2899,7 +2923,7 @@ function HomeTab({
   return (
     <div className="pb-8">
       {/* 1. Promo Banner (FIRST50) */}
-      <PromoBanner onOrderNow={onGoToMenu} />
+      <PromoBanner onOrderNow={onGoToMenu} appCopy={appCopy} />
 
       {/* 2. Category Chips hidden per user preference */}
 
@@ -2980,8 +3004,21 @@ function HomeTab({
 
             if (sectionItems.length === 0) return null;
 
-            const IconComp = sec.icon === 'Flame' ? Flame : sec.icon === 'Tag' ? Tag : sec.icon === 'Clock' ? Clock : Sparkles;
-            const iconColor = sec.icon === 'Flame' ? 'text-[#EA4C2A] fill-[#EA4C2A]' : sec.icon === 'Tag' ? 'text-emerald-500' : sec.icon === 'Clock' ? 'text-blue-500' : 'text-amber-500 fill-amber-500';
+            const iconMap = {
+              Flame: { comp: Flame, color: 'text-[#EA4C2A] fill-[#EA4C2A]' },
+              Tag: { comp: Tag, color: 'text-emerald-500' },
+              Clock: { comp: Clock, color: 'text-blue-500' },
+              Star: { comp: Star, color: 'text-amber-500 fill-amber-500' },
+              Heart: { comp: Heart, color: 'text-rose-500 fill-rose-500' },
+              Gift: { comp: Gift, color: 'text-purple-500' },
+              Utensils: { comp: Utensils, color: 'text-amber-500' },
+              Zap: { comp: Zap, color: 'text-yellow-400 fill-yellow-400' },
+              ShoppingBag: { comp: ShoppingBag, color: 'text-emerald-500' },
+              Sparkles: { comp: Sparkles, color: 'text-amber-500 fill-amber-500' }
+            };
+            const iconConfig = iconMap[sec.icon] || iconMap.Sparkles;
+            const IconComp = iconConfig.comp;
+            const iconColor = iconConfig.color;
 
             return (
               <TopPicksSection
@@ -6413,10 +6450,10 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
               🛒
             </div>
             <h3 className="font-bold text-base text-slate-900 dark:text-white mb-1">
-              Your cart is empty
+              {getCopy(getAppContent(), 'customer_checkout', 'cart_empty_title', 'Your cart is empty')}
             </h3>
             <p className="text-gray-400 text-xs max-w-[240px] mb-5 font-medium">
-              Explore our delicious meals and add items to your cart.
+              {getCopy(getAppContent(), 'customer_checkout', 'cart_empty_desc', 'Explore our delicious meals and add items to your cart.')}
             </p>
             <button
               type="button"
@@ -8255,7 +8292,7 @@ function PwaInstallModal({ open, onClose, isDark, onTriggerNativeInstall, isInst
 // ============================================================
 // ORDER TRACKING MODAL (CLEAN & MODERN)
 // ============================================================
-function TrackingModal({ order, onClose, onRefresh, user, isDark }) {
+function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
   const toast = useToast();
   const [chatOpen, setChatOpen] = useState(false);
   const [callModalOpen, setCallModalOpen] = useState(false);
@@ -8357,18 +8394,18 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark }) {
   const currentStep = getMilestoneStep(order.order_status);
 
   const MILESTONES = [
-    { step: 1, label: 'Placed', icon: '📝' },
-    { step: 2, label: 'Kitchen', icon: '🍳' },
-    { step: 3, label: 'On the Way', icon: '🛵' },
-    { step: 4, label: 'Delivered', icon: '🏡' },
+    { step: 1, label: getCopy(appCopy, 'customer_tracking', 'step_placed_title', 'Placed'), icon: '📝' },
+    { step: 2, label: getCopy(appCopy, 'customer_tracking', 'step_kitchen_title', 'Kitchen'), icon: '🍳' },
+    { step: 3, label: getCopy(appCopy, 'customer_tracking', 'step_transit_title', 'On the Way'), icon: '🛵' },
+    { step: 4, label: getCopy(appCopy, 'customer_tracking', 'step_delivered_title', 'Delivered'), icon: '🏡' },
   ];
 
   const getHeadline = () => {
-    if (isDelivered) return 'Meal Delivered 🎉';
+    if (isDelivered) return getCopy(appCopy, 'customer_tracking', 'step_delivered_desc', 'Meal Delivered 🎉');
     if (isCancelled) return 'Order Cancelled';
-    if (currentStep === 3) return 'Rider is on the way to your door 🛵';
-    if (currentStep === 2) return 'FoodMaxx kitchen is cooking your meal 🍳';
-    return 'Order confirmed & sent to kitchen ✨';
+    if (currentStep === 3) return getCopy(appCopy, 'customer_tracking', 'step_transit_desc', 'Rider is on the way to your door 🛵');
+    if (currentStep === 2) return getCopy(appCopy, 'customer_tracking', 'step_kitchen_desc', 'FoodMaxx kitchen is cooking your meal 🍳');
+    return getCopy(appCopy, 'customer_tracking', 'step_placed_desc', 'Order confirmed & sent to kitchen ✨');
   };
 
   const getSubheadline = () => {
@@ -8419,7 +8456,9 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark }) {
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="font-extrabold text-sm tracking-tight leading-none">Live Tracking</h2>
+                <h2 className="font-extrabold text-sm tracking-tight leading-none">
+                  {getCopy(appCopy, 'customer_tracking', 'tracking_modal_title', 'Live Tracking')}
+                </h2>
               </div>
               <button
                 type="button"
@@ -13036,21 +13075,32 @@ function AdminPortal() {
   const [copyCategory, setCopyCategory] = useState('customer_hero');
   const [copySearch, setCopySearch] = useState('');
   const [savingCopy, setSavingCopy] = useState(false);
+  const isEditingCopyRef = useRef(false);
 
-  // Sync copy on load and external updates
+  // Sync copy on load and external updates with protection against keystroke clobbering
   useEffect(() => {
-    fetchLiveAppContent().then(c => { if (c) setCopyContent(c); }).catch(() => {});
+    const unsub = subscribeLiveAppContent ? subscribeLiveAppContent((liveCopy) => {
+      if (liveCopy && !isEditingCopyRef.current) {
+        setCopyContent(liveCopy);
+      }
+    }) : null;
     const handleCopyUpdated = (e) => {
-      if (e.detail) setCopyContent(e.detail);
+      if (e.detail && !isEditingCopyRef.current) setCopyContent(e.detail);
     };
     window.addEventListener('fmx_app_content_updated', handleCopyUpdated);
-    return () => window.removeEventListener('fmx_app_content_updated', handleCopyUpdated);
+    return () => {
+      if (typeof unsub === 'function') unsub();
+      window.removeEventListener('fmx_app_content_updated', handleCopyUpdated);
+    };
   }, []);
 
   async function handleSaveCopy() {
     setSavingCopy(true);
     try {
-      await saveAppContent(copyContent);
+      const saved = await saveAppContent(copyContent);
+      setCopyContent(saved);
+      isEditingCopyRef.current = false;
+      playNativeSound('success');
       toast('All app text saved and synced live across customer and admin! ✍️', 'success');
     } catch (e) {
       toast('Failed to save copy: ' + e.message, 'error');
@@ -14350,7 +14400,7 @@ function AdminPortal() {
             <button
               type="button"
               onClick={() => {
-                playOrderNotificationSound();
+                playOrderNotificationSound(true);
                 toast('Kitchen Bell Chime Audition 🎶', 'info');
               }}
               className="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
@@ -16831,6 +16881,29 @@ function AdminPortal() {
 
                           {/* Filter, Limit, Visibility, and Delete Controls */}
                           <div className="flex items-center gap-2 flex-wrap shrink-0 self-end lg:self-center">
+                            {/* Section Icon Selector */}
+                            <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-xl px-2 py-1">
+                              <span className="text-[10px] text-slate-400 font-semibold">Icon:</span>
+                              <select
+                                value={sec.icon || 'Sparkles'}
+                                onChange={e => {
+                                  handleUpdateSection(sec.id, { icon: e.target.value });
+                                }}
+                                className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
+                              >
+                                <option value="Sparkles" className="bg-slate-900 text-white">✨ Sparkles</option>
+                                <option value="Flame" className="bg-slate-900 text-white">🔥 Flame (Hot)</option>
+                                <option value="Tag" className="bg-slate-900 text-white">🏷️ Tag (Deals)</option>
+                                <option value="Clock" className="bg-slate-900 text-white">⏱️ Clock (Fast)</option>
+                                <option value="Star" className="bg-slate-900 text-white">⭐ Star (Curated)</option>
+                                <option value="Heart" className="bg-slate-900 text-white">❤️ Heart (Faves)</option>
+                                <option value="Gift" className="bg-slate-900 text-white">🎁 Gift (Special)</option>
+                                <option value="Utensils" className="bg-slate-900 text-white">🍴 Utensils (Dishes)</option>
+                                <option value="Zap" className="bg-slate-900 text-white">⚡ Zap (Speedy)</option>
+                                <option value="ShoppingBag" className="bg-slate-900 text-white">🛍️ Shopping Bag</option>
+                              </select>
+                            </div>
+
                             {/* Filter Type Dropdown */}
                             <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-xl px-2 py-1">
                               <span className="text-[10px] text-slate-400 font-semibold">Filter:</span>
@@ -18485,16 +18558,21 @@ function AdminPortal() {
           ];
 
           const updateCopyValue = (catKey, itemKey, newVal) => {
-            setCopyContent(prev => ({
-              ...prev,
-              [catKey]: {
-                ...prev[catKey],
-                [itemKey]: {
-                  ...prev[catKey]?.[itemKey],
-                  value: newVal
+            isEditingCopyRef.current = true;
+            setCopyContent(prev => {
+              const currentCat = prev?.[catKey] || {};
+              const currentItem = currentCat[itemKey] || DEFAULT_APP_CONTENT[catKey]?.[itemKey] || {};
+              return {
+                ...prev,
+                [catKey]: {
+                  ...currentCat,
+                  [itemKey]: {
+                    ...currentItem,
+                    value: newVal
+                  }
                 }
-              }
-            }));
+              };
+            });
           };
 
           const revertCopyKey = (catKey, itemKey) => {
@@ -18505,17 +18583,20 @@ function AdminPortal() {
             }
           };
 
-          // Build flat list of all entries for filtering
+          // Build flat list of all entries for filtering using complete DEFAULT_APP_CONTENT schema
           const allEntries = [];
-          Object.entries(copyContent || {}).forEach(([catKey, catItems]) => {
-            Object.entries(catItems || {}).forEach(([itemKey, itemObj]) => {
+          Object.keys(DEFAULT_APP_CONTENT).forEach(catKey => {
+            Object.keys(DEFAULT_APP_CONTENT[catKey]).forEach(itemKey => {
+              const def = DEFAULT_APP_CONTENT[catKey][itemKey];
+              const cur = copyContent?.[catKey]?.[itemKey];
+              const currentVal = cur?.value !== undefined ? cur.value : (typeof cur === 'string' ? cur : def.value);
               allEntries.push({
                 catKey,
                 itemKey,
-                label: itemObj.label || itemKey,
-                desc: itemObj.desc || '',
-                value: itemObj.value || '',
-                defaultValue: DEFAULT_APP_CONTENT[catKey]?.[itemKey]?.value || ''
+                label: cur?.label || def.label || itemKey,
+                desc: cur?.desc || def.desc || '',
+                value: currentVal !== undefined ? currentVal : def.value,
+                defaultValue: def.value
               });
             });
           });

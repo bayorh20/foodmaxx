@@ -1,5 +1,5 @@
 import { db } from './firebaseDb.js';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
 // Default application copy dictionary organized into logical categories
 export const DEFAULT_APP_CONTENT = {
@@ -173,6 +173,36 @@ export const DEFAULT_APP_CONTENT = {
 const STORAGE_KEY = 'fmx_app_content_v1';
 const FIRESTORE_DOC_PATH = ['settings', 'app_content'];
 
+/**
+ * Deeply merges any incoming content (from Firestore or localStorage)
+ * with the DEFAULT_APP_CONTENT schema to ensure every key and category always exists.
+ */
+export function mergeWithDefaults(raw) {
+  const merged = {};
+  for (const cat of Object.keys(DEFAULT_APP_CONTENT)) {
+    merged[cat] = {};
+    for (const key of Object.keys(DEFAULT_APP_CONTENT[cat])) {
+      const def = DEFAULT_APP_CONTENT[cat][key];
+      const incoming = raw?.[cat]?.[key];
+      if (typeof incoming === 'object' && incoming !== null) {
+        merged[cat][key] = {
+          label: incoming.label || def.label,
+          desc: incoming.desc || def.desc,
+          value: incoming.value !== undefined ? String(incoming.value) : def.value
+        };
+      } else if (typeof incoming === 'string') {
+        merged[cat][key] = {
+          ...def,
+          value: incoming
+        };
+      } else {
+        merged[cat][key] = { ...def };
+      }
+    }
+  }
+  return merged;
+}
+
 // Read stored content with defaults fallback
 export function getAppContent() {
   try {
@@ -180,46 +210,47 @@ export function getAppContent() {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        const merged = {};
-        for (const cat of Object.keys(DEFAULT_APP_CONTENT)) {
-          merged[cat] = {};
-          for (const key of Object.keys(DEFAULT_APP_CONTENT[cat])) {
-            merged[cat][key] = {
-              ...DEFAULT_APP_CONTENT[cat][key],
-              ...(parsed?.[cat]?.[key] || {})
-            };
-          }
-        }
-        return merged;
+        return mergeWithDefaults(parsed);
       }
     }
   } catch (e) {
     console.warn('Error reading local app content:', e);
   }
-  return DEFAULT_APP_CONTENT;
+  return mergeWithDefaults({});
+}
+
+// Helper to quickly and safely retrieve any copy value with fallback
+export function getCopy(content, category, key, fallback = '') {
+  return content?.[category]?.[key]?.value || fallback || DEFAULT_APP_CONTENT[category]?.[key]?.value || '';
 }
 
 // Save content updates to localStorage and Firestore
 export async function saveAppContent(newContent) {
+  const merged = mergeWithDefaults(newContent);
+
+  // 1. Immediately cache locally & notify all components and listeners in current window
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(newContent));
-      window.dispatchEvent(new CustomEvent('fmx_app_content_updated', { detail: newContent }));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      window.dispatchEvent(new CustomEvent('fmx_app_content_updated', { detail: merged }));
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('LocalStorage error:', e);
+  }
 
-  // Sync to Firestore
+  // 2. Persist to Firestore settings/app_content for cross-device sync
   try {
     const docRef = doc(db, FIRESTORE_DOC_PATH[0], FIRESTORE_DOC_PATH[1]);
     await setDoc(docRef, {
-      content: newContent,
+      content: merged,
       updated_at: new Date().toISOString()
     }, { merge: true });
   } catch (e) {
-    console.warn('Firestore app content sync warning:', e.message);
+    console.error('Firestore app content sync error:', e);
+    throw new Error('Cloud sync failed: ' + (e.message || 'Network error'));
   }
 
-  return newContent;
+  return merged;
 }
 
 // Fetch live from Firestore
@@ -229,13 +260,57 @@ export async function fetchLiveAppContent() {
     const snap = await getDoc(docRef);
     if (snap.exists() && snap.data()?.content) {
       const liveData = snap.data().content;
-      saveAppContent(liveData).catch(() => {});
-      return liveData;
+      const merged = mergeWithDefaults(liveData);
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          window.dispatchEvent(new CustomEvent('fmx_app_content_updated', { detail: merged }));
+        }
+      } catch (e) {}
+      return merged;
     }
   } catch (e) {
     console.warn('Could not fetch live app content:', e.message);
   }
   return getAppContent();
+}
+
+/**
+ * Real-time Firestore subscription for app content.
+ * Fires whenever admin publishes copy changes, syncing live to all customer devices.
+ */
+export function subscribeLiveAppContent(callback) {
+  if (typeof window === 'undefined' || !db) return () => {};
+
+  // First invoke callback with local cached data immediately so UI is responsive
+  try {
+    const cached = getAppContent();
+    if (cached) callback(cached);
+  } catch (e) {}
+
+  try {
+    const docRef = doc(db, FIRESTORE_DOC_PATH[0], FIRESTORE_DOC_PATH[1]);
+    const unsubscribe = onSnapshot(docRef, (snap) => {
+      if (snap.exists() && snap.data()?.content) {
+        const liveData = snap.data().content;
+        const merged = mergeWithDefaults(liveData);
+        try {
+          if (window.localStorage) {
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+            window.dispatchEvent(new CustomEvent('fmx_app_content_updated', { detail: merged }));
+          }
+        } catch (e) {}
+        callback(merged);
+      }
+    }, (error) => {
+      console.warn('Firestore live app content subscription warning:', error);
+    });
+
+    return unsubscribe;
+  } catch (err) {
+    console.warn('Failed to subscribe to live app content:', err);
+    return () => {};
+  }
 }
 
 // Reset specific category or all to defaults

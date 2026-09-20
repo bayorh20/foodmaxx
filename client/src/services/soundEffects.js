@@ -612,17 +612,24 @@ export function playToneById(toneId, customVol = null) {
   if (!ctx) return;
   const tone = NOTIFICATION_TONES.find(t => t.id === toneId) || NOTIFICATION_TONES[0];
   const vol = customVol !== null ? customVol : getToneVolumeMultiplier();
-  try {
-    tone.play(ctx, vol);
-  } catch (err) {
-    console.warn('Audio tone error:', err);
+  const executePlay = () => {
+    try {
+      tone.play(ctx, vol);
+    } catch (err) {
+      console.warn('Audio tone error:', err);
+    }
+  };
+  if (ctx.state === 'suspended') {
+    ctx.resume().then(executePlay).catch(() => executePlay());
+  } else {
+    executePlay();
   }
 }
 
-export function playActiveNotificationTone() {
+export function playActiveNotificationTone(force = false) {
   if (typeof window === 'undefined') return;
   const soundEnabled = localStorage.getItem('fmx_admin_order_sound') !== 'false';
-  if (!soundEnabled) return;
+  if (!soundEnabled && !force) return;
   const toneId = getSelectedToneId();
   playToneById(toneId);
 }

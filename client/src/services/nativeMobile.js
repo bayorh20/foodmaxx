@@ -119,8 +119,8 @@ import { playActiveNotificationTone, playToneById, NOTIFICATION_TONES } from './
  * High-priority POS / Kitchen / Customer order notification chime
  * Uses the user's customized loud notification tone from the Sound Effects Studio
  */
-export function playOrderNotificationSound() {
-  playActiveNotificationTone();
+export function playOrderNotificationSound(force = false) {
+  playActiveNotificationTone(force);
 }
 
 export { playToneById, NOTIFICATION_TONES };

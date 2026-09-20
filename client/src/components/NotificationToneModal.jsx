@@ -10,7 +10,8 @@ import {
   playToneById
 } from '../services/soundEffects';
 
-export default function NotificationToneModal({ isOpen, onClose, isDark, onToast }) {
+export default function NotificationToneModal({ isOpen, open, onClose, isDark, onToast }) {
+  const isModalOpen = Boolean(isOpen !== undefined ? isOpen : open);
   const [activeToneId, setActiveToneId] = useState(() => getSelectedToneId());
   const [playingToneId, setPlayingToneId] = useState(null);
   const [volume, setVolume] = useState(() => getToneVolumeMultiplier());
@@ -18,13 +19,13 @@ export default function NotificationToneModal({ isOpen, onClose, isDark, onToast
   const [selectedCat, setSelectedCat] = useState('All');
 
   useEffect(() => {
-    if (isOpen) {
+    if (isModalOpen) {
       setActiveToneId(getSelectedToneId());
       setVolume(getToneVolumeMultiplier());
     }
-  }, [isOpen]);
+  }, [isModalOpen]);
 
-  if (!isOpen) return null;
+  if (!isModalOpen) return null;
 
   const categories = ['All', 'Kitchen & POS', 'Sirens & Horns', 'Bells & Chimes', 'Digital & Tech', 'Melodic & Musical'];
 
