@@ -302,6 +302,11 @@ export const api = {
     return { success: true, message: 'Wallet topped up successfully! 💳', data };
   },
 
+  deductWallet: async (amount, userId = 'usr_customer_default', description = 'Order Payment', reference = '') => {
+    const data = await deductLiveWallet(userId, amount, description, reference);
+    return { success: true, message: 'Wallet deducted successfully', data };
+  },
+
   // Promotions (Firestore collection: promotions)
   validatePromo: async (code, subtotal = 0) => {
     const promos = await getLivePromotions();

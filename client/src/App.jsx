@@ -1154,6 +1154,14 @@ function CustomerPortal() {
     setSavedAddresses(prev => [newAddr, ...prev]);
   }
 
+  function handleDeleteAddress(addrId) {
+    setSavedAddresses(prev => prev.filter(a => a.id !== addrId));
+    if (selectedAddress?.id === addrId) {
+      setSelectedAddress(null);
+    }
+    toast('Address removed from saved spots', 'info');
+  }
+
   function handleQuickAdd(item) {
     addItem(item.restaurant_id || restaurant?.id || 'rest_foodmaxx', item.restaurant_name || restaurant?.name || 'FoodMaxx', {
       id: item.id,
@@ -1513,6 +1521,8 @@ function CustomerPortal() {
               {activeTab === 'profile' && (
                 <ProfileTab
                   user={user} wallet={wallet}
+                  orders={orders}
+                  savedAddressesCount={savedAddresses.length}
                   onLogin={() => setAppStage('onboarding')}
                   onOpenOnboarding={() => setAppStage('onboarding')}
                   onLogout={() => { logout(); setActiveTab('home'); toast('Logged out successfully', 'info'); }}
@@ -1521,6 +1531,8 @@ function CustomerPortal() {
                   onOpenAddresses={() => setLocationsModalOpen(true)}
                   onOpenToneStudio={() => setToneModalOpen(true)}
                   onOpenTransitionStudio={() => setTransitionModalOpen(true)}
+                  onOpenOrders={() => setActiveTab('orders')}
+                  onOpenFavorites={() => setActiveTab('favorites')}
                   isDark={isDark} toggleDark={toggleTheme}
                 />
               )}
@@ -1627,6 +1639,14 @@ function CustomerPortal() {
                             className={`object-contain select-none ${isActive ? 'scale-105' : 'hover:scale-105'}`}
                             style={{ width: isActive ? 27 : 24, height: isActive ? 27 : 24 }}
                           />
+                          {hasCartItems && (
+                            <span className="absolute -top-1.5 -right-2 flex items-center justify-center">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EA4C2A] opacity-60"></span>
+                              <span className="relative inline-flex items-center justify-center min-w-[17px] h-[17px] px-1 text-[9px] font-black bg-gradient-to-r from-[#EA4C2A] to-amber-500 text-white rounded-full border border-white dark:border-[#1C2029] shadow-sm shadow-[#EA4C2A]/60">
+                                {itemCount}
+                              </span>
+                            </span>
+                          )}
                         </motion.div>
                       ) : (
                         <img 
@@ -1682,6 +1702,14 @@ function CustomerPortal() {
                           size={isActive ? 27 : 24} 
                           className={isActive ? 'scale-105' : 'hover:scale-105'} 
                         />
+                        {hasCartItems && (
+                          <span className="absolute -top-1.5 -right-2 flex items-center justify-center">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EA4C2A] opacity-60"></span>
+                            <span className="relative inline-flex items-center justify-center min-w-[17px] h-[17px] px-1 text-[9px] font-black bg-gradient-to-r from-[#EA4C2A] to-amber-500 text-white rounded-full border border-white dark:border-[#1C2029] shadow-sm shadow-[#EA4C2A]/60">
+                              {itemCount}
+                            </span>
+                          </span>
+                        )}
                       </motion.div>
                     ) : tab.id === 'profile' ? (
                       <FoodMaxxProfileIcon 
@@ -1698,7 +1726,7 @@ function CustomerPortal() {
                       ? 'font-bold text-[#EA4C2A] dark:text-[#FF6B4A]' 
                       : 'font-medium text-slate-500 dark:text-slate-400'
                   }`}>
-                    {tab.label}
+                    {tab.id === 'cart' && hasCartItems ? `Cart (${itemCount})` : tab.label}
                   </span>
                 </motion.button>
               );
@@ -1801,6 +1829,8 @@ function CustomerPortal() {
             onClose={() => setCheckoutOpen(false)}
             selectedZone={selectedZone}
             selectedAddress={selectedAddress}
+            wallet={wallet}
+            onRefreshWallet={loadWallet}
             onSuccess={(order) => {
               setCheckoutOpen(false);
               loadOrders();
@@ -1861,6 +1891,7 @@ function CustomerPortal() {
           }
         }}
         onAddNewAddress={handleAddNewAddress}
+        onDeleteAddress={handleDeleteAddress}
         zones={zones}
         selectedZone={selectedZone}
         onSelectZone={(z) => {
@@ -3603,16 +3634,44 @@ function CleanOrderCard({ order, onTrack, onReview, isDark }) {
 // ============================================================
 // PROFILE TAB
 // ============================================================
-function ProfileTab({ user, wallet, onLogin, onOpenOnboarding, onLogout, onOpenWallet, onOpenSupport, onOpenAddresses, onOpenToneStudio, onOpenTransitionStudio, isDark, toggleDark }) {
+function ProfileTab({
+  user,
+  wallet,
+  orders = [],
+  savedAddressesCount = 0,
+  onLogin,
+  onOpenOnboarding,
+  onLogout,
+  onOpenWallet,
+  onOpenSupport,
+  onOpenAddresses,
+  onOpenToneStudio,
+  onOpenTransitionStudio,
+  onOpenOrders,
+  onOpenFavorites,
+  isDark,
+  toggleDark
+}) {
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] px-8 text-center">
-        <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-20 h-20 rounded-3xl object-cover mb-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] border-2 border-black shrink-0" />
-        <h3 className="font-bold text-xl mb-2">Sign in to FoodMaxx</h3>
-        <p className="text-gray-400 text-xs mb-6 max-w-xs">Log in to track orders, manage your wallet balance, and unlock special promos.</p>
+      <div className="flex flex-col items-center justify-center min-h-[65vh] px-6 text-center py-10">
+        <div className="relative mb-5">
+          <img
+            src="/foodmaxx-logo.png"
+            alt="FoodMaxx"
+            className="w-20 h-20 rounded-3xl object-cover shadow-xl border border-black/10 dark:border-white/10 shrink-0"
+          />
+          <span className="absolute -bottom-1 -right-1 bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">
+            🎁 ₦1,000
+          </span>
+        </div>
+        <h3 className="font-bold text-xl text-slate-900 dark:text-white mb-1.5">Sign In to FoodMaxx</h3>
+        <p className="text-gray-500 dark:text-gray-400 text-xs mb-6 max-w-xs leading-relaxed">
+          Log in or create an account in seconds to unlock your <span className="font-bold text-emerald-600 dark:text-emerald-400">₦1,000 Welcome Bonus</span>, live order tracking, and fast checkout.
+        </p>
         <button
           onClick={onOpenOnboarding || onLogin}
-          className="w-full bg-red-600 hover:bg-red-700 active:translate-x-0.5 active:translate-y-0.5 text-white py-3.5 rounded-2xl font-bold text-sm border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-pointer transition-all"
+          className="w-full max-w-xs bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#EA4C2A]/25 cursor-pointer transition-all"
         >
           Sign In / Register
         </button>
@@ -3620,103 +3679,345 @@ function ProfileTab({ user, wallet, onLogin, onOpenOnboarding, onLogout, onOpenW
     );
   }
 
+  const walletBalance = Number(wallet?.balance) || 0;
+
   return (
-    <div className="p-4 space-y-4">
-      {/* Profile Header */}
-      <div className="bg-gradient-to-r from-red-600 via-red-700 to-red-800 rounded-3xl p-5 text-white border-2 border-slate-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-        <div className="flex items-center gap-3.5">
-          <img onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }}             src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=fff&color=E11D48&size=80`}
-            className="w-16 h-16 rounded-2xl object-cover border-2 border-black shadow-xs shrink-0"
-          />
+    <div className="p-4 sm:p-5 space-y-4 pb-28">
+      {/* 1. Modern Identity Profile Card */}
+      <div className={`rounded-3xl p-5 border transition-all ${
+        isDark ? 'bg-[#181B22] border-white/10 shadow-xl' : 'bg-white border-slate-100 shadow-sm'
+      }`}>
+        <div className="flex items-center gap-4">
+          <div className="relative shrink-0">
+            <img
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80';
+              }}
+              src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=EA4C2A&color=fff&size=100`}
+              className="w-16 h-16 rounded-2xl object-cover shadow-sm border border-black/10 dark:border-white/10"
+              alt={user.full_name}
+            />
+            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-[#181B22]" />
+          </div>
           <div className="min-w-0 flex-1">
-            <div className="font-bold text-lg leading-tight truncate">{user.full_name}</div>
-            <div className="text-red-100 text-xs truncate mt-0.5 font-medium">{user.email}</div>
-            <div className="text-red-200 text-[11px] font-mono mt-0.5">{user.phone}</div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white leading-tight truncate">
+                {user.full_name}
+              </h3>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
+                VIP
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{user.email || 'No email registered'}</p>
+            <p className="text-[11px] font-mono text-gray-400 dark:text-gray-500 mt-0.5">{user.phone || 'No phone'}</p>
           </div>
         </div>
 
-        {wallet && (
-          <div className="mt-4 bg-black/40 border border-white/20 rounded-2xl p-3 flex items-center justify-between shadow-inner">
-            <div>
-              <div className="text-[10px] text-yellow-300 font-semibold uppercase tracking-wider">FoodMaxx Wallet</div>
-              <div className="font-bold text-lg text-white">{fmt(wallet.balance)}</div>
-            </div>
-            <button
-              onClick={onOpenWallet}
-              className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 px-3.5 py-1.5 rounded-xl font-semibold text-xs border border-black shadow-[1.5px_1.5px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer transition-all"
-            >
-              Add Money +
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Menu Items */}
-      <div className={`rounded-2xl border-2 ${isDark ? 'bg-gray-900/90 border-white/15' : 'bg-white border-slate-900 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]'} overflow-hidden`}>
-        {[
-          { icon: Wallet, label: 'My Chow Wallet', onClick: onOpenWallet, color: 'text-emerald-600 dark:text-emerald-400' },
-          { icon: MapPin, label: 'Saved Addresses & Landmarks', onClick: onOpenAddresses, color: 'text-blue-600 dark:text-blue-400' },
-          { icon: SlidersHorizontal, label: 'Screen Transition Style (20 Options)', onClick: onOpenTransitionStudio, color: 'text-[#EA4C2A] dark:text-orange-400' },
-          { icon: Bell, label: 'Order Alert Tones & Loud Chimes (20+)', onClick: onOpenToneStudio, color: 'text-amber-500' },
-          { icon: Compass, label: 'App Intro & Onboarding Tour', onClick: onOpenOnboarding, color: 'text-orange-500 dark:text-orange-400' },
-          { icon: isDark ? Sun : Moon, label: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode', onClick: toggleDark, color: isDark ? 'text-yellow-400' : 'text-indigo-600' },
-          { icon: Heart, label: 'Favourite Dishes', onClick: () => {}, color: 'text-red-600' },
-          { icon: MessageSquare, label: 'Support & FAQs', onClick: onOpenSupport, color: 'text-purple-600 dark:text-purple-400' },
-          { icon: Shield, label: 'Privacy & Security', onClick: () => {}, color: 'text-slate-600 dark:text-gray-400' },
-        ].map((item, i) => (
+        {/* Quick Stats Strip */}
+        <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-white/5 text-center">
           <button
-            key={i}
-            onClick={item.onClick}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 border-b-2 last:border-0 transition-colors cursor-pointer active:translate-x-0.5 ${
-              isDark ? 'hover:bg-gray-800/60 border-white/10 text-gray-200' : 'hover:bg-slate-50 border-slate-100 text-slate-900'
+            onClick={onOpenOrders}
+            className={`p-2.5 rounded-2xl border transition-colors cursor-pointer ${
+              isDark ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
             }`}
           >
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${item.color} ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-slate-100 border-slate-300'}`}>
-              <item.icon size={16} className="stroke-[2.5]" />
-            </div>
-            <span className="font-semibold text-xs flex-1 text-left">{item.label}</span>
-            <ChevronRight size={15} className="text-gray-400 stroke-[2.5]" />
+            <div className="text-base font-bold text-slate-900 dark:text-white">{orders?.length || 0}</div>
+            <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-0.5">Orders</div>
           </button>
-        ))}
+          <button
+            onClick={onOpenWallet}
+            className={`p-2.5 rounded-2xl border transition-colors cursor-pointer ${
+              isDark ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
+            }`}
+          >
+            <div className="text-base font-bold text-emerald-600 dark:text-emerald-400">{fmt(walletBalance)}</div>
+            <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-0.5">Wallet</div>
+          </button>
+          <button
+            onClick={onOpenAddresses}
+            className={`p-2.5 rounded-2xl border transition-colors cursor-pointer ${
+              isDark ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
+            }`}
+          >
+            <div className="text-base font-bold text-slate-900 dark:text-white">{savedAddressesCount || 1}</div>
+            <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-0.5">Places</div>
+          </button>
+        </div>
       </div>
 
+      {/* 2. Digital Chow Wallet Pass Card */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white p-5 border border-white/10 shadow-xl">
+        <div className="absolute top-0 right-0 w-36 h-36 bg-[#EA4C2A]/20 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center font-bold text-xs shadow-sm">
+              FM
+            </div>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300">FoodMaxx Chow Pass</div>
+              <div className="text-[11px] text-gray-400">Digital Food Wallet</div>
+            </div>
+          </div>
+          <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            Active
+          </span>
+        </div>
+
+        <div className="mt-4 flex items-end justify-between">
+          <div>
+            <div className="text-[11px] text-gray-400 font-medium">Available Balance</div>
+            <div className="text-2xl font-bold text-white tracking-tight">{fmt(walletBalance)}</div>
+          </div>
+          <button
+            onClick={onOpenWallet}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-400/20 active:scale-95 transition-all cursor-pointer"
+          >
+            Add Money +
+          </button>
+        </div>
+
+        {/* Welcome Bonus Callout Banner */}
+        <div className="mt-3.5 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 text-amber-300 font-semibold text-[11.5px]">
+            <span>🎁</span>
+            <span>₦1,000 Welcome Perk Ready to Use</span>
+          </div>
+          <button
+            onClick={onOpenWallet}
+            className="text-[11px] text-gray-300 hover:text-white underline cursor-pointer"
+          >
+            View History →
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Grouped Standard Menus */}
+      <div className="space-y-3">
+        {/* Group A: Dining & Activity */}
+        <div className={`rounded-2xl border overflow-hidden ${
+          isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-sm'
+        }`}>
+          <div className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            Dining & Orders
+          </div>
+          {[
+            {
+              icon: Package,
+              label: 'My Orders & Live Tracking',
+              badge: orders?.length ? `${orders.length}` : null,
+              onClick: onOpenOrders,
+              color: 'text-amber-500'
+            },
+            {
+              icon: Wallet,
+              label: 'FoodMaxx Chow Wallet',
+              badge: fmt(walletBalance),
+              badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+              onClick: onOpenWallet,
+              color: 'text-emerald-500'
+            },
+            {
+              icon: MapPin,
+              label: 'Saved Locations & Landmarks',
+              badge: savedAddressesCount ? `${savedAddressesCount} Spots` : null,
+              onClick: onOpenAddresses,
+              color: 'text-blue-500'
+            },
+            {
+              icon: Heart,
+              label: 'Favorite Dishes',
+              onClick: onOpenFavorites,
+              color: 'text-rose-500'
+            }
+          ].map((item, i) => (
+            <button
+              key={i}
+              onClick={item.onClick}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer border-t first:border-t-0 ${
+                isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                isDark ? 'bg-white/5' : 'bg-slate-100'
+              } ${item.color} shrink-0`}>
+                <item.icon size={16} className="stroke-[2.2]" />
+              </div>
+              <span className="font-semibold text-xs flex-1 text-slate-800 dark:text-slate-200">{item.label}</span>
+              {item.badge && (
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                  item.badgeColor || (isDark ? 'bg-white/10 text-gray-300' : 'bg-slate-100 text-slate-600')
+                }`}>
+                  {item.badge}
+                </span>
+              )}
+              <ChevronRight size={14} className="text-gray-400 shrink-0" />
+            </button>
+          ))}
+        </div>
+
+        {/* Group B: App Customization & Experience */}
+        <div className={`rounded-2xl border overflow-hidden ${
+          isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-sm'
+        }`}>
+          <div className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            App Experience
+          </div>
+          {[
+            {
+              icon: SlidersHorizontal,
+              label: 'Screen Transition Studio',
+              badge: '20 Styles',
+              badgeColor: 'bg-[#EA4C2A]/15 text-[#EA4C2A]',
+              onClick: onOpenTransitionStudio,
+              color: 'text-[#EA4C2A]'
+            },
+            {
+              icon: Bell,
+              label: 'Order Alert Tones & Chimes',
+              badge: '20+ Sounds',
+              badgeColor: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+              onClick: onOpenToneStudio,
+              color: 'text-amber-500'
+            },
+            {
+              icon: isDark ? Sun : Moon,
+              label: isDark ? 'Dark Theme (Tap for Light)' : 'Light Theme (Tap for Dark)',
+              isToggle: true,
+              onClick: toggleDark,
+              color: isDark ? 'text-amber-400' : 'text-indigo-500'
+            },
+            {
+              icon: Compass,
+              label: 'App Intro & Onboarding Tour',
+              onClick: onOpenOnboarding,
+              color: 'text-purple-500'
+            }
+          ].map((item, i) => (
+            <button
+              key={i}
+              onClick={item.onClick}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer border-t first:border-t-0 ${
+                isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                isDark ? 'bg-white/5' : 'bg-slate-100'
+              } ${item.color} shrink-0`}>
+                <item.icon size={16} className="stroke-[2.2]" />
+              </div>
+              <span className="font-semibold text-xs flex-1 text-slate-800 dark:text-slate-200">{item.label}</span>
+              {item.isToggle ? (
+                <div className={`w-10 h-5 rounded-full relative p-0.5 transition-colors ${
+                  isDark ? 'bg-indigo-600' : 'bg-slate-300'
+                }`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                    isDark ? 'translate-x-5' : 'translate-x-0'
+                  }`} />
+                </div>
+              ) : (
+                <>
+                  {item.badge && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                      item.badgeColor || (isDark ? 'bg-white/10 text-gray-300' : 'bg-slate-100 text-slate-600')
+                    }`}>
+                      {item.badge}
+                    </span>
+                  )}
+                  <ChevronRight size={14} className="text-gray-400 shrink-0" />
+                </>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Group C: Support & Security */}
+        <div className={`rounded-2xl border overflow-hidden ${
+          isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-sm'
+        }`}>
+          <div className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            Support & Security
+          </div>
+          {[
+            {
+              icon: MessageSquare,
+              label: '24/7 Live Support & FAQs',
+              onClick: onOpenSupport,
+              color: 'text-emerald-500'
+            },
+            {
+              icon: ShieldCheck,
+              label: 'Privacy Policy & Terms',
+              onClick: onOpenSupport,
+              color: 'text-slate-500'
+            }
+          ].map((item, i) => (
+            <button
+              key={i}
+              onClick={item.onClick}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer border-t first:border-t-0 ${
+                isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                isDark ? 'bg-white/5' : 'bg-slate-100'
+              } ${item.color} shrink-0`}>
+                <item.icon size={16} className="stroke-[2.2]" />
+              </div>
+              <span className="font-semibold text-xs flex-1 text-slate-800 dark:text-slate-200">{item.label}</span>
+              <ChevronRight size={14} className="text-gray-400 shrink-0" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. Clean Sign Out Button */}
       <button
         onClick={onLogout}
-        className="w-full bg-red-50 dark:bg-red-950/40 text-red-600 py-3 rounded-2xl font-semibold text-xs flex items-center justify-center gap-2 border-2 border-red-600 shadow-[2px_2px_0px_0px_rgba(225,29,72,0.4)] active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer"
+        className="w-full py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 active:scale-[0.98] transition-all cursor-pointer"
       >
-        <LogOut size={16} className="stroke-[2.5]" />
-        <span>Sign Out</span>
+        <LogOut size={15} />
+        <span>Sign Out of FoodMaxx</span>
       </button>
+
+      {/* App Version Info */}
+      <div className="text-center pt-2">
+        <p className="text-[10.5px] text-gray-400 font-medium">FoodMaxx Technologies · v2.4.0</p>
+        <p className="text-[9.5px] text-gray-400/80">Crafted with ❤️ for Ibadan Foodies</p>
+      </div>
     </div>
   );
 }
 
 // ============================================================
-// SAVED MULTI-LOCATIONS WITH LANDMARKS MODAL
+// SAVED MULTI-LOCATIONS WITH LANDMARKS MODAL (CLEAN & SIMPLE)
 // ============================================================
 function SavedLocationsModal({
   open,
   onClose,
-  savedAddresses,
+  savedAddresses = [],
   selectedAddress,
   onSelectAddress,
   onAddNewAddress,
-  zones,
+  onDeleteAddress,
+  zones = [],
   onSelectZone,
   selectedZone,
   isDark
 }) {
+  const [activeTab, setActiveTab] = useState('saved'); // 'saved' | 'zones'
   const [showAddForm, setShowAddForm] = useState(false);
   const [label, setLabel] = useState('Home');
   const [street, setStreet] = useState('');
   const [landmark, setLandmark] = useState('');
   const [selectedZoneId, setSelectedZoneId] = useState(zones[0]?.id || '');
+  const [zoneSearch, setZoneSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const toast = useToast();
 
   if (!open) return null;
 
-  function renderAddressIcon(lbl, sz = 18) {
+  function renderAddressIcon(lbl, sz = 16) {
     const n = (lbl || '').toLowerCase();
     if (n.includes('home')) return <Home size={sz} className="text-[#EA4C2A]" />;
     if (n.includes('work') || n.includes('office')) return <Building2 size={sz} className="text-blue-500" />;
@@ -3741,14 +4042,15 @@ function SavedLocationsModal({
         landmark: landmark.trim() || 'Near main junction',
         zone_id: zoneObj?.id,
         zone_name: zoneObj?.name || 'Ibadan',
-        icon: addressIcons[label] || '📍'
+        icon: label === 'Home' ? '🏠' : label === 'Work' ? '🏢' : label === 'Campus' ? '🎓' : '📍'
       };
       await onAddNewAddress(newAddr);
       onSelectAddress(newAddr);
+      if (zoneObj && onSelectZone) onSelectZone(zoneObj);
       setShowAddForm(false);
       setStreet('');
       setLandmark('');
-      toast('New delivery location saved with landmark! 📍', 'success');
+      toast('New delivery spot saved with landmark! 📍', 'success');
       onClose();
     } catch (err) {
       toast('Failed to save address', 'error');
@@ -3757,186 +4059,300 @@ function SavedLocationsModal({
     }
   }
 
+  const filteredZones = zones.filter(z =>
+    (z.name || '').toLowerCase().includes(zoneSearch.toLowerCase()) ||
+    (z.city || '').toLowerCase().includes(zoneSearch.toLowerCase())
+  );
+
   return (
-    <div className="absolute inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className={`relative ${isDark ? 'bg-[#15171C] text-white border-white/10' : 'bg-white text-slate-900 border-slate-100'} rounded-t-[36px] sm:rounded-[36px] w-full max-w-lg md:max-w-xl max-h-[88vh] flex flex-col slide-up shadow-2xl border z-10 overflow-hidden`}
+        className={`relative ${
+          isDark ? 'bg-[#15171C] text-white border-white/10' : 'bg-white text-slate-900 border-slate-100'
+        } rounded-t-[32px] sm:rounded-[32px] w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl border z-10 overflow-hidden`}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className={`px-5 py-4 border-b ${isDark ? 'border-white/10 bg-[#15171C]' : 'border-slate-100 bg-white'} flex items-center justify-between shrink-0`}>
+        <div className={`px-5 py-4 border-b ${
+          isDark ? 'border-white/10 bg-[#15171C]' : 'border-slate-100 bg-white'
+        } flex items-center justify-between shrink-0`}>
           <div>
-            <h2 className="font-bold text-base leading-tight">Saved Locations & Landmarks</h2>
-            <p className={`text-[11px] font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Precise delivery drops across Ibadan</p>
+            <h2 className="font-bold text-base leading-tight">Delivery Locations & Zones</h2>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Quick drops across Ibadan</p>
           </div>
           <button
             onClick={onClose}
-            className={`w-8 h-8 rounded-full ${isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} flex items-center justify-center active:scale-95 transition-all cursor-pointer`}
+            className={`w-8 h-8 rounded-full ${
+              isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            } flex items-center justify-center active:scale-95 transition-all cursor-pointer`}
           >
-            <X size={18} className="stroke-[2.5]" />
+            <X size={17} className="stroke-[2.5]" />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-          <button
-            onClick={() => setShowAddForm(p => !p)}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border border-dashed border-[#EA4C2A] text-[#EA4C2A] font-semibold text-xs hover:bg-[#FFF6ED] dark:hover:bg-[#EA4C2A]/10 active:scale-98 transition-all cursor-pointer"
-          >
-            <Plus size={16} className="stroke-[3]" />
-            <span>{showAddForm ? 'Cancel Adding Location' : 'Add New Address with Landmark'}</span>
-          </button>
+        {/* 2-Pill Segmented Switcher */}
+        <div className="p-3 pb-0 shrink-0">
+          <div className={`grid grid-cols-2 p-1 rounded-2xl border ${
+            isDark ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200/60'
+          }`}>
+            <button
+              type="button"
+              onClick={() => { setActiveTab('saved'); setShowAddForm(false); }}
+              className={`py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                activeTab === 'saved'
+                  ? (isDark ? 'bg-[#1E222B] text-white shadow-sm' : 'bg-white text-slate-900 shadow-sm')
+                  : 'text-gray-500 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              📍 My Places ({savedAddresses.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab('zones'); setShowAddForm(false); }}
+              className={`py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                activeTab === 'zones'
+                  ? (isDark ? 'bg-[#1E222B] text-white shadow-sm' : 'bg-white text-slate-900 shadow-sm')
+                  : 'text-gray-500 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              🌐 Ibadan Zones ({zones.length})
+            </button>
+          </div>
+        </div>
 
-          {showAddForm && (
-            <form onSubmit={handleSaveNew} className={`p-4 rounded-3xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-[#FFF8F0] border-orange-200/60 shadow-sm'} space-y-3`}>
-              <div className="text-xs font-semibold">New Delivery Spot</div>
-              <div>
-                <label className="text-[11px] font-semibold text-gray-400 block mb-1">Location Type</label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {['Home', 'Work', 'Campus', 'Partner'].map(l => (
-                    <button
-                      key={l}
-                      type="button"
-                      onClick={() => setLabel(l)}
-                      className={`py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                        label === l
-                          ? 'bg-[#EA4C2A] text-white border-[#EA4C2A] shadow-sm shadow-[#EA4C2A]/30'
-                          : (isDark ? 'bg-white/5 border-white/10 text-gray-200' : 'bg-white border-slate-200 text-slate-800')
+        {/* Modal Scroll Body */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
+          {activeTab === 'saved' ? (
+            <>
+              {/* Add New Address Button */}
+              <button
+                type="button"
+                onClick={() => setShowAddForm(p => !p)}
+                className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border font-bold text-xs transition-all cursor-pointer ${
+                  showAddForm
+                    ? (isDark ? 'bg-white/10 border-white/20 text-white' : 'bg-slate-100 border-slate-200 text-slate-800')
+                    : 'bg-[#EA4C2A]/10 border-[#EA4C2A]/30 text-[#EA4C2A] hover:bg-[#EA4C2A]/20'
+                }`}
+              >
+                {showAddForm ? <X size={15} /> : <Plus size={15} className="stroke-[3]" />}
+                <span>{showAddForm ? 'Cancel Adding' : '+ Add New Address with Landmark'}</span>
+              </button>
+
+              {/* Add Form Drawer */}
+              {showAddForm && (
+                <form onSubmit={handleSaveNew} className={`p-4 rounded-2xl border space-y-3 ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-orange-50/50 border-orange-200/80 shadow-xs'
+                }`}>
+                  <div className="text-xs font-bold text-slate-900 dark:text-white">Save Delivery Spot</div>
+                  
+                  {/* Location Type Selector */}
+                  <div>
+                    <label className="text-[10.5px] font-semibold text-gray-400 block mb-1.5">Place Tag</label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {['Home', 'Work', 'Campus', 'Partner'].map(l => (
+                        <button
+                          key={l}
+                          type="button"
+                          onClick={() => setLabel(l)}
+                          className={`py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                            label === l
+                              ? 'bg-[#EA4C2A] text-white border-[#EA4C2A] shadow-xs'
+                              : (isDark ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-white border-slate-200 text-slate-700')
+                          }`}
+                        >
+                          {renderAddressIcon(l, 13)}
+                          <span>{l}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Street address */}
+                  <div>
+                    <label className="text-[10.5px] font-semibold text-gray-400 block mb-1">Street Address</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 14 Agbowo Rd / UI Second Gate"
+                      value={street}
+                      onChange={e => setStreet(e.target.value)}
+                      className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium ${
+                        isDark ? 'bg-[#1A1D24] border-white/10 text-white focus:border-[#EA4C2A]' : 'bg-white border-slate-200 text-slate-900 focus:border-[#EA4C2A]'
+                      }`}
+                      required
+                    />
+                  </div>
+
+                  {/* Landmark */}
+                  <div>
+                    <label className="text-[10.5px] font-bold text-[#EA4C2A] block mb-1">📍 Landmark (Crucial for Rider!)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Opposite Zenith Bank ATM, Green gate"
+                      value={landmark}
+                      onChange={e => setLandmark(e.target.value)}
+                      className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium ${
+                        isDark ? 'bg-[#1A1D24] border-white/10 text-white focus:border-[#EA4C2A]' : 'bg-white border-slate-200 text-slate-900 focus:border-[#EA4C2A]'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Zone */}
+                  <div>
+                    <label className="text-[10.5px] font-semibold text-gray-400 block mb-1">Delivery Zone</label>
+                    <select
+                      value={selectedZoneId}
+                      onChange={e => setSelectedZoneId(e.target.value)}
+                      className={`w-full text-xs p-2.5 rounded-xl border outline-none font-bold ${
+                        isDark ? 'bg-[#1A1D24] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
                       }`}
                     >
-                      <span className="inline-flex items-center gap-1.5 justify-center">{renderAddressIcon(l, 13)} <span>{l}</span></span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+                      {zones.map(z => (
+                        <option key={z.id} value={z.id}>{z.name} ({z.city})</option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div>
-                <label className="text-[11px] font-semibold text-gray-400 block mb-1">Street Address</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 14 Agbowo Rd / UI Second Gate"
-                  value={street}
-                  onChange={e => setStreet(e.target.value)}
-                  className={`w-full text-xs p-2.5 rounded-xl border font-medium outline-none ${
-                    isDark ? 'bg-gray-950 border-white/10 text-white focus:border-[#EA4C2A]' : 'bg-white border-slate-200 text-slate-900 focus:border-[#EA4C2A]'
-                  }`}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-semibold text-[#EA4C2A] block mb-1">📍 Landmark (Crucial for Rider!)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Opposite Zenith Bank ATM, Green Gate with solar light"
-                  value={landmark}
-                  onChange={e => setLandmark(e.target.value)}
-                  className={`w-full text-xs p-2.5 rounded-xl border font-medium outline-none ${
-                    isDark ? 'bg-gray-950 border-white/10 text-white focus:border-[#EA4C2A]' : 'bg-white border-slate-200 text-slate-900 focus:border-[#EA4C2A]'
-                  }`}
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-semibold text-gray-400 block mb-1">Area / Zone</label>
-                <select
-                  value={selectedZoneId}
-                  onChange={e => setSelectedZoneId(e.target.value)}
-                  className={`w-full text-xs p-2.5 rounded-xl border font-bold outline-none ${
-                    isDark ? 'bg-gray-950 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-                  }`}
-                >
-                  {zones.map(z => (
-                    <option key={z.id} value={z.id}>{z.name} ({z.city})</option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full py-3 bg-[#EA4C2A] hover:bg-[#D43D1D] text-white font-semibold rounded-2xl text-xs shadow-lg shadow-[#EA4C2A]/20 active:scale-98 cursor-pointer transition-all"
-              >
-                {saving ? 'Saving...' : 'Save & Select Address'}
-              </button>
-            </form>
-          )}
-
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">My Saved Places</div>
-            <div className="space-y-2">
-              {savedAddresses.map(addr => {
-                const isSelected = selectedAddress?.id === addr.id;
-                return (
                   <button
-                    key={addr.id}
-                    onClick={() => {
-                      onSelectAddress(addr);
-                      const matchedZone = zones.find(z => z.id === addr.zone_id) || zones[0];
-                      if (matchedZone) onSelectZone(matchedZone);
-                      onClose();
-                    }}
-                    className={`w-full p-3.5 rounded-2xl border text-left transition-all flex items-start gap-3 cursor-pointer active:scale-98 ${
-                      isSelected
-                        ? (isDark ? 'border-[#EA4C2A] bg-[#EA4C2A]/15 text-white shadow-sm' : 'border-[#EA4C2A] bg-[#FFF6ED] text-slate-900 shadow-sm')
-                        : isDark
-                        ? 'border-white/10 bg-white/5 text-gray-200 hover:border-white/20'
-                        : 'border-slate-100 bg-white hover:border-slate-300 text-slate-900 shadow-sm'
-                    }`}
+                    type="submit"
+                    disabled={saving}
+                    className="w-full py-3 bg-[#EA4C2A] hover:bg-[#D43D1D] text-white font-bold rounded-xl text-xs shadow-md shadow-[#EA4C2A]/20 active:scale-[0.98] cursor-pointer transition-all"
                   >
-                    <div className="w-10 h-10 shrink-0 rounded-2xl bg-[#FFF6ED] dark:bg-white/10 flex items-center justify-center shadow-2xs">
-                      {renderAddressIcon(addr.label, 20)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-xs">{addr.label}</span>
-                        {isSelected && (
-                          <span className="text-[9px] bg-[#EA4C2A] text-white px-2 py-0.5 rounded-md font-semibold">
-                            Active
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs font-bold truncate mt-0.5">{addr.address}</div>
-                      {addr.landmark && (
-                        <div className="text-[11px] text-[#EA4C2A] font-semibold mt-0.5 flex items-center gap-1">
-                          <span>📍 Landmark: {addr.landmark}</span>
-                        </div>
-                      )}
-                      <div className="text-[10px] text-gray-400 mt-0.5 font-medium">{addr.zone_name}</div>
-                    </div>
-                    {isSelected && <CheckCircle size={18} className="text-[#EA4C2A] shrink-0 mt-1 stroke-[2.5]" />}
+                    {saving ? 'Saving...' : 'Save & Select Location'}
                   </button>
-                );
-              })}
-            </div>
-          </div>
+                </form>
+              )}
 
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Delivery Zones (Ibadan)</div>
-            <div className="grid grid-cols-2 gap-2">
-              {zones.map(z => (
-                <button
-                  key={z.id}
-                  onClick={() => {
-                    onSelectZone(z);
-                    onSelectAddress(null);
-                    onClose();
-                  }}
-                  className={`p-3 rounded-2xl border text-left text-xs transition-all cursor-pointer active:scale-98 ${
-                    selectedZone?.id === z.id && !selectedAddress
-                      ? 'border-[#EA4C2A] bg-[#FFF6ED] dark:bg-[#EA4C2A]/15 text-[#EA4C2A] font-bold shadow-sm'
-                      : isDark
-                      ? 'border-white/10 bg-white/5 hover:border-white/20 text-gray-300'
-                      : 'border-slate-100 bg-white hover:border-slate-300 text-slate-800 shadow-sm'
+              {/* Saved Locations List */}
+              {savedAddresses.length === 0 ? (
+                <div className="py-8 text-center text-gray-400">
+                  <MapPin size={32} className="mx-auto mb-2 opacity-30 text-[#EA4C2A]" />
+                  <p className="text-xs font-semibold">No saved addresses yet</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Add a spot to speed up your checkout</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {savedAddresses.map(addr => {
+                    const isSelected = selectedAddress?.id === addr.id;
+                    return (
+                      <div
+                        key={addr.id}
+                        className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? (isDark ? 'border-[#EA4C2A] bg-[#EA4C2A]/10' : 'border-[#EA4C2A] bg-orange-50/60')
+                            : (isDark ? 'border-white/10 bg-white/5 hover:border-white/20' : 'border-slate-100 bg-white hover:border-slate-200 shadow-xs')
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onSelectAddress(addr);
+                            const matchedZone = zones.find(z => z.id === addr.zone_id) || zones[0];
+                            if (matchedZone && onSelectZone) onSelectZone(matchedZone);
+                            onClose();
+                          }}
+                          className="flex items-start gap-3 flex-1 min-w-0 text-left cursor-pointer"
+                        >
+                          <div className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center ${
+                            isDark ? 'bg-white/10' : 'bg-slate-100'
+                          }`}>
+                            {renderAddressIcon(addr.label, 17)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-xs text-slate-900 dark:text-white">{addr.label}</span>
+                              {isSelected && (
+                                <span className="text-[9px] bg-[#EA4C2A] text-white px-1.5 py-0.2 rounded font-bold">
+                                  Selected
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs font-medium text-slate-700 dark:text-gray-300 truncate mt-0.5">
+                              {addr.address}
+                            </div>
+                            {addr.landmark && (
+                              <div className="text-[10.5px] text-[#EA4C2A] font-semibold truncate mt-0.5">
+                                📍 Near {addr.landmark}
+                              </div>
+                            )}
+                            <div className="text-[10px] text-gray-400 mt-0.5">{addr.zone_name}</div>
+                          </div>
+                        </button>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {isSelected && (
+                            <CheckCircle size={18} className="text-[#EA4C2A] stroke-[2.5]" />
+                          )}
+                          {onDeleteAddress && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteAddress(addr.id);
+                              }}
+                              className="w-7 h-7 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 flex items-center justify-center transition-colors cursor-pointer"
+                              title="Delete location"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Zones Search */}
+              <div className="relative mb-2">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search Ibadan zones (Bodija, UI, Oluyole...)"
+                  value={zoneSearch}
+                  onChange={e => setZoneSearch(e.target.value)}
+                  className={`w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border outline-none ${
+                    isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#EA4C2A]' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-[#EA4C2A]'
                   }`}
-                >
-                  <div className="font-bold truncate">{z.name}</div>
-                  <div className="text-[10px] text-gray-400 font-medium">{fmt(z.delivery_fee)} · {z.estimated_delivery_time}</div>
-                </button>
-              ))}
-            </div>
-          </div>
+                />
+              </div>
+
+              {/* Zones List */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {filteredZones.map(z => {
+                  const isSelected = selectedZone?.id === z.id && !selectedAddress;
+                  return (
+                    <button
+                      key={z.id}
+                      type="button"
+                      onClick={() => {
+                        onSelectZone(z);
+                        onSelectAddress(null);
+                        onClose();
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                        isSelected
+                          ? 'border-[#EA4C2A] bg-[#EA4C2A]/10 text-slate-900 dark:text-white'
+                          : (isDark ? 'border-white/10 bg-white/5 hover:border-white/20' : 'border-slate-100 bg-white hover:border-slate-200 shadow-xs')
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-xs text-slate-900 dark:text-white truncate">{z.name}</div>
+                        <div className="text-[10.5px] text-gray-500 dark:text-gray-400 mt-0.5">
+                          {fmt(z.delivery_fee)} · {z.estimated_delivery_time}
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <CheckCircle size={16} className="text-[#EA4C2A] shrink-0 stroke-[2.5]" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -6036,6 +6452,28 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
               />
             </div>
 
+            {/* Welcome Wallet Perk Banner in Cart */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-emerald-500/15 border border-amber-500/30 dark:border-amber-400/20 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-[#EA4C2A] text-white flex items-center justify-center text-sm shrink-0 shadow-xs">
+                  🎁
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-extrabold text-xs text-amber-600 dark:text-amber-400">
+                      ₦1,000 Welcome Wallet Perk
+                    </span>
+                    <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                      Active
+                    </span>
+                  </div>
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                    Ready to apply at checkout for instant savings!
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Clean Bill Summary */}
             <div className={`p-4 rounded-2xl border space-y-2 ${isDark ? 'bg-[#181B22] border-white/5' : 'bg-white border-slate-100 shadow-sm'}`}>
               <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
@@ -6634,7 +7072,7 @@ function PaystackFallbackModal({ open, paymentInfo, onClose, onComplete, isDark 
 // ============================================================
 // CHECKOUT MODAL
 // ============================================================
-function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress }) {
+function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress, wallet, onRefreshWallet }) {
   const { cart, subtotal, clearCart } = useCart();
   const { user, silentRegister, updateUser } = useAuth();
   const { isDark } = useTheme();
@@ -6678,9 +7116,15 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 
   const [landmark, setLandmark] = useState(selectedAddress?.landmark || '');
 
+  // 1-Tap Wallet Welcome Bonus integration
+  const [useWalletBonus, setUseWalletBonus] = useState(true);
+  const rawWalletBalance = Number(wallet?.balance) || 0;
+
   const deliveryFee = freeDelivery ? 0 : (selectedZone?.delivery_fee || 500);
   const serviceFee = 250;
-  const total = subtotal + deliveryFee + serviceFee - discount;
+  const grossTotal = subtotal + deliveryFee + serviceFee - discount;
+  const walletDeduction = (useWalletBonus && rawWalletBalance > 0) ? Math.min(rawWalletBalance, grossTotal) : 0;
+  const total = Math.max(0, grossTotal - walletDeduction);
 
   useEffect(() => {
     const cfg = getStoredPaystackConfig();
@@ -6733,12 +7177,27 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         amount: total
       });
 
+      if (walletDeduction > 0) {
+        try {
+          await api.deductWallet(
+            walletDeduction,
+            orderData.customer_email || user?.id || 'usr_customer_default',
+            `FoodMaxx Order #${reference} (Wallet Perk Co-Pay)`,
+            reference
+          );
+          onRefreshWallet?.();
+        } catch (wErr) {
+          console.warn('Wallet deduction notice:', wErr);
+        }
+      }
+
       // Place order with payment_reference and normalized pricing
       const finalOrderData = {
         ...orderData,
         payment_method: 'paystack',
         payment_reference: reference,
         payment_status: 'paid',
+        wallet_deduction: Number(walletDeduction) || 0,
         subtotal: Number(subtotal) || 0,
         delivery_fee: Number(deliveryFee) || 0,
         service_fee: Number(serviceFee) || 0,
@@ -6896,7 +7355,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         delivery_address: selectedAddress ? `${selectedAddress.label}: ${selectedAddress.address}` : (selectedZone?.name || 'Selected Location'),
         delivery_zone: selectedZone?.name || 'Bodija',
         delivery_instructions: instructions || '',
-        payment_method: 'paystack',
+        payment_method: total === 0 ? 'wallet' : 'paystack',
         promo_code: promoCode || '',
         delivery_lat: 7.435,
         delivery_lng: 3.905,
@@ -6912,11 +7371,49 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         delivery_fee: Number(deliveryFee) || 0,
         service_fee: Number(serviceFee) || 0,
         discount: Number(discount) || 0,
+        wallet_deduction: Number(walletDeduction) || 0,
         total: Number(total) || 0,
         total_amount: Number(total) || 0
       };
 
-      // Always process through Paystack
+      // If order total is 0, complete directly using wallet bonus without Paystack!
+      if (total === 0 && walletDeduction > 0) {
+        const walletRef = `FMX_WAL_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
+        try {
+          await api.deductWallet(
+            walletDeduction,
+            emailToUse || activeUser?.email || user?.id || 'usr_customer_default',
+            `FoodMaxx Order #${walletRef} (100% Wallet Bonus)`,
+            walletRef
+          );
+          onRefreshWallet?.();
+        } catch (wErr) {
+          console.warn('Wallet deduction error:', wErr);
+        }
+
+        const finalOrderData = {
+          ...orderData,
+          payment_method: 'wallet',
+          payment_reference: walletRef,
+          payment_status: 'paid'
+        };
+
+        const res = await api.createOrder(finalOrderData);
+        const placedOrder = res?.data?.order || res?.data || res?.order || finalOrderData;
+        if (placedOrder?.id) {
+          try { localStorage.setItem('fmx_last_order_id', placedOrder.id); } catch {}
+        }
+        try {
+          window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: placedOrder }));
+        } catch {}
+        clearCart();
+        toast('Order paid 100% with your FoodMaxx Welcome Wallet Bonus! 🎁', 'success');
+        onSuccess(placedOrder);
+        setLoading(false);
+        return;
+      }
+
+      // Otherwise process balance through Paystack
       await handlePaystackCheckout(orderData, activeUser);
     } catch (e) {
       toast(e.message || 'Failed to place order', 'error');
@@ -7153,7 +7650,49 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
             </div>
           </div>
 
-          {/* 5. Order Bill Breakdown */}
+          {/* 5. FoodMaxx Wallet Welcome Bonus Perk Card */}
+          {rawWalletBalance > 0 && (
+            <div className={`p-4 rounded-2xl border transition-all ${
+              useWalletBonus
+                ? (isDark ? 'bg-emerald-950/25 border-emerald-500/40 text-white shadow-sm' : 'bg-emerald-50/80 border-emerald-300 text-slate-900 shadow-xs')
+                : (isDark ? 'bg-[#181B22] border-white/5 opacity-70' : 'bg-white border-slate-200 opacity-70')
+            }`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-sm shadow-emerald-500/20">
+                    🎁
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold">FoodMaxx Welcome Wallet</span>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                        {fmt(rawWalletBalance)} Avail.
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                      {useWalletBonus
+                        ? `Applying ${fmt(walletDeduction)} discount to this order!`
+                        : 'Tap toggle to apply welcome bonus to this order'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setUseWalletBonus(prev => !prev)}
+                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer shrink-0 ${
+                    useWalletBonus ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                    useWalletBonus ? 'translate-x-5' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 6. Order Bill Breakdown */}
           <div className={`p-4 rounded-2xl border space-y-2 ${isDark ? 'bg-[#181B22] border-white/5' : 'bg-white border-slate-100 shadow-sm'}`}>
             <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 font-medium">
               <span>Items Subtotal</span>
@@ -7175,6 +7714,15 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                 <span>−{fmt(discount)}</span>
               </div>
             )}
+            {walletDeduction > 0 && (
+              <div className="flex justify-between text-xs text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 dark:bg-emerald-500/20 px-2.5 py-1.5 rounded-xl border border-emerald-500/20">
+                <span className="flex items-center gap-1.5">
+                  <Gift size={13} />
+                  <span>Wallet Bonus Perk</span>
+                </span>
+                <span>−{fmt(walletDeduction)}</span>
+              </div>
+            )}
             <div className="border-t border-slate-100 dark:border-white/10 pt-2.5 flex justify-between items-center font-bold text-sm">
               <span className="text-slate-900 dark:text-white">Total</span>
               <span className="text-base text-[#EA4C2A]">{fmt(total)}</span>
@@ -7193,7 +7741,12 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
             {loading ? (
               <>
                 <RefreshCw size={17} className="animate-spin" />
-                <span>Opening Paystack...</span>
+                <span>{total === 0 ? 'Processing Wallet Order...' : 'Opening Paystack...'}</span>
+              </>
+            ) : total === 0 ? (
+              <>
+                <Gift size={17} />
+                <span>🎁 Complete Order with Wallet (₦0 to Pay)</span>
               </>
             ) : (
               <>
@@ -7397,358 +7950,144 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 // ============================================================
 function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) {
   const [copiedRef, setCopiedRef] = useState(false);
-  const [copiedPin, setCopiedPin] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
-    // Multi-stage celebratory confetti bursts & audio
     playNativeSound('success');
-    triggerHaptic('heavy');
-    setTimeout(() => triggerHaptic('success'), 300);
-
-    // Initial blast
+    triggerHaptic('success');
     confetti({
-      particleCount: 75,
-      spread: 70,
+      particleCount: 65,
+      spread: 60,
       origin: { y: 0.6 },
-      colors: ['#FF4B26', '#FF8C00', '#10B981', '#FFE600', '#FFFFFF']
+      colors: ['#EA4C2A', '#10B981', '#F59E0B', '#FFFFFF']
     });
-
-    // Secondary fireworks cannon crossfire
-    const timer = setTimeout(() => {
-      confetti({
-        particleCount: 50,
-        angle: 60,
-        spread: 60,
-        origin: { x: 0.1, y: 0.7 },
-        colors: ['#FF4B26', '#10B981', '#FFE600']
-      });
-      confetti({
-        particleCount: 50,
-        angle: 120,
-        spread: 60,
-        origin: { x: 0.9, y: 0.7 },
-        colors: ['#FF4B26', '#10B981', '#FFE600']
-      });
-    }, 380);
-
-    return () => clearTimeout(timer);
   }, []);
-
-  const handleCopyRef = () => {
-    if (order?.order_reference) {
-      navigator.clipboard?.writeText(order.order_reference);
-      setCopiedRef(true);
-      toast('Order reference copied to clipboard! 📋', 'success');
-      setTimeout(() => setCopiedRef(false), 2000);
-    }
-  };
-
-  const handleCopyPin = () => {
-    const pin = String(order?.delivery_otp || order?.pin || '4821');
-    navigator.clipboard?.writeText(pin);
-    setCopiedPin(true);
-    toast(`Delivery Confirmation PIN ${pin} copied! 🔐`, 'success');
-    setTimeout(() => setCopiedPin(false), 2000);
-  };
-
-  const handleShareOrder = async () => {
-    triggerHaptic('light');
-    const ref = order?.order_reference || 'FoodMaxx Order';
-    const shared = await shareNative({
-      title: `FoodMaxx Order #${ref}`,
-      text: `Just ordered delicious meals from FoodMaxx Kitchen! Tracking reference #${ref}:`,
-      url: window.location.origin
-    });
-    if (shared) {
-      toast('Share dialog opened! 📲', 'info');
-    } else {
-      toast('Tracking link copied to clipboard! 📋', 'success');
-    }
-  };
 
   if (!order) return null;
 
-  const items = order.items || [];
   const orderRef = order.order_reference || order.id?.slice(0, 8) || 'FMX-001';
   const deliveryPin = order.delivery_otp || order.pin || '4821';
   const totalAmount = order.total || order.total_amount || 0;
+
+  const handleCopyRef = () => {
+    navigator.clipboard?.writeText(orderRef);
+    setCopiedRef(true);
+    toast('Order reference copied! 📋', 'success');
+    setTimeout(() => setCopiedRef(false), 2000);
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4"
     >
       <motion.div
-        initial={{ scale: 0.88, y: 35, opacity: 0 }}
+        initial={{ scale: 0.92, y: 30, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
-        exit={{ scale: 0.9, y: 20, opacity: 0 }}
-        transition={{ type: 'spring', damping: 24, stiffness: 320 }}
-        className={`w-full max-w-md ${
-          isDark ? 'bg-[#121418] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200'
-        } rounded-[32px] border shadow-2xl p-5 sm:p-6 relative overflow-hidden flex flex-col items-center text-center my-auto`}
+        exit={{ scale: 0.94, y: 20, opacity: 0 }}
+        transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+        className={`w-full max-w-sm sm:max-w-md ${
+          isDark ? 'bg-[#151821] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200'
+        } rounded-t-[32px] sm:rounded-[32px] border shadow-2xl p-6 relative overflow-hidden flex flex-col items-center text-center`}
       >
-        {/* Ambient Top Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-36 bg-[#FF4B26]/20 blur-3xl pointer-events-none rounded-full" />
+        {/* Soft Ambient Glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-24 bg-emerald-500/15 blur-2xl pointer-events-none rounded-full" />
 
-        {/* Floating Sparkle Micro-Pill */}
+        {/* Clean Success Circle */}
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#FF4B26]/10 text-[#FF4B26] border border-[#FF4B26]/20 mb-1"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', damping: 16, stiffness: 260 }}
+          className="w-16 h-16 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center mb-3.5 border border-emerald-500/30 shadow-xs"
         >
-          <Sparkles size={12} className="animate-spin text-[#FF4B26]" style={{ animationDuration: '4s' }} />
-          <span>Payment Verified & Confirmed</span>
+          <Check size={32} strokeWidth={3.5} />
         </motion.div>
 
-        {/* ANIMATED HERO ICON & PULSING HALO */}
-        <div className="relative my-3 flex items-center justify-center">
-          {/* Rotating dashed orbit ring */}
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 16, ease: 'linear' }}
-            className="absolute w-28 h-28 rounded-full border-2 border-dashed border-[#FF4B26]/25 pointer-events-none"
-          />
+        <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+          Payment Confirmed!
+        </h2>
+        <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
+          Your order has been placed with <span className="font-bold text-slate-800 dark:text-slate-200">FoodMaxx Kitchen</span> and is being prepared fresh.
+        </p>
 
-          {/* Concentric expanding acoustic pulse rings */}
-          <motion.div
-            animate={{ scale: [1, 1.6, 2], opacity: [0.6, 0.2, 0] }}
-            transition={{ repeat: Infinity, duration: 2.2, ease: 'easeOut' }}
-            className="absolute w-20 h-20 rounded-full bg-[#FF4B26]/25 pointer-events-none"
-          />
-          <motion.div
-            animate={{ scale: [1, 1.8], opacity: [0.4, 0] }}
-            transition={{ repeat: Infinity, duration: 2.2, delay: 0.4, ease: 'easeOut' }}
-            className="absolute w-20 h-20 rounded-full bg-[#FF4B26]/15 pointer-events-none"
-          />
-
-          {/* Central 3D Success Medallion */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: [0, 1.2, 1] }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#FF4B26] via-[#FF6636] to-[#E03E1B] flex items-center justify-center text-white shadow-xl shadow-[#FF4B26]/40 z-10 relative border-2 border-white/30"
-          >
-            <motion.div
-              initial={{ scale: 0, rotate: -45 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ delay: 0.22, type: 'spring', damping: 14 }}
-            >
-              <Check size={38} strokeWidth={3.5} />
-            </motion.div>
-          </motion.div>
-        </div>
-
-        {/* Celebratory Title & Message */}
-        <motion.h2
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-2xl font-black tracking-tight"
-        >
-          Order Placed Successfully!
-        </motion.h2>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.28 }}
-          className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed"
-        >
-          Your order has been sent to <span className="font-bold text-[#FF4B26]">FoodMaxx Kitchen</span> and is now entering the cooking queue.
-        </motion.p>
-
-        {/* 4-STAGE ANIMATED ORDER PIPELINE PROGRESS BAR */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className={`w-full mt-4 p-3 rounded-2xl border ${
-            isDark ? 'bg-[#181B22] border-white/10' : 'bg-slate-50 border-slate-200'
-          }`}
-        >
-          <div className="flex items-center justify-between relative px-2">
-            {/* Connecting progress line */}
-            <div className="absolute top-3.5 left-6 right-6 h-0.5 bg-slate-200 dark:bg-white/10 -z-0">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: '25%' }}
-                transition={{ delay: 0.4, duration: 0.8, ease: 'easeOut' }}
-                className="h-full bg-[#FF4B26]"
-              />
-            </div>
-
-            {/* Step 1: Received */}
-            <div className="flex flex-col items-center gap-1 z-10">
-              <div className="w-7 h-7 rounded-full bg-[#FF4B26] text-white flex items-center justify-center text-[10px] font-bold shadow-sm shadow-[#FF4B26]/30 ring-2 ring-[#FF4B26]/20">
-                ✓
-              </div>
-              <span className="text-[9px] font-bold text-[#FF4B26]">Received</span>
-            </div>
-
-            {/* Step 2: Kitchen */}
-            <div className="flex flex-col items-center gap-1 z-10">
-              <div className="w-7 h-7 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/40 flex items-center justify-center text-[10px] animate-pulse">
-                👨‍🍳
-              </div>
-              <span className="text-[9px] font-semibold text-slate-400">Cooking</span>
-            </div>
-
-            {/* Step 3: Dispatch */}
-            <div className="flex flex-col items-center gap-1 z-10">
-              <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-white/10 text-slate-400 flex items-center justify-center text-[10px]">
-                🛵
-              </div>
-              <span className="text-[9px] font-semibold text-slate-400">Dispatch</span>
-            </div>
-
-            {/* Step 4: Delivered */}
-            <div className="flex flex-col items-center gap-1 z-10">
-              <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-white/10 text-slate-400 flex items-center justify-center text-[10px]">
-                🏠
-              </div>
-              <span className="text-[9px] font-semibold text-slate-400">Doorstep</span>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* THERMAL DIGITAL RECEIPT CARD */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.42 }}
-          className={`w-full mt-3.5 p-4 rounded-2xl border text-left ${
-            isDark ? 'bg-[#181B22] border-white/10' : 'bg-slate-50 border-slate-200'
-          } space-y-3 relative`}
-        >
-          {/* Reference & Delivery Countdown */}
-          <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-white/10">
+        {/* Clean Single Summary Box */}
+        <div className={`w-full mt-5 p-4 rounded-2xl border text-left space-y-3 ${
+          isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
+        }`}>
+          {/* Order Ref & Amount */}
+          <div className="flex items-center justify-between">
             <div>
-              <div className="text-[10px] text-slate-400 uppercase font-semibold">Order Reference</div>
+              <div className="text-[10.5px] text-slate-400 font-medium">Order Reference</div>
               <button
                 type="button"
                 onClick={handleCopyRef}
-                className="font-mono font-bold text-sm text-[#FF4B26] flex items-center gap-1.5 hover:underline cursor-pointer"
+                className="font-mono font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1 hover:text-[#EA4C2A] cursor-pointer mt-0.5"
               >
                 <span>#{orderRef}</span>
-                <Copy size={12} className={copiedRef ? 'text-emerald-400' : 'text-slate-400'} />
+                <Copy size={11} className={copiedRef ? 'text-emerald-500' : 'text-slate-400'} />
               </button>
             </div>
+
             <div className="text-right">
-              <div className="text-[10px] text-slate-400 uppercase font-semibold">Est. Arrival</div>
-              <div className="text-xs font-bold text-emerald-500 flex items-center gap-1 justify-end">
-                <Clock size={12} />
-                <span>20–30 mins</span>
-              </div>
+              <div className="text-[10.5px] text-slate-400 font-medium">Amount Paid</div>
+              <div className="font-black text-sm text-[#EA4C2A] mt-0.5">{fmt(totalAmount)}</div>
             </div>
           </div>
 
-          {/* DELIVERY CONFIRMATION PIN CARD */}
-          <div className="flex items-center justify-between bg-gradient-to-r from-[#FF4B26]/15 via-[#FF4B26]/10 to-transparent border border-[#FF4B26]/30 rounded-xl px-3.5 py-2.5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-[#FF4B26] text-white flex items-center justify-center shrink-0 shadow-sm">
-                <Key size={16} />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold leading-tight">Delivery Confirmation PIN</div>
-                <div className="text-[10px] text-slate-400 truncate">Read to rider upon arrival</div>
+          {/* Delivery PIN Banner */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25">
+            <div className="flex items-center gap-2">
+              <span className="text-base">🛵</span>
+              <div>
+                <div className="text-[11px] font-bold text-amber-700 dark:text-amber-400 leading-none">
+                  Delivery PIN: {deliveryPin}
+                </div>
+                <div className="text-[9.5px] text-slate-400 mt-0.5">Read to courier upon arrival</div>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleCopyPin}
-              className="bg-[#FF4B26] hover:bg-[#E03E1B] text-white font-mono font-black text-sm px-3 py-1 rounded-lg tracking-widest flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer shrink-0"
-              title="Click to copy PIN"
-            >
-              <span>{deliveryPin}</span>
-              <Copy size={11} className={copiedPin ? 'text-emerald-200' : 'text-white/80'} />
-            </button>
+            <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+              Paid ✓
+            </span>
           </div>
 
-          {/* Ordered Dishes Summary Preview */}
-          {items.length > 0 && (
-            <div className="space-y-1.5 pt-1 border-t border-slate-200/60 dark:border-white/10">
-              <div className="text-[10px] text-slate-400 uppercase font-semibold">Meal Summary ({items.length} item{items.length > 1 ? 's' : ''})</div>
-              <div className="max-h-20 overflow-y-auto space-y-1 pr-1 text-xs">
-                {items.slice(0, 3).map((it, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-slate-300">
-                    <span className="truncate pr-2">{it.qty || 1}x {it.name} {it.selectedSize ? `(${it.selectedSize})` : ''}</span>
-                    <span className="font-mono text-[11px] shrink-0">{fmt((it.price || 0) * (it.qty || 1))}</span>
-                  </div>
-                ))}
-                {items.length > 3 && (
-                  <div className="text-[10px] text-slate-400 italic">+ {items.length - 3} more items in this order</div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Address & Total */}
-          <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200/60 dark:border-white/10">
-            <div className="text-slate-400 truncate max-w-[190px]">
-              <div className="flex items-center gap-1 font-semibold text-slate-300">
-                <MapPin size={12} className="text-[#FF4B26] shrink-0" />
-                <span className="truncate">{order.delivery_zone || 'Bodija, Ibadan'}</span>
-              </div>
-              {order.delivery_address && (
-                <span className="block text-[10px] truncate pl-4 text-slate-400">{order.delivery_address}</span>
-              )}
-            </div>
-            <div className="text-right">
-              <span className="text-[10px] text-slate-400 block">Total Amount</span>
-              <span className="font-black text-sm text-[#FF4B26]">{fmt(totalAmount)}</span>
-            </div>
+          {/* ETA & Zone */}
+          <div className="flex items-center justify-between text-xs pt-1 text-slate-400">
+            <span className="flex items-center gap-1 truncate max-w-[180px]">
+              <MapPin size={12} className="text-[#EA4C2A] shrink-0" />
+              <span className="truncate">{order.delivery_zone || 'Bodija, Ibadan'}</span>
+            </span>
+            <span className="font-semibold text-slate-700 dark:text-slate-300">
+              ~20–30 mins
+            </span>
           </div>
-        </motion.div>
+        </div>
 
-        {/* ACTION BUTTONS */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="w-full mt-4 space-y-2"
-        >
-          {/* Primary Track Live Button */}
+        {/* Action Buttons */}
+        <div className="w-full mt-5 space-y-2">
           <button
             type="button"
             onClick={() => {
               triggerHaptic('medium');
               onTrackOrder();
             }}
-            className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#FF4B26] to-[#FF6A3D] hover:from-[#E03E1B] hover:to-[#FF4B26] active:scale-98 text-white font-bold text-sm shadow-xl shadow-[#FF4B26]/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="w-full py-3.5 px-4 rounded-2xl bg-[#EA4C2A] hover:bg-[#d83f1d] active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-lg shadow-[#EA4C2A]/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
-            <Truck size={17} />
-            <span>Track Order Live</span>
-            <ChevronRight size={17} />
+            <span>Track Live Delivery</span>
+            <ChevronRight size={15} strokeWidth={3} />
           </button>
 
-          {/* Secondary Action Row: Share + Home */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={handleShareOrder}
-              className={`py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 ${
-                isDark ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-              } transition-colors cursor-pointer`}
-            >
-              <Share2 size={13} />
-              <span>Share Status</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onContinueShopping}
-              className={`py-2.5 px-3 rounded-xl border text-xs font-semibold ${
-                isDark ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-              } transition-colors cursor-pointer`}
-            >
-              Back to Menu
-            </button>
-          </div>
-        </motion.div>
+          <button
+            type="button"
+            onClick={onContinueShopping}
+            className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+              isDark ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            Back to Home
+          </button>
+        </div>
       </motion.div>
     </motion.div>
   );
@@ -8364,54 +8703,119 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh }) {
     }
   }
 
+  const hasWelcomeCredit = (wallet?.transactions || []).some(t => 
+    (t.description || '').toLowerCase().includes('welcome') || (t.reference || '').toLowerCase().includes('welcome')
+  );
+
   return (
-    <Modal open={open} onClose={onClose} title="💳 My Wallet">
-      <div className="p-5">
-        <div className="bg-gradient-to-r from-red-600 to-red-800 rounded-3xl p-5 text-white mb-5 text-center">
-          <div className="text-sm text-red-200 mb-1">Available Balance</div>
-          <div className="text-4xl font-bold">{fmt(wallet?.balance || 0)}</div>
+    <Modal open={open} onClose={onClose} title="💳 FoodMaxx Chow Wallet">
+      <div className="p-4 sm:p-5 space-y-4">
+        {/* Welcome Bonus Callout Banner */}
+        <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-emerald-500/15 border border-amber-500/30 dark:border-amber-400/20 rounded-2xl p-3.5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-[#EA4C2A] text-white flex items-center justify-center text-xl shrink-0 shadow-sm">
+            🎁
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-extrabold text-xs text-amber-600 dark:text-amber-400">Welcome Chow Perk</span>
+              <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                ₦1,000 Credited
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+              Instant credit ready to offset your chow at checkout!
+            </p>
+          </div>
         </div>
 
-        <h3 className="font-bold mb-3 text-slate-900 dark:text-white">Top Up Wallet</h3>
-        <div className="grid grid-cols-4 gap-2 mb-3">
-          {quickAmounts.map(a => (
-            <button key={a} onClick={() => setAmount(String(a))}
-              className={`py-2 rounded-xl text-xs font-bold border transition-all ${amount === String(a) ? 'bg-red-600 text-white border-red-600' : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+        {/* Digital Luxury Chow Card */}
+        <div className="relative overflow-hidden rounded-3xl p-5 text-white bg-gradient-to-br from-slate-900 via-zinc-900 to-[#EA4C2A] border border-white/10 shadow-xl">
+          <div className="absolute top-0 right-0 w-36 h-36 bg-[#EA4C2A]/20 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-5 rounded bg-amber-400/80 border border-amber-300 flex items-center justify-center shadow-xs">
+                <div className="w-4 h-3 border border-amber-600/60 rounded-[2px]" />
+              </div>
+              <span className="text-[11px] font-mono tracking-widest text-slate-300 uppercase">Chow Pass</span>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/15 text-white backdrop-blur-xs font-mono">
+              NGN · ₦
+            </span>
+          </div>
+
+          <div className="space-y-0.5 mb-3">
+            <div className="text-[11px] text-slate-300 font-medium">Available Balance</div>
+            <div className="text-3xl sm:text-4xl font-extrabold tracking-tight">{fmt(wallet?.balance || 0)}</div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[10px] text-slate-300">
+            <span>Instant Paystack Top-Up</span>
+            <span className="font-mono">FoodMaxx Wallet</span>
+          </div>
+        </div>
+
+        {/* Quick Top-Up */}
+        <div>
+          <h3 className="font-bold text-xs mb-2 text-slate-900 dark:text-white flex items-center gap-1.5">
+            <Plus size={14} className="text-[#EA4C2A]" />
+            <span>Quick Top Up</span>
+          </h3>
+          <div className="grid grid-cols-4 gap-2 mb-2.5">
+            {quickAmounts.map(a => (
+              <button
+                key={a}
+                onClick={() => setAmount(String(a))}
+                className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                  amount === String(a)
+                    ? 'bg-[#EA4C2A] text-white border-[#EA4C2A] shadow-xs'
+                    : 'border-slate-200 dark:border-white/10 text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-white/5'
+                }`}
+              >
+                {fmt(a)}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              type="number"
+              className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 rounded-xl text-xs outline-none focus:border-[#EA4C2A]"
+              placeholder="Or enter amount (₦)"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+            />
+            <button
+              onClick={handleTopUp}
+              disabled={loading}
+              className="px-4 py-2.5 bg-[#EA4C2A] hover:bg-[#d83f1d] text-white rounded-xl font-bold text-xs shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-50"
             >
-              {fmt(a)}
+              {loading ? 'Adding...' : 'Top Up'}
             </button>
-          ))}
-        </div>
-        <div className="flex gap-2 mb-4">
-          <input
-            type="number"
-            className="flex-1 px-4 py-3 bg-gray-100 dark:bg-white/5 text-slate-900 dark:text-white border border-transparent dark:border-white/10 rounded-xl text-sm outline-none"
-            placeholder="Or enter amount"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-          />
-          <button onClick={handleTopUp} disabled={loading} className="px-4 py-3 bg-red-600 text-white rounded-xl font-bold text-sm">
-            {loading ? '...' : 'Add'}
-          </button>
+          </div>
         </div>
 
+        {/* Recent Transactions */}
         {wallet?.transactions?.length > 0 && (
-          <>
-            <h3 className="font-bold mb-3">Recent Transactions</h3>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {wallet.transactions.map(t => (
-                <div key={t.id} className="flex items-center justify-between py-2 border-b border-gray-50">
-                  <div>
-                    <div className="text-sm font-semibold">{t.description}</div>
-                    <div className="text-xs text-gray-400">{new Date(t.created_at).toLocaleDateString()}</div>
+          <div>
+            <h3 className="font-bold text-xs mb-2 text-slate-900 dark:text-white">Transaction History</h3>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5">
+              {wallet.transactions.map((t, idx) => (
+                <div key={t.id || idx} className="flex items-center justify-between py-2 text-xs">
+                  <div className="min-w-0 flex-1 pr-2">
+                    <div className="font-semibold text-slate-900 dark:text-white truncate text-[11.5px]">
+                      {t.description || 'Wallet Transaction'}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      {t.date || t.created_at ? new Date(t.date || t.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent'}
+                    </div>
                   </div>
-                  <span className={`font-bold ${t.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`font-black text-xs shrink-0 ${t.type === 'credit' ? 'text-emerald-500' : 'text-[#EA4C2A]'}`}>
                     {t.type === 'credit' ? '+' : '-'}{fmt(t.amount)}
                   </span>
                 </div>
               ))}
             </div>
-          </>
+          </div>
         )}
       </div>
     </Modal>

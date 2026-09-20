@@ -882,12 +882,41 @@ export async function updateLiveHomepageSections(sections) {
 export async function getLiveWallet(userId = 'usr_customer_default') {
   const docRef = doc(db, COLL_WALLETS, userId);
   const snap = await getDoc(docRef);
-  if (snap.exists()) return snap.data();
+  if (snap.exists()) {
+    const data = snap.data();
+    // If wallet has zero balance and no transactions, seed welcome bonus
+    if ((!data.balance || data.balance === 0) && (!data.transactions || data.transactions.length === 0)) {
+      const welcomeBalance = 1000;
+      const initialWithBonus = {
+        user_id: userId,
+        balance: welcomeBalance,
+        currency: 'NGN',
+        transactions: [{
+          id: 'tx_welcome_' + Date.now(),
+          type: 'credit',
+          amount: welcomeBalance,
+          description: '🎁 ₦1,000 Welcome Bonus Credit',
+          reference: 'WELCOME-BONUS',
+          date: new Date().toISOString()
+        }]
+      };
+      await setDoc(docRef, initialWithBonus, { merge: true });
+      return initialWithBonus;
+    }
+    return data;
+  }
   const initial = {
     user_id: userId,
-    balance: 0,
+    balance: 1000,
     currency: 'NGN',
-    transactions: []
+    transactions: [{
+      id: 'tx_welcome_' + Date.now(),
+      type: 'credit',
+      amount: 1000,
+      description: '🎁 ₦1,000 Welcome Bonus Credit',
+      reference: 'WELCOME-BONUS',
+      date: new Date().toISOString()
+    }]
   };
   await setDoc(docRef, initial, { merge: true });
   return initial;

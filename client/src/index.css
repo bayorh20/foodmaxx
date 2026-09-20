@@ -66,12 +66,34 @@ html.dark body {
   transform: translateZ(0);
   backface-visibility: hidden;
   perspective: 1000px;
+  will-change: transform, opacity;
 }
 
-/* Automatic list rendering performance optimization */
-.scroll-optimized {
+/* Automatic off-screen rendering optimization for low-end devices */
+.scroll-optimized,
+.dish-card,
+.menu-item-card,
+.restaurant-card {
   content-visibility: auto;
-  contain-intrinsic-size: 0 100px;
+  contain-intrinsic-size: 0 120px;
+  contain: layout style paint;
+}
+
+/* Fast scrolling containers without frame dropping */
+.momentum-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+}
+
+/* Low-power rendering fallback: reduce expensive multi-pass backdrop blur on low-end screens */
+@media (prefers-reduced-motion: reduce), (max-width: 640px) and (hover: none) {
+  .backdrop-blur-2xl,
+  .backdrop-blur-xl,
+  .backdrop-blur-lg {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
 }
 
 /* ============================================================
