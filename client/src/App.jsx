@@ -1902,7 +1902,15 @@ function CustomerPortal() {
       />
 
       {/* WALLET */}
-      <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} wallet={wallet} onTopUp={handleTopUp} onRefresh={loadWallet} />
+      <WalletModal
+        open={walletOpen}
+        onClose={() => setWalletOpen(false)}
+        wallet={wallet}
+        onTopUp={handleTopUp}
+        onRefresh={loadWallet}
+        user={user}
+        isDark={isDark}
+      />
 
       {/* REVIEW MODAL */}
       {reviewModal && (
@@ -2407,13 +2415,13 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
       </div>
       
       {/* Content Container */}
-      <div className="p-3 flex flex-col justify-between h-[84px]">
-        <div>
-          <div className="flex items-center justify-between gap-1.5">
-            <h3 className="font-bold text-[13.5px] sm:text-sm text-slate-900 dark:text-white leading-tight truncate flex-1 transition-colors">
+      <div className="p-3 flex flex-col justify-between min-h-[88px] sm:min-h-[92px] h-auto">
+        <div className="mb-1">
+          <div className="flex items-start justify-between gap-1.5">
+            <h3 className="font-bold text-[13px] sm:text-[13.5px] text-slate-900 dark:text-white leading-snug line-clamp-2 break-words flex-1 transition-colors">
               {item.name}
             </h3>
-            <span className="text-[9px] font-bold uppercase tracking-wider text-[#EA4C2A] bg-orange-500/10 dark:bg-orange-500/20 px-1.5 py-0.5 rounded-md shrink-0">
+            <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#EA4C2A] bg-orange-500/10 dark:bg-orange-500/20 px-1.5 py-0.5 rounded-md shrink-0 mt-0.5">
               Pre-order
             </span>
           </div>
@@ -2714,7 +2722,7 @@ function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false,
               </span>
             </div>
 
-            <h3 className="font-bold text-[13.5px] sm:text-sm text-slate-900 dark:text-white leading-snug line-clamp-1 transition-colors">
+            <h3 className="font-bold text-[13px] sm:text-sm text-slate-900 dark:text-white leading-snug line-clamp-2 break-words transition-colors">
               {item.name}
             </h3>
           </div>
@@ -3039,14 +3047,16 @@ function MenuDishRow({ item, onSelect, onQuickAdd, onToggleFavorite, isFavorite,
       {/* Right Column: Title, Heart, Desc, Ratings, Price & Stepper */}
       <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0 h-full">
         {/* Row 1: Title + Pre-order Tag + Heart */}
-        <div className="flex items-center justify-between gap-1.5">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight truncate">
-              {item.name}
-            </h3>
-            <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#EA4C2A] bg-orange-500/10 dark:bg-orange-500/20 px-1.5 py-0.5 rounded-md shrink-0">
-              Pre-order
-            </span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0 pr-1">
+            <div className="flex items-start gap-1.5 flex-wrap">
+              <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-snug line-clamp-2 break-words">
+                {item.name}
+              </h3>
+              <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#EA4C2A] bg-orange-500/10 dark:bg-orange-500/20 px-1.5 py-0.5 rounded-md shrink-0 mt-0.5">
+                Pre-order
+              </span>
+            </div>
           </div>
           <button
             type="button"
@@ -3054,7 +3064,7 @@ function MenuDishRow({ item, onSelect, onQuickAdd, onToggleFavorite, isFavorite,
               e.stopPropagation();
               onToggleFavorite(item.id);
             }}
-            className="p-1 text-gray-400 hover:text-red-500 transition-colors cursor-pointer shrink-0"
+            className="p-1 text-gray-400 hover:text-red-500 transition-colors cursor-pointer shrink-0 -mt-0.5"
             title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
             <Heart
@@ -8758,24 +8768,124 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark }) {
 // ============================================================
 // WALLET MODAL
 // ============================================================
-function WalletModal({ open, onClose, wallet, onTopUp, onRefresh }) {
-  const [amount, setAmount] = useState('');
+function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }) {
+  const [amount, setAmount] = useState('2000');
   const [loading, setLoading] = useState(false);
+  const [paystackFallbackModal, setPaystackFallbackModal] = useState(null);
   const toast = useToast();
 
   const quickAmounts = [1000, 2000, 5000, 10000];
 
-  async function handleTopUp() {
-    if (!amount || amount < 100) { toast('Enter a valid amount', 'error'); return; }
+  async function handlePaystackTopUp() {
+    const numAmount = Number(amount);
+    if (!numAmount || numAmount < 100) {
+      toast('Please enter a valid top-up amount of at least ₦100', 'error');
+      return;
+    }
+
     setLoading(true);
-    try {
-      await onTopUp(Number(amount));
-      setAmount('');
-      await onRefresh();
-    } finally {
+
+    const paystackCfg = getStoredPaystackConfig();
+    const envKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) || '';
+    const activeKey = (paystackCfg.publicKey || envKey || '').trim();
+
+    const effectiveEmail = (user?.email && user.email.includes('@'))
+      ? user.email.trim()
+      : 'customer@foodmaxx.ng';
+    const effectiveName = user?.name || user?.displayName || user?.full_name || 'FoodMaxx Customer';
+    const effectivePhone = user?.phone || user?.phone_number || '';
+    const txRef = `TOPUP_PSTK_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
+
+    // If active merchant key is missing or not live format, trigger Paystack Fallback / Demo Test Modal
+    if (!isValidPaystackKey(activeKey)) {
       setLoading(false);
+      setPaystackFallbackModal({
+        total: numAmount,
+        email: effectiveEmail,
+        name: effectiveName,
+        phone: effectivePhone,
+        txRef,
+        isDemo: true
+      });
+      return;
+    }
+
+    await loadPaystackScript();
+
+    try {
+      launchRealPaystack({
+        key: activeKey,
+        email: effectiveEmail,
+        amount: numAmount,
+        reference: txRef,
+        customerName: effectiveName,
+        phone: effectivePhone,
+        metadata: {
+          custom_fields: [
+            { display_name: 'Customer Name', variable_name: 'customer_name', value: effectiveName },
+            { display_name: 'Customer Phone', variable_name: 'customer_phone', value: effectivePhone },
+            { display_name: 'Transaction Type', variable_name: 'transaction_type', value: 'FoodMaxx Wallet Top-Up' },
+            { display_name: 'Top-Up Amount', variable_name: 'top_up_amount', value: `NGN ${numAmount}` }
+          ]
+        },
+        onSuccess: async (tx) => {
+          try {
+            const confirmedRef = tx.reference || txRef;
+            await api.topUpWallet(numAmount, user?.id || 'usr_customer_default', confirmedRef);
+            toast(`Wallet funded successfully with ₦${numAmount.toLocaleString()}! 💳✨`, 'success');
+            setAmount('2000');
+            if (onRefresh) await onRefresh();
+          } catch (e) {
+            console.error('Wallet balance update error:', e);
+            toast(e?.message || 'Failed to update wallet balance', 'error');
+          } finally {
+            setLoading(false);
+          }
+        },
+        onCancel: () => {
+          toast('Paystack top-up window closed', 'info');
+          setLoading(false);
+        },
+        onError: (err) => {
+          console.warn('Paystack popup initiation failed, opening secure fallback:', err);
+          setLoading(false);
+          setPaystackFallbackModal({
+            total: numAmount,
+            email: effectiveEmail,
+            name: effectiveName,
+            phone: effectivePhone,
+            txRef,
+            isDemo: false
+          });
+        }
+      });
+    } catch (err) {
+      console.warn('Paystack inline launch error:', err);
+      setLoading(false);
+      setPaystackFallbackModal({
+        total: numAmount,
+        email: effectiveEmail,
+        name: effectiveName,
+        phone: effectivePhone,
+        txRef,
+        isDemo: true
+      });
     }
   }
+
+  const handleFallbackComplete = async (confirmedRef) => {
+    try {
+      const numAmount = Number(paystackFallbackModal?.total || amount);
+      await api.topUpWallet(numAmount, user?.id || 'usr_customer_default', confirmedRef);
+      toast(`Wallet funded with ₦${numAmount.toLocaleString()}! 💳✨`, 'success');
+      setPaystackFallbackModal(null);
+      setAmount('2000');
+      if (onRefresh) await onRefresh();
+    } catch (e) {
+      console.error('Fallback wallet credit error:', e);
+      toast(e?.message || 'Failed to credit wallet', 'error');
+    }
+  };
 
   const hasWelcomeCredit = (wallet?.transactions || []).some(t => 
     (t.description || '').toLowerCase().includes('welcome') || (t.reference || '').toLowerCase().includes('welcome')
@@ -8823,25 +8933,36 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh }) {
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[10px] text-slate-300">
-            <span>Instant Paystack Top-Up</span>
+            <span className="flex items-center gap-1">
+              <Lock size={10} className="text-emerald-400" />
+              <span>Instant Paystack Top-Up</span>
+            </span>
             <span className="font-mono">FoodMaxx Wallet</span>
           </div>
         </div>
 
-        {/* Quick Top-Up */}
-        <div>
-          <h3 className="font-bold text-xs mb-2 text-slate-900 dark:text-white flex items-center gap-1.5">
-            <Plus size={14} className="text-[#EA4C2A]" />
-            <span>Quick Top Up</span>
-          </h3>
-          <div className="grid grid-cols-4 gap-2 mb-2.5">
+        {/* Quick Top-Up with Paystack */}
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
+              <Plus size={14} className="text-[#EA4C2A]" />
+              <span>Select Top-Up Amount</span>
+            </h3>
+            <span className="text-[10px] font-bold text-[#09A5DB] bg-[#09A5DB]/10 dark:bg-[#09A5DB]/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Lock size={10} />
+              <span>Paystack</span>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2">
             {quickAmounts.map(a => (
               <button
                 key={a}
-                onClick={() => setAmount(String(a))}
-                className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                type="button"
+                onClick={() => { triggerHaptic('selection'); setAmount(String(a)); }}
+                className={`py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                   amount === String(a)
-                    ? 'bg-[#EA4C2A] text-white border-[#EA4C2A] shadow-xs'
+                    ? 'bg-[#09A5DB] text-white border-[#09A5DB] shadow-sm shadow-[#09A5DB]/25'
                     : 'border-slate-200 dark:border-white/10 text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-white/5'
                 }`}
               >
@@ -8850,21 +8971,45 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh }) {
             ))}
           </div>
 
-          <div className="flex gap-2">
+          {/* Amount Input */}
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-sm text-slate-400">
+              ₦
+            </span>
             <input
               type="number"
-              className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 rounded-xl text-xs outline-none focus:border-[#EA4C2A]"
-              placeholder="Or enter amount (₦)"
+              min="100"
+              className="w-full pl-8 pr-3.5 py-3 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 rounded-xl text-sm font-bold outline-none focus:border-[#09A5DB] transition-colors"
+              placeholder="Or enter custom amount (min ₦100)"
               value={amount}
               onChange={e => setAmount(e.target.value)}
             />
-            <button
-              onClick={handleTopUp}
-              disabled={loading}
-              className="px-4 py-2.5 bg-[#EA4C2A] hover:bg-[#d83f1d] text-white rounded-xl font-bold text-xs shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-            >
-              {loading ? 'Adding...' : 'Top Up'}
-            </button>
+          </div>
+
+          {/* Primary Paystack Action Button */}
+          <button
+            type="button"
+            onClick={handlePaystackTopUp}
+            disabled={loading || !amount || Number(amount) < 100}
+            className="w-full py-3.5 bg-[#09A5DB] hover:bg-[#0894c6] active:scale-[0.98] text-white rounded-2xl font-bold text-xs sm:text-sm shadow-md shadow-[#09A5DB]/25 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-45 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Connecting to Paystack...</span>
+              </>
+            ) : (
+              <>
+                <CreditCard size={16} className="stroke-[2.5]" />
+                <span>Pay with Paystack {amount && Number(amount) >= 100 ? `• ${fmt(Number(amount))}` : ''}</span>
+              </>
+            )}
+          </button>
+
+          {/* Security & Payment Channels Assurance */}
+          <div className="flex items-center justify-center gap-1.5 text-[10.5px] text-gray-400 dark:text-gray-500 pt-0.5">
+            <Lock size={11} className="text-emerald-500 shrink-0" />
+            <span>Secured 256-bit encryption · Debit Cards, Bank Transfer & USSD</span>
           </div>
         </div>
 
@@ -8892,6 +9037,16 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh }) {
           </div>
         )}
       </div>
+
+      {paystackFallbackModal && (
+        <PaystackFallbackModal
+          open={Boolean(paystackFallbackModal)}
+          paymentInfo={paystackFallbackModal}
+          onClose={() => setPaystackFallbackModal(null)}
+          onComplete={handleFallbackComplete}
+          isDark={isDark}
+        />
+      )}
     </Modal>
   );
 }
@@ -12610,6 +12765,7 @@ function AdminPortal() {
     }
   });
   const knownOrderIdsRef = useRef(new Set());
+  const isInitialOrdersLoadRef = useRef(true);
 
   // Operational, Financial & Analytics Enhancements
   const [selectedPromoIdea, setSelectedPromoIdea] = useState(null);
@@ -13068,25 +13224,34 @@ function AdminPortal() {
       if (!Array.isArray(liveOrders)) return;
       setOrders(liveOrders);
 
-      // Check if new incoming orders require sound & notification chime
+      // On initial load, silently record all existing order IDs without firing notifications
+      if (isInitialOrdersLoadRef.current) {
+        liveOrders.forEach(o => {
+          const id = o.id || o.order_reference;
+          if (id) knownOrderIdsRef.current.add(id);
+        });
+        isInitialOrdersLoadRef.current = false;
+        return;
+      }
+
+      // Check if new incoming orders require sound & notification chime (only truly new orders)
       liveOrders.forEach(o => {
         const id = o.id || o.order_reference;
         if (id && !knownOrderIdsRef.current.has(id)) {
-          // If we already had known orders recorded, this is a brand new order!
-          if (knownOrderIdsRef.current.size > 0) {
+          knownOrderIdsRef.current.add(id);
+          if (orderSoundEnabled) {
             playOrderNotificationSound();
             triggerHaptic('heavy');
-            const refNum = o.order_reference || id.slice(0, 8);
-            const cust = o.customer?.full_name || o.customer_name || 'Customer';
-            const amt = (Number(o.total) || 0).toLocaleString();
-            toast({
-              type: 'success',
-              title: `🔔 New Live Order! #${refNum}`,
-              message: `${cust} placed an order (₦${amt})`,
-              duration: 5000
-            });
           }
-          knownOrderIdsRef.current.add(id);
+          const refNum = o.order_reference || id.slice(0, 8);
+          const cust = o.customer?.full_name || o.customer_name || 'Customer';
+          const amt = (Number(o.total_amount || o.total) || 0).toLocaleString();
+          toast({
+            type: 'success',
+            title: `🔔 New Live Order! #${refNum}`,
+            message: `${cust} placed an order (₦${amt})`,
+            duration: 5000
+          });
         }
       });
 
@@ -13094,7 +13259,7 @@ function AdminPortal() {
       api.getAdminOverview().then(r => r?.data && setOverview(r.data)).catch(() => {});
     });
     return () => { if (typeof unsub === 'function') unsub(); };
-  }, []);
+  }, [orderSoundEnabled]);
 
   // LIVE FIRESTORE REALTIME SYNC FOR PRODUCTS & INVENTORY
   useEffect(() => {
@@ -14646,17 +14811,17 @@ function AdminPortal() {
                             </button>
 
                             {/* Contact Customer */}
-                            {order.customer?.phone && (
+                            {(order.customer_phone || order.customer?.phone) && (
                               <>
                                 <a
-                                  href={`tel:${order.customer.phone}`}
+                                  href={`tel:${order.customer_phone || order.customer?.phone}`}
                                   className="p-1.5 bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] text-emerald-400 rounded-xl transition-all"
                                   title="Call Customer"
                                 >
                                   <Phone size={14} />
                                 </a>
                                 <a
-                                  href={`https://wa.me/${order.customer.phone.replace(/[^0-9]/g, '')}`}
+                                  href={`https://wa.me/${String(order.customer_phone || order.customer?.phone).replace(/[^0-9]/g, '')}`}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="p-1.5 bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] text-emerald-400 rounded-xl transition-all"
@@ -15727,14 +15892,14 @@ function AdminPortal() {
                         <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                           Customer & Contact
                         </div>
-                        <div className="font-bold text-sm text-white">{order.customer?.full_name}</div>
-                        <div className="text-slate-400 font-mono mt-0.5">{order.customer?.phone}</div>
+                        <div className="font-bold text-sm text-white">{order.customer?.full_name || order.customer_name || 'Customer'}</div>
+                        <div className="text-slate-400 font-mono mt-0.5">{order.customer?.phone || order.customer_phone || 'No phone provided'}</div>
 
                         <div className="flex gap-2 mt-2 pt-2 border-t border-slate-800">
-                          {order.customer?.phone && (
+                          {(order.customer?.phone || order.customer_phone) && (
                             <>
                               <a
-                                href={`https://wa.me/${order.customer.phone.replace(/\D/g, '')}?text=Hello%20${encodeURIComponent(order.customer.full_name || 'Customer')},%20this%20is%20FoodMaxx%20Kitchen%20regarding%20order%20${order.order_reference}`}
+                                href={`https://wa.me/${String(order.customer?.phone || order.customer_phone).replace(/\D/g, '')}?text=Hello%20${encodeURIComponent(order.customer?.full_name || order.customer_name || 'Customer')},%20this%20is%20FoodMaxx%20Kitchen%20regarding%20order%20${order.order_reference || order.id}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[11px] font-bold flex items-center gap-1"
@@ -15742,7 +15907,7 @@ function AdminPortal() {
                                 <MessageSquare size={11} /> WhatsApp
                               </a>
                               <a
-                                href={`tel:${order.customer.phone}`}
+                                href={`tel:${order.customer?.phone || order.customer_phone}`}
                                 className="px-2.5 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-[11px] font-bold flex items-center gap-1"
                               >
                                 <Phone size={11} /> Call

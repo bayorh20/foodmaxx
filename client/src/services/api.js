@@ -296,8 +296,8 @@ export const api = {
     return { success: true, data };
   },
 
-  topUpWallet: async (amount, userId = 'usr_customer_default') => {
-    const ref = 'TOPUP-' + Date.now();
+  topUpWallet: async (amount, userId = 'usr_customer_default', reference = null) => {
+    const ref = reference || ('TOPUP-' + Date.now());
     const data = await topUpLiveWallet(userId, amount, ref);
     return { success: true, message: 'Wallet topped up successfully! 💳', data };
   },
@@ -376,8 +376,8 @@ export const api = {
 
     const todayStr = new Date().toISOString().slice(0, 10);
     const todayOrders = orders.filter(o => (o.created_at || '').startsWith(todayStr));
-    const revenueToday = todayOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
-    const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+    const revenueToday = todayOrders.reduce((sum, o) => sum + Number(o.total_amount || o.total || 0), 0);
+    const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total_amount || o.total || 0), 0);
 
     const pendingOrders = orders.filter(o => ['ORDER_PLACED', 'PENDING', 'CONFIRMED'].includes(o.order_status)).length;
     const inPrepOrders = orders.filter(o => ['PREPARING', 'READY_FOR_PICKUP'].includes(o.order_status)).length;
@@ -395,7 +395,7 @@ export const api = {
       const dateStr = d.toISOString().slice(0, 10);
       const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
       const dayOrders = orders.filter(o => (o.created_at || '').startsWith(dateStr));
-      const revenue = dayOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+      const revenue = dayOrders.reduce((sum, o) => sum + Number(o.total_amount || o.total || 0), 0);
       last7Days.push({ date: dateStr, day: dayName, orders: dayOrders.length, revenue });
     }
 

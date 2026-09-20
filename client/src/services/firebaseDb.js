@@ -931,8 +931,8 @@ export async function topUpLiveWallet(userId = 'usr_customer_default', amount, r
     id: 'tx_' + Date.now(),
     type: 'credit',
     amount: Number(amount),
-    description: 'Wallet Top-up via Paystack',
-    reference,
+    description: reference ? `Paystack Top-up (${reference})` : 'Wallet Top-up via Paystack',
+    reference: reference || ('TOPUP-' + Date.now()),
     date: new Date().toISOString()
   });
   await setDoc(docRef, { balance: newBalance, transactions: txs }, { merge: true });
