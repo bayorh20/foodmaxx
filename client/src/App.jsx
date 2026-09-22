@@ -2233,12 +2233,12 @@ function ProductQuantityStepper({ item, onQuickAdd, isDark, size = 'sm' }) {
 // ============================================================
 function SkeletonCard() {
   return (
-    <div className="w-40 sm:w-44 shrink-0 rounded-3xl overflow-hidden bg-gray-100 dark:bg-[#1A1D24] animate-pulse">
-      <div className="h-36 bg-gray-200 dark:bg-[#252930]" />
+    <div className="w-full rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-100 dark:bg-[#1A1D24] animate-pulse">
+      <div className="h-32 xs:h-36 sm:h-44 bg-gray-200 dark:bg-[#252930]" />
       <div className="p-3 space-y-2">
         <div className="h-3 bg-gray-200 dark:bg-[#252930] rounded-full w-3/4" />
         <div className="h-3 bg-gray-200 dark:bg-[#252930] rounded-full w-1/2" />
-        <div className="h-7 bg-gray-200 dark:bg-[#252930] rounded-full mt-2" />
+        <div className="h-7 bg-gray-200 dark:bg-[#252930] rounded-xl mt-2" />
       </div>
     </div>
   );
@@ -2251,8 +2251,8 @@ function SkeletonSection({ title }) {
         <div className="h-4 w-36 bg-gray-200 dark:bg-[#1A1D24] rounded-full animate-pulse" />
         <div className="h-3 w-14 bg-gray-100 dark:bg-[#1A1D24] rounded-full animate-pulse" />
       </div>
-      <div className="pl-4 flex gap-3 overflow-x-hidden pr-4">
-        {[1,2,3].map(i => <SkeletonCard key={i} />)}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 px-4">
+        {[1,2,3,4].map(i => <SkeletonCard key={i} />)}
       </div>
     </div>
   );
@@ -2443,7 +2443,7 @@ function CategoryList({ isDark, selectedCategory = 'all', onSelectCategory }) {
 }
 
 // ============================================================
-// TOP PICKS SECTION (1 PRODUCT CARD PER COLUMN, BOLD DESIGN)
+// TOP PICKS SECTION (2 PRODUCT CARDS PER ROW, TWO COLUMNS STYLE)
 // ============================================================
 function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite }) {
   const { cart, updateQty, addItem } = useCart();
@@ -2478,107 +2478,92 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
 
   return (
     <div 
-      className={`group relative w-full bg-white dark:bg-[#151821] rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl ${
+      className={`group relative w-full bg-white dark:bg-[#151821] rounded-2xl sm:rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl flex flex-col justify-between ${
         inCartQty > 0 
           ? 'border-2 border-[#EA4C2A]/70 dark:border-[#EA4C2A]/80 shadow-md shadow-red-500/10' 
-          : 'border border-slate-200/80 dark:border-white/10 shadow-sm hover:border-slate-300 dark:hover:border-white/20'
+          : 'border border-slate-200/80 dark:border-white/10 shadow-xs hover:border-slate-300 dark:hover:border-white/20'
       }`}
       onClick={() => onSelect(item)}
     >
-      {/* High-Impact Hero Photo Container */}
-      <div className="relative h-48 sm:h-60 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+      {/* Photo Container */}
+      <div className="relative h-32 xs:h-36 sm:h-44 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0">
         <img 
-          onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80'; }} 
+          onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80'; }} 
           src={item.image_url} 
           alt={item.name} 
-          className={`w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105 ${
+          className={`w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105 ${
             !isAvailable ? 'grayscale contrast-75' : ''
           }`} 
           loading="lazy" 
           decoding="async" 
         />
 
-        {/* Gradient dark scrim at bottom of image for readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        {/* Gradient dark scrim for contrast */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
 
         {/* Top Badges & Favorite Heart Button */}
-        <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-10">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {hasTag ? (
-              <span className="bg-[#EA4C2A] text-white text-[10px] sm:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-lg border border-white/20">
-                {activeTag}
-              </span>
-            ) : (
-              <span className="bg-[#EA4C2A] text-white text-[10px] sm:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-lg border border-white/20">
-                Popular
-              </span>
-            )}
-            <span className="bg-black/60 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-full border border-white/15 flex items-center gap-1 shadow-md">
-              <Clock size={11} className="text-amber-400" />
-              <span>{item.prep_time_min ? `${item.prep_time_min}m` : '20m'}</span>
+        <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1 z-10">
+          {hasTag ? (
+            <span className="bg-[#EA4C2A] text-white text-[8.5px] sm:text-[9.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-md border border-white/20">
+              {activeTag}
             </span>
-          </div>
+          ) : (
+            <span className="bg-[#EA4C2A] text-white text-[8.5px] sm:text-[9.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-md border border-white/20">
+              Popular
+            </span>
+          )}
 
           {/* Favorite Heart Button */}
           <button 
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(item.id); }}
-            className="w-9 h-9 rounded-full bg-black/45 hover:bg-black/70 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-90 transition-all cursor-pointer shadow-lg hover:text-red-400"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black/40 hover:bg-black/65 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-90 transition-all cursor-pointer shadow-md hover:text-red-400 shrink-0"
             title={isFavorite ? "Remove from favorites" : "Save to favorites"}
           >
-            <Heart size={16} className={isFavorite ? 'fill-red-500 stroke-red-500 scale-110' : 'stroke-white'} />
+            <Heart size={14} className={isFavorite ? 'fill-red-500 stroke-red-500 scale-110' : 'stroke-white'} />
           </button>
         </div>
 
-        {/* Floating Rating Badge bottom-left */}
-        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5">
-          <div className="bg-white/95 dark:bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-xl shadow-md border border-black/5 dark:border-white/10 flex items-center gap-1 text-xs font-black text-slate-900 dark:text-white">
-            <Star size={13} className="fill-amber-400 stroke-amber-400" />
-            <span>{item.rating ? Number(item.rating).toFixed(1) : '4.9'}</span>
-            <span className="text-[10px] text-slate-400 font-bold">({item.reviews_count || 84}+)</span>
-          </div>
-        </div>
+        {/* Prep Time Overlay */}
+        {item.prep_time_min && (
+          <span className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md text-white text-[8.5px] sm:text-[9.5px] font-bold px-2 py-0.5 rounded-full border border-white/10 flex items-center gap-1 shadow-xs">
+            <Clock size={9} className="text-amber-400" />
+            <span>{item.prep_time_min}m</span>
+          </span>
+        )}
 
         {/* Sold Out Overlay */}
         {!isAvailable && (
           <div className="absolute inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center z-20">
-            <span className="bg-red-600 text-white font-black text-sm uppercase tracking-widest px-4 py-2 rounded-xl shadow-2xl border-2 border-white/30">
+            <span className="bg-red-600 text-white font-black text-xs uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-2xl border border-white/30">
               Sold Out
             </span>
           </div>
         )}
       </div>
       
-      {/* Bold Content Container */}
-      <div className="p-4 sm:p-5 flex flex-col justify-between gap-3">
+      {/* Content Container */}
+      <div className="p-2.5 sm:p-3.5 flex flex-col justify-between flex-1 gap-2">
         <div>
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-black text-base sm:text-lg text-slate-950 dark:text-white leading-snug break-words flex-1 group-hover:text-[#EA4C2A] transition-colors">
-              {item.name}
-            </h3>
-            {item.category && (
-              <span className="text-[10px] font-black uppercase tracking-wider text-[#EA4C2A] bg-rose-50 dark:bg-rose-950/40 border border-rose-200/50 dark:border-rose-900/40 px-2 py-0.5 rounded-lg shrink-0">
-                {item.category}
-              </span>
-            )}
-          </div>
+          <h3 className="font-black text-xs sm:text-sm text-slate-950 dark:text-white leading-snug line-clamp-2 break-words group-hover:text-[#EA4C2A] transition-colors">
+            {item.name}
+          </h3>
           {item.description && (
-            <p className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 font-medium line-clamp-2 mt-1 leading-relaxed">
+            <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1 mt-0.5 leading-tight">
               {item.description}
             </p>
           )}
         </div>
         
-        {/* Bold Price & Add to Cart Footer */}
-        <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-white/10">
-          <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">Price</span>
-            <span className="font-black text-lg sm:text-2xl text-slate-950 dark:text-white tracking-tight leading-none mt-0.5">
+        {/* Price & Add / Stepper */}
+        <div className="flex items-center justify-between gap-1 pt-2 border-t border-slate-100 dark:border-white/10 mt-auto">
+          <div className="min-w-0 flex-1">
+            <span className="font-black text-xs sm:text-sm md:text-base text-slate-950 dark:text-white tracking-tight leading-none block truncate">
               {fmt(item.price || 4500)}
             </span>
           </div>
 
-          <div onClick={(e) => e.stopPropagation()}>
+          <div onClick={(e) => e.stopPropagation()} className="shrink-0">
             <AnimatePresence mode="popLayout">
               {inCartQty === 0 ? (
                 <motion.button 
@@ -2587,13 +2572,13 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
                   initial={{ scale: 0.85, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.85, opacity: 0 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={handleAdd} 
-                  className="h-11 px-4 sm:px-5 rounded-2xl bg-[#EA4C2A] hover:bg-[#D42222] active:scale-95 disabled:opacity-40 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md shadow-red-500/25 transition-all cursor-pointer"
+                  className="h-8 px-2.5 sm:px-3 rounded-xl bg-[#EA4C2A] hover:bg-[#D42222] active:scale-95 disabled:opacity-40 text-white font-black text-[11px] sm:text-xs flex items-center gap-1 shadow-md shadow-red-500/20 transition-all cursor-pointer shrink-0"
                   title="Add to cart"
                 >
-                  <Plus size={16} className="stroke-[3]" />
-                  <span>Add to Cart</span>
+                  <Plus size={14} className="stroke-[3]" />
+                  <span className="hidden xs:inline">Add</span>
                 </motion.button>
               ) : (
                 <motion.div 
@@ -2601,7 +2586,7 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
                   initial={{ scale: 0.85, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.85, opacity: 0 }}
-                  className="bg-[#EA4C2A] text-white rounded-2xl p-1 flex items-center gap-2 shadow-lg shadow-red-500/20 h-11"
+                  className="bg-[#EA4C2A] text-white rounded-xl p-0.5 flex items-center gap-1 shadow-md shadow-red-500/20 h-8"
                 >
                   <motion.button
                     whileTap={{ scale: 0.85 }}
@@ -2610,12 +2595,12 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
                       e.stopPropagation();
                       updateQty(inCartIdx, -1);
                     }}
-                    className="w-8 h-8 rounded-xl bg-black/20 hover:bg-black/35 text-white flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                    className="w-6 h-6 rounded-lg bg-black/20 hover:bg-black/35 text-white flex items-center justify-center cursor-pointer transition-colors shrink-0"
                     title="Decrease"
                   >
-                    <Minus size={14} className="stroke-[3]" />
+                    <Minus size={11} className="stroke-[3]" />
                   </motion.button>
-                  <span className="font-black text-sm min-w-[20px] text-center select-none text-white">
+                  <span className="font-black text-xs min-w-[14px] text-center select-none text-white">
                     {inCartQty}
                   </span>
                   <motion.button
@@ -2626,10 +2611,10 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
                       updateQty(inCartIdx, 1);
                       trigger3dCartDrop(e, item);
                     }}
-                    className="w-8 h-8 rounded-xl bg-black/20 hover:bg-black/35 text-white flex items-center justify-center cursor-pointer shadow-xs transition-colors shrink-0"
+                    className="w-6 h-6 rounded-lg bg-black/20 hover:bg-black/35 text-white flex items-center justify-center cursor-pointer shadow-xs transition-colors shrink-0"
                     title="Increase"
                   >
-                    <Plus size={14} className="stroke-[3]" />
+                    <Plus size={11} className="stroke-[3]" />
                   </motion.button>
                 </motion.div>
               )}
@@ -2646,19 +2631,19 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
   if (picks.length === 0) return null;
   
   return (
-    <div className="mb-8">
-      <div className="flex justify-between items-center px-4 mb-3.5">
-        <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">{title}</h2>
+    <div className="mb-7">
+      <div className="flex justify-between items-center px-4 mb-3">
+        <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">{title}</h2>
         <button 
           onClick={onSeeAll}
-          className="bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black px-3 py-1.5 rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
+          className="bg-yellow-400 hover:bg-yellow-500 text-black text-[11px] sm:text-xs font-black px-3 py-1 rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
         >
           See all
         </button>
       </div>
       
-      {/* 1 Product Card Per Column */}
-      <div className="px-4 space-y-4">
+      {/* 2 Product Cards Per Column Style (Two Columns Grid) */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 px-4">
         {picks.map((item, idx) => (
           <TopPickCard 
             key={item.id || idx} 
@@ -5088,10 +5073,6 @@ function RestaurantModal({ restaurant: r, onClose, onAddToCart, onOpenCart, onSt
             <div className="min-w-0 flex-1">
               <h2 className="font-semibold text-sm text-gray-900 truncate leading-tight">{r.name}</h2>
               <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
-                <span className="flex items-center text-amber-600 font-bold">
-                  <Star size={11} fill="#F59E0B" color="#F59E0B" className="mr-0.5" /> {r.rating}
-                </span>
-                <span>•</span>
                 <span className={r.is_open ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold'}>
                   {r.is_open ? 'Open now' : 'Closed'}
                 </span>
@@ -5174,10 +5155,9 @@ function RestaurantModal({ restaurant: r, onClose, onAddToCart, onOpenCart, onSt
                 <h1 className="font-bold text-lg text-white leading-tight truncate drop-shadow-sm">{r.name}</h1>
                 <p className="text-xs text-white/90 line-clamp-1 mt-0.5">{r.cuisine_types?.join(' • ')}</p>
                 <div className="flex items-center gap-2 text-xs text-white/80 mt-1">
-                  <span className="flex items-center gap-1 font-bold text-amber-300">
-                    <Star size={12} fill="#FCD34D" color="#FCD34D" /> {r.rating}
+                  <span className="bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white">
+                    {r.is_open ? 'Open Now' : 'Closed'}
                   </span>
-                  <span>({r.reviews_count} reviews)</span>
                 </div>
               </div>
             </div>

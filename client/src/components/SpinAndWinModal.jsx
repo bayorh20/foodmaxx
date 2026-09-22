@@ -302,30 +302,30 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200" onClick={onClose}>
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200" onClick={onClose}>
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className={`w-full max-w-sm sm:max-w-md rounded-[36px] overflow-hidden shadow-2xl border ${
+        className={`w-full max-w-sm sm:max-w-md rounded-[32px] sm:rounded-[36px] overflow-hidden shadow-2xl border ${
           isDark ? 'bg-[#15171C] border-white/10 text-white' : 'bg-white border-slate-100 text-slate-900'
-        } relative max-h-[94vh] flex flex-col items-center select-none`}
+        } relative max-h-[92vh] flex flex-col items-center select-none my-auto`}
         onClick={e => e.stopPropagation()}
       >
         {/* Top Header Bar */}
-        <div className="w-full pt-4 px-5 flex items-center justify-between shrink-0 relative z-10">
+        <div className="w-full pt-3.5 pb-2 px-4 sm:px-5 flex items-center justify-between shrink-0 relative z-10">
           <button
             type="button"
             onClick={onClose}
-            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${
+            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${
               isDark
                 ? 'bg-white/5 border-white/10 text-white hover:bg-white/10'
                 : 'bg-slate-50 border-slate-200/80 text-slate-700 hover:bg-slate-100'
             }`}
             aria-label="Back"
           >
-            <ChevronLeft size={22} />
+            <ChevronLeft size={20} />
           </button>
 
           <div className="flex flex-col items-center">
@@ -341,7 +341,7 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
           <button
             type="button"
             onClick={onClose}
-            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${
+            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${
               isDark
                 ? 'bg-white/5 border-white/10 text-white hover:bg-white/10'
                 : 'bg-slate-50 border-slate-200/80 text-slate-700 hover:bg-slate-100'
@@ -351,49 +351,49 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
           </button>
         </div>
 
-        {/* Scrollable Container */}
-        <div className="w-full px-5 pb-5 pt-2 flex flex-col items-center overflow-y-auto">
+        {/* Scrollable Container with flex-1 min-h-0 and bottom breathing room */}
+        <div className="w-full px-4 sm:px-5 pb-6 pt-1 flex flex-col items-center overflow-y-auto flex-1 min-h-0 overscroll-contain">
           {/* Main Title Matching Mockup */}
-          <div className="text-center mt-2 mb-4">
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight leading-none text-slate-900 dark:text-white">
+          <div className="text-center mt-1 mb-2.5 shrink-0">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-none text-slate-900 dark:text-white">
               Spin & <span className="text-[#EA4C2A]">Win</span>
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1.5 max-w-xs mx-auto">
+            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 max-w-xs mx-auto">
               Try your luck and win exciting rewards!
             </p>
           </div>
 
           {/* THE WHEEL CONTAINER */}
-          <div className="relative my-2 flex items-center justify-center">
+          <div className="relative my-2 sm:my-3 flex items-center justify-center shrink-0">
             {/* Outer Decorative Radiating Tick Marks */}
-            <div className="absolute inset-0 -m-5 pointer-events-none">
+            <div className="absolute inset-0 pointer-events-none">
               {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => (
                 <span
                   key={i}
-                  className="absolute left-1/2 top-1/2 w-1.5 h-3.5 bg-[#FF8A8A]/50 rounded-full -translate-x-1/2"
+                  className="absolute left-1/2 top-1/2 w-1.5 h-3 bg-[#FF8A8A]/50 rounded-full -translate-x-1/2"
                   style={{
-                    transform: `translate(-50%, -50%) rotate(${deg}deg) translateY(-165px)`
+                    transform: `translate(-50%, -50%) rotate(${deg}deg) translateY(-145px)`
                   }}
                 />
               ))}
             </div>
 
             {/* Inverted Top Pointer Arrow (At 12 o'clock) */}
-            <div className="absolute top-[-10px] left-1/2 -translate-x-1/2 z-30 pointer-events-none drop-shadow-md">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none drop-shadow-md">
               <div
-                className="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[26px] border-t-[#EA4C2A]"
+                className="w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[24px] border-t-[#EA4C2A]"
                 style={{
                   filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))'
                 }}
               />
-              <div className="absolute top-[3px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[9px] border-l-transparent border-r-[9px] border-r-transparent border-t-[17px] border-t-white" />
+              <div className="absolute top-[2px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[15px] border-t-white" />
             </div>
 
             {/* ROTATING WHEEL */}
             <div
-              className="relative w-[300px] h-[300px] sm:w-[320px] sm:h-[320px] rounded-full overflow-hidden shadow-2xl border-[6px] border-white dark:border-[#1E222B]"
+              className="relative w-[260px] h-[260px] xs:w-[280px] xs:h-[280px] sm:w-[300px] sm:h-[300px] rounded-full overflow-hidden shadow-2xl border-[5px] sm:border-[6px] border-white dark:border-[#1E222B]"
               style={{
-                boxShadow: '0 20px 40px -15px rgba(234, 76, 42, 0.25), 0 0 0 1px rgba(0,0,0,0.06)'
+                boxShadow: '0 16px 36px -12px rgba(234, 76, 42, 0.25), 0 0 0 1px rgba(0,0,0,0.06)'
               }}
             >
               <div
@@ -448,17 +448,17 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
                   return (
                     <div
                       key={sector.id}
-                      className="absolute inset-0 flex flex-col items-center justify-start pt-6 pointer-events-none select-none"
+                      className="absolute inset-0 flex flex-col items-center justify-start pt-5 sm:pt-6 pointer-events-none select-none"
                       style={{
                         transform: `rotate(${angle}deg)`
                       }}
                     >
                       <div className="flex flex-col items-center text-center">
-                        <div className="transform scale-90 mb-1 drop-shadow-xs">
+                        <div className="transform scale-80 sm:scale-90 mb-0.5 sm:mb-1 drop-shadow-xs">
                           {sector.icon}
                         </div>
                         <span
-                          className="text-[11px] sm:text-xs font-bold leading-tight max-w-[70px] px-1"
+                          className="text-[10px] sm:text-xs font-bold leading-tight max-w-[65px] px-0.5"
                           style={{
                             color: '#1E293B'
                           }}
@@ -477,7 +477,7 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
               type="button"
               onClick={handleSpin}
               disabled={isSpinning || spinsLeft <= 0}
-              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-20 h-20 sm:w-[86px] sm:h-[86px] rounded-full flex items-center justify-center font-black text-sm tracking-wider uppercase transition-transform cursor-pointer ${
+              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-18 h-18 sm:w-20 sm:h-20 rounded-full flex items-center justify-center font-black text-xs sm:text-sm tracking-wider uppercase transition-transform cursor-pointer ${
                 isSpinning
                   ? 'scale-95 opacity-90'
                   : 'hover:scale-105 active:scale-95 shadow-xl hover:shadow-2xl'
@@ -485,11 +485,11 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
               style={{
                 background: 'radial-gradient(circle, #EA4C2A 0%, #D43D1D 100%)',
                 boxShadow: '0 8px 24px rgba(234, 76, 42, 0.45), inset 0 2px 4px rgba(255,255,255,0.4)',
-                border: '5px solid #FFFFFF'
+                border: '4px solid #FFFFFF'
               }}
             >
               <div className="w-full h-full rounded-full flex items-center justify-center border-2 border-white/40">
-                <span className="text-white text-base tracking-widest font-black drop-shadow-xs">
+                <span className="text-white text-sm sm:text-base tracking-widest font-black drop-shadow-xs">
                   {isSpinning ? '...' : 'SPIN'}
                 </span>
               </div>
@@ -497,7 +497,7 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
           </div>
 
           {/* SPIN STATUS UNDER WHEEL */}
-          <div className="mt-3 text-center">
+          <div className="mt-2 text-center shrink-0">
             {spinsLeft > 0 ? (
               <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -524,7 +524,7 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
                 initial={{ scale: 0.9, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className={`w-full mt-4 p-4 rounded-3xl border text-center relative overflow-hidden ${
+                className={`w-full mt-3 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border text-center relative overflow-hidden shrink-0 ${
                   wonPrize.type === 'try_again'
                     ? 'bg-amber-500/10 border-amber-500/30'
                     : 'bg-emerald-500/10 border-emerald-500/30'
@@ -533,7 +533,7 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
                 <div className="text-2xl mb-1">
                   {wonPrize.type === 'try_again' ? '😌' : '🎉'}
                 </div>
-                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
                   {wonPrize.type === 'try_again' ? 'Better Luck Next Time!' : `You Won ${wonPrize.label}!`}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -541,11 +541,11 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
                 </p>
 
                 {wonPrize.code && (
-                  <div className="mt-3 flex items-center justify-center gap-2">
+                  <div className="mt-2.5 flex items-center justify-center gap-2">
                     <button
                       type="button"
                       onClick={() => handleCopyCode(wonPrize.code)}
-                      className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-white/10 border border-slate-200 dark:border-white/15 font-mono font-bold text-xs text-[#EA4C2A] flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      className="px-3 py-1.5 rounded-xl bg-white dark:bg-white/10 border border-slate-200 dark:border-white/15 font-mono font-bold text-xs text-[#EA4C2A] flex items-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       <span>Code: {wonPrize.code}</span>
                       <Copy size={12} className={copiedCode ? 'text-emerald-500' : 'text-slate-400'} />
@@ -570,19 +570,19 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
             )}
           </AnimatePresence>
 
-          {/* BOTTOM BANNER MATCHING MOCKUP */}
+          {/* BOTTOM BANNER MATCHING MOCKUP (NEVER CLIPPED) */}
           {!wonPrize && (
-            <div className={`w-full mt-4 p-3.5 rounded-2xl border flex items-center gap-3.5 text-left ${
+            <div className={`w-full mt-3.5 mb-1 p-3.5 rounded-2xl border flex items-center gap-3.5 text-left shrink-0 shadow-xs ${
               isDark ? 'bg-white/5 border-white/8' : 'bg-[#FFF2F2] border-[#FFE2E2]'
             }`}>
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#EA4C2A] to-[#FF6B6B] text-white flex items-center justify-center text-xl shrink-0 shadow-sm">
                 🎁
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-xs text-slate-900 dark:text-white leading-tight">
+                <h4 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white leading-tight">
                   Win food rewards
                 </h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
                   Enjoy discounts, free meals and more!
                 </p>
               </div>
