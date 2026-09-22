@@ -1483,6 +1483,22 @@ function CustomerPortal() {
                     <Bell size={20} />
                     <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-[#121418]"></span>
                   </button>
+                  {/* Spin & Win Header Icon Opener */}
+                  <button
+                    onClick={() => {
+                      if (typeof triggerHaptic === 'function') triggerHaptic('light');
+                      setSpinModalOpen(true);
+                    }}
+                    className="relative w-8 h-8 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/25 flex items-center justify-center active:scale-90 transition-all cursor-pointer hover:bg-amber-500/20"
+                    title="Spin & Win Daily Rewards"
+                    aria-label="Spin & Win"
+                  >
+                    <Gift size={16} className="stroke-[2.2]" />
+                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                    </span>
+                  </button>
                   {/* Shopping Cart Button */}
                   <button
                     onClick={() => {
@@ -1810,23 +1826,49 @@ function CustomerPortal() {
         </div>
       </div>
 
-      {/* FLOATING SPIN & WIN LAUNCHER PILL */}
+      {/* FLOATING CLEAN ICON-ONLY SPIN & WIN LAUNCHER */}
       {!checkoutOpen && !cartOpen && !spinModalOpen && (
         <motion.button
           type="button"
           initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          animate={{ scale: 1, opacity: 1, y: [0, -4, 0] }}
+          transition={{
+            scale: { duration: 0.25 },
+            opacity: { duration: 0.25 },
+            y: { repeat: Infinity, duration: 3, ease: 'easeInOut' }
+          }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
           onClick={() => {
             triggerHaptic('medium');
             setSpinModalOpen(true);
           }}
-          className="fixed bottom-20 right-3.5 sm:right-6 z-40 px-3.5 py-2 rounded-full bg-gradient-to-r from-[#EA4C2A] to-[#FF6B6B] text-white shadow-xl shadow-red-500/30 flex items-center gap-2 border border-white/70 dark:border-white/20 cursor-pointer"
-          title="Spin & Win Rewards"
+          className="fixed bottom-20 right-4 sm:right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-tr from-[#EA4C2A] to-[#FF6B4A] text-white shadow-xl shadow-red-500/35 flex items-center justify-center border-2 border-white dark:border-[#1A1D24] cursor-pointer group"
+          title="Spin & Win Daily Rewards"
+          aria-label="Spin & Win"
         >
-          <span className="text-sm">🎁</span>
-          <span className="text-xs font-bold tracking-tight">Spin & Win</span>
+          <div className="relative flex items-center justify-center">
+            {/* Spinning Prize Wheel Icon */}
+            <svg 
+              viewBox="0 0 24 24" 
+              className="w-6 h-6 text-white drop-shadow-xs transition-transform duration-700 group-hover:rotate-180" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14" strokeWidth="1.6" opacity="0.85" />
+              <circle cx="12" cy="12" r="2.5" fill="currentColor" />
+            </svg>
+            
+            {/* Pulsing notification dot */}
+            <span className="absolute -top-1.5 -right-1.5 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-400 border-2 border-white dark:border-[#1A1D24]"></span>
+            </span>
+          </div>
         </motion.button>
       )}
 
@@ -2478,7 +2520,7 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
 
   return (
     <div 
-      className={`group relative w-full bg-white dark:bg-[#151821] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl flex flex-col justify-between ${
+      className={`group relative w-full bg-white dark:bg-[#151821] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg flex flex-col justify-between ${
         inCartQty > 0 
           ? 'border-2 border-[#EA4C2A]/70 dark:border-[#EA4C2A]/80 shadow-md shadow-red-500/10' 
           : 'border border-slate-200/80 dark:border-white/10 shadow-xs hover:border-slate-300 dark:hover:border-white/20'
