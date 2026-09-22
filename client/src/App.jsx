@@ -2697,7 +2697,7 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
           </div>
 
           <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence initial={false}>
               {inCartQty === 0 ? (
                 <motion.button 
                   key="add-btn"

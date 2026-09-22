@@ -51,6 +51,24 @@ body {
   touch-action: manipulation;
 }
 
+/* Eliminate 300ms touch delay across all interactive controls */
+button, a, input, select, textarea, [role="button"], label, .interactive-tap {
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input, textarea {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+/* Fast tap response: immediate active state feedback */
+button:active, a:active, [role="button"]:active {
+  transition-duration: 40ms !important;
+}
+
 html:not(.dark) body {
   background: #F8FAFC;
   color: #0F172A;
