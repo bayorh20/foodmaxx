@@ -735,6 +735,7 @@ function CustomerPortal() {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [spinModalOpen, setSpinModalOpen] = useState(false);
+  const isSpinDraggingRef = useRef(false);
   const [placedOrderSuccess, setPlacedOrderSuccess] = useState(null);
 
   // Auto-trigger Spin & Win game popup once per day on arrival (after 1.8s)
@@ -1477,33 +1478,6 @@ function CustomerPortal() {
                     )}
                   </button>
 
-                  {/* Notification Bell */}
-                  <button
-                    onClick={() => setNotifsOpen(true)}
-                    className="relative w-8 h-8 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200/70 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-gray-200 active:scale-95 transition-all cursor-pointer border border-slate-200/60 dark:border-white/5"
-                    title="Notifications"
-                  >
-                    <Bell size={16} />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-[#121418]"></span>
-                  </button>
-
-                  {/* Spin & Win Header Icon Opener */}
-                  <button
-                    onClick={() => {
-                      if (typeof triggerHaptic === 'function') triggerHaptic('light');
-                      setSpinModalOpen(true);
-                    }}
-                    className="relative w-8 h-8 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/25 flex items-center justify-center active:scale-90 transition-all cursor-pointer hover:bg-amber-500/20"
-                    title="Spin & Win Daily Rewards"
-                    aria-label="Spin & Win"
-                  >
-                    <Gift size={16} className="stroke-[2.2]" />
-                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                    </span>
-                  </button>
-
                   {/* Shopping Cart Button */}
                   <button
                     onClick={() => {
@@ -1832,50 +1806,161 @@ function CustomerPortal() {
         </div>
       </div>
 
-      {/* FLOATING CLEAN ICON-ONLY SPIN & WIN LAUNCHER */}
+      {/* FLOATING DRAGGABLE ANIMATED 3D GIFT ICON - SPIN & WIN LAUNCHER */}
       {!checkoutOpen && !cartOpen && !spinModalOpen && (
-        <motion.button
-          type="button"
+        <motion.div
+          drag
+          dragMomentum={false}
+          dragElastic={0.15}
+          whileDrag={{ scale: 1.15, cursor: 'grabbing', zIndex: 999 }}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.94 }}
+          onDragStart={() => {
+            isSpinDraggingRef.current = true;
+          }}
+          onDragEnd={() => {
+            setTimeout(() => {
+              isSpinDraggingRef.current = false;
+            }, 140);
+          }}
+          onTap={() => {
+            if (!isSpinDraggingRef.current) {
+              if (typeof triggerHaptic === 'function') triggerHaptic('medium');
+              setSpinModalOpen(true);
+            }
+          }}
           initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1, y: [0, -4, 0] }}
-          transition={{
-            scale: { duration: 0.25 },
-            opacity: { duration: 0.25 },
-            y: { repeat: Infinity, duration: 3, ease: 'easeInOut' }
-          }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => {
-            triggerHaptic('medium');
-            setSpinModalOpen(true);
-          }}
-          className="fixed bottom-20 right-4 sm:right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-tr from-[#EA4C2A] to-[#FF6B4A] text-white shadow-xl shadow-red-500/35 flex items-center justify-center border-2 border-white dark:border-[#1A1D24] cursor-pointer group"
-          title="Spin & Win Daily Rewards"
-          aria-label="Spin & Win"
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+          className="fixed bottom-20 right-4 sm:right-6 z-40 cursor-grab active:cursor-grabbing select-none touch-none filter drop-shadow-2xl"
+          style={{ touchAction: 'none' }}
+          title="Drag me! Tap to Spin & Win"
+          aria-label="Spin & Win Daily Rewards"
         >
-          <div className="relative flex items-center justify-center">
-            {/* Spinning Prize Wheel Icon */}
+          {/* Animated 3D Gift Box Floating Container */}
+          <motion.div
+            animate={{ 
+              y: [0, -7, 0],
+              rotate: [0, -3, 3, 0]
+            }}
+            transition={{
+              repeat: Infinity,
+              duration: 3,
+              ease: 'easeInOut'
+            }}
+            className="relative flex items-center justify-center"
+          >
+            {/* 3D Rendered Premium Gift Box SVG */}
             <svg 
-              viewBox="0 0 24 24" 
-              className="w-6 h-6 text-white drop-shadow-xs transition-transform duration-700 group-hover:rotate-180" 
+              viewBox="0 0 68 68" 
+              className="w-14 h-14 sm:w-16 sm:h-16 pointer-events-none select-none"
               fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14" strokeWidth="1.6" opacity="0.85" />
-              <circle cx="12" cy="12" r="2.5" fill="currentColor" />
+              <defs>
+                {/* 3D Box Main Gradient */}
+                <linearGradient id="fmxGiftBox" x1="12" y1="28" x2="56" y2="62" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FF6243" />
+                  <stop offset="45%" stopColor="#EA4C2A" />
+                  <stop offset="100%" stopColor="#AF2307" />
+                </linearGradient>
+
+                {/* 3D Lid Gradient */}
+                <linearGradient id="fmxGiftLid" x1="10" y1="20" x2="58" y2="34" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FF7A5C" />
+                  <stop offset="50%" stopColor="#EA4C2A" />
+                  <stop offset="100%" stopColor="#C42A0C" />
+                </linearGradient>
+
+                {/* Metallic Gold Ribbon */}
+                <linearGradient id="fmxGoldRibbon" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#FFF9A6" />
+                  <stop offset="25%" stopColor="#FCD34D" />
+                  <stop offset="65%" stopColor="#F59E0B" />
+                  <stop offset="100%" stopColor="#92400E" />
+                </linearGradient>
+
+                {/* 3D Bow Loops */}
+                <linearGradient id="fmxGoldBow" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#FFFBEB" />
+                  <stop offset="35%" stopColor="#FBBF24" />
+                  <stop offset="80%" stopColor="#D97706" />
+                  <stop offset="100%" stopColor="#78350F" />
+                </linearGradient>
+
+                {/* Gloss Sheen Reflection */}
+                <linearGradient id="fmxSheen" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.45" />
+                  <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.03" />
+                </linearGradient>
+
+                {/* Drop shadow filter */}
+                <filter id="fmxGiftShadow" x="-15%" y="-15%" width="130%" height="135%">
+                  <feDropShadow dx="0" dy="5" stdDeviation="3.5" floodColor="#991B1B" floodOpacity="0.42" />
+                </filter>
+              </defs>
+
+              {/* Floor Contact Shadow */}
+              <ellipse cx="34" cy="63" rx="20" ry="4" fill="#000000" opacity="0.25" />
+
+              {/* Main Box & Lid with 3D Depth */}
+              <g filter="url(#fmxGiftShadow)">
+                {/* Box Lower Body */}
+                <rect x="15" y="28" width="38" height="30" rx="6" fill="url(#fmxGiftBox)" />
+                {/* Lower Box Left Highlight */}
+                <path d="M15 34 C15 30.7 17.7 28 21 28 L47 28 C50.3 28 53 30.7 53 34 L53 39 L15 42 Z" fill="url(#fmxSheen)" />
+
+                {/* Box Body Vertical Gold Ribbon */}
+                <rect x="30" y="28" width="8" height="30" fill="url(#fmxGoldRibbon)" />
+                <rect x="32.5" y="28" width="1.6" height="30" fill="#FFFBEB" opacity="0.85" />
+
+                {/* Lid Shadow projection on body */}
+                <rect x="13" y="28" width="42" height="3.5" fill="#000000" opacity="0.32" rx="1.5" />
+
+                {/* 3D Box Lid */}
+                <rect x="12" y="21" width="44" height="10" rx="3.5" fill="url(#fmxGiftLid)" />
+                {/* Lid Top Specular Sheen */}
+                <rect x="14" y="22" width="40" height="3.5" rx="1.5" fill="url(#fmxSheen)" />
+
+                {/* Vertical Gold Ribbon on Lid */}
+                <rect x="30" y="21" width="8" height="10" fill="url(#fmxGoldRibbon)" />
+                <rect x="32.5" y="21" width="1.6" height="10" fill="#FFFBEB" opacity="0.9" />
+
+                {/* 3D Gold Ribbon Bow (Left Loop) */}
+                <path d="M33 21 C26 10 16 13 20 20 C23 24 31 21 33 21 Z" fill="url(#fmxGoldBow)" stroke="#92400E" strokeWidth="0.6" />
+                <path d="M30 20 C25 14 19 16 22 19 C24 21 28 20 30 20 Z" fill="#FFFDEB" opacity="0.65" />
+
+                {/* 3D Gold Ribbon Bow (Right Loop) */}
+                <path d="M35 21 C42 10 52 13 48 20 C45 24 37 21 35 21 Z" fill="url(#fmxGoldBow)" stroke="#92400E" strokeWidth="0.6" />
+                <path d="M38 20 C43 14 49 16 46 19 C44 21 40 20 38 20 Z" fill="#FFFDEB" opacity="0.65" />
+
+                {/* Gold Knot Center */}
+                <ellipse cx="34" cy="21" rx="4.2" ry="3.2" fill="url(#fmxGoldRibbon)" stroke="#78350F" strokeWidth="0.6" />
+                <ellipse cx="33" cy="20" rx="1.8" ry="1.1" fill="#FFFBEB" opacity="0.95" />
+              </g>
+
+              {/* 3D Twinkling Sparkle Stars */}
+              <g className="animate-pulse">
+                <path d="M55 16 L56.5 19.5 L60 21 L56.5 22.5 L55 26 L53.5 22.5 L50 21 L53.5 19.5 Z" fill="#FBBF24" />
+                <circle cx="55" cy="21" r="1.2" fill="#FFFFFF" />
+              </g>
+              <g className="animate-pulse" style={{ animationDelay: '700ms' }}>
+                <path d="M12 46 L13 48.5 L15.5 49.5 L13 50.5 L12 53 L11 50.5 L8.5 49.5 L11 48.5 Z" fill="#FDE047" opacity="0.9" />
+              </g>
+              <g className="animate-pulse" style={{ animationDelay: '1400ms' }}>
+                <path d="M10 18 L11 20 L13 21 L11 22 L10 24 L9 22 L7 21 L9 20 Z" fill="#FDE68A" opacity="0.85" />
+              </g>
             </svg>
-            
-            {/* Pulsing notification dot */}
-            <span className="absolute -top-1.5 -right-1.5 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-400 border-2 border-white dark:border-[#1A1D24]"></span>
-            </span>
-          </div>
-        </motion.button>
+
+            {/* Glowing Spin Badge */}
+            <div className="absolute -top-1 -right-1 flex items-center justify-center pointer-events-none">
+              <span className="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-amber-400 opacity-75"></span>
+              <div className="relative px-1.5 py-0.5 bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 text-[8.5px] font-black rounded-full shadow-md border border-white/90 uppercase tracking-wider flex items-center gap-0.5">
+                <span>SPIN</span>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
 
 
