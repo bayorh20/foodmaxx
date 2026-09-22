@@ -1439,25 +1439,27 @@ function CustomerPortal() {
             >
               {/* MAIN NATIVE WEB APP HEADER (HOME TAB) */}
               {activeTab === 'home' && (
-            <header className="px-4 pt-3.5 pb-2.5 space-y-3">
-              {/* Top Row: Deliver To & Action Controls */}
-              <div className="flex items-center justify-between gap-3">
-                {/* Location Dropdown */}
-                <div className="min-w-0 flex-1">
-                  <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400 dark:text-slate-500 block leading-none mb-1">
-                    Deliver To
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setLocationsModalOpen(true)}
-                    className="flex items-center gap-1.5 text-slate-900 dark:text-white transition-colors group cursor-pointer text-left py-0.5 max-w-full"
-                  >
-                    <MapPin size={15} className="text-[#EA4C2A] shrink-0" />
-                    <span className="font-black text-xs sm:text-sm truncate max-w-[180px] xs:max-w-[220px] sm:max-w-[280px]">
-                      {selectedAddress ? `${selectedAddress.address}` : (selectedZone?.name ? `${selectedZone.name}, Ibadan` : 'Bodija, Ibadan')}
-                    </span>
-                    <ChevronDown size={13} className="text-slate-400 group-hover:text-[#EA4C2A] transition-transform shrink-0" />
-                  </button>
+            <header className="px-4 pt-3.5 pb-2 space-y-2.5">
+              {/* Top Row: Brand Logo + Greeting (Left) & Actions (Right) */}
+              <div className="flex items-center justify-between gap-2.5">
+                {/* Brand Logo + Warm Greeting */}
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <img
+                    src="/foodmaxx-logo.png"
+                    alt="FoodMaxx"
+                    className="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0 border border-red-500/15"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 leading-none mb-0.5">
+                      <span>{(() => {
+                        const h = new Date().getHours();
+                        return h < 12 ? 'Good Morning ☀️' : h < 17 ? 'Good Afternoon 🌤️' : 'Good Evening 🌙';
+                      })()}</span>
+                    </p>
+                    <h1 className="text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-tight leading-tight truncate">
+                      {user?.full_name ? user.full_name : 'FoodMaxx Lover'} 👋
+                    </h1>
+                  </div>
                 </div>
 
                 {/* Right Action Icons (Theme, Notifications, Spin & Win, Cart) */}
@@ -1521,44 +1523,27 @@ function CustomerPortal() {
                 </div>
               </div>
 
-              {/* Prominent Greeting & Brand Avatar Row */}
-              <div className="flex items-center justify-between pt-1">
-                <div className="min-w-0 flex-1 pr-2">
-                  <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 leading-snug mb-0.5">
-                    <span>{(() => {
-                      const h = new Date().getHours();
-                      return h < 12 ? 'Good Morning ☀️' : h < 17 ? 'Good Afternoon 🌤️' : 'Good Evening 🌙';
-                    })()}</span>
-                  </div>
-                  <h1 className="text-base sm:text-lg font-black text-slate-950 dark:text-white tracking-tight leading-tight truncate">
-                    {user?.full_name ? `${user.full_name} 👋` : 'What are you craving? 🍔'}
-                  </h1>
-                  <p className="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500 font-medium mt-0.5 truncate">
-                    {(() => {
-                      const h = new Date().getHours();
-                      return h < 12 
-                        ? 'Start your day right with a delicious meal' 
-                        : h < 17 
-                          ? 'Lunch is calling — treat yourself today!' 
-                          : 'Wind down with your favourite evening chow';
-                    })()}
-                  </p>
-                </div>
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl overflow-hidden bg-white dark:bg-[#1A1D24] border border-slate-200/80 dark:border-white/10 shadow-sm shrink-0 p-1 flex items-center justify-center">
-                  <img
-                    src="/foodmaxx-logo.png"
-                    alt="FoodMaxx"
-                    className="w-full h-full object-cover rounded-xl"
-                  />
-                </div>
+              {/* Delivery Address Pill (Simple & Clean) */}
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setLocationsModalOpen(true)}
+                  className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 hover:text-[#EA4C2A] dark:hover:text-[#FF6B4A] transition-colors group cursor-pointer text-left py-0.5"
+                >
+                  <MapPin size={14} className="text-[#EA4C2A] shrink-0" />
+                  <span className="font-bold text-xs sm:text-sm truncate max-w-[280px]">
+                    {selectedAddress ? `${selectedAddress.address}` : (selectedZone?.name ? `${selectedZone.name}, Ibadan` : 'Bodija, Ibadan')}
+                  </span>
+                  <ChevronDown size={13} className="text-slate-400 group-hover:text-[#EA4C2A] transition-transform shrink-0" />
+                </button>
               </div>
 
               {/* Search Bar Row */}
-              <div className="relative flex items-center bg-slate-100 dark:bg-[#1A1D24] text-slate-900 dark:text-white rounded-2xl px-3.5 py-2.5 sm:py-3 border border-slate-200/60 dark:border-white/5 focus-within:border-[#EA4C2A]/60 focus-within:bg-white dark:focus-within:bg-[#1A1D24] transition-all shadow-xs">
+              <div className="relative flex items-center bg-slate-100 dark:bg-[#1A1D24] text-slate-900 dark:text-white rounded-xl px-3.5 py-2.5 border border-slate-200/60 dark:border-white/5 focus-within:border-[#EA4C2A]/60 focus-within:bg-white dark:focus-within:bg-[#1A1D24] transition-all shadow-xs">
                 <Search size={17} className="text-slate-400 shrink-0" />
                 <input
                   type="text"
-                  className="w-full bg-transparent text-xs sm:text-sm font-semibold outline-none placeholder:text-slate-400 placeholder:font-medium mx-2.5"
+                  className="w-full bg-transparent text-xs sm:text-sm font-semibold outline-none placeholder:text-slate-400 placeholder:font-normal mx-2.5"
                   placeholder={getCopy(appCopy, 'customer_hero', 'search_placeholder', 'Search FoodMaxx dishes, jollof, grills...')}
                   value={searchQuery}
                   onChange={(e) => {
