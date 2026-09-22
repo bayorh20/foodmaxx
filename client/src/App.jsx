@@ -2233,7 +2233,7 @@ function ProductQuantityStepper({ item, onQuickAdd, isDark, size = 'sm' }) {
 // ============================================================
 function SkeletonCard() {
   return (
-    <div className="w-full rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-100 dark:bg-[#1A1D24] animate-pulse">
+    <div className="w-full rounded-xl overflow-hidden bg-gray-100 dark:bg-[#1A1D24] animate-pulse">
       <div className="h-32 xs:h-36 sm:h-44 bg-gray-200 dark:bg-[#252930]" />
       <div className="p-3 space-y-2">
         <div className="h-3 bg-gray-200 dark:bg-[#252930] rounded-full w-3/4" />
@@ -2478,7 +2478,7 @@ function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite 
 
   return (
     <div 
-      className={`group relative w-full bg-white dark:bg-[#151821] rounded-2xl sm:rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl flex flex-col justify-between ${
+      className={`group relative w-full bg-white dark:bg-[#151821] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl flex flex-col justify-between ${
         inCartQty > 0 
           ? 'border-2 border-[#EA4C2A]/70 dark:border-[#EA4C2A]/80 shadow-md shadow-red-500/10' 
           : 'border border-slate-200/80 dark:border-white/10 shadow-xs hover:border-slate-300 dark:hover:border-white/20'
@@ -2824,7 +2824,7 @@ function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false,
     return (
       <div
         onClick={() => isAvailable && onSelect(item)}
-        className={`group relative w-full mb-2.5 rounded-2xl p-2.5 sm:p-3 transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${
+        className={`group relative w-full mb-2.5 rounded-xl p-2.5 sm:p-3 transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${
           inCartQty > 0
             ? 'border border-slate-300 dark:border-white/20 shadow-xs bg-white dark:bg-[#181A20]'
             : 'border border-slate-100 dark:border-white/5 shadow-xs hover:border-slate-200 dark:hover:border-white/10 hover:shadow-xs bg-white dark:bg-[#181A20]'
@@ -2871,7 +2871,7 @@ function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false,
         </div>
 
         {/* Right: Picture with rounded corners and badges */}
-        <div className="relative w-22 h-22 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 shadow-inner">
+        <div className="relative w-22 h-22 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 shadow-inner">
           <img
             onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }}
             src={item.image_url}
