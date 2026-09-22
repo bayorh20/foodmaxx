@@ -1439,79 +1439,133 @@ function CustomerPortal() {
             >
               {/* MAIN NATIVE WEB APP HEADER (HOME TAB) */}
               {activeTab === 'home' && (
-            <header className="px-4 pt-3.5 pb-2 space-y-3">
-              {/* Top Row: Brand Logo, Deliver to Location & Clean Theme Control */}
+            <header className="px-4 pt-3.5 pb-2.5 space-y-3">
+              {/* Top Row: Deliver To & Action Controls */}
               <div className="flex items-center justify-between gap-3">
-                {/* Left: FoodMaxx Emblem & Delivery Location */}
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <img
-                    src="/foodmaxx-logo.png"
-                    alt="FoodMaxx"
-                    className="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0 border border-red-500/15"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 leading-none mb-1">
-                      <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
-                        Deliver to
-                      </span>
-                      <span className="text-slate-300 dark:text-slate-600">•</span>
-                      <span className="text-[10.5px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Open now
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setLocationsModalOpen(true)}
-                      className="flex items-center gap-1 text-slate-900 dark:text-white font-black text-xs sm:text-sm hover:text-[#EA4C2A] transition-colors cursor-pointer text-left truncate max-w-full"
-                    >
-                      <MapPin size={13} className="text-[#EA4C2A] shrink-0" />
-                      <span className="truncate">
-                        {selectedAddress ? `${selectedAddress.address}` : (selectedZone?.name ? `${selectedZone.name}, Ibadan` : 'Bodija, Ibadan')}
-                      </span>
-                      <ChevronDown size={12} className="text-slate-400 shrink-0" />
-                    </button>
-                  </div>
+                {/* Location Dropdown */}
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400 dark:text-slate-500 block leading-none mb-1">
+                    Deliver To
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setLocationsModalOpen(true)}
+                    className="flex items-center gap-1.5 text-slate-900 dark:text-white transition-colors group cursor-pointer text-left py-0.5 max-w-full"
+                  >
+                    <MapPin size={15} className="text-[#EA4C2A] shrink-0" />
+                    <span className="font-black text-xs sm:text-sm truncate max-w-[180px] xs:max-w-[220px] sm:max-w-[280px]">
+                      {selectedAddress ? `${selectedAddress.address}` : (selectedZone?.name ? `${selectedZone.name}, Ibadan` : 'Bodija, Ibadan')}
+                    </span>
+                    <ChevronDown size={13} className="text-slate-400 group-hover:text-[#EA4C2A] transition-transform shrink-0" />
+                  </button>
                 </div>
 
-                {/* Right: Clean Single Theme Switch (No Notification Icon, No Clutter) */}
-                <div className="flex items-center gap-2 shrink-0">
+                {/* Right Action Icons (Theme, Notifications, Spin & Win, Cart) */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Day/Night switch */}
                   <button
                     onClick={toggleDark}
-                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white active:scale-95 transition-all cursor-pointer border border-slate-200/50 dark:border-white/10"
+                    className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200/70 dark:hover:bg-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 active:scale-95 transition-all cursor-pointer border border-slate-200/60 dark:border-white/5"
                     title="Toggle Theme"
-                    aria-label="Toggle Theme"
                   >
                     {isDark ? (
-                      <Sun size={16} className="text-amber-400 fill-amber-400/20 transition-transform" />
+                      <Sun size={16} className="text-amber-400 fill-amber-400/20" />
                     ) : (
-                      <Moon size={16} className="text-slate-700 fill-slate-700/10 transition-transform" />
+                      <Moon size={16} className="text-slate-700 fill-slate-700/10" />
+                    )}
+                  </button>
+
+                  {/* Notification Bell */}
+                  <button
+                    onClick={() => setNotifsOpen(true)}
+                    className="relative w-8 h-8 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200/70 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-gray-200 active:scale-95 transition-all cursor-pointer border border-slate-200/60 dark:border-white/5"
+                    title="Notifications"
+                  >
+                    <Bell size={16} />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-[#121418]"></span>
+                  </button>
+
+                  {/* Spin & Win Header Icon Opener */}
+                  <button
+                    onClick={() => {
+                      if (typeof triggerHaptic === 'function') triggerHaptic('light');
+                      setSpinModalOpen(true);
+                    }}
+                    className="relative w-8 h-8 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/25 flex items-center justify-center active:scale-90 transition-all cursor-pointer hover:bg-amber-500/20"
+                    title="Spin & Win Daily Rewards"
+                    aria-label="Spin & Win"
+                  >
+                    <Gift size={16} className="stroke-[2.2]" />
+                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                    </span>
+                  </button>
+
+                  {/* Shopping Cart Button */}
+                  <button
+                    onClick={() => {
+                      if (typeof triggerHaptic === 'function') triggerHaptic('light');
+                      setCartOpen(true);
+                    }}
+                    className="relative w-8 h-8 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm shadow-red-500/20 hover:bg-[#d93f1d]"
+                    title="Shopping Cart"
+                  >
+                    <ShoppingBag size={16} />
+                    {itemCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 bg-white text-[#EA4C2A] text-[9.5px] font-black rounded-full flex items-center justify-center border border-[#EA4C2A] shadow-xs">
+                        {itemCount}
+                      </span>
                     )}
                   </button>
                 </div>
               </div>
 
-              {/* Bottom Row: Clean, Sleek Search Bar */}
-              <div className="relative flex items-center bg-slate-100 dark:bg-[#181A22] text-slate-900 dark:text-white rounded-xl px-3.5 py-2.5 sm:py-3 border border-slate-200/60 dark:border-white/10 focus-within:border-[#EA4C2A] focus-within:bg-white dark:focus-within:bg-[#151821] transition-all shadow-xs">
-                <Search size={17} className="text-slate-400 shrink-0 mr-2.5" />
+              {/* Prominent Greeting & Brand Avatar Row */}
+              <div className="flex items-center justify-between pt-1">
+                <div className="min-w-0 flex-1 pr-2">
+                  <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 leading-snug mb-0.5">
+                    <span>{(() => {
+                      const h = new Date().getHours();
+                      return h < 12 ? 'Good Morning ☀️' : h < 17 ? 'Good Afternoon 🌤️' : 'Good Evening 🌙';
+                    })()}</span>
+                  </div>
+                  <h1 className="text-base sm:text-lg font-black text-slate-950 dark:text-white tracking-tight leading-tight truncate">
+                    {user?.full_name ? `${user.full_name} 👋` : 'What are you craving? 🍔'}
+                  </h1>
+                  <p className="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500 font-medium mt-0.5 truncate">
+                    {(() => {
+                      const h = new Date().getHours();
+                      return h < 12 
+                        ? 'Start your day right with a delicious meal' 
+                        : h < 17 
+                          ? 'Lunch is calling — treat yourself today!' 
+                          : 'Wind down with your favourite evening chow';
+                    })()}
+                  </p>
+                </div>
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl overflow-hidden bg-white dark:bg-[#1A1D24] border border-slate-200/80 dark:border-white/10 shadow-sm shrink-0 p-1 flex items-center justify-center">
+                  <img
+                    src="/foodmaxx-logo.png"
+                    alt="FoodMaxx"
+                    className="w-full h-full object-cover rounded-xl"
+                  />
+                </div>
+              </div>
+
+              {/* Search Bar Row */}
+              <div className="relative flex items-center bg-slate-100 dark:bg-[#1A1D24] text-slate-900 dark:text-white rounded-2xl px-3.5 py-2.5 sm:py-3 border border-slate-200/60 dark:border-white/5 focus-within:border-[#EA4C2A]/60 focus-within:bg-white dark:focus-within:bg-[#1A1D24] transition-all shadow-xs">
+                <Search size={17} className="text-slate-400 shrink-0" />
                 <input
                   type="text"
-                  className="w-full bg-transparent text-xs sm:text-sm font-semibold outline-none placeholder:text-slate-400 placeholder:font-medium"
+                  className="w-full bg-transparent text-xs sm:text-sm font-semibold outline-none placeholder:text-slate-400 placeholder:font-medium mx-2.5"
                   placeholder={getCopy(appCopy, 'customer_hero', 'search_placeholder', 'Search FoodMaxx dishes, jollof, grills...')}
                   value={searchQuery}
                   onChange={(e) => {
                     if (typeof handleSearch === 'function') handleSearch(e.target.value);
                   }}
                 />
-                {searchQuery && (
-                  <button
-                    onClick={() => handleSearch('')}
-                    className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-1.5 py-0.5 rounded cursor-pointer"
-                    title="Clear search"
-                  >
-                    ✕
-                  </button>
-                )}
-                <button onClick={() => toast('Voice search coming soon!', 'info')} className="text-[#EA4C2A] shrink-0 hover:opacity-80 transition-opacity cursor-pointer p-0.5 ml-1">
+                <button onClick={() => toast('Voice search coming soon!', 'info')} className="text-[#EA4C2A] shrink-0 hover:opacity-80 transition-opacity cursor-pointer p-0.5">
                   <Mic size={17} />
                 </button>
               </div>
@@ -5080,12 +5134,8 @@ function RestaurantModal({ restaurant: r, onClose, onAddToCart, onOpenCart, onSt
             </button>
             <img onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }} src={r.logo_url} className="w-7 h-7 rounded-lg object-cover border border-gray-200 shrink-0" alt="" />
             <div className="min-w-0 flex-1">
-              <h2 className="font-semibold text-sm text-gray-900 truncate leading-tight">{r.name}</h2>
-              <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
-                <span className={r.is_open ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold'}>
-                  {r.is_open ? 'Open now' : 'Closed'}
-                </span>
-              </div>
+              <h2 className="font-bold text-sm text-gray-900 truncate leading-tight">{r.name}</h2>
+              <p className="text-[11px] text-gray-500 truncate">{r.cuisine_types?.[0] || 'Fast Food & Grills'}</p>
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -5164,8 +5214,9 @@ function RestaurantModal({ restaurant: r, onClose, onAddToCart, onOpenCart, onSt
                 <h1 className="font-bold text-lg text-white leading-tight truncate drop-shadow-sm">{r.name}</h1>
                 <p className="text-xs text-white/90 line-clamp-1 mt-0.5">{r.cuisine_types?.join(' • ')}</p>
                 <div className="flex items-center gap-2 text-xs text-white/80 mt-1">
-                  <span className="bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white">
-                    {r.is_open ? 'Open Now' : 'Closed'}
+                  <span className="bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white flex items-center gap-1">
+                    <Clock size={11} className="text-amber-300" />
+                    <span>{r.delivery_time_min}–{r.delivery_time_max} min delivery</span>
                   </span>
                 </div>
               </div>
@@ -5187,8 +5238,8 @@ function RestaurantModal({ restaurant: r, onClose, onAddToCart, onOpenCart, onSt
               Min <span className="font-semibold text-gray-700">{fmt(r.min_order)}</span>
             </div>
             <div className="flex-1 px-1">
-              <div className={`mx-auto mb-0.5 w-2 h-2 rounded-full ${r.is_open ? 'bg-green-500' : 'bg-red-500'}`} style={{ marginTop: '3px' }} />
-              <span className={`font-semibold ${r.is_open ? 'text-green-600' : 'text-red-500'}`}>{r.is_open ? 'Open' : 'Closed'}</span>
+              <Sparkles size={13} className="mx-auto mb-0.5 text-amber-500" />
+              <span className="font-semibold text-gray-700">Top Quality</span>
             </div>
           </div>
 
