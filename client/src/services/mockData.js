@@ -2,14 +2,14 @@
 // Primary Kitchen: 24 Awolowo Avenue, Old Bodija, Ibadan, Oyo State, Nigeria
 
 export const FOODMAXX_CATEGORIES = [
-  { id: 'cat_burgers', name: 'Burgers & Sandwiches', icon: '🍔', image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&auto=format&fit=crop&q=80', sort_order: 1 },
-  { id: 'cat_rice', name: 'Rice & Grains', icon: '🍚', image_url: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=200&auto=format&fit=crop&q=80', sort_order: 2 },
-  { id: 'cat_swallow', name: 'Swallows & Soups', icon: '🍲', image_url: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=200&auto=format&fit=crop&q=80', sort_order: 3 },
-  { id: 'cat_grills', name: 'Grills & Suya', icon: '🍗', image_url: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=200&auto=format&fit=crop&q=80', sort_order: 4 },
-  { id: 'cat_pasta', name: 'Pasta & Gourmet Bowls', icon: '🍝', image_url: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=200&auto=format&fit=crop&q=80', sort_order: 5 },
-  { id: 'cat_shawarma', name: 'Shawarma & Wraps', icon: '🌯', image_url: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=200&auto=format&fit=crop&q=80', sort_order: 6 },
-  { id: 'cat_dessert', name: 'Desserts & Chilled', icon: '🍨', image_url: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=200&auto=format&fit=crop&q=80', sort_order: 7 },
-  { id: 'cat_drinks', name: 'Drinks & Refreshers', icon: '🍹', image_url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=200&auto=format&fit=crop&q=80', sort_order: 8 }
+  { id: 'cat_burgers', name: 'Burgers & Sandwiches', icon: '🍔', image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=140&auto=format&fit=crop&q=70', sort_order: 1 },
+  { id: 'cat_rice', name: 'Rice & Grains', icon: '🍚', image_url: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=140&auto=format&fit=crop&q=70', sort_order: 2 },
+  { id: 'cat_swallow', name: 'Swallows & Soups', icon: '🍲', image_url: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=140&auto=format&fit=crop&q=70', sort_order: 3 },
+  { id: 'cat_grills', name: 'Grills & Suya', icon: '🍗', image_url: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=140&auto=format&fit=crop&q=70', sort_order: 4 },
+  { id: 'cat_pasta', name: 'Pasta & Gourmet Bowls', icon: '🍝', image_url: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=140&auto=format&fit=crop&q=70', sort_order: 5 },
+  { id: 'cat_shawarma', name: 'Shawarma & Wraps', icon: '🌯', image_url: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=140&auto=format&fit=crop&q=70', sort_order: 6 },
+  { id: 'cat_dessert', name: 'Desserts & Chilled', icon: '🍨', image_url: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=140&auto=format&fit=crop&q=70', sort_order: 7 },
+  { id: 'cat_drinks', name: 'Drinks & Refreshers', icon: '🍹', image_url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=140&auto=format&fit=crop&q=70', sort_order: 8 }
 ];
 
 export const FOODMAXX_ZONES = [
@@ -41,7 +41,7 @@ export const FOODMAXX_MENU_ITEMS = [
     prep_time_min: 31,
     badge: 'bestseller',
     is_bestseller: true,
-    image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 80
@@ -57,7 +57,7 @@ export const FOODMAXX_MENU_ITEMS = [
     prep_time_min: 27,
     badge: 'popular',
     is_bestseller: true,
-    image_url: 'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 75
@@ -73,7 +73,7 @@ export const FOODMAXX_MENU_ITEMS = [
     prep_time_min: 20,
     badge: 'bestseller',
     is_bestseller: true,
-    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 120
@@ -88,7 +88,7 @@ export const FOODMAXX_MENU_ITEMS = [
     reviews_count: '1.6k',
     prep_time_min: 25,
     badge: 'chef_special',
-    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 80
@@ -103,7 +103,7 @@ export const FOODMAXX_MENU_ITEMS = [
     reviews_count: '1.2k',
     prep_time_min: 20,
     badge: 'popular',
-    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 90
@@ -119,7 +119,7 @@ export const FOODMAXX_MENU_ITEMS = [
     prep_time_min: 20,
     badge: 'bestseller',
     is_bestseller: true,
-    image_url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 150
@@ -134,7 +134,7 @@ export const FOODMAXX_MENU_ITEMS = [
     reviews_count: '980',
     prep_time_min: 25,
     badge: 'popular',
-    image_url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 75
@@ -149,7 +149,7 @@ export const FOODMAXX_MENU_ITEMS = [
     reviews_count: '1.4k',
     prep_time_min: 15,
     badge: 'bestseller',
-    image_url: 'https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 100
@@ -164,7 +164,7 @@ export const FOODMAXX_MENU_ITEMS = [
     reviews_count: '2.1k',
     prep_time_min: 15,
     badge: 'popular',
-    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 110
@@ -179,7 +179,7 @@ export const FOODMAXX_MENU_ITEMS = [
     reviews_count: '1.8k',
     prep_time_min: 20,
     badge: 'chef_special',
-    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 85
@@ -195,7 +195,7 @@ export const FOODMAXX_MENU_ITEMS = [
     prep_time_min: 20,
     badge: 'bestseller',
     is_bestseller: true,
-    image_url: 'https://images.unsplash.com/photo-1621996346565-e3d5d6281223?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1621996346565-e3d5d6281223?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 95
@@ -211,7 +211,7 @@ export const FOODMAXX_MENU_ITEMS = [
     prep_time_min: 20,
     badge: 'new',
     is_new: true,
-    image_url: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 70
@@ -227,7 +227,7 @@ export const FOODMAXX_MENU_ITEMS = [
     prep_time_min: 15,
     badge: 'bestseller',
     is_bestseller: true,
-    image_url: 'https://images.unsplash.com/photo-1561651823-34feb02250e4?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1561651823-34feb02250e4?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 130
@@ -242,7 +242,7 @@ export const FOODMAXX_MENU_ITEMS = [
     reviews_count: '3.1k',
     prep_time_min: 10,
     badge: 'popular',
-    image_url: 'https://images.unsplash.com/photo-1528736235302-52922df5c122?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1528736235302-52922df5c122?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 200
@@ -257,7 +257,7 @@ export const FOODMAXX_MENU_ITEMS = [
     reviews_count: '1.3k',
     prep_time_min: 10,
     badge: 'popular',
-    image_url: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 90
@@ -271,7 +271,7 @@ export const FOODMAXX_MENU_ITEMS = [
     rating: 4.7,
     reviews_count: '890',
     prep_time_min: 5,
-    image_url: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 100
@@ -286,7 +286,7 @@ export const FOODMAXX_MENU_ITEMS = [
     reviews_count: '1.7k',
     prep_time_min: 5,
     badge: 'popular',
-    image_url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 180
@@ -300,7 +300,7 @@ export const FOODMAXX_MENU_ITEMS = [
     rating: 4.8,
     reviews_count: '4.2k',
     prep_time_min: 2,
-    image_url: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=600&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=360&auto=format&fit=crop&q=75',
     is_available: true,
     available: true,
     stock_quantity: 300

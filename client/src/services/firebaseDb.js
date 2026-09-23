@@ -116,9 +116,24 @@ export function cleanFirestoreObject(obj) {
 }
 
 // -------------------------------------------------------------
+// SWR IN-MEMORY CACHE (Eliminates redundant Firestore reads)
+// -------------------------------------------------------------
+const memoryCache = {
+  products: { data: null, timestamp: 0 },
+  categories: { data: null, timestamp: 0 },
+  zones: { data: null, timestamp: 0 },
+  settings: { data: null, timestamp: 0 }
+};
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+// -------------------------------------------------------------
 // LIVE PRODUCTS (MENU ITEMS) API
 // -------------------------------------------------------------
 export async function getLiveProducts() {
+  const now = Date.now();
+  if (memoryCache.products.data && (now - memoryCache.products.timestamp < CACHE_TTL_MS)) {
+    return memoryCache.products.data;
+  }
   let snap = await getDocs(collection(db, COLL_PRODUCTS));
   if (snap.empty) {
     await ensureLiveDatabaseSeeded();
@@ -135,10 +150,11 @@ export async function getLiveProducts() {
       category: data.category || 'Specialties',
       is_available: data.is_available !== false && data.inStock !== false,
       stock_quantity: Number(data.stock_quantity ?? data.stockQuantity ?? 50),
-      image_url: data.image_url || data.image || data.thumbnail || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=80'
+      image_url: data.image_url || data.image || data.thumbnail || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=360&q=75'
     });
   });
   list.sort((a, b) => (a.sort_order || 999) - (b.sort_order || 999) || (a.name || '').localeCompare(b.name || ''));
+  memoryCache.products = { data: list, timestamp: now };
   return list;
 }
 
@@ -156,10 +172,11 @@ export function subscribeToLiveProducts(callback) {
         category: data.category || 'Specialties',
         is_available: data.is_available !== false && data.inStock !== false,
         stock_quantity: Number(data.stock_quantity ?? data.stockQuantity ?? 50),
-        image_url: data.image_url || data.image || data.thumbnail || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=80'
+        image_url: data.image_url || data.image || data.thumbnail || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=360&q=75'
       });
     });
     items.sort((a, b) => (a.sort_order || 999) - (b.sort_order || 999) || (a.name || '').localeCompare(b.name || ''));
+    memoryCache.products = { data: items, timestamp: Date.now() };
     callback(items);
   }, (err) => {
     console.warn('Live products onSnapshot error:', err.message);
@@ -221,10 +238,15 @@ export async function deleteLiveProduct(productId) {
 // LIVE CATEGORIES API
 // -------------------------------------------------------------
 export async function getLiveCategories() {
+  const now = Date.now();
+  if (memoryCache.categories.data && (now - memoryCache.categories.timestamp < CACHE_TTL_MS)) {
+    return memoryCache.categories.data;
+  }
   const snap = await getDocs(collection(db, COLL_CATEGORIES));
   const list = [];
   snap.forEach(d => list.push({ id: d.id, ...d.data() }));
   list.sort((a, b) => (a.sort_order || 99) - (b.sort_order || 99));
+  memoryCache.categories = { data: list, timestamp: now };
   return list;
 }
 
@@ -234,6 +256,7 @@ export function subscribeToLiveCategories(callback) {
     const list = [];
     snapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
     list.sort((a, b) => (a.sort_order || 99) - (b.sort_order || 99));
+    memoryCache.categories = { data: list, timestamp: Date.now() };
     callback(list);
   }, (err) => {
     console.warn('Live categories onSnapshot error:', err.message);
@@ -395,8 +418,42 @@ function normalizeOrder(docId, data) {
   };
 }
 
-export function subscribeToLiveOrders(callback) {
-  const q = collection(db, COLL_ORDERS);
+export function subscribeToCustomerLiveOrders(customerFilter, callback) {
+  const userId = typeof customerFilter === 'string' ? customerFilter : (customerFilter?.id || customerFilter?.email || '');
+  if (!userId) {
+    return subscribeToLiveOrders(callback, 20);
+  }
+  const q = query(
+    collection(db, COLL_ORDERS),
+    where('customer.id', '==', userId),
+    limit(30)
+  );
+  return onSnapshot(q, (snapshot) => {
+    const orders = [];
+    snapshot.forEach(doc => {
+      orders.push(normalizeOrder(doc.id, doc.data()));
+    });
+    orders.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    callback(orders);
+  }, () => {
+    // Graceful fallback to limit(30) if composite index is pending
+    const fallbackQ = query(collection(db, COLL_ORDERS), limit(30));
+    return onSnapshot(fallbackQ, (snapshot) => {
+      const orders = [];
+      snapshot.forEach(doc => {
+        const ord = normalizeOrder(doc.id, doc.data());
+        if (!userId || ord.customer_id === userId || ord.customer?.id === userId || ord.customer_email === userId) {
+          orders.push(ord);
+        }
+      });
+      orders.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      callback(orders);
+    });
+  });
+}
+
+export function subscribeToLiveOrders(callback, maxOrders = 60) {
+  const q = query(collection(db, COLL_ORDERS), limit(maxOrders));
   return onSnapshot(q, (snapshot) => {
     const orders = [];
     snapshot.forEach(doc => {
@@ -409,8 +466,9 @@ export function subscribeToLiveOrders(callback) {
   });
 }
 
-export async function getLiveOrders() {
-  const snap = await getDocs(collection(db, COLL_ORDERS));
+export async function getLiveOrders(maxOrders = 60) {
+  const q = query(collection(db, COLL_ORDERS), limit(maxOrders));
+  const snap = await getDocs(q);
   const orders = [];
   snap.forEach(d => orders.push(normalizeOrder(d.id, d.data())));
   orders.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
@@ -769,11 +827,16 @@ export async function deleteLivePromotion(promoId) {
 // LIVE STORE SETTINGS API
 // -------------------------------------------------------------
 export async function getLiveSettings() {
+  const now = Date.now();
+  if (memoryCache.settings.data && (now - memoryCache.settings.timestamp < CACHE_TTL_MS)) {
+    return memoryCache.settings.data;
+  }
   const docRef = doc(db, COLL_SETTINGS, 'store_config');
   const snap = await getDoc(docRef);
+  let res;
   if (snap.exists()) {
     const data = snap.data();
-    return {
+    res = {
       store_name: 'FoodMaxx Kitchen & Grills',
       is_open: data.isOpen !== false,
       kitchen_status: data.isOpen !== false ? 'open' : 'closed',
@@ -784,17 +847,20 @@ export async function getLiveSettings() {
       default_prep_time: data.cookingBufferMinutes || 20,
       ...data
     };
+  } else {
+    res = {
+      store_name: 'FoodMaxx Kitchen & Grills',
+      is_open: true,
+      kitchen_status: 'open',
+      phone: '+234 812 345 6789',
+      address: '24 Awolowo Avenue, Old Bodija, Ibadan',
+      announcement: 'Fresh firewood party jollof & gourmet grills ready for delivery!',
+      min_order: 1500,
+      default_prep_time: 20
+    };
   }
-  return {
-    store_name: 'FoodMaxx Kitchen & Grills',
-    is_open: true,
-    kitchen_status: 'open',
-    phone: '+234 812 345 6789',
-    address: '24 Awolowo Avenue, Old Bodija, Ibadan',
-    announcement: 'Fresh firewood party jollof & gourmet grills ready for delivery!',
-    min_order: 1500,
-    default_prep_time: 20
-  };
+  memoryCache.settings = { data: res, timestamp: now };
+  return res;
 }
 
 export function subscribeToLiveSettings(callback) {
@@ -802,7 +868,7 @@ export function subscribeToLiveSettings(callback) {
   return onSnapshot(docRef, (snap) => {
     if (snap.exists()) {
       const data = snap.data();
-      callback({
+      const payload = {
         store_name: 'FoodMaxx Kitchen & Grills',
         is_open: data.isOpen !== false,
         kitchen_status: data.isOpen !== false ? 'open' : 'closed',
@@ -812,7 +878,9 @@ export function subscribeToLiveSettings(callback) {
         min_order: 1500,
         default_prep_time: data.cookingBufferMinutes || 20,
         ...data
-      });
+      };
+      memoryCache.settings = { data: payload, timestamp: Date.now() };
+      callback(payload);
     }
   }, (err) => {
     console.warn('Live settings onSnapshot error:', err.message);

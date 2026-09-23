@@ -12,6 +12,7 @@ import {
   assignLiveRider,
   verifyLiveOrderOtp,
   subscribeToLiveOrders,
+  subscribeToCustomerLiveOrders,
   getLiveCategories,
   subscribeToLiveCategories,
   createLiveCategory,
@@ -111,6 +112,7 @@ export const api = {
   // Real-Time Live Firestore Subscriptions
   subscribeLiveProducts: subscribeToLiveProducts,
   subscribeLiveOrders: subscribeToLiveOrders,
+  subscribeCustomerLiveOrders: subscribeToCustomerLiveOrders,
   subscribeLiveSupportTickets: subscribeToLiveSupportTickets,
   subscribeLiveCategories: subscribeToLiveCategories,
   subscribeLiveZones: subscribeToLiveZones,
