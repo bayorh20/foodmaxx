@@ -6153,19 +6153,16 @@ function FoodDetailModal({ restaurant, item, onClose }) {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: '100%', opacity: 0.3, transition: { duration: 0.2, ease: 'easeIn' } }}
         transition={{ type: 'spring', damping: 30, stiffness: 320, mass: 0.85 }}
-        className={`w-full max-w-lg sm:max-w-xl h-full min-h-[100dvh] sm:min-h-0 sm:h-[90vh] sm:max-h-[90vh] ${
+        className={`w-full max-w-lg sm:max-w-xl max-h-[92vh] sm:max-h-[90vh] h-[90vh] sm:h-auto ${
           isDark ? 'bg-[#121418] text-white border-white/10' : 'bg-white text-slate-900 border-slate-100'
-        } rounded-none sm:rounded-[36px] sm:border relative flex flex-col shadow-2xl overflow-hidden`}
+        } rounded-t-[32px] sm:rounded-[36px] border border-b-0 sm:border relative flex flex-col shadow-2xl overflow-hidden`}
         onClick={e => e.stopPropagation()}
       >
-        {/* Mobile Drag Indicator Handle */}
-        <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mt-2 mb-1 shrink-0 sm:hidden" />
-
         {/* Scrollable Content Container */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           
-          {/* 1. Immersive Hero Media Card */}
-          <div className="relative h-64 sm:h-72 w-full bg-slate-900 overflow-hidden">
+          {/* 1. Immersive Hero Media Card - Fills the Upper Part */}
+          <div className="relative h-80 sm:h-96 md:h-[420px] w-full bg-slate-900 overflow-hidden shrink-0">
             <motion.img
               key={heroImage}
               initial={{ scale: 1.04 }}
@@ -6177,30 +6174,33 @@ function FoodDetailModal({ restaurant, item, onClose }) {
               }}
               src={heroImage}
               alt={item.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-center"
             />
             {/* Soft Ambient Vignette Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 pointer-events-none" />
+
+            {/* Mobile Drag Indicator Handle Floating Over Image */}
+            <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-white/70 backdrop-blur-md rounded-full z-30 pointer-events-none sm:hidden shadow-xs" />
 
             {/* Floating Top Control Pills */}
-            <div className="absolute top-3.5 left-0 right-0 px-4 flex items-center justify-between z-20">
+            <div className="absolute top-4 left-0 right-0 px-4 flex items-center justify-between z-20">
               <button
                 type="button"
                 onClick={() => { triggerHaptic('selection'); onClose(); }}
-                className="w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-md"
+                className="w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-lg"
                 title="Back"
               >
-                <ChevronLeft size={20} className="stroke-[2.5]" />
+                <ChevronLeft size={22} className="stroke-[2.5]" />
               </button>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleShare}
-                  className="w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-md"
+                  className="w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-lg"
                   title="Share"
                 >
-                  <Share2 size={16} className="stroke-[2.2]" />
+                  <Share2 size={17} className="stroke-[2.2]" />
                 </button>
                 <button
                   type="button"
@@ -6209,34 +6209,19 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                     setIsFavorite(f => !f);
                     toast(isFavorite ? 'Removed from favourites' : 'Saved to favourites ❤️', 'info');
                   }}
-                  className="w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-md"
+                  className="w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-lg"
                   title="Favorite"
                 >
-                  <Heart size={16} className={isFavorite ? 'text-[#EA4C2A] fill-[#EA4C2A] stroke-[2.2]' : 'stroke-[2.2]'} />
+                  <Heart size={17} className={isFavorite ? 'text-[#EA4C2A] fill-[#EA4C2A] stroke-[2.2]' : 'stroke-[2.2]'} />
                 </button>
               </div>
             </div>
-
-            {/* Floating Bottom Metadata Tags on Hero */}
-            <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between pointer-events-none">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md text-white border border-white/20 flex items-center gap-1">
-                  <Clock size={11} className="text-amber-400" />
-                  <span>20-25 mins</span>
-                </span>
-                <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-500/80 backdrop-blur-md text-white flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                  <span>Fresh In Stock</span>
-                </span>
-              </div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#EA4C2A] text-white shadow-xs">
-                Pre-order
-              </span>
-            </div>
           </div>
 
-          {/* 2. Product Information Block */}
-          <div className="p-5 space-y-4">
+          {/* 2. Product Information Block with Curved Top Transition */}
+          <div className={`p-5 space-y-4 -mt-4 relative z-10 rounded-t-[28px] ${
+            isDark ? 'bg-[#121418]' : 'bg-white'
+          } shadow-sm`}>
             
             {/* Title & Price Header */}
             <div className="flex items-start justify-between gap-3">
@@ -6245,7 +6230,6 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#EA4C2A]/10 text-[#EA4C2A] dark:bg-[#EA4C2A]/20">
                     {item.category || 'Specialty Dish'}
                   </span>
-                  <span className="text-[10px] text-gray-400 font-medium">Ibadan Kitchen</span>
                 </div>
                 <h1 className={`text-xl sm:text-2xl font-bold tracking-tight leading-tight ${
                   isDark ? 'text-white' : 'text-slate-900'
