@@ -1266,20 +1266,20 @@ function CustomerPortal() {
 
   // ---- MAIN NATIVE WEB APP CONTAINER ----
   return (
-    <div className={`w-full h-full min-h-[100dvh] flex justify-center items-center ${isDark ? 'bg-[#0B0D11]' : 'bg-slate-200'} overflow-hidden relative transition-colors`}>
+    <div className={`w-full h-full min-h-[100dvh] flex justify-center items-center ${isDark ? 'bg-[#0B0D11]' : 'bg-slate-100'} overflow-hidden relative transition-colors`}>
       
       {/* DESKTOP TOGGLE MENU */}
-      <div className="hidden md:flex absolute top-6 right-6 z-50">
-         <button onClick={toggleMobileView} className={`px-4 py-2 rounded-full shadow-lg font-bold flex items-center gap-2 ${isDark ? 'bg-[#1E222B] text-white border border-white/10 hover:bg-[#2A2F3B]' : 'bg-white text-slate-900 border border-slate-200 hover:bg-slate-50'} transition-transform active:scale-95`}>
-           {mobileView ? <Monitor size={18}/> : <Smartphone size={18}/>}
-           {mobileView ? 'Desktop View' : 'Mobile Simulator'}
+      <div className="hidden md:flex absolute top-5 right-5 z-50">
+         <button onClick={toggleMobileView} className={`px-3.5 py-1.5 rounded-full shadow-md font-bold text-xs flex items-center gap-2 ${isDark ? 'bg-[#1E222B] text-white border border-white/10 hover:bg-[#2A2F3B]' : 'bg-white text-slate-800 border border-slate-200 hover:bg-slate-50'} transition-transform active:scale-95 cursor-pointer`}>
+           {mobileView ? <Monitor size={15}/> : <Smartphone size={15}/>}
+           {mobileView ? 'Desktop Container' : 'Phone Frame'}
          </button>
       </div>
 
-      <div className={`w-full flex flex-col relative transition-all duration-500 overflow-hidden ${isDark ? 'bg-[#121418] text-white' : 'bg-white text-slate-900'} ${
+      <div className={`w-full flex flex-col relative transition-all duration-300 overflow-hidden ${isDark ? 'bg-[#121418] text-white' : 'bg-white text-slate-900'} ${
          mobileView 
-           ? 'w-full h-full min-h-[100dvh] md:min-h-0 md:max-w-[414px] md:h-[870px] md:max-h-[95dvh] rounded-none md:rounded-[2.75rem] border-0 md:border-[10px] md:border-slate-900 md:shadow-2xl md:my-auto md:ring-1 md:ring-white/10' 
-           : 'max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-5xl h-full min-h-[100dvh] md:border-x shadow-2xl ' + (isDark ? 'border-white/5' : 'border-slate-200/70')
+           ? 'w-full h-full min-h-[100dvh] md:min-h-0 md:max-w-[420px] md:h-[880px] md:max-h-[94vh] rounded-none md:rounded-[2.5rem] border-0 md:border-[8px] md:border-slate-800 md:shadow-2xl md:my-auto md:ring-1 md:ring-white/10' 
+           : 'w-full max-w-md sm:max-w-lg md:max-w-xl h-full min-h-[100dvh] md:min-h-0 md:h-[94vh] md:max-h-[920px] md:rounded-3xl md:border md:border-slate-200/90 dark:md:border-white/10 shadow-2xl md:my-auto'
          }`}>
 
         {/* SPLASH SCREEN & ONBOARDING / PERMISSIONS / SILENT REGISTRATION */}
@@ -1631,7 +1631,7 @@ function CustomerPortal() {
         </div>
 
         {/* FLOATING ACTION OVERLAY (MODERN BOTTOM DOCK WITH CART & LIVE ORDER STATUS) */}
-        <div className={`${mobileView ? 'absolute' : 'fixed'} bottom-0 left-0 right-0 z-50 pointer-events-none pb-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))] px-3 sm:px-6 flex flex-col items-center`}>
+        <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none pb-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))] px-3 sm:px-4 flex flex-col items-center">
           
           {/* REDESIGNED MODERN BOTTOM NAVIGATION BAR - EYE-FRIENDLY & BALANCED 4 TABS */}
           <motion.div 
@@ -2625,19 +2625,23 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
   };
 
   const displayPrice = item.price ? `N${Number(item.price).toLocaleString()}` : 'N2,500';
+  const rawImage = item?.image_url || item?.image || item?.img || item?.photo_url || item?.picture || item?.thumbnail;
+  const itemImage = (rawImage && typeof rawImage === 'string' && rawImage.trim().length > 0)
+    ? rawImage.trim()
+    : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
 
   return (
     <div 
       className="fmx-product-card group relative w-full cursor-pointer flex flex-col select-none transition-transform duration-200 active:scale-[0.99]"
       onClick={() => onSelect(item)}
     >
-      {/* 1. Food Picture with soft rounded corners matching screenshot */}
-      <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 shadow-xs">
+      {/* 1. Food Picture with soft rounded corners in 1-column layout */}
+      <div className="relative w-full aspect-[16/9] sm:aspect-[2/1] max-h-72 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 shadow-xs">
         <OptimizedProductImage 
-          src={item.image_url} 
+          src={itemImage} 
           alt={item.name} 
           isAvailable={isAvailable}
-          width={400}
+          width={600}
           quality={80}
         />
 
@@ -2646,28 +2650,28 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
           <button 
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(item.id); }}
-            className="absolute top-2 right-2 w-7.5 h-7.5 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-xs flex items-center justify-center text-white active:scale-90 transition-transform cursor-pointer z-10"
+            className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-xs flex items-center justify-center text-white active:scale-90 transition-transform cursor-pointer z-10"
             title={isFavorite ? "Remove from favorites" : "Save to favorites"}
           >
-            <Heart size={14} className={isFavorite ? 'fill-red-500 stroke-red-500' : 'stroke-white'} />
+            <Heart size={15} className={isFavorite ? 'fill-red-500 stroke-red-500' : 'stroke-white'} />
           </button>
         )}
 
         {/* Sold Out Overlay */}
         {!isAvailable && (
           <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
-            <span className="bg-red-600 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-lg">
+            <span className="bg-red-600 text-white font-black text-xs uppercase tracking-wider px-3 py-1.5 rounded-lg shadow-lg">
               Sold Out
             </span>
           </div>
         )}
       </div>
       
-      {/* 2. Text and Circular Add Button Row matching exact screenshot */}
-      <div className="mt-2.5 sm:mt-3 flex items-center justify-between gap-2 px-0.5">
+      {/* 2. Text and Circular Add Button Row */}
+      <div className="mt-3 flex items-center justify-between gap-3 px-1">
         {/* Left Column: Title and Bold Red-Orange Price */}
         <div className="min-w-0 flex-1">
-          <h3 className="font-bold text-[14px] sm:text-[15px] text-slate-900 dark:text-white leading-tight truncate">
+          <h3 className="font-bold text-[15px] sm:text-[16px] text-slate-900 dark:text-white leading-tight truncate">
             {item.name}
           </h3>
           <div className="font-black text-base sm:text-lg text-[#EA2A2A] tracking-tight mt-0.5">
@@ -2682,33 +2686,33 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
               type="button"
               disabled={!isAvailable}
               onClick={handleAdd} 
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#EA2A2A] hover:bg-[#D42222] active:scale-90 disabled:opacity-40 text-white flex items-center justify-center shadow-xs cursor-pointer transition-transform shrink-0"
+              className="w-10 h-10 rounded-full bg-[#EA2A2A] hover:bg-[#D42222] active:scale-90 disabled:opacity-40 text-white flex items-center justify-center shadow-xs cursor-pointer transition-transform shrink-0"
               title="Add to cart"
             >
-              <Plus size={20} className="stroke-[3]" />
+              <Plus size={22} className="stroke-[3]" />
             </button>
           ) : (
             <div 
-              className="bg-[#EA2A2A] text-white rounded-full p-0.5 flex items-center gap-1 shadow-xs h-9 sm:h-10"
+              className="bg-[#EA2A2A] text-white rounded-full p-0.5 flex items-center gap-1 shadow-xs h-10"
             >
               <button
                 type="button"
                 onClick={handleMinus}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black/15 hover:bg-black/25 active:scale-85 text-white flex items-center justify-center cursor-pointer transition-transform shrink-0"
+                className="w-8 h-8 rounded-full bg-black/15 hover:bg-black/25 active:scale-85 text-white flex items-center justify-center cursor-pointer transition-transform shrink-0"
                 title="Decrease"
               >
-                <Minus size={13} className="stroke-[3]" />
+                <Minus size={14} className="stroke-[3]" />
               </button>
-              <span className="font-black text-xs sm:text-sm min-w-[16px] text-center select-none text-white px-0.5">
+              <span className="font-black text-sm min-w-[20px] text-center select-none text-white px-0.5">
                 {inCartQty}
               </span>
               <button
                 type="button"
                 onClick={handlePlus}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black/15 hover:bg-black/25 active:scale-85 text-white flex items-center justify-center cursor-pointer transition-transform shrink-0"
+                className="w-8 h-8 rounded-full bg-black/15 hover:bg-black/25 active:scale-85 text-white flex items-center justify-center cursor-pointer transition-transform shrink-0"
                 title="Increase"
               >
-                <Plus size={13} className="stroke-[3]" />
+                <Plus size={14} className="stroke-[3]" />
               </button>
             </div>
           )}
@@ -2745,8 +2749,8 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
         </button>
       </div>
       
-      {/* Strictly 2-column Product Cards Grid across all screen sizes */}
-      <div className="grid grid-cols-2 gap-x-3.5 gap-y-5 sm:gap-x-5 sm:gap-y-7 px-4 sm:px-0">
+      {/* 1-column Product Cards Grid across all screen sizes */}
+      <div className="grid grid-cols-1 gap-y-6 sm:gap-y-7 px-4 sm:px-0">
         {picks.map((item, idx) => (
           <TopPickCard 
             key={item.id || idx} 
@@ -2974,11 +2978,11 @@ const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickA
         {/* Right: Bigger Picture with rounded corners and badges */}
         <div className="relative w-26 h-26 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 shadow-inner">
           <OptimizedProductImage
-            src={item.image_url}
+            src={item?.image_url || item?.image || item?.img || item?.photo_url || item?.picture || item?.thumbnail}
             alt={item.name}
             isAvailable={isAvailable}
-            width={240}
-            quality={75}
+            width={280}
+            quality={80}
           />
 
           {!isAvailable && (
@@ -3280,11 +3284,11 @@ const MenuDishRow = React.memo(function MenuDishRow({ item, onSelect, onQuickAdd
       {/* Left Dish Photo with optional Badge (Bigger: w-26 to w-30) */}
       <div className="relative w-26 sm:w-30 h-26 sm:h-30 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0 shadow-xs">
         <OptimizedProductImage
-          src={item.image_url}
+          src={item?.image_url || item?.image || item?.img || item?.photo_url || item?.picture || item?.thumbnail}
           alt={item.name}
           isAvailable={item.is_available !== false}
-          width={240}
-          quality={75}
+          width={280}
+          quality={80}
         />
         {item.badge === 'bestseller' || item.is_bestseller || item.badge === 'Bestseller' ? (
           <span className="absolute top-1.5 left-1.5 bg-black/75 text-white text-[8.5px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-xs border border-white/10">
