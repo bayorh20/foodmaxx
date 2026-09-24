@@ -2629,15 +2629,11 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
 
   return (
     <div 
-      className={`fmx-product-card group relative w-full bg-white dark:bg-[#151821] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl flex flex-col justify-between ${
-        inCartQty > 0 
-          ? 'border-2 border-[#EA4C2A]/70 dark:border-[#EA4C2A]/80 shadow-md shadow-red-500/10' 
-          : 'border border-slate-200/80 dark:border-white/10 shadow-xs hover:border-slate-300 dark:hover:border-white/20'
-      }`}
+      className="fmx-product-card group relative w-full bg-white dark:bg-[#151821] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg flex flex-col justify-between border border-slate-200/80 dark:border-white/10 shadow-xs hover:border-slate-300 dark:hover:border-white/20"
       onClick={() => onSelect(item)}
     >
-      {/* Bigger Photo Container (H-44 to H-56) */}
-      <div className="relative h-44 xs:h-48 sm:h-56 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0">
+      {/* Wide, Balanced Food Photo Container (Compact Height, Generous Width) */}
+      <div className="relative h-32 xs:h-34 sm:h-38 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0">
         <OptimizedProductImage 
           src={item.image_url} 
           alt={item.name} 
@@ -2776,8 +2772,8 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
         </button>
       </div>
       
-      {/* Responsive Product Cards Grid (2 cols mobile, 3 cols tablet, 4 cols desktop) */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4.5 lg:gap-5 px-4 sm:px-0">
+      {/* Wider Product Cards Grid (2 wide cols on mobile, 2 on tablet, 3 on large screens) */}
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5 lg:gap-6 px-4 sm:px-0">
         {picks.map((item, idx) => (
           <TopPickCard 
             key={item.id || idx} 
@@ -2959,11 +2955,7 @@ const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickA
     return (
       <div
         onClick={() => isAvailable && onSelect(item)}
-        className={`fmx-product-card group relative w-full mb-3 rounded-2xl p-3 sm:p-3.5 transition-all duration-200 cursor-pointer flex items-center justify-between gap-3.5 ${
-          inCartQty > 0
-            ? 'border-2 border-[#EA4C2A]/70 dark:border-[#EA4C2A]/80 shadow-md bg-white dark:bg-[#181A20]'
-            : 'border border-slate-200/80 dark:border-white/5 shadow-xs hover:border-slate-300 dark:hover:border-white/10 hover:shadow-xs bg-white dark:bg-[#181A20]'
-        } ${!isAvailable ? 'opacity-65' : ''}`}
+        className={`fmx-product-card group relative w-full mb-3 rounded-2xl p-3 sm:p-3.5 transition-all duration-200 cursor-pointer flex items-center justify-between gap-3.5 border border-slate-200/80 dark:border-white/5 shadow-xs hover:border-slate-300 dark:hover:border-white/10 hover:shadow-xs bg-white dark:bg-[#181A20] ${!isAvailable ? 'opacity-65' : ''}`}
       >
         {/* Left: Info, Price, and Stepper */}
         <div className="flex-1 min-w-0 pr-1 flex flex-col justify-between self-stretch py-0.5">
