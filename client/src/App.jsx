@@ -2745,8 +2745,8 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
         </button>
       </div>
       
-      {/* 2-column Product Cards Grid matching user screenshot */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 px-4 sm:px-0">
+      {/* Strictly 2-column Product Cards Grid across all screen sizes */}
+      <div className="grid grid-cols-2 gap-x-3.5 gap-y-5 sm:gap-x-5 sm:gap-y-7 px-4 sm:px-0">
         {picks.map((item, idx) => (
           <TopPickCard 
             key={item.id || idx} 
