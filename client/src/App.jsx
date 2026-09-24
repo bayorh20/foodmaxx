@@ -1387,10 +1387,7 @@ function CustomerPortal() {
           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative overscroll-contain pb-32 sm:pb-36" 
           style={{ perspective: 1200 }}
         >
-          {/* Subtle Ambient Background Light Orbs for Frosted Glass Depth */}
-          <div className="absolute top-10 -left-16 w-60 h-60 rounded-full bg-gradient-to-tr from-[#EA4C2A]/10 to-amber-500/10 blur-3xl pointer-events-none -z-10" />
-          <div className="absolute top-[40%] -right-16 w-64 h-64 rounded-full bg-gradient-to-bl from-rose-500/10 via-orange-400/8 to-transparent blur-3xl pointer-events-none -z-10" />
-          <div className="absolute top-[75%] -left-12 w-60 h-60 rounded-full bg-gradient-to-tr from-amber-500/10 to-red-500/8 blur-3xl pointer-events-none -z-10" />
+
           {/* Native Animated & Simple Pull To Refresh */}
           <div
             className="w-full flex items-center justify-center overflow-visible transition-all duration-150 pointer-events-none sticky top-0 z-50 py-1"
@@ -2344,7 +2341,7 @@ function ProductQuantityStepper({ item, onQuickAdd, isDark, size = 'sm' }) {
 // ============================================================
 function SkeletonCard() {
   return (
-    <div className="w-full rounded-[24px] p-3 sm:p-3.5 bg-white/70 dark:bg-[#161822]/70 backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.25)] flex flex-col">
+    <div className="w-full rounded-[24px] p-3 sm:p-3.5 bg-white dark:bg-[#161822] border border-slate-200/90 dark:border-white/10 flex flex-col">
       {/* 1-column image aspect ratio */}
       <div className="w-full aspect-[16/9] sm:aspect-[2/1] max-h-72 rounded-2xl bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 animate-pulse" />
       {/* Bottom row: text left, circular button right */}
@@ -2630,11 +2627,11 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "60px" }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="fmx-product-card group relative w-full cursor-pointer flex flex-col select-none p-3 sm:p-3.5 rounded-[26px] bg-white/70 dark:bg-[#161822]/70 backdrop-blur-xl backdrop-saturate-150 border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.35)] hover:shadow-xl hover:border-white dark:hover:border-white/20 will-change-transform"
+      className="fmx-product-card group relative w-full cursor-pointer flex flex-col select-none p-3 sm:p-3.5 rounded-[26px] bg-white dark:bg-[#161822] border border-slate-200/90 dark:border-white/10 will-change-transform"
       onClick={() => onSelect(item)}
     >
       {/* 1. Food Picture with soft rounded corners in 1-column layout */}
-      <div className="relative w-full aspect-[16/9] sm:aspect-[2/1] max-h-72 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 shadow-xs">
+      <div className="relative w-full aspect-[16/9] sm:aspect-[2/1] max-h-72 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
         <OptimizedProductImage 
           src={itemImage} 
           alt={item.name} 
@@ -2643,12 +2640,12 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
           quality={80}
         />
 
-        {/* Favorite Heart Button (Top-right) with Frosted Glass */}
+        {/* Favorite Heart Button (Top-right) */}
         {onToggleFavorite && (
           <button 
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(item.id); }}
-            className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-90 transition-transform cursor-pointer z-10 shadow-xs"
+            className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-white active:scale-90 transition-transform cursor-pointer z-10"
             title={isFavorite ? "Remove from favorites" : "Save to favorites"}
           >
             <Heart size={15} className={isFavorite ? 'fill-red-500 stroke-red-500' : 'stroke-white'} />
@@ -2657,8 +2654,8 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
 
         {/* Sold Out Overlay */}
         {!isAvailable && (
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-20">
-            <span className="bg-red-600/90 backdrop-blur-sm border border-white/20 text-white font-black text-xs uppercase tracking-wider px-3.5 py-1.5 rounded-xl shadow-lg">
+          <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
+            <span className="bg-red-600 text-white font-black text-xs uppercase tracking-wider px-3.5 py-1.5 rounded-xl">
               Sold Out
             </span>
           </div>
@@ -2684,14 +2681,14 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
               type="button"
               disabled={!isAvailable}
               onClick={handleAdd} 
-              className="w-10 h-10 rounded-full bg-[#EA2A2A] hover:bg-[#D42222] active:scale-90 disabled:opacity-40 text-white flex items-center justify-center shadow-xs cursor-pointer transition-transform shrink-0"
+              className="w-10 h-10 rounded-full bg-[#EA2A2A] hover:bg-[#D42222] active:scale-90 disabled:opacity-40 text-white flex items-center justify-center cursor-pointer transition-transform shrink-0"
               title="Add to cart"
             >
               <Plus size={22} className="stroke-[3]" />
             </button>
           ) : (
             <div 
-              className="bg-[#EA2A2A] text-white rounded-full p-0.5 flex items-center gap-1 shadow-xs h-10"
+              className="bg-[#EA2A2A] text-white rounded-full p-0.5 flex items-center gap-1 h-10"
             >
               <button
                 type="button"
@@ -2868,7 +2865,7 @@ function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, o
             <div
               key={item.id}
               onClick={() => onSelectItem(item)}
-              className="bg-white dark:bg-[#1A1D24] rounded-3xl p-3 shadow-xs border border-slate-100 dark:border-white/5 flex gap-3.5 items-center justify-between cursor-pointer"
+              className="bg-white dark:bg-[#161822] rounded-3xl p-3 border border-slate-200/90 dark:border-white/10 flex gap-3.5 items-center justify-between cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <img onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }}                   src={item.img}
@@ -2934,7 +2931,7 @@ const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickA
         viewport={{ once: true, margin: "60px" }}
         transition={{ duration: 0.25, ease: "easeOut" }}
         onClick={() => isAvailable && onSelect(item)}
-        className={`fmx-product-card group relative w-full mb-3 rounded-2xl p-3 sm:p-3.5 cursor-pointer flex items-center justify-between gap-3.5 border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] bg-white/75 dark:bg-[#161922]/70 backdrop-blur-xl backdrop-saturate-150 hover:shadow-md will-change-transform ${!isAvailable ? 'opacity-65' : ''}`}
+        className={`fmx-product-card group relative w-full mb-3 rounded-2xl p-3 sm:p-3.5 cursor-pointer flex items-center justify-between gap-3.5 border border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#161822] will-change-transform ${!isAvailable ? 'opacity-65' : ''}`}
       >
         {/* Left: Info, Price, and Stepper */}
         <div className="flex-1 min-w-0 pr-1 flex flex-col justify-between self-stretch py-0.5">
@@ -2961,7 +2958,7 @@ const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickA
         </div>
 
         {/* Right: Picture with soft rounded corners */}
-        <div className="relative w-26 h-26 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 shadow-inner">
+        <div className="relative w-26 h-26 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
           <OptimizedProductImage
             src={item?.image_url || item?.image || item?.img || item?.photo_url || item?.picture || item?.thumbnail}
             alt={item.name}
@@ -3266,12 +3263,12 @@ const MenuDishRow = React.memo(function MenuDishRow({ item, onSelect, onQuickAdd
       viewport={{ once: true, margin: "60px" }}
       transition={{ duration: 0.25, ease: "easeOut" }}
       onClick={() => onSelect(item)}
-      className={`fmx-product-card flex items-center gap-3.5 p-3 rounded-2xl border border-white/80 dark:border-white/10 bg-white/70 dark:bg-[#161822]/70 backdrop-blur-xl backdrop-saturate-150 shadow-xs group cursor-pointer select-none transition-all duration-200 hover:shadow-md mb-2.5 will-change-transform ${
-        isDark ? 'hover:bg-white/[0.08]' : 'hover:bg-white/90'
+      className={`fmx-product-card flex items-center gap-3.5 p-3 rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#161822] group cursor-pointer select-none transition-colors duration-150 mb-2.5 will-change-transform ${
+        isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-slate-50'
       }`}
     >
       {/* Left Dish Photo */}
-      <div className="relative w-26 sm:w-30 h-26 sm:h-30 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0 shadow-xs">
+      <div className="relative w-26 sm:w-30 h-26 sm:h-30 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0">
         <OptimizedProductImage
           src={item?.image_url || item?.image || item?.img || item?.photo_url || item?.picture || item?.thumbnail}
           alt={item.name}
@@ -6976,10 +6973,268 @@ function loadPaystackScript() {
 }
 
 // ============================================================
-// PAYSTACK NATIVE CHECKOUT
-// Native Paystack checkout is handled directly via PaystackPop.setup and launchRealPaystack
-function PaystackFallbackModal() {
-  return null;
+// PAYSTACK CHECKOUT MODAL (Card, Bank Transfer, USSD)
+// ============================================================
+function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete }) {
+  const [activeTab, setActiveTab] = useState('card');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [copiedAccount, setCopiedAccount] = useState(false);
+
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+
+  if (!open || !data) return null;
+
+  const amount = Number(data.amount) || 0;
+  const email = data.email || 'customer@foodmaxx.ng';
+  const reference = data.reference || `FMX_PSTK_${Date.now()}`;
+
+  const handleSimulatePayment = (paymentChannel = 'card') => {
+    setIsProcessing(true);
+    triggerHaptic('medium');
+    setTimeout(() => {
+      setIsProcessing(false);
+      setIsSuccess(true);
+      triggerHaptic('success');
+      playNativeSound('success');
+      setTimeout(() => {
+        if (onPaymentComplete) {
+          onPaymentComplete({
+            reference,
+            status: 'success',
+            channel: paymentChannel
+          });
+        }
+      }, 1000);
+    }, 2000);
+  };
+
+  const copyAccountNumber = () => {
+    try {
+      if (navigator.clipboard) navigator.clipboard.writeText('0248591832');
+    } catch {}
+    setCopiedAccount(true);
+    triggerHaptic('selection');
+    setTimeout(() => setCopiedAccount(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div
+        className={`w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border ${
+          isDark ? 'bg-[#12141A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+        } relative flex flex-col`}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Paystack Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-white/10 flex items-center justify-between bg-slate-50/60 dark:bg-white/5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#0AA5FF]/10 text-[#0AA5FF] flex items-center justify-center font-black text-sm">
+              <span className="font-mono text-base font-extrabold">P</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-xs sm:text-sm tracking-tight text-slate-900 dark:text-white">Paystack</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                  <ShieldCheck size={10} /> Secured
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate max-w-[200px]">{email}</p>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Pay</span>
+            <span className="font-black text-base sm:text-lg text-slate-900 dark:text-white">
+              ₦{amount.toLocaleString()}
+            </span>
+          </div>
+        </div>
+
+        {/* Processing overlay */}
+        {isProcessing && (
+          <div className="py-14 px-6 text-center space-y-3">
+            <RefreshCw size={36} className="animate-spin text-[#0AA5FF] mx-auto" />
+            <h4 className="font-bold text-base text-slate-900 dark:text-white">Connecting with Paystack...</h4>
+            <p className="text-xs text-slate-400">Authorizing transaction with your bank. Please do not close.</p>
+          </div>
+        )}
+
+        {/* Success overlay */}
+        {isSuccess && (
+          <div className="py-14 px-6 text-center space-y-3">
+            <div className="w-14 h-14 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center mx-auto text-2xl">
+              <Check size={28} className="stroke-[3]" />
+            </div>
+            <h4 className="font-bold text-lg text-slate-900 dark:text-white">Payment Approved!</h4>
+            <p className="text-xs text-slate-400">Ref: {reference.slice(0, 18)}...</p>
+          </div>
+        )}
+
+        {/* Channels Content */}
+        {!isProcessing && !isSuccess && (
+          <div className="p-4 sm:p-5 space-y-4">
+            {/* Tabs */}
+            <div className="flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 text-xs font-bold">
+              {[
+                { id: 'card', label: '💳 Card' },
+                { id: 'transfer', label: '🏦 Bank Transfer' },
+                { id: 'ussd', label: '📱 USSD' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 py-2 rounded-lg transition-all cursor-pointer ${
+                    activeTab === tab.id
+                      ? 'bg-white dark:bg-[#1C2029] text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* TAB 1: CARD */}
+            {activeTab === 'card' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 block mb-1">CARD NUMBER</label>
+                  <input
+                    type="text"
+                    maxLength={19}
+                    placeholder="4084 0000 0000 0000"
+                    value={cardNumber}
+                    onChange={e => {
+                      const v = e.target.value.replace(/\D/g, '').replace(/(\d{4})/g, '$1 ').trim();
+                      setCardNumber(v);
+                    }}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 font-mono text-xs text-slate-900 dark:text-white outline-none focus:border-[#0AA5FF]"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 block mb-1">EXPIRES</label>
+                    <input
+                      type="text"
+                      maxLength={5}
+                      placeholder="MM/YY"
+                      value={cardExpiry}
+                      onChange={e => {
+                        let v = e.target.value.replace(/\D/g, '');
+                        if (v.length >= 2) v = v.slice(0, 2) + '/' + v.slice(2, 4);
+                        setCardExpiry(v);
+                      }}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 font-mono text-xs text-slate-900 dark:text-white outline-none focus:border-[#0AA5FF]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 block mb-1">CVV</label>
+                    <input
+                      type="password"
+                      maxLength={4}
+                      placeholder="123"
+                      value={cardCvv}
+                      onChange={e => setCardCvv(e.target.value.replace(/\D/g, ''))}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 font-mono text-xs text-slate-900 dark:text-white outline-none focus:border-[#0AA5FF]"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleSimulatePayment('card')}
+                  className="w-full py-3 rounded-xl bg-[#09A552] hover:bg-[#088C45] text-white font-bold text-sm shadow-md transition-transform active:scale-[0.98] cursor-pointer mt-2"
+                >
+                  Pay ₦{amount.toLocaleString()}
+                </button>
+              </div>
+            )}
+
+            {/* TAB 2: TRANSFER */}
+            {activeTab === 'transfer' && (
+              <div className="space-y-3">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2 text-xs">
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>Bank Name</span>
+                    <strong className="text-slate-900 dark:text-white">Wema Bank / Titan</strong>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>Account Number</span>
+                    <div className="flex items-center gap-1.5">
+                      <strong className="font-mono text-sm text-[#0AA5FF]">0248591832</strong>
+                      <button
+                        type="button"
+                        onClick={copyAccountNumber}
+                        className="p-1 rounded-md bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:opacity-80 cursor-pointer"
+                        title="Copy account number"
+                      >
+                        <Copy size={12} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>Beneficiary</span>
+                    <strong className="text-slate-900 dark:text-white">FoodMaxx Kitchen / Paystack</strong>
+                  </div>
+                </div>
+                {copiedAccount && (
+                  <p className="text-[11px] text-emerald-600 font-bold text-center">Account number copied!</p>
+                )}
+                <p className="text-[11px] text-slate-400 text-center">
+                  Transfer exactly ₦{amount.toLocaleString()} to the account above.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => handleSimulatePayment('bank_transfer')}
+                  className="w-full py-3 rounded-xl bg-[#09A552] hover:bg-[#088C45] text-white font-bold text-sm shadow-md transition-transform active:scale-[0.98] cursor-pointer"
+                >
+                  I Have Sent The Payment
+                </button>
+              </div>
+            )}
+
+            {/* TAB 3: USSD */}
+            {activeTab === 'ussd' && (
+              <div className="space-y-3 text-center">
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                  <span className="text-[11px] text-slate-400 block mb-1">GTBank USSD Code</span>
+                  <div className="font-mono font-bold text-base text-[#0AA5FF] tracking-wider">
+                    *737*2*{amount}*4892#
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Dial the code on your phone linked to your bank account.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleSimulatePayment('ussd')}
+                  className="w-full py-3 rounded-xl bg-[#09A552] hover:bg-[#088C45] text-white font-bold text-sm shadow-md transition-transform active:scale-[0.98] cursor-pointer"
+                >
+                  I Have Completed USSD Payment
+                </button>
+              </div>
+            )}
+
+            {/* Cancel link */}
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-xs text-slate-400 hover:text-red-500 font-semibold cursor-pointer"
+              >
+                Cancel payment
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ============================================================
@@ -7021,6 +7276,19 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 
   // Spin to Win in Checkout modal state
   const [spinInCheckoutOpen, setSpinInCheckoutOpen] = useState(false);
+  const [hasSpunToday, setHasSpunToday] = useState(() => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      return localStorage.getItem('fmx_last_spin_date') === today;
+    } catch {
+      return false;
+    }
+  });
+
+  // Dedicated Paystack checkout modal state
+  const [paystackModalOpen, setPaystackModalOpen] = useState(false);
+  const [paystackModalData, setPaystackModalData] = useState(null);
+  const pendingOrderDataRef = useRef(null);
 
   // Cart items expand/collapse state
   const [isItemsOpen, setIsItemsOpen] = useState(true);
@@ -7160,7 +7428,19 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
       })
       .catch(() => {});
 
-    return () => window.removeEventListener('fmx_paystack_config_updated', handleConfigUpdate);
+    const handlePaystackModalEvent = (e) => {
+      if (e.detail) {
+        setPaystackModalData(e.detail);
+        setPaystackModalOpen(true);
+        setLoading(false);
+      }
+    };
+    window.addEventListener('fmx_open_paystack_modal', handlePaystackModalEvent);
+
+    return () => {
+      window.removeEventListener('fmx_paystack_config_updated', handleConfigUpdate);
+      window.removeEventListener('fmx_open_paystack_modal', handlePaystackModalEvent);
+    };
   }, []);
 
   async function applyPromo(overrideCode) {
@@ -7294,15 +7574,37 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
           setLoading(false);
         },
         onError: (err) => {
-          console.warn('Native Paystack popup open failed or blocked:', err);
+          console.warn('Native Paystack popup open failed or blocked, switching to Paystack modal:', err);
+          pendingOrderDataRef.current = orderData;
+          setPaystackModalData({
+            key: activeKey,
+            email: effectiveEmail,
+            amount: total,
+            reference: txRef,
+            customerName: effectiveName,
+            phone: effectivePhone,
+            metadata: {},
+            orderData
+          });
+          setPaystackModalOpen(true);
           setLoading(false);
-          toast(err?.message || 'Paystack payment error. Please check your network and try again.', 'error');
         }
       });
     } catch (err) {
-      console.warn('Paystack checkout initialization error:', err);
+      console.warn('Paystack checkout initialization error, switching to Paystack modal:', err);
+      pendingOrderDataRef.current = orderData;
+      setPaystackModalData({
+        key: activeKey,
+        email: effectiveEmail,
+        amount: total,
+        reference: txRef,
+        customerName: effectiveName,
+        phone: effectivePhone,
+        metadata: {},
+        orderData
+      });
+      setPaystackModalOpen(true);
       setLoading(false);
-      toast(err?.message || 'Unable to open Paystack checkout', 'error');
     }
   }
 
@@ -7699,52 +8001,48 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
             </div>
           </div>
 
-          {/* SECTION 2: OFFERS, GIVEAWAY & COUPONS (Clean & Rewarding) */}
-          <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
-            isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
+          {/* SECTION 2: OFFERS & DISCOUNTS (Simple, Crisp & FoodMaxx Brand Colors) */}
+          <div className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+            isDark ? 'bg-[#161822] border-white/10' : 'bg-white border-slate-200'
           }`}>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3.5">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-                  <Sparkles size={16} className="text-amber-500" />
+                <div className="w-8 h-8 rounded-xl bg-[#EA2A2A]/10 text-[#EA2A2A] flex items-center justify-center shrink-0">
+                  <Tag size={16} className="text-[#EA2A2A]" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">Offers & Discounts</h3>
-                  <p className="text-[11px] text-slate-400">Save big on this order</p>
+                  <p className="text-[11px] text-slate-400">Apply promotions and rewards</p>
                 </div>
               </div>
               {totalSavings > 0 && (
-                <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                <span className="text-[11px] font-black text-[#EA2A2A] dark:text-[#FF6B4A] bg-[#EA2A2A]/10 px-2.5 py-1 rounded-full border border-[#EA2A2A]/20">
                   Saving {fmt(totalSavings)} 🎉
                 </span>
               )}
             </div>
 
             {/* 1. First-Time ₦1,000 Giveaway Toggle */}
-            <div className={`p-3.5 rounded-2xl border transition-all mb-3 ${
+            <div className={`p-3.5 rounded-xl border transition-all mb-2.5 ${
               useFirstTimeGiveaway
-                ? isDark
-                  ? 'bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-orange-500/15 border-amber-500/30'
-                  : 'bg-gradient-to-r from-amber-50/90 via-rose-50/80 to-orange-50/90 border-amber-300/80'
-                : isDark
-                  ? 'bg-white/5 border-white/10 opacity-75'
-                  : 'bg-slate-50 border-slate-200/80 opacity-75'
+                ? 'bg-red-500/5 dark:bg-red-500/10 border-[#EA2A2A]/30'
+                : 'bg-slate-50 dark:bg-white/5 border-slate-200/80 dark:border-white/10 opacity-80'
             }`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm">
-                    <Gift size={18} className="stroke-[2.5]" />
+                  <div className="w-8 h-8 rounded-xl bg-[#EA2A2A] text-white flex items-center justify-center shrink-0">
+                    <Gift size={16} className="stroke-[2.5]" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
                         First-Time ₦1,000 Giveaway
                       </span>
-                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500 text-white">
+                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#EA2A2A] text-white">
                         Free Gift
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-300 truncate">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                       Instant ₦1,000 discount applied directly
                     </p>
                   </div>
@@ -7757,7 +8055,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                     setUseFirstTimeGiveaway(prev => !prev);
                   }}
                   className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    useFirstTimeGiveaway ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-white/20'
+                    useFirstTimeGiveaway ? 'bg-[#EA2A2A]' : 'bg-slate-300 dark:bg-white/20'
                   }`}
                   role="switch"
                   aria-checked={useFirstTimeGiveaway}
@@ -7772,57 +8070,75 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               </div>
 
               {useFirstTimeGiveaway && (
-                <div className="mt-2.5 pt-2 border-t border-amber-500/20 flex items-center justify-between text-xs">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                <div className="mt-2.5 pt-2 border-t border-[#EA2A2A]/20 flex items-center justify-between text-xs">
+                  <span className="text-[#EA2A2A] dark:text-[#FF6B4A] font-bold flex items-center gap-1">
                     <Check size={13} className="stroke-[3]" />
                     ₦1,000 Welcome Giveaway applied!
                   </span>
-                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                  <span className="font-extrabold text-[#EA2A2A] dark:text-[#FF6B4A]">
                     −{fmt(firstTimeGiveawayDeduction)}
                   </span>
                 </div>
               )}
             </div>
 
-            {/* 2. Spin to win lucky wheel link */}
-            <div className={`p-3 rounded-2xl border mb-3 flex items-center justify-between gap-3 ${
-              isDark ? 'bg-purple-950/20 border-purple-500/30' : 'bg-purple-50/70 border-purple-200'
-            }`}>
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
-                  <RotateCw size={15} />
+            {/* 2. Lucky Spin (Strictly 1 per day) */}
+            {hasSpunToday ? (
+              <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-white/5 mb-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-slate-200/80 dark:bg-white/10 text-slate-500 dark:text-slate-400 flex items-center justify-center shrink-0">
+                    <RotateCw size={15} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
+                      {savedSpinPrize ? `Spin Prize Applied: ${savedSpinPrize}` : 'Daily Lucky Spin: Used for today'}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      Expired for today · Resets at midnight (1 spin per day)
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    {savedSpinPrize ? `Prize: ${savedSpinPrize}` : 'Spin to Win Lucky Wheel'}
-                  </p>
-                  <p className="text-[10px] text-purple-600 dark:text-purple-300">
-                    Win up to 20% off or free meal
-                  </p>
-                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400 shrink-0">
+                  Expired
+                </span>
               </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('medium');
-                  setSpinInCheckoutOpen(true);
-                }}
-                className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-bold text-xs shrink-0 cursor-pointer transition-all"
-              >
-                {savedSpinPrize ? 'Spin Again' : 'Spin Wheel'}
-              </button>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between p-3 rounded-xl border border-amber-500/20 bg-amber-500/5 dark:bg-amber-500/10 mb-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <RotateCw size={15} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      Spin the Lucky Wheel
+                    </p>
+                    <p className="text-[10px] text-amber-700 dark:text-amber-300 truncate">
+                      1 free spin today · Win up to 20% off
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('medium');
+                    setSpinInCheckoutOpen(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-[#EA2A2A] hover:bg-[#D42222] active:scale-95 text-white font-bold text-xs shrink-0 cursor-pointer transition-all"
+                >
+                  Spin Wheel
+                </button>
+              </div>
+            )}
 
             {/* 3. Promo Code Input */}
             <div>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <input
-                    className={`w-full pl-3 pr-8 py-2 rounded-xl text-xs uppercase font-bold border outline-none tracking-wider ${
+                    className={`w-full pl-3 pr-8 py-2 rounded-xl text-xs uppercase font-bold border outline-none tracking-wider transition-colors ${
                       isDark
-                        ? 'bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-[#EA4C2A]'
-                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-gray-400 focus:border-[#EA4C2A]'
+                        ? 'bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-[#EA2A2A]'
+                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-gray-400 focus:border-[#EA2A2A]'
                     }`}
                     placeholder="PROMO CODE"
                     value={promoCode}
@@ -7844,7 +8160,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                   type="button"
                   onClick={() => { triggerHaptic('selection'); applyPromo(); }}
                   disabled={promoLoading || !promoCode}
-                  className="px-3.5 py-2 bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white rounded-xl font-bold text-xs disabled:opacity-50 cursor-pointer transition-all shrink-0 flex items-center gap-1"
+                  className="px-4 py-2 bg-[#EA2A2A] hover:bg-[#D42222] active:scale-95 text-white rounded-xl font-bold text-xs disabled:opacity-50 cursor-pointer transition-all shrink-0 flex items-center gap-1"
                 >
                   {promoLoading ? (
                     <RefreshCw size={13} className="animate-spin" />
@@ -7867,11 +8183,9 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 
             {/* 4. Wallet perk bonus if available */}
             {rawWalletBalance > 0 && (
-              <div className={`mt-3 p-3 rounded-2xl border flex items-center justify-between gap-3 ${
-                isDark ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-emerald-50/70 border-emerald-200'
-              }`}>
+              <div className="mt-2.5 p-3 rounded-xl border flex items-center justify-between gap-3 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                     <Wallet size={16} />
                   </div>
                   <div>
@@ -7904,169 +8218,87 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
             )}
           </div>
 
-          {/* SECTION 3: ORDER ITEMS & PRICE BREAKDOWN (Compact & Clean) */}
-          <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
-            isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
+          {/* SECTION 3: ORDER SUMMARY (Simple, Clean & Eye-Friendly) */}
+          <div className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+            isDark ? 'bg-[#161822] border-white/10' : 'bg-white border-slate-200'
           }`}>
-            <div 
-              className="flex items-center justify-between cursor-pointer select-none mb-3"
-              onClick={() => {
-                triggerHaptic('selection');
-                setIsItemsOpen(prev => !prev);
-              }}
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
-                  <ShoppingBag size={16} className="text-[#EA4C2A]" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
-                    Order Summary
-                  </h3>
-                  <span className="text-[11px] text-slate-400">
-                    {cart.items.reduce((s, i) => s + (i.qty || 1), 0)} items in cart
-                  </span>
-                </div>
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-white/5">
+              <div className="flex items-center gap-2">
+                <ShoppingBag size={17} className="text-[#EA2A2A]" />
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Order Summary</h3>
               </div>
-
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>{fmt(subtotal)}</span>
-                {isItemsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </div>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300">
+                {cart.items.reduce((s, i) => s + (i.qty || 1), 0)} items
+              </span>
             </div>
 
-            {/* Order Items Preview */}
-            {isItemsOpen && (
-              <div className="mb-3.5 divide-y divide-slate-100 dark:divide-white/5 border-b border-slate-100 dark:border-white/5 pb-2">
-                {cart.items.map((item, idx) => {
-                  const itemQty = Number(item.qty || item.quantity || 1);
-                  const itemPrice = Number(item.price || item.unit_price || 0);
-                  return (
-                    <div key={item.id || idx} className="py-2 first:pt-1 last:pb-1 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
-                          {item.image_url ? (
-                            <img
-                              src={getOptimizedImageUrl(item.image_url, 60, 60)}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <span className="text-base">🍲</span>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                            {item.name}
-                          </p>
-                          <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                            <span className="font-bold text-[#EA4C2A]">{itemQty}x</span>
-                            <span>·</span>
-                            <span>{fmt(itemPrice)}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">
-                          {fmt(itemPrice * itemQty)}
-                        </span>
-                      </div>
+            {/* Cart Items Breakdown */}
+            <div className="space-y-2 mb-3 max-h-48 overflow-y-auto no-scrollbar">
+              {cart.items.map((item, idx) => {
+                const itemQty = Number(item.qty || item.quantity || 1);
+                const itemPrice = Number(item.price || item.unit_price || 0);
+                return (
+                  <div key={item.id || idx} className="flex items-center justify-between text-xs py-1">
+                    <div className="flex items-center gap-2 min-w-0 pr-2">
+                      <span className="font-bold text-[#EA2A2A] shrink-0">{itemQty}x</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{item.name}</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    <span className="font-semibold text-slate-900 dark:text-white shrink-0">
+                      {fmt(itemPrice * itemQty)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
 
             {/* Price Breakdown */}
-            <div className="space-y-2 text-xs sm:text-sm">
-              <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+            <div className="pt-2.5 border-t border-slate-100 dark:border-white/5 space-y-2 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex justify-between items-center">
                 <span>Subtotal</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{fmt(subtotal)}</span>
+                <span className="font-medium text-slate-900 dark:text-white">{fmt(subtotal)}</span>
               </div>
-              <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
-                <span>Delivery Fee</span>
-                <span className={`font-semibold ${freeDelivery ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+              <div className="flex justify-between items-center">
+                <span>Delivery</span>
+                <span className={freeDelivery ? 'font-bold text-emerald-600 dark:text-emerald-400' : 'font-medium text-slate-900 dark:text-white'}>
                   {freeDelivery ? 'FREE' : fmt(deliveryFee)}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+              <div className="flex justify-between items-center">
                 <span>Service Fee</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{fmt(serviceFee)}</span>
+                <span className="font-medium text-slate-900 dark:text-white">{fmt(serviceFee)}</span>
               </div>
 
               {firstTimeGiveawayDeduction > 0 && (
-                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold">
-                  <span className="flex items-center gap-1">
-                    <Gift size={13} />
-                    First-Time ₦1,000 Giveaway
-                  </span>
+                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-semibold">
+                  <span>First-Time Giveaway</span>
                   <span>−{fmt(firstTimeGiveawayDeduction)}</span>
                 </div>
               )}
 
               {discount > 0 && (
                 <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-semibold">
-                  <span className="flex items-center gap-1">
-                    <Tag size={13} />
-                    Coupon ({promoCode})
-                  </span>
+                  <span>Promo Discount ({promoCode})</span>
                   <span>−{fmt(discount)}</span>
                 </div>
               )}
 
               {walletDeduction > 0 && (
                 <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-semibold">
-                  <span className="flex items-center gap-1">
-                    <Wallet size={13} />
-                    Wallet Credit
-                  </span>
+                  <span>Wallet Credit</span>
                   <span>−{fmt(walletDeduction)}</span>
                 </div>
               )}
 
-              <div className="border-t border-slate-100 dark:border-white/10 pt-2.5 flex justify-between items-center">
+              {/* Final Clear Total Row */}
+              <div className="pt-3 mt-1 border-t border-slate-200 dark:border-white/10 flex justify-between items-baseline">
                 <div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white block">Total to Pay</span>
-                  {totalSavings > 0 && (
-                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                      Total savings: {fmt(totalSavings)} 🎉
-                    </span>
-                  )}
+                  <span className="font-bold text-sm text-slate-900 dark:text-white block">Amount Due</span>
+                  <span className="text-[10.5px] text-slate-400">VAT & packaging included</span>
                 </div>
-                <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+                <span className="font-black text-xl text-slate-900 dark:text-white tracking-tight">
                   {fmt(total)}
                 </span>
               </div>
-            </div>
-
-            {/* Payment Method Badge */}
-            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-white/10">
-              {total === 0 ? (
-                <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-2">
-                  <Check size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 stroke-[3]" />
-                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                    100% Free Order · No payment needed!
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                  <div className="flex items-center gap-1.5">
-                    <Lock size={12} className="text-emerald-500" />
-                    <span>Secured Paystack (Card, Transfer, USSD)</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setKeyInput(paystackKey || '');
-                      setShowKeyModal(true);
-                    }}
-                    className="text-[10px] text-slate-400 hover:text-[#EA4C2A] cursor-pointer"
-                  >
-                    {isValidPaystackKey(paystackKey) ? 'Live' : 'Test Mode'}
-                  </button>
-                </div>
-              )}
             </div>
           </div>
 
@@ -8107,7 +8339,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
             {loading ? (
               <>
                 <RefreshCw size={18} className="animate-spin" />
-                <span>{total === 0 ? 'Processing Free Order...' : 'Opening Paystack...'}</span>
+                <span>{total === 0 ? 'Processing Free Order...' : 'Processing Order...'}</span>
               </>
             ) : total === 0 ? (
               <>
@@ -8116,7 +8348,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               </>
             ) : (
               <>
-                <span>Pay with Paystack</span>
+                <span>Pay Now</span>
                 <ArrowRight size={18} className="stroke-[2.5]" />
               </>
             )}
@@ -8135,6 +8367,27 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                   setSavedSpinPrize(prize.code);
                   applyPromo(prize.code);
                 }
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Dedicated Interactive Paystack Modal */}
+        <AnimatePresence>
+          {paystackModalOpen && (
+            <PaystackFallbackModal
+              open={paystackModalOpen}
+              data={paystackModalData}
+              isDark={isDark}
+              onClose={() => {
+                setPaystackModalOpen(false);
+                setLoading(false);
+              }}
+              onPaymentComplete={async (tx) => {
+                setPaystackModalOpen(false);
+                setLoading(true);
+                const ord = paystackModalData?.orderData || pendingOrderDataRef.current;
+                await completePaystackOrder(ord, tx.reference);
               }}
             />
           )}

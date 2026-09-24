@@ -477,20 +477,22 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
               type="button"
               onClick={handleSpin}
               disabled={isSpinning || spinsLeft <= 0}
-              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-18 h-18 sm:w-20 sm:h-20 rounded-full flex items-center justify-center font-black text-xs sm:text-sm tracking-wider uppercase transition-transform cursor-pointer ${
-                isSpinning
+              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-18 h-18 sm:w-20 sm:h-20 rounded-full flex items-center justify-center font-black text-xs sm:text-sm tracking-wider uppercase transition-transform ${
+                spinsLeft <= 0
+                  ? 'opacity-40 cursor-not-allowed'
+                  : isSpinning
                   ? 'scale-95 opacity-90'
-                  : 'hover:scale-105 active:scale-95 shadow-xl hover:shadow-2xl'
+                  : 'hover:scale-105 active:scale-95 shadow-xl hover:shadow-2xl cursor-pointer'
               }`}
               style={{
-                background: 'radial-gradient(circle, #EA4C2A 0%, #D43D1D 100%)',
-                boxShadow: '0 8px 24px rgba(234, 76, 42, 0.45), inset 0 2px 4px rgba(255,255,255,0.4)',
+                background: spinsLeft <= 0 ? '#64748B' : 'radial-gradient(circle, #EA4C2A 0%, #D43D1D 100%)',
+                boxShadow: spinsLeft <= 0 ? 'none' : '0 8px 24px rgba(234, 76, 42, 0.45), inset 0 2px 4px rgba(255,255,255,0.4)',
                 border: '4px solid #FFFFFF'
               }}
             >
               <div className="w-full h-full rounded-full flex items-center justify-center border-2 border-white/40">
-                <span className="text-white text-sm sm:text-base tracking-widest font-black drop-shadow-xs">
-                  {isSpinning ? '...' : 'SPIN'}
+                <span className="text-white text-xs sm:text-sm tracking-widest font-black drop-shadow-xs">
+                  {spinsLeft <= 0 ? 'USED' : isSpinning ? '...' : 'SPIN'}
                 </span>
               </div>
             </button>
@@ -501,18 +503,11 @@ export default function SpinAndWinModal({ open, onClose, onRewardClaimed, isDark
             {spinsLeft > 0 ? (
               <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>1 spin available today</span>
+                <span>1 free spin available today</span>
               </div>
             ) : (
-              <div className="inline-flex items-center gap-2 text-xs font-medium text-slate-400">
-                <span>Spins used for today</span>
-                <button
-                  type="button"
-                  onClick={resetSpinForTesting}
-                  className="text-[10px] text-[#EA4C2A] underline font-bold cursor-pointer"
-                >
-                  Spin Again (Test Mode)
-                </button>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                <span>⚠️ Daily spin used — expired for today! Check back tomorrow.</span>
               </div>
             )}
           </div>

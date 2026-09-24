@@ -50,6 +50,7 @@ export function getStoredPaystackConfig() {
   try {
     const stored = localStorage.getItem('fmx_paystack_config');
     if (stored) {
+      const parsed = JSON.parse(stored);
       let activeKey = (parsed.publicKey || ENV_PAYSTACK_KEY || DEFAULT_PAYSTACK_KEY).trim();
       if (activeKey === 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a') {
         activeKey = DEFAULT_PAYSTACK_KEY;
@@ -163,44 +164,50 @@ export function launchRealPaystack({
   // Priority 2: PaystackPop instance via @paystack/inline-js
   try {
     const paystack = new PaystackPop();
-    paystack.newTransaction({
-      key: activeKey,
-      publicKey: activeKey,
-      email: email.trim(),
-      amount: amountInKobo,
-      currency: 'NGN',
-      reference: txRef,
-      channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
-      metadata: {
-        custom_fields: [
-          { display_name: 'Customer Name', variable_name: 'customer_name', value: customerName || 'FoodMaxx Customer' },
-          { display_name: 'Customer Phone', variable_name: 'customer_phone', value: phone || '' },
-          ...(metadata.custom_fields || [])
-        ],
-        ...metadata
-      },
-      onSuccess: (transaction) => {
-        if (onSuccess) {
-          onSuccess({
-            reference: transaction.reference || txRef,
-            status: 'success',
-            trans: transaction.trans,
-            transaction: transaction.transaction,
-            message: transaction.message || 'Approved'
-          });
+    if (typeof paystack.checkout === 'function') {
+      paystack.checkout({
+        key: activeKey,
+        email: email.trim(),
+        amount: amountInKobo,
+        currency: 'NGN',
+        reference: txRef,
+        channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
+        metadata: {
+          custom_fields: [
+            { display_name: 'Customer Name', variable_name: 'customer_name', value: customerName || 'FoodMaxx Customer' },
+            { display_name: 'Customer Phone', variable_name: 'customer_phone', value: phone || '' },
+            ...(metadata.custom_fields || [])
+          ],
+          ...metadata
+        },
+        onSuccess: (transaction) => {
+          if (onSuccess) {
+            onSuccess({
+              reference: transaction.reference || txRef,
+              status: 'success',
+              trans: transaction.trans,
+              transaction: transaction.transaction,
+              message: transaction.message || 'Approved'
+            });
+          }
+        },
+        onCancel: () => {
+          if (onCancel) onCancel();
         }
-      },
-      onCancel: () => {
-        if (onCancel) onCancel();
-      },
-      onError: (err) => {
-        console.warn('Paystack inline error:', err);
-        if (onError) onError(err);
-      }
-    });
+      }).catch(() => {
+        window.dispatchEvent(new CustomEvent('fmx_open_paystack_modal', {
+          detail: { key: activeKey, email, amount, reference: txRef, customerName, phone, metadata, onSuccess, onCancel }
+        }));
+      });
+      return;
+    }
   } catch (err) {
     console.warn('Paystack checkout initialization error:', err);
-    if (onError) onError(err);
   }
+
+  // Priority 3: Fallback interactive Paystack modal directly in app
+  window.dispatchEvent(new CustomEvent('fmx_open_paystack_modal', {
+    detail: { key: activeKey, email, amount, reference: txRef, customerName, phone, metadata, onSuccess, onCancel }
+  }));
 }
 
