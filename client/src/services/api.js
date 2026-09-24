@@ -326,7 +326,6 @@ export const api = {
     }
 
     const BUILTIN_PROMOS = {
-      'FIRST50': { code: 'FIRST50', discount_type: 'percentage', discount_value: 50, max_discount: 2500, min_order: 1500, description: '50% off first order up to ₦2,500' },
       'WELCOME1000': { code: 'WELCOME1000', discount_type: 'fixed', discount_value: 1000, max_discount: 1000, min_order: 1000, description: '₦1,000 First-Time Customer Giveaway' },
       'WIN20': { code: 'WIN20', discount_type: 'percentage', discount_value: 20, max_discount: 3000, min_order: 1000, description: '20% Spin & Win Prize' },
       'WIN10': { code: 'WIN10', discount_type: 'percentage', discount_value: 10, max_discount: 1500, min_order: 1000, description: '10% Spin & Win Prize' },

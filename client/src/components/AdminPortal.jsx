@@ -8707,7 +8707,7 @@ function AdminPortal() {
                         <span className="truncate">{copyContent?.customer_hero?.search_placeholder?.value || 'Search smoky jollof, asun, drinks...'}</span>
                       </div>
                       <div className="bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-bold px-2.5 py-1 rounded-xl">
-                        🎟️ {copyContent?.customer_hero?.promo_banner_code?.value || 'FIRST50'} · {copyContent?.customer_hero?.promo_banner_text?.value || '50% Off First Order'}
+                        🎟️ {copyContent?.customer_hero?.promo_banner_code?.value ? `${copyContent?.customer_hero?.promo_banner_code?.value} · ` : ''}{copyContent?.customer_hero?.promo_banner_text?.value || 'Special Offers Available'}
                       </div>
                     </div>
                   </div>

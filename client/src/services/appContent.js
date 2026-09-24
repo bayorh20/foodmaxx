@@ -26,13 +26,13 @@ export const DEFAULT_APP_CONTENT = {
     },
     promo_banner_code: {
       label: 'Promo Banner Coupon Code',
-      desc: 'Code highlighted in the top announcement bar',
-      value: 'FIRST50'
+      desc: 'Optional code highlighted in the top announcement bar',
+      value: ''
     },
     promo_banner_text: {
       label: 'Promo Banner Description',
-      desc: 'Text explaining the discount in the top banner',
-      value: '50% off your first order up to ₦2,500'
+      desc: 'Text explaining the promotion in the top banner',
+      value: 'Fresh smoky jollof, tender grills & treats'
     }
   },
   customer_tracking: {

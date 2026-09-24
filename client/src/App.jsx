@@ -2421,18 +2421,24 @@ function LiveOrderBanner({ orders, onGoToOrders }) {
 // PROMO BANNER (MATCHING MOCKUP)
 // ============================================================
 function PromoBanner({ onOrderNow, appCopy }) {
-  const code = getCopy(appCopy, 'customer_hero', 'promo_banner_code', 'FIRST50');
-  const promoText = getCopy(appCopy, 'customer_hero', 'promo_banner_text', '50% off up to ₦2,500');
-  const heroTitle = getCopy(appCopy, 'customer_hero', 'hero_title', 'Get 50% Off First Order!');
+  const code = getCopy(appCopy, 'customer_hero', 'promo_banner_code', '');
+  const promoText = getCopy(appCopy, 'customer_hero', 'promo_banner_text', 'Fresh & Delicious Everyday');
+  const heroTitle = getCopy(appCopy, 'customer_hero', 'hero_title', 'Fresh Meals, Fast Delivery');
 
   return (
     <div className="px-4 sm:px-0 mb-4 w-full">
       <div className="bg-gradient-to-r from-[#FF5525] via-[#FF6036] to-[#EA4C2A] rounded-2xl px-4 py-2.5 sm:px-5 sm:py-3 relative overflow-hidden flex items-center justify-between min-h-[82px] sm:min-h-[92px] shadow-md shadow-orange-500/15">
         <div className="relative z-10 max-w-[70%] sm:max-w-[75%] flex flex-col justify-center">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="bg-white/25 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
-              Code: {code}
-            </span>
+            {code ? (
+              <span className="bg-white/25 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+                Code: {code}
+              </span>
+            ) : (
+              <span className="bg-white/25 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+                Special Offer
+              </span>
+            )}
             <span className="text-white/90 text-[10px] sm:text-[11px] font-medium hidden xs:inline">
               • {promoText}
             </span>
@@ -3154,7 +3160,7 @@ function HomeTab({
 
   return (
     <div className="pb-8">
-      {/* 1. Promo Banner (FIRST50) */}
+      {/* 1. Promo Banner */}
       <PromoBanner onOrderNow={onGoToMenu} appCopy={appCopy} />
 
       {/* 2. Category Chips hidden per user preference */}
@@ -7284,22 +7290,10 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   const [paymentMethod, setPaymentMethod] = useState('paystack');
 
   // Saved spin prize from previous spin
-  const [savedSpinPrize, setSavedSpinPrize] = useState(() => {
-    try {
-      return localStorage.getItem('fmx_active_promo') || '';
-    } catch {
-      return '';
-    }
-  });
+  const [savedSpinPrize, setSavedSpinPrize] = useState('');
 
-  // Active Promo Code
-  const [promoCode, setPromoCode] = useState(() => {
-    try {
-      return localStorage.getItem('fmx_active_promo') || '';
-    } catch {
-      return '';
-    }
-  });
+  // Active Promo Code (empty by default - no hard-coded or stale coupon)
+  const [promoCode, setPromoCode] = useState('');
 
   const [discount, setDiscount] = useState(0);
   const [freeDelivery, setFreeDelivery] = useState(false);
@@ -7425,20 +7419,12 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   const total = Math.max(0, subtotal + deliveryFee + serviceFee - discount - firstTimeGiveawayDeduction);
   const totalSavings = discount + firstTimeGiveawayDeduction + (freeDelivery ? (selectedZone?.delivery_fee || 500) : 0);
 
-  // Auto-validate promo code from localStorage on mount
+  // Clear any legacy promo code from storage to prevent accidental auto-application
   useEffect(() => {
-    const saved = localStorage.getItem('fmx_active_promo');
-    if (saved && !discount && subtotal > 0) {
-      api.validatePromo(saved, subtotal)
-        .then(res => {
-          if (res?.success && res.data) {
-            setDiscount(res.data.discount || res.data.discount_value || 0);
-            setFreeDelivery(Boolean(res.data.free_delivery));
-          }
-        })
-        .catch(() => {});
-    }
-  }, [subtotal]);
+    try {
+      localStorage.removeItem('fmx_active_promo');
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const cfg = getStoredPaystackConfig();
