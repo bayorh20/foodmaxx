@@ -97,8 +97,17 @@ function getToken() {
   return localStorage.getItem('fmx_token');
 }
 
+import { FOODMAXX_MENU_ITEMS } from './mockData.js';
+
 export function getStoredProducts() {
-  return [];
+  try {
+    const cached = localStorage.getItem('fmx_cached_products');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return FOODMAXX_MENU_ITEMS || [];
 }
 
 export function getStoredZones() {

@@ -1387,6 +1387,10 @@ function CustomerPortal() {
           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative overscroll-contain pb-32 sm:pb-36" 
           style={{ perspective: 1200 }}
         >
+          {/* Subtle Ambient Background Light Orbs for Frosted Glass Depth */}
+          <div className="absolute top-10 -left-16 w-60 h-60 rounded-full bg-gradient-to-tr from-[#EA4C2A]/10 to-amber-500/10 blur-3xl pointer-events-none -z-10" />
+          <div className="absolute top-[40%] -right-16 w-64 h-64 rounded-full bg-gradient-to-bl from-rose-500/10 via-orange-400/8 to-transparent blur-3xl pointer-events-none -z-10" />
+          <div className="absolute top-[75%] -left-12 w-60 h-60 rounded-full bg-gradient-to-tr from-amber-500/10 to-red-500/8 blur-3xl pointer-events-none -z-10" />
           {/* Native Animated & Simple Pull To Refresh */}
           <div
             className="w-full flex items-center justify-center overflow-visible transition-all duration-150 pointer-events-none sticky top-0 z-50 py-1"
@@ -2350,30 +2354,34 @@ function ProductQuantityStepper({ item, onQuickAdd, isDark, size = 'sm' }) {
 }
 
 // ============================================================
-// SKELETON LOADER CARD
+// SKELETON LOADER CARD (1 COLUMN FROSTED GLASS)
 // ============================================================
 function SkeletonCard() {
   return (
-    <div className="w-full rounded-xl overflow-hidden bg-gray-100 dark:bg-[#1A1D24] animate-pulse">
-      <div className="h-32 xs:h-36 sm:h-44 bg-gray-200 dark:bg-[#252930]" />
-      <div className="p-3 space-y-2">
-        <div className="h-3 bg-gray-200 dark:bg-[#252930] rounded-full w-3/4" />
-        <div className="h-3 bg-gray-200 dark:bg-[#252930] rounded-full w-1/2" />
-        <div className="h-7 bg-gray-200 dark:bg-[#252930] rounded-xl mt-2" />
+    <div className="w-full rounded-[24px] p-3 sm:p-3.5 bg-white/70 dark:bg-[#161822]/70 backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.25)] flex flex-col">
+      {/* 1-column image aspect ratio */}
+      <div className="w-full aspect-[16/9] sm:aspect-[2/1] max-h-72 rounded-2xl bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 animate-pulse" />
+      {/* Bottom row: text left, circular button right */}
+      <div className="mt-3 flex items-center justify-between gap-3 px-1">
+        <div className="flex-1 space-y-1.5">
+          <div className="h-4 bg-slate-200 dark:bg-slate-700/80 rounded-full w-3/5 animate-pulse" />
+          <div className="h-4 bg-slate-200/80 dark:bg-slate-700/60 rounded-full w-1/3 animate-pulse" />
+        </div>
+        <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700/80 shrink-0 animate-pulse" />
       </div>
     </div>
   );
 }
 
-function SkeletonSection({ title }) {
+function SkeletonSection({ title = "Top picks on FoodMaxx" }) {
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-between px-4 mb-3">
-        <div className="h-4 w-36 bg-gray-200 dark:bg-[#1A1D24] rounded-full animate-pulse" />
-        <div className="h-3 w-14 bg-gray-100 dark:bg-[#1A1D24] rounded-full animate-pulse" />
+      <div className="flex items-center justify-between px-4 sm:px-0 mb-3.5">
+        <div className="h-5 w-44 bg-slate-200 dark:bg-[#1A1D24] rounded-full animate-pulse" />
+        <div className="h-4 w-16 bg-slate-100 dark:bg-[#1A1D24] rounded-full animate-pulse" />
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 px-4">
-        {[1,2,3,4].map(i => <SkeletonCard key={i} />)}
+      <div className="grid grid-cols-1 gap-y-6 sm:gap-y-7 px-4 sm:px-0">
+        {[1, 2].map(i => <SkeletonCard key={i} />)}
       </div>
     </div>
   );
@@ -2632,7 +2640,7 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
 
   return (
     <div 
-      className="fmx-product-card group relative w-full cursor-pointer flex flex-col select-none transition-transform duration-200 active:scale-[0.99]"
+      className="fmx-product-card group relative w-full cursor-pointer flex flex-col select-none transition-all duration-300 active:scale-[0.99] p-3 sm:p-3.5 rounded-[26px] bg-white/70 dark:bg-[#161822]/70 backdrop-blur-xl backdrop-saturate-150 border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.35)] hover:shadow-xl hover:border-white dark:hover:border-white/20"
       onClick={() => onSelect(item)}
     >
       {/* 1. Food Picture with soft rounded corners in 1-column layout */}
@@ -2645,12 +2653,30 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
           quality={80}
         />
 
-        {/* Favorite Heart Button (Top-right) */}
+        {/* Frosted Badges / Tags (Top-left) */}
+        {(item.badge || item.rating) && (
+          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10">
+            {item.badge && item.badge.toLowerCase() !== 'none' && (
+              <span className="bg-black/45 backdrop-blur-md border border-white/20 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs">
+                <Flame size={11} className="text-yellow-400 fill-yellow-400" />
+                <span>{item.badge}</span>
+              </span>
+            )}
+            {item.rating && (
+              <span className="bg-black/45 backdrop-blur-md border border-white/20 text-white font-bold text-[10px] px-2 py-1 rounded-full flex items-center gap-0.5 shadow-xs">
+                <Star size={10} className="text-amber-400 fill-amber-400" />
+                <span>{item.rating}</span>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Favorite Heart Button (Top-right) with Frosted Glass */}
         {onToggleFavorite && (
           <button 
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(item.id); }}
-            className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-xs flex items-center justify-center text-white active:scale-90 transition-transform cursor-pointer z-10"
+            className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-90 transition-transform cursor-pointer z-10 shadow-xs"
             title={isFavorite ? "Remove from favorites" : "Save to favorites"}
           >
             <Heart size={15} className={isFavorite ? 'fill-red-500 stroke-red-500' : 'stroke-white'} />
@@ -2659,8 +2685,8 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
 
         {/* Sold Out Overlay */}
         {!isAvailable && (
-          <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
-            <span className="bg-red-600 text-white font-black text-xs uppercase tracking-wider px-3 py-1.5 rounded-lg shadow-lg">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-20">
+            <span className="bg-red-600/90 backdrop-blur-sm border border-white/20 text-white font-black text-xs uppercase tracking-wider px-3.5 py-1.5 rounded-xl shadow-lg">
               Sold Out
             </span>
           </div>
@@ -2932,7 +2958,7 @@ const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickA
     return (
       <div
         onClick={() => isAvailable && onSelect(item)}
-        className={`fmx-product-card group relative w-full mb-3 rounded-2xl p-3 sm:p-3.5 transition-all duration-200 cursor-pointer flex items-center justify-between gap-3.5 border border-slate-200/80 dark:border-white/5 shadow-xs hover:border-slate-300 dark:hover:border-white/10 hover:shadow-xs bg-white dark:bg-[#181A20] ${!isAvailable ? 'opacity-65' : ''}`}
+        className={`fmx-product-card group relative w-full mb-3 rounded-2xl p-3 sm:p-3.5 transition-all duration-200 cursor-pointer flex items-center justify-between gap-3.5 border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] bg-white/75 dark:bg-[#161922]/70 backdrop-blur-xl backdrop-saturate-150 hover:shadow-md ${!isAvailable ? 'opacity-65' : ''}`}
       >
         {/* Left: Info, Price, and Stepper */}
         <div className="flex-1 min-w-0 pr-1 flex flex-col justify-between self-stretch py-0.5">
@@ -3277,8 +3303,8 @@ const MenuDishRow = React.memo(function MenuDishRow({ item, onSelect, onQuickAdd
   return (
     <div
       onClick={() => onSelect(item)}
-      className={`fmx-product-card flex items-center gap-3.5 py-3 border-b border-gray-100 dark:border-white/5 last:border-0 group cursor-pointer select-none transition-colors ${
-        isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-gray-50/50'
+      className={`fmx-product-card flex items-center gap-3.5 p-3 rounded-2xl border border-white/80 dark:border-white/10 bg-white/70 dark:bg-[#161822]/70 backdrop-blur-xl backdrop-saturate-150 shadow-xs group cursor-pointer select-none transition-all duration-200 hover:shadow-md mb-2.5 ${
+        isDark ? 'hover:bg-white/[0.08]' : 'hover:bg-white/90'
       }`}
     >
       {/* Left Dish Photo with optional Badge (Bigger: w-26 to w-30) */}
@@ -7463,10 +7489,13 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
             </div>
           </div>
 
-          {/* FoodMaxx Red App Badge */}
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#EA2A2A] shadow-md shadow-red-500/20 flex flex-col items-center justify-center p-1.5 shrink-0 border border-white/20 select-none">
-            <span className="text-[8px] sm:text-[9px] font-black text-white leading-none tracking-wider uppercase">FOOD</span>
-            <span className="text-[9px] sm:text-[10px] font-black text-white leading-tight tracking-tight uppercase">MAXX</span>
+          {/* Real FoodMaxx Logo */}
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl overflow-hidden shadow-md shadow-red-500/20 shrink-0 border border-red-500/20 select-none bg-white p-0.5">
+            <img 
+              src="/foodmaxx-logo.png" 
+              alt="FoodMaxx" 
+              className="w-full h-full object-cover rounded-[14px]" 
+            />
           </div>
         </div>
 
@@ -7475,7 +7504,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 
           {/* CARD 1: CART ITEMS PREVIEW (EXPANDABLE) */}
           <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
-            isDark ? 'bg-[#151821] border-white/8' : 'bg-white border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
+            isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
           }`}>
             <div 
               className="flex items-center justify-between cursor-pointer select-none"
@@ -7552,7 +7581,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 
           {/* CARD 2: DELIVERY ADDRESS & TIMING */}
           <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
-            isDark ? 'bg-[#151821] border-white/8' : 'bg-white border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
+            isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
           }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -7677,7 +7706,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 
           {/* CARD 3: CONTACT & RIDER NOTES */}
           <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
-            isDark ? 'bg-[#151821] border-white/8' : 'bg-white border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
+            isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
           }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -7824,14 +7853,14 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
             </div>
 
             {/* 1. FREE FIRST-TIME ₦1,000 GIVEAWAY CARD */}
-            <div className={`p-4 rounded-2xl border transition-all ${
+            <div className={`p-4 rounded-2xl border backdrop-blur-xl transition-all ${
               useFirstTimeGiveaway
                 ? isDark
                   ? 'bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-orange-500/15 border-amber-500/30 shadow-[0_4px_20px_rgba(245,158,11,0.10)]'
-                  : 'bg-gradient-to-r from-amber-50 via-rose-50/70 to-orange-50 border-amber-300 shadow-[0_4px_16px_rgba(245,158,11,0.06)]'
+                  : 'bg-gradient-to-r from-amber-50/90 via-rose-50/80 to-orange-50/90 border-amber-300/80 shadow-[0_4px_16px_rgba(245,158,11,0.06)]'
                 : isDark
-                  ? 'bg-white/5 border-white/10 opacity-75'
-                  : 'bg-slate-50 border-slate-200 opacity-75'
+                  ? 'bg-[#151821]/60 border-white/10 opacity-75'
+                  : 'bg-white/60 border-slate-200/80 opacity-75'
             }`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
@@ -7889,10 +7918,10 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
             </div>
 
             {/* 2. SPIN TO WIN REDEEM & PLAY CARD */}
-            <div className={`p-4 rounded-2xl border transition-all ${
+            <div className={`p-4 rounded-2xl border backdrop-blur-xl transition-all ${
               isDark
-                ? 'bg-gradient-to-r from-purple-950/30 via-indigo-950/20 to-pink-950/25 border-purple-500/30'
-                : 'bg-gradient-to-r from-purple-50 via-indigo-50/50 to-pink-50 border-purple-200'
+                ? 'bg-gradient-to-r from-purple-950/30 via-indigo-950/20 to-pink-950/25 border-purple-500/30 shadow-[0_4px_20px_rgba(168,85,247,0.1)]'
+                : 'bg-gradient-to-r from-purple-50/90 via-indigo-50/70 to-pink-50/90 border-purple-200/90 shadow-[0_4px_16px_rgba(168,85,247,0.05)]'
             }`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -7955,7 +7984,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 
             {/* 3. COUPONS & PROMO CODES TRAY */}
             <div className={`p-4 rounded-2xl border transition-all ${
-              isDark ? 'bg-[#151821] border-white/8' : 'bg-white border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
+              isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
             }`}>
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2.5">
@@ -8129,7 +8158,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 
           {/* CARD 5: PAYMENT METHOD */}
           <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
-            isDark ? 'bg-[#151821] border-white/8' : 'bg-white border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
+            isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
           }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -8206,7 +8235,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 
           {/* CARD 6: ORDER SUMMARY */}
           <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
-            isDark ? 'bg-[#151821] border-white/8' : 'bg-white border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
+            isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
           }`}>
             <div 
               className="flex items-center justify-between cursor-pointer select-none"
