@@ -311,28 +311,61 @@ export const api = {
 
   // Promotions (Firestore collection: promotions)
   validatePromo: async (code, subtotal = 0) => {
-    const promos = await getLivePromotions();
     const codeClean = (code || '').toUpperCase().trim();
-    const matched = promos.find(p => p.code === codeClean && p.is_active !== false);
+    if (!codeClean) {
+      return { success: false, message: 'Please enter a coupon code' };
+    }
+
+    const BUILTIN_PROMOS = {
+      'FIRST50': { code: 'FIRST50', discount_type: 'percentage', discount_value: 50, max_discount: 2500, min_order: 1500, description: '50% off first order up to ₦2,500' },
+      'WELCOME1000': { code: 'WELCOME1000', discount_type: 'fixed', discount_value: 1000, max_discount: 1000, min_order: 1000, description: '₦1,000 First-Time Customer Giveaway' },
+      'WIN20': { code: 'WIN20', discount_type: 'percentage', discount_value: 20, max_discount: 3000, min_order: 1000, description: '20% Spin & Win Prize' },
+      'WIN10': { code: 'WIN10', discount_type: 'percentage', discount_value: 10, max_discount: 1500, min_order: 1000, description: '10% Spin & Win Prize' },
+      'FREEMEAL': { code: 'FREEMEAL', discount_type: 'percentage', discount_value: 100, max_discount: 4500, min_order: 1000, description: '100% Free Meal Spin Reward' },
+      'FREEFRIES': { code: 'FREEFRIES', discount_type: 'fixed', discount_value: 1500, max_discount: 1500, min_order: 1000, description: 'Free French Fries voucher' },
+      'FREEDRINK': { code: 'FREEDRINK', discount_type: 'fixed', discount_value: 1000, max_discount: 1000, min_order: 1000, description: 'Free Chilled Drink voucher' },
+      'FREEDEL': { code: 'FREEDEL', discount_type: 'free_delivery', discount_value: 0, free_delivery: true, min_order: 1500, description: 'Free Delivery voucher' },
+      'FOODMAXX10': { code: 'FOODMAXX10', discount_type: 'percentage', discount_value: 10, max_discount: 2000, min_order: 1000, description: '10% Loyalty discount' }
+    };
+
+    let matched = null;
+    try {
+      const promos = await getLivePromotions();
+      matched = (promos || []).find(p => p.code === codeClean && p.is_active !== false);
+    } catch (e) {
+      console.warn('Live promotions fetch fallback:', e);
+    }
+
+    if (!matched && BUILTIN_PROMOS[codeClean]) {
+      matched = BUILTIN_PROMOS[codeClean];
+    }
+
     if (!matched) {
       return { success: false, message: 'Invalid or expired promo code' };
     }
+
     if (matched.min_order && Number(subtotal) < Number(matched.min_order)) {
       return { success: false, message: `Minimum order of ₦${matched.min_order.toLocaleString()} required` };
     }
+
     let discount = 0;
+    const isFreeDelivery = Boolean(matched.free_delivery || matched.discount_type === 'free_delivery');
     if (matched.discount_type === 'percentage') {
       discount = Math.round((Number(subtotal) * Number(matched.discount_value)) / 100);
       if (matched.max_discount) discount = Math.min(discount, Number(matched.max_discount));
-    } else {
-      discount = Number(matched.discount_value || 0);
+    } else if (matched.discount_type === 'fixed') {
+      discount = Math.min(Number(matched.discount_value || 0), Number(subtotal));
     }
+
     return {
       success: true,
       data: {
         code: matched.code,
+        discount: discount,
         discount_value: discount,
         discount_type: matched.discount_type,
+        free_delivery: isFreeDelivery,
+        description: matched.description || `Saved ₦${discount.toLocaleString()}`,
         message: `Promo code ${matched.code} applied! Saved ₦${discount.toLocaleString()}`
       }
     };
