@@ -2624,121 +2624,94 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
     }
   };
 
-  const activeTag = (item.badge || item.tag || '').trim();
-  const hasTag = Boolean(activeTag && activeTag.toLowerCase() !== 'none');
+  const displayPrice = item.price ? `N${Number(item.price).toLocaleString()}` : 'N2,500';
 
   return (
     <div 
-      className="fmx-product-card group relative w-full bg-white dark:bg-[#151821] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg flex flex-col justify-between border border-slate-200/80 dark:border-white/10 shadow-xs hover:border-slate-300 dark:hover:border-white/20"
+      className="fmx-product-card group relative w-full cursor-pointer flex flex-col select-none transition-transform duration-200 active:scale-[0.99]"
       onClick={() => onSelect(item)}
     >
-      {/* Wide, Balanced Food Photo Container (Compact Height, Generous Width) */}
-      <div className="relative h-32 xs:h-34 sm:h-38 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0">
+      {/* 1. Food Picture with soft rounded corners matching screenshot */}
+      <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 shadow-xs">
         <OptimizedProductImage 
           src={item.image_url} 
           alt={item.name} 
           isAvailable={isAvailable}
-          width={380}
-          quality={75}
+          width={400}
+          quality={80}
         />
 
-        {/* Gradient dark scrim for contrast */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
-
-        {/* Top Badges & Favorite Heart Button */}
-        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1 z-10">
-          {hasTag ? (
-            <span className="bg-[#EA4C2A] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-md border border-white/20">
-              {activeTag}
-            </span>
-          ) : (
-            <span className="bg-[#EA4C2A] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-md border border-white/20">
-              Popular
-            </span>
-          )}
-
-          {/* Favorite Heart Button */}
+        {/* Favorite Heart Button (Top-right) */}
+        {onToggleFavorite && (
           <button 
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(item.id); }}
-            className="w-8 h-8 rounded-full bg-black/50 hover:bg-black/75 border border-white/20 flex items-center justify-center text-white active:scale-90 transition-all cursor-pointer shadow-md hover:text-red-400 shrink-0"
+            className="absolute top-2 right-2 w-7.5 h-7.5 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-xs flex items-center justify-center text-white active:scale-90 transition-transform cursor-pointer z-10"
             title={isFavorite ? "Remove from favorites" : "Save to favorites"}
           >
-            <Heart size={15} className={isFavorite ? 'fill-red-500 stroke-red-500 scale-110' : 'stroke-white'} />
+            <Heart size={14} className={isFavorite ? 'fill-red-500 stroke-red-500' : 'stroke-white'} />
           </button>
-        </div>
-
-        {/* Prep Time Overlay */}
-        {item.prep_time_min && (
-          <span className="absolute bottom-2.5 left-2.5 bg-black/65 text-white text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10 flex items-center gap-1 shadow-xs">
-            <Clock size={10} className="text-amber-400" />
-            <span>{item.prep_time_min}m</span>
-          </span>
         )}
 
         {/* Sold Out Overlay */}
         {!isAvailable && (
-          <div className="absolute inset-0 bg-black/75 flex items-center justify-center z-20">
-            <span className="bg-red-600 text-white font-black text-xs uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-2xl border border-white/30">
+          <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
+            <span className="bg-red-600 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-lg">
               Sold Out
             </span>
           </div>
         )}
       </div>
       
-      {/* Content Container (Bigger Title & Price, Description Removed per user request) */}
-      <div className="p-3 sm:p-4 flex flex-col justify-between flex-1 gap-2.5">
-        <div>
-          <h3 className="font-black text-sm sm:text-base text-slate-950 dark:text-white leading-snug line-clamp-2 break-words group-hover:text-[#EA4C2A] transition-colors">
+      {/* 2. Text and Circular Add Button Row matching exact screenshot */}
+      <div className="mt-2.5 sm:mt-3 flex items-center justify-between gap-2 px-0.5">
+        {/* Left Column: Title and Bold Red-Orange Price */}
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-[14px] sm:text-[15px] text-slate-900 dark:text-white leading-tight truncate">
             {item.name}
           </h3>
+          <div className="font-black text-base sm:text-lg text-[#EA2A2A] tracking-tight mt-0.5">
+            {displayPrice}
+          </div>
         </div>
-        
-        {/* Price & Add / Stepper */}
-        <div className="flex items-center justify-between gap-1 pt-2.5 border-t border-slate-100 dark:border-white/10 mt-auto">
-          <div className="min-w-0 flex-1">
-            <span className="font-black text-sm sm:text-base md:text-lg text-slate-950 dark:text-white tracking-tight leading-none block truncate">
-              {fmt(item.price || 4500)}
-            </span>
-          </div>
 
-          <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-            {inCartQty === 0 ? (
-              <button 
-                disabled={!isAvailable}
-                onClick={handleAdd} 
-                className="h-8.5 px-3 sm:px-3.5 rounded-xl bg-[#EA4C2A] hover:bg-[#D42222] active:scale-95 disabled:opacity-40 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-red-500/20 transition-all cursor-pointer shrink-0"
-                title="Add to cart"
+        {/* Right Column: Circular Red-Orange Plus Button (or matching capsule stepper) */}
+        <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+          {inCartQty === 0 ? (
+            <button 
+              type="button"
+              disabled={!isAvailable}
+              onClick={handleAdd} 
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#EA2A2A] hover:bg-[#D42222] active:scale-90 disabled:opacity-40 text-white flex items-center justify-center shadow-xs cursor-pointer transition-transform shrink-0"
+              title="Add to cart"
+            >
+              <Plus size={20} className="stroke-[3]" />
+            </button>
+          ) : (
+            <div 
+              className="bg-[#EA2A2A] text-white rounded-full p-0.5 flex items-center gap-1 shadow-xs h-9 sm:h-10"
+            >
+              <button
+                type="button"
+                onClick={handleMinus}
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black/15 hover:bg-black/25 active:scale-85 text-white flex items-center justify-center cursor-pointer transition-transform shrink-0"
+                title="Decrease"
               >
-                <Plus size={15} className="stroke-[3]" />
-                <span>Add</span>
+                <Minus size={13} className="stroke-[3]" />
               </button>
-            ) : (
-              <div 
-                className="bg-[#EA4C2A] text-white rounded-xl p-0.5 flex items-center gap-1 shadow-md shadow-red-500/20 h-8.5"
+              <span className="font-black text-xs sm:text-sm min-w-[16px] text-center select-none text-white px-0.5">
+                {inCartQty}
+              </span>
+              <button
+                type="button"
+                onClick={handlePlus}
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black/15 hover:bg-black/25 active:scale-85 text-white flex items-center justify-center cursor-pointer transition-transform shrink-0"
+                title="Increase"
               >
-                <button
-                  type="button"
-                  onClick={handleMinus}
-                  className="w-6.5 h-6.5 rounded-lg bg-black/20 hover:bg-black/35 active:scale-90 text-white flex items-center justify-center cursor-pointer transition-transform shrink-0"
-                  title="Decrease"
-                >
-                  <Minus size={12} className="stroke-[3]" />
-                </button>
-                <span className="font-black text-xs sm:text-sm min-w-[16px] text-center select-none text-white px-0.5">
-                  {inCartQty}
-                </span>
-                <button
-                  type="button"
-                  onClick={handlePlus}
-                  className="w-6.5 h-6.5 rounded-lg bg-black/20 hover:bg-black/35 active:scale-90 text-white flex items-center justify-center cursor-pointer transition-transform shrink-0"
-                  title="Increase"
-                >
-                  <Plus size={12} className="stroke-[3]" />
-                </button>
-              </div>
-            )}
-          </div>
+                <Plus size={13} className="stroke-[3]" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -2772,8 +2745,8 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
         </button>
       </div>
       
-      {/* Wider Product Cards Grid (2 wide cols on mobile, 2 on tablet, 3 on large screens) */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5 lg:gap-6 px-4 sm:px-0">
+      {/* 2-column Product Cards Grid matching user screenshot */}
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 px-4 sm:px-0">
         {picks.map((item, idx) => (
           <TopPickCard 
             key={item.id || idx} 
