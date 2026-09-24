@@ -1520,20 +1520,6 @@ function CustomerPortal() {
                 </div>
               </div>
 
-              {/* Delivery Address Pill (Simple & Clean) */}
-              <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setLocationsModalOpen(true)}
-                  className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 hover:text-[#EA4C2A] dark:hover:text-[#FF6B4A] transition-colors group cursor-pointer text-left py-0.5"
-                >
-                  <MapPin size={14} className="text-[#EA4C2A] shrink-0" />
-                  <span className="font-bold text-xs sm:text-sm truncate max-w-[280px]">
-                    {selectedAddress ? `${selectedAddress.address}` : (selectedZone?.name ? `${selectedZone.name}, Ibadan` : 'Bodija, Ibadan')}
-                  </span>
-                  <ChevronDown size={13} className="text-slate-400 group-hover:text-[#EA4C2A] transition-transform shrink-0" />
-                </button>
-              </div>
 
               {/* Search Bar Row */}
               <div className="relative flex items-center bg-slate-100 dark:bg-[#1A1D24] text-slate-900 dark:text-white rounded-xl px-3.5 py-2.5 border border-slate-200/60 dark:border-white/5 focus-within:border-[#EA4C2A]/60 focus-within:bg-white dark:focus-within:bg-[#1A1D24] transition-all shadow-xs">
@@ -7086,9 +7072,30 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyInput, setKeyInput] = useState('');
 
+  // Direct delivery address state
+  const [deliveryAddress, setDeliveryAddress] = useState(() => {
+    try {
+      return localStorage.getItem('fmx_last_delivery_address') || user?.address || selectedAddress?.address || '';
+    } catch {
+      return '';
+    }
+  });
+
   // Contact details
-  const [contactName, setContactName] = useState(user?.full_name || '');
-  const [contactPhone, setContactPhone] = useState(user?.phone || '');
+  const [contactName, setContactName] = useState(() => {
+    try {
+      return localStorage.getItem('fmx_last_name') || user?.full_name || '';
+    } catch {
+      return user?.full_name || '';
+    }
+  });
+  const [contactPhone, setContactPhone] = useState(() => {
+    try {
+      return localStorage.getItem('fmx_last_phone') || user?.phone || '';
+    } catch {
+      return user?.phone || '';
+    }
+  });
   const [contactEmail, setContactEmail] = useState(user?.email || '');
   const [isEditingContact, setIsEditingContact] = useState(false);
 
@@ -7097,6 +7104,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
       if (user.full_name && !contactName) setContactName(user.full_name);
       if (user.phone && !contactPhone) setContactPhone(user.phone);
       if (user.email && !contactEmail) setContactEmail(user.email);
+      if (user.address && !deliveryAddress) setDeliveryAddress(user.address);
     }
   }, [user]);
 
@@ -7317,9 +7325,25 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   async function placeOrder() {
     if (cart.items.length === 0) { toast('Cart is empty', 'error'); return; }
 
+    const cleanDeliveryAddress = deliveryAddress.trim();
+    if (!cleanDeliveryAddress) {
+      toast('Please enter your delivery address', 'warning');
+      return;
+    }
+
     const nameToUse = contactName.trim() || user?.full_name || 'FoodMaxx Customer';
-    const phoneToUse = contactPhone.trim() || user?.phone || '+234 800 000 0000';
+    const phoneToUse = (contactPhone.trim() || user?.phone || '').trim();
+    if (!phoneToUse) {
+      toast('Please enter your phone number so our rider can reach you', 'warning');
+      return;
+    }
     const emailToUse = contactEmail.trim() || user?.email || 'customer@foodmaxx.ng';
+
+    try {
+      localStorage.setItem('fmx_last_delivery_address', cleanDeliveryAddress);
+      localStorage.setItem('fmx_last_phone', phoneToUse);
+      if (nameToUse) localStorage.setItem('fmx_last_name', nameToUse);
+    } catch {}
 
     if (isGift && (!recipientName.trim() || !recipientPhone.trim())) {
       toast('Please enter recipient name and phone for the gift order', 'warning');
@@ -7362,9 +7386,9 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         customer_phone: phoneToUse,
         customer_email: emailToUse || activeUser?.email,
         cart_items: cartItems,
-        delivery_address: selectedAddress ? `${selectedAddress.label}: ${selectedAddress.address}` : (selectedZone?.name || 'Selected Location'),
-        delivery_zone: selectedZone?.name || 'Bodija',
-        delivery_instructions: instructions || '',
+        delivery_address: cleanDeliveryAddress,
+        delivery_zone: selectedZone?.name || 'Bodija & Ibadan Axis',
+        delivery_instructions: [instructions, landmark].filter(Boolean).join(' · ') || '',
         payment_method: total === 0 ? (firstTimeGiveawayDeduction > 0 ? 'giveaway' : 'wallet') : 'paystack',
         promo_code: promoCode || '',
         delivery_lat: 7.435,
@@ -7500,389 +7524,226 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         </div>
 
         {/* Scrollable Form Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-3 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
 
-          {/* CARD 1: CART ITEMS PREVIEW (EXPANDABLE) */}
+          {/* SECTION 1: DELIVERY ADDRESS & CONTACT (Direct Input, Clean & Simple) */}
           <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
             isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
           }`}>
-            <div 
-              className="flex items-center justify-between cursor-pointer select-none"
-              onClick={() => {
-                triggerHaptic('selection');
-                setIsItemsOpen(prev => !prev);
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
-                  <ShoppingBag size={18} className="text-[#EA4C2A]" />
-                </div>
-                <div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">
-                    Order Items
-                  </span>
-                  <span className="text-xs text-slate-400 ml-1.5 font-medium">
-                    ({cart.items.reduce((s, i) => s + (i.qty || 1), 0)} items)
-                  </span>
-                </div>
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
+                <MapPin size={16} className="text-[#EA4C2A]" />
               </div>
-
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>{fmt(subtotal)}</span>
-                {isItemsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">Delivery Details</h3>
+                <p className="text-[11px] text-slate-400">Where should we deliver your hot food?</p>
               </div>
             </div>
 
-            {isItemsOpen && (
-              <div className="mt-3.5 divide-y divide-slate-100 dark:divide-white/5">
-                {cart.items.map((item, idx) => {
-                  const itemQty = Number(item.qty || item.quantity || 1);
-                  const itemPrice = Number(item.price || item.unit_price || 0);
-                  return (
-                    <div key={item.id || idx} className="py-2.5 first:pt-1 last:pb-0 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
-                          {item.image_url ? (
-                            <img
-                              src={getOptimizedImageUrl(item.image_url, 80, 80)}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <span className="text-xl">🍲</span>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
-                            {item.name}
-                          </p>
-                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-                            <span className="font-bold text-[#EA4C2A]">{itemQty}x</span>
-                            <span>·</span>
-                            <span>{item.selectedSize || 'Regular'}</span>
-                            {item.selectedExtras?.length > 0 && (
-                              <span className="truncate">· +{item.selectedExtras.length} extras</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                          {fmt(itemPrice * itemQty)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* CARD 2: DELIVERY ADDRESS & TIMING */}
-          <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
-            isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
-                  <MapPin size={18} className="text-[#EA4C2A]" />
-                </div>
-                <div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">Delivery Location</span>
-                  <p className="text-[11px] text-slate-400">Bodija & Ibadan Delivery Zones</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('selection');
-                  if (onChangeAddress) {
-                    onChangeAddress();
-                  } else {
-                    toast('Select or update your delivery address', 'info');
-                  }
-                }}
-                className="text-xs font-bold text-[#EA4C2A] hover:underline flex items-center gap-0.5 cursor-pointer"
-              >
-                <span>Change</span>
-                <ChevronRight size={14} className="stroke-[2.5]" />
-              </button>
-            </div>
-
-            {/* Address Display */}
-            <div className="mt-2.5 ml-12 sm:ml-13">
-              <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 leading-snug">
-                {selectedAddress ? `${selectedAddress.label}: ${selectedAddress.address}` : (selectedZone?.name ? `${selectedZone.name}, Ibadan` : 'Bodija, Ibadan')}
-              </p>
-            </div>
-
-            {/* Landmark Input */}
-            <div className={`mt-3.5 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all ${
-              isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-100/70 border-slate-200/50 text-slate-800'
-            }`}>
-              <FileText size={16} className="text-slate-400 shrink-0" />
-              <input
-                type="text"
-                placeholder="Add a landmark, gate color, or nearest junction"
-                value={landmark}
-                onChange={e => setLandmark(e.target.value)}
-                className="w-full text-xs font-medium placeholder:text-slate-400 bg-transparent outline-none"
-              />
-            </div>
-
-            {/* Delivery Timing Selector */}
-            <div className="mt-3.5 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('selection');
-                  setDeliveryTiming('now');
-                }}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
-                  deliveryTiming === 'now'
-                    ? 'border-[#EA4C2A] bg-rose-50/70 dark:bg-rose-950/30 text-[#EA4C2A]'
-                    : isDark
-                      ? 'border-white/10 bg-white/5 text-slate-400'
-                      : 'border-slate-200 bg-slate-50 text-slate-600'
-                }`}
-              >
-                <Zap size={16} className={deliveryTiming === 'now' ? 'text-[#EA4C2A]' : 'text-slate-400'} />
-                <div>
-                  <div className="text-xs font-bold leading-tight">Instant (25-35m)</div>
-                  <div className="text-[10px] opacity-75">Cooked & dispatched hot</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('selection');
-                  setDeliveryTiming('schedule');
-                }}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
-                  deliveryTiming === 'schedule'
-                    ? 'border-[#EA4C2A] bg-rose-50/70 dark:bg-rose-950/30 text-[#EA4C2A]'
-                    : isDark
-                      ? 'border-white/10 bg-white/5 text-slate-400'
-                      : 'border-slate-200 bg-slate-50 text-slate-600'
-                }`}
-              >
-                <Clock size={16} className={deliveryTiming === 'schedule' ? 'text-[#EA4C2A]' : 'text-slate-400'} />
-                <div>
-                  <div className="text-xs font-bold leading-tight">Schedule Later</div>
-                  <div className="text-[10px] opacity-75">Pick date & time slot</div>
-                </div>
-              </button>
-            </div>
-
-            {deliveryTiming === 'schedule' && (
-              <div className="mt-2.5 p-3 rounded-xl bg-slate-100/70 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={scheduledDay}
-                    onChange={e => setScheduledDay(e.target.value)}
-                    className="w-full text-xs font-semibold p-2 rounded-lg bg-white dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 outline-none"
-                  >
-                    <option value="Today">Today</option>
-                    <option value="Tomorrow">Tomorrow</option>
-                  </select>
-                  <select
-                    value={scheduledSlot}
-                    onChange={e => setScheduledSlot(e.target.value)}
-                    className="w-full text-xs font-semibold p-2 rounded-lg bg-white dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 outline-none"
-                  >
-                    <option value="12:30 PM - 1:00 PM">12:30 PM - 1:00 PM</option>
-                    <option value="1:00 PM - 1:30 PM (Lunch)">1:00 PM - 1:30 PM (Lunch)</option>
-                    <option value="2:00 PM - 2:30 PM">2:00 PM - 2:30 PM</option>
-                    <option value="5:30 PM - 6:00 PM">5:30 PM - 6:00 PM</option>
-                    <option value="7:00 PM - 7:30 PM (Dinner)">7:00 PM - 7:30 PM (Dinner)</option>
-                    <option value="8:00 PM - 8:30 PM">8:00 PM - 8:30 PM</option>
-                  </select>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* CARD 3: CONTACT & RIDER NOTES */}
-          <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
-            isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
-                  <User size={18} className="text-[#EA4C2A]" />
-                </div>
-                <span className="text-sm font-bold text-slate-900 dark:text-white">Contact Details</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('selection');
-                  setIsEditingContact(prev => !prev);
-                }}
-                className="text-xs font-bold text-[#EA4C2A] hover:underline flex items-center gap-0.5 cursor-pointer"
-              >
-                <span>{isEditingContact ? 'Done' : 'Edit'}</span>
-                <ChevronRight size={14} className="stroke-[2.5]" />
-              </button>
-            </div>
-
-            {!isEditingContact ? (
-              <div className="mt-2.5 ml-12 sm:ml-13">
-                <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                  {contactName.trim() || user?.full_name || 'FoodMaxx Customer'}
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                  {contactPhone.trim() || user?.phone || '+234 802 345 6789'}
-                </p>
-              </div>
-            ) : (
-              <div className="mt-3.5 ml-12 sm:ml-13 space-y-2">
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={contactName}
-                  onChange={e => setContactName(e.target.value)}
-                  className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium ${
-                    isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                  }`}
-                />
-                <input
-                  type="tel"
-                  placeholder="Phone Number"
-                  value={contactPhone}
-                  onChange={e => setContactPhone(e.target.value)}
-                  className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium ${
-                    isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                  }`}
-                />
-              </div>
-            )}
-
-            {/* Rider Instructions */}
-            <div className={`mt-3 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all ${
-              isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-100/70 border-slate-200/50 text-slate-800'
-            }`}>
-              <MessageSquare size={16} className="text-slate-400 shrink-0" />
-              <input
-                type="text"
-                placeholder="Rider instructions (e.g. Call upon arrival, leave with security)"
-                value={instructions}
-                onChange={e => setInstructions(e.target.value)}
-                className="w-full text-xs font-medium placeholder:text-slate-400 bg-transparent outline-none"
-              />
-            </div>
-
-            {/* Surprise Gift Collapsible */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('selection');
-                  setIsGift(prev => !prev);
-                }}
-                className="text-xs font-bold text-[#EA4C2A] flex items-center gap-1.5 cursor-pointer hover:underline"
-              >
-                <Gift size={14} />
-                <span>{isGift ? 'Cancel Surprise Gift' : 'Sending as a gift to someone?'}</span>
-              </button>
-
-              {isGift && (
-                <div className="mt-3 p-3.5 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 space-y-2.5">
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    Recipient Details
-                  </p>
+            {/* Direct Delivery Address Input */}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                  Delivery Address <span className="text-[#EA4C2A]">*</span>
+                </label>
+                <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all ${
+                  isDark
+                    ? 'bg-white/5 border-white/10 text-white focus-within:border-[#EA4C2A]/70 focus-within:bg-white/10'
+                    : 'bg-slate-50/80 border-slate-200 text-slate-900 focus-within:border-[#EA4C2A]/70 focus-within:bg-white'
+                }`}>
+                  <MapPin size={16} className="text-[#EA4C2A] shrink-0" />
                   <input
                     type="text"
-                    placeholder="Recipient's Name"
-                    value={recipientName}
-                    onChange={e => setRecipientName(e.target.value)}
-                    className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium ${
-                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-                    }`}
+                    required
+                    placeholder="Enter street address, house/apt & area (e.g. 14 Awolowo Ave, Bodija)"
+                    value={deliveryAddress}
+                    onChange={e => setDeliveryAddress(e.target.value)}
+                    className="w-full text-xs sm:text-sm font-medium placeholder:text-slate-400 bg-transparent outline-none"
                   />
-                  <input
-                    type="tel"
-                    placeholder="Recipient's Phone Number"
-                    value={recipientPhone}
-                    onChange={e => setRecipientPhone(e.target.value)}
-                    className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium ${
-                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-                    }`}
-                  />
-                  <textarea
-                    placeholder="Gift message note on box (optional)"
-                    value={giftNote}
-                    onChange={e => setGiftNote(e.target.value)}
-                    rows={2}
-                    className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium resize-none ${
-                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-                    }`}
-                  />
-                  <label className="flex items-center gap-2 cursor-pointer pt-1">
-                    <input
-                      type="checkbox"
-                      checked={hidePrice}
-                      onChange={e => setHidePrice(e.target.checked)}
-                      className="rounded text-[#EA4C2A] focus:ring-[#EA4C2A]"
-                    />
-                    <span className="text-xs text-slate-600 dark:text-slate-300">
-                      Hide prices on delivery receipt slip
-                    </span>
-                  </label>
+                  {deliveryAddress && (
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryAddress('')}
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-white shrink-0 p-0.5 cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
+
+              {/* Contact Info (2 Columns) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    Phone Number <span className="text-[#EA4C2A]">*</span>
+                  </label>
+                  <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all ${
+                    isDark ? 'bg-white/5 border-white/10 text-white focus-within:border-[#EA4C2A]/70' : 'bg-slate-50/80 border-slate-200 text-slate-900 focus-within:border-[#EA4C2A]/70'
+                  }`}>
+                    <Phone size={15} className="text-slate-400 shrink-0" />
+                    <input
+                      type="tel"
+                      required
+                      placeholder="080 1234 5678"
+                      value={contactPhone}
+                      onChange={e => setContactPhone(e.target.value)}
+                      className="w-full text-xs sm:text-sm font-medium placeholder:text-slate-400 bg-transparent outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    Your Name
+                  </label>
+                  <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all ${
+                    isDark ? 'bg-white/5 border-white/10 text-white focus-within:border-[#EA4C2A]/70' : 'bg-slate-50/80 border-slate-200 text-slate-900 focus-within:border-[#EA4C2A]/70'
+                  }`}>
+                    <User size={15} className="text-slate-400 shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Full Name"
+                      value={contactName}
+                      onChange={e => setContactName(e.target.value)}
+                      className="w-full text-xs sm:text-sm font-medium placeholder:text-slate-400 bg-transparent outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Rider Note / Landmark Input */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                  Rider Note & Landmark <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                </label>
+                <div className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl border transition-all ${
+                  isDark ? 'bg-white/5 border-white/10 text-white focus-within:border-[#EA4C2A]/70' : 'bg-slate-50/80 border-slate-200 text-slate-900 focus-within:border-[#EA4C2A]/70'
+                }`}>
+                  <MessageSquare size={15} className="text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="e.g. Black gate, call upon arrival, leave with security"
+                    value={instructions}
+                    onChange={e => setInstructions(e.target.value)}
+                    className="w-full text-xs font-medium placeholder:text-slate-400 bg-transparent outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Surprise Gift Toggle */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('selection');
+                    setIsGift(prev => !prev);
+                  }}
+                  className="text-xs font-bold text-[#EA4C2A] flex items-center gap-1.5 cursor-pointer hover:underline"
+                >
+                  <Gift size={13} />
+                  <span>{isGift ? 'Remove Surprise Gift' : 'Sending this order as a surprise gift?'}</span>
+                </button>
+
+                {isGift && (
+                  <div className="mt-2.5 p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Recipient's Name"
+                        value={recipientName}
+                        onChange={e => setRecipientName(e.target.value)}
+                        className={`w-full text-xs p-2.5 rounded-lg border outline-none font-medium ${
+                          isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+                        }`}
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Recipient's Phone Number"
+                        value={recipientPhone}
+                        onChange={e => setRecipientPhone(e.target.value)}
+                        className={`w-full text-xs p-2.5 rounded-lg border outline-none font-medium ${
+                          isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+                        }`}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Special note on box (optional)"
+                      value={giftNote}
+                      onChange={e => setGiftNote(e.target.value)}
+                      className={`w-full text-xs p-2.5 rounded-lg border outline-none font-medium ${
+                        isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+                      }`}
+                    />
+                    <label className="flex items-center gap-2 cursor-pointer pt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={hidePrice}
+                        onChange={e => setHidePrice(e.target.checked)}
+                        className="rounded text-[#EA4C2A] focus:ring-[#EA4C2A]"
+                      />
+                      <span className="text-[11px] text-slate-600 dark:text-slate-300">
+                        Hide prices on delivery receipt slip
+                      </span>
+                    </label>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* CARD 4: SPECIAL OFFERS, GIVEAWAYS & SAVINGS HUB */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-1.5">
-                <Sparkles size={16} className="text-amber-500" />
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Offers & Savings Hub
-                </span>
+          {/* SECTION 2: OFFERS, GIVEAWAY & COUPONS (Clean & Rewarding) */}
+          <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
+            isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                  <Sparkles size={16} className="text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">Offers & Discounts</h3>
+                  <p className="text-[11px] text-slate-400">Save big on this order</p>
+                </div>
               </div>
               {totalSavings > 0 && (
-                <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
                   Saving {fmt(totalSavings)} 🎉
                 </span>
               )}
             </div>
 
-            {/* 1. FREE FIRST-TIME ₦1,000 GIVEAWAY CARD */}
-            <div className={`p-4 rounded-2xl border backdrop-blur-xl transition-all ${
+            {/* 1. First-Time ₦1,000 Giveaway Toggle */}
+            <div className={`p-3.5 rounded-2xl border transition-all mb-3 ${
               useFirstTimeGiveaway
                 ? isDark
-                  ? 'bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-orange-500/15 border-amber-500/30 shadow-[0_4px_20px_rgba(245,158,11,0.10)]'
-                  : 'bg-gradient-to-r from-amber-50/90 via-rose-50/80 to-orange-50/90 border-amber-300/80 shadow-[0_4px_16px_rgba(245,158,11,0.06)]'
+                  ? 'bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-orange-500/15 border-amber-500/30'
+                  : 'bg-gradient-to-r from-amber-50/90 via-rose-50/80 to-orange-50/90 border-amber-300/80'
                 : isDark
-                  ? 'bg-[#151821]/60 border-white/10 opacity-75'
-                  : 'bg-white/60 border-slate-200/80 opacity-75'
+                  ? 'bg-white/5 border-white/10 opacity-75'
+                  : 'bg-slate-50 border-slate-200/80 opacity-75'
             }`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-rose-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25">
-                    <Gift size={20} className="stroke-[2.5]" />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <Gift size={18} className="stroke-[2.5]" />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-black text-slate-900 dark:text-white">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
                         First-Time ₦1,000 Giveaway
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500 text-white shadow-xs">
+                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500 text-white">
                         Free Gift
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                      New customer welcome gift · Instant ₦1,000 off your food order
+                    <p className="text-[11px] text-slate-500 dark:text-slate-300 truncate">
+                      Instant ₦1,000 discount applied directly
                     </p>
                   </div>
                 </div>
 
-                {/* 1-Tap Toggle Switch */}
                 <button
                   type="button"
                   onClick={() => {
@@ -7905,9 +7766,9 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               </div>
 
               {useFirstTimeGiveaway && (
-                <div className="mt-3 pt-2.5 border-t border-amber-500/20 flex items-center justify-between text-xs">
+                <div className="mt-2.5 pt-2 border-t border-amber-500/20 flex items-center justify-between text-xs">
                   <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                    <Check size={14} className="stroke-[3]" />
+                    <Check size={13} className="stroke-[3]" />
                     ₦1,000 Welcome Giveaway applied!
                   </span>
                   <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
@@ -7917,99 +7778,43 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               )}
             </div>
 
-            {/* 2. SPIN TO WIN REDEEM & PLAY CARD */}
-            <div className={`p-4 rounded-2xl border backdrop-blur-xl transition-all ${
-              isDark
-                ? 'bg-gradient-to-r from-purple-950/30 via-indigo-950/20 to-pink-950/25 border-purple-500/30 shadow-[0_4px_20px_rgba(168,85,247,0.1)]'
-                : 'bg-gradient-to-r from-purple-50/90 via-indigo-50/70 to-pink-50/90 border-purple-200/90 shadow-[0_4px_16px_rgba(168,85,247,0.05)]'
+            {/* 2. Spin to win lucky wheel link */}
+            <div className={`p-3 rounded-2xl border mb-3 flex items-center justify-between gap-3 ${
+              isDark ? 'bg-purple-950/20 border-purple-500/30' : 'bg-purple-50/70 border-purple-200'
             }`}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/25">
-                    <Sparkles size={20} className="stroke-[2.5]" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-black text-slate-900 dark:text-white">
-                        Spin to Win Lucky Wheel
-                      </span>
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-600 text-white">
-                        Win up to 20%
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                      {savedSpinPrize
-                        ? `Won Prize Code: ${savedSpinPrize}`
-                        : 'Spin the wheel to win discounts or 100% free food!'}
-                    </p>
-                  </div>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
+                  <RotateCw size={15} />
                 </div>
-
-                {/* Spin Wheel Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic('medium');
-                    setSpinInCheckoutOpen(true);
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-purple-500/25 shrink-0 cursor-pointer transition-all"
-                >
-                  <RotateCw size={14} className="stroke-[2.5]" />
-                  <span>{savedSpinPrize ? 'Spin Again' : 'Spin Wheel'}</span>
-                </button>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    {savedSpinPrize ? `Prize: ${savedSpinPrize}` : 'Spin to Win Lucky Wheel'}
+                  </p>
+                  <p className="text-[10px] text-purple-600 dark:text-purple-300">
+                    Win up to 20% off or free meal
+                  </p>
+                </div>
               </div>
 
-              {/* Won prize quick apply / status banner */}
-              {savedSpinPrize && (
-                <div className="mt-3 pt-2.5 border-t border-purple-500/20 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300 font-semibold">
-                    <span>Active Prize: <strong className="font-mono font-bold">{savedSpinPrize}</strong></span>
-                  </div>
-                  {promoCode === savedSpinPrize && discount > 0 ? (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                      <Check size={13} className="stroke-[3]" /> Applied ({fmt(discount)})
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => applyPromo(savedSpinPrize)}
-                      className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
-                    >
-                      Redeem Prize →
-                    </button>
-                  )}
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('medium');
+                  setSpinInCheckoutOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-bold text-xs shrink-0 cursor-pointer transition-all"
+              >
+                {savedSpinPrize ? 'Spin Again' : 'Spin Wheel'}
+              </button>
             </div>
 
-            {/* 3. COUPONS & PROMO CODES TRAY */}
-            <div className={`p-4 rounded-2xl border transition-all ${
-              isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
-            }`}>
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center">
-                    <Tag size={16} />
-                  </div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">Coupons & Promo Codes</span>
-                </div>
-                {promoCode && discount > 0 && (
-                  <button
-                    type="button"
-                    onClick={removePromo}
-                    className="text-[11px] font-bold text-rose-500 hover:underline cursor-pointer"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-
-              {/* 1-Tap Quick Coupon Chips */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none">
+            {/* 3. Promo Code Input & 1-Tap Chips */}
+            <div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
                 {[
-                  { code: 'FIRST50', label: '50% OFF', desc: 'First Order' },
-                  { code: 'FOODMAXX10', label: '10% OFF', desc: 'All Items' },
-                  { code: 'FREEDEL', label: 'FREE DEL', desc: 'Free Delivery' }
+                  { code: 'FIRST50', label: '50% OFF' },
+                  { code: 'FOODMAXX10', label: '10% OFF' },
+                  { code: 'FREEDEL', label: 'FREE DEL' }
                 ].map(cp => {
                   const isSelected = promoCode === cp.code;
                   return (
@@ -8024,33 +7829,32 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                           applyPromo(cp.code);
                         }
                       }}
-                      className={`shrink-0 px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      className={`shrink-0 px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-[#EA4C2A] text-white border-[#EA4C2A] shadow-sm shadow-[#EA4C2A]/25'
+                          ? 'bg-[#EA4C2A] text-white border-[#EA4C2A]'
                           : isDark
                             ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                            : 'bg-slate-100 hover:bg-slate-200/80 border-slate-200/80 text-slate-700'
+                            : 'bg-slate-100 hover:bg-slate-200/80 border-slate-200 text-slate-700'
                       }`}
                     >
-                      <Percent size={12} />
+                      <Percent size={11} />
                       <span className="font-bold">{cp.code}</span>
                       <span className="text-[10px] opacity-80">({cp.label})</span>
-                      {isSelected && <Check size={12} className="stroke-[3]" />}
+                      {isSelected && <Check size={11} className="stroke-[3]" />}
                     </button>
                   );
                 })}
               </div>
 
-              {/* Custom Promo Code Input */}
-              <div className="mt-2.5 flex gap-2">
+              <div className="mt-1 flex gap-2">
                 <div className="relative flex-1">
                   <input
-                    className={`w-full pl-3.5 pr-8 py-2 rounded-xl text-xs uppercase font-bold border outline-none tracking-wider ${
+                    className={`w-full pl-3 pr-8 py-2 rounded-xl text-xs uppercase font-bold border outline-none tracking-wider ${
                       isDark
                         ? 'bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-[#EA4C2A]'
                         : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-gray-400 focus:border-[#EA4C2A]'
                     }`}
-                    placeholder="ENTER PROMO CODE (e.g. WIN20)"
+                    placeholder="PROMO CODE"
                     value={promoCode}
                     onChange={e => setPromoCode(e.target.value.toUpperCase())}
                     onKeyDown={e => { if (e.key === 'Enter') applyPromo(); }}
@@ -8058,7 +7862,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                   {promoCode && (
                     <button
                       type="button"
-                      onClick={() => setPromoCode('')}
+                      onClick={() => { setPromoCode(''); removePromo(); }}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
                     >
                       <X size={14} />
@@ -8070,10 +7874,10 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                   type="button"
                   onClick={() => { triggerHaptic('selection'); applyPromo(); }}
                   disabled={promoLoading || !promoCode}
-                  className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white rounded-xl font-bold text-xs disabled:opacity-50 cursor-pointer transition-all shrink-0 flex items-center gap-1.5"
+                  className="px-3.5 py-2 bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white rounded-xl font-bold text-xs disabled:opacity-50 cursor-pointer transition-all shrink-0 flex items-center gap-1"
                 >
                   {promoLoading ? (
-                    <RefreshCw size={14} className="animate-spin" />
+                    <RefreshCw size={13} className="animate-spin" />
                   ) : (
                     <span>Apply</span>
                   )}
@@ -8083,7 +7887,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               {discount > 0 && (
                 <div className="mt-2 flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
                   <span className="flex items-center gap-1">
-                    <CheckCircle size={14} />
+                    <CheckCircle size={13} />
                     Coupon "{promoCode}" applied
                   </span>
                   <span>−{fmt(discount)}</span>
@@ -8091,240 +7895,209 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               )}
             </div>
 
-            {/* 4. WALLET PERK CO-PAY OPTION */}
+            {/* 4. Wallet perk bonus if available */}
             {rawWalletBalance > 0 && (
-              <div className={`p-4 rounded-2xl border transition-all ${
-                useWalletBonus
-                  ? isDark
-                    ? 'bg-emerald-950/20 border-emerald-500/30'
-                    : 'bg-emerald-50/70 border-emerald-300'
-                  : isDark
-                    ? 'bg-white/5 border-white/10'
-                    : 'bg-slate-50 border-slate-200'
+              <div className={`mt-3 p-3 rounded-2xl border flex items-center justify-between gap-3 ${
+                isDark ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-emerald-50/70 border-emerald-200'
               }`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                      <Wallet size={20} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          FoodMaxx Wallet Perk
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                          {fmt(rawWalletBalance)} Available
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        Use your welcome wallet perks towards this order
-                      </p>
-                    </div>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <Wallet size={16} />
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      triggerHaptic('selection');
-                      setUseWalletBonus(prev => !prev);
-                    }}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      useWalletBonus ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-white/20'
-                    }`}
-                    role="switch"
-                    aria-checked={useWalletBonus}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                        useWalletBonus ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {useWalletBonus && walletDeduction > 0 && (
-                  <div className="mt-3 pt-2 border-t border-emerald-500/20 flex items-center justify-between text-xs">
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                      Deducted from wallet balance:
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block leading-tight">
+                      Wallet Credit ({fmt(rawWalletBalance)})
                     </span>
-                    <span className="font-black text-emerald-600 dark:text-emerald-400">
-                      −{fmt(walletDeduction)}
-                    </span>
+                    <span className="text-[10px] text-slate-400">Apply to reduce your order</span>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
+                </div>
 
-          {/* CARD 5: PAYMENT METHOD */}
-          <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
-            isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
-                  <CreditCard size={18} className="text-[#EA4C2A]" />
-                </div>
-                <div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">Payment Method</span>
-                  <p className="text-[11px] text-slate-400">
-                    {total === 0 ? '100% Free · Covered by perks & giveaway' : 'Secured 256-bit bank encrypted'}
-                  </p>
-                </div>
-              </div>
-              {total > 0 && (
                 <button
                   type="button"
                   onClick={() => {
-                    setKeyInput(paystackKey || '');
-                    setShowKeyModal(true);
+                    triggerHaptic('selection');
+                    setUseWalletBonus(prev => !prev);
                   }}
-                  className="text-[11px] font-semibold text-slate-400 hover:text-[#EA4C2A] flex items-center gap-1 cursor-pointer"
-                  title="Configure Paystack Key"
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                    useWalletBonus ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-white/20'
+                  }`}
+                  role="switch"
+                  aria-checked={useWalletBonus}
                 >
-                  <Key size={12} />
-                  <span>{isValidPaystackKey(paystackKey) ? 'Live' : 'Test Mode'}</span>
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      useWalletBonus ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
                 </button>
-              )}
-            </div>
-
-            {total === 0 ? (
-              /* 100% FREE ORDER BANNER */
-              <div className="mt-3 p-4 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-2xl flex items-center gap-3.5">
-                <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/30">
-                  <Check size={18} className="stroke-[3]" />
-                </div>
-                <div>
-                  <div className="text-xs font-black text-emerald-700 dark:text-emerald-400">
-                    🎉 100% FREE ORDER!
-                  </div>
-                  <div className="text-[11px] text-emerald-600/90 dark:text-emerald-300">
-                    Your order total is ₦0 after your Giveaway & Perks. No card or payment required!
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* PAYSTACK HIGHLIGHT */
-              <div
-                onClick={() => triggerHaptic('selection')}
-                className="mt-3 p-3.5 sm:p-4 bg-rose-50/50 dark:bg-rose-950/20 border-2 border-rose-300 dark:border-rose-800/60 rounded-2xl flex items-center justify-between cursor-pointer transition-all hover:bg-rose-50/70"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-5 h-5 rounded-full border-2 border-[#EA4C2A] flex items-center justify-center shrink-0">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#EA4C2A]" />
-                  </div>
-                  <div className="flex flex-col gap-[3px] shrink-0 justify-center">
-                    <div className="h-[2.5px] w-5 bg-[#00C3F7] rounded-full" />
-                    <div className="h-[2.5px] w-3.5 bg-[#00C3F7] rounded-full" />
-                    <div className="h-[2.5px] w-5 bg-[#00C3F7] rounded-full" />
-                    <div className="h-[2.5px] w-2.5 bg-[#00C3F7] rounded-full" />
-                  </div>
-                  <div>
-                    <span className="text-sm font-bold text-slate-900 dark:text-white block leading-tight">
-                      Pay with Paystack
-                    </span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                      Card, Bank Transfer, USSD, Apple Pay
-                    </span>
-                  </div>
-                </div>
-                <ChevronRight size={18} className="text-slate-400 shrink-0" />
               </div>
             )}
           </div>
 
-          {/* CARD 6: ORDER SUMMARY */}
+          {/* SECTION 3: ORDER ITEMS & PRICE BREAKDOWN (Compact & Clean) */}
           <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all ${
             isDark ? 'bg-[#151821]/80 backdrop-blur-xl border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.25)]' : 'bg-white/80 backdrop-blur-xl border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]'
           }`}>
             <div 
-              className="flex items-center justify-between cursor-pointer select-none"
+              className="flex items-center justify-between cursor-pointer select-none mb-3"
               onClick={() => {
                 triggerHaptic('selection');
-                setIsSummaryOpen(prev => !prev);
+                setIsItemsOpen(prev => !prev);
               }}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
-                  <ShoppingBag size={18} className="text-[#EA4C2A]" />
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#EA4C2A] flex items-center justify-center shrink-0">
+                  <ShoppingBag size={16} className="text-[#EA4C2A]" />
                 </div>
-                <span className="text-sm font-bold text-slate-900 dark:text-white">Order Summary</span>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                    Order Summary
+                  </h3>
+                  <span className="text-[11px] text-slate-400">
+                    {cart.items.reduce((s, i) => s + (i.qty || 1), 0)} items in cart
+                  </span>
+                </div>
               </div>
-              <button
-                type="button"
-                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                title={isSummaryOpen ? 'Collapse' : 'Expand'}
-              >
-                {isSummaryOpen ? (
-                  <ChevronUp size={20} className="stroke-[2.5]" />
-                ) : (
-                  <ChevronDown size={20} className="stroke-[2.5]" />
-                )}
-              </button>
+
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>{fmt(subtotal)}</span>
+                {isItemsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
             </div>
 
-            {isSummaryOpen && (
-              <div className="mt-4 space-y-2.5">
-                <div className="flex justify-between items-center text-xs sm:text-sm">
-                  <span className="text-slate-500 dark:text-slate-400 font-normal">Subtotal</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">{fmt(subtotal)}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs sm:text-sm">
-                  <span className="text-slate-500 dark:text-slate-400 font-normal">Delivery Fee</span>
-                  <span className={`font-semibold ${freeDelivery ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                    {freeDelivery ? 'FREE' : fmt(deliveryFee)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-xs sm:text-sm">
-                  <span className="text-slate-500 dark:text-slate-400 font-normal">Service & Packaging</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">{fmt(serviceFee)}</span>
-                </div>
-
-                {discount > 0 && (
-                  <div className="flex justify-between items-center text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 font-semibold">
-                    <span className="flex items-center gap-1">
-                      <Tag size={13} />
-                      Promo Discount ({promoCode})
-                    </span>
-                    <span>−{fmt(discount)}</span>
-                  </div>
-                )}
-
-                {firstTimeGiveawayDeduction > 0 && (
-                  <div className="flex justify-between items-center text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 font-bold">
-                    <span className="flex items-center gap-1">
-                      <Gift size={13} />
-                      First-Time ₦1,000 Giveaway
-                    </span>
-                    <span>−{fmt(firstTimeGiveawayDeduction)}</span>
-                  </div>
-                )}
-
-                {walletDeduction > 0 && (
-                  <div className="flex justify-between items-center text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 font-semibold">
-                    <span className="flex items-center gap-1">
-                      <Wallet size={13} />
-                      Wallet Perk Bonus
-                    </span>
-                    <span>−{fmt(walletDeduction)}</span>
-                  </div>
-                )}
-
-                <div className="border-t border-slate-100 dark:border-white/10 pt-3 flex justify-between items-center">
-                  <div>
-                    <span className="text-base font-bold text-slate-900 dark:text-white block">Total</span>
-                    {totalSavings > 0 && (
-                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                        You save {fmt(totalSavings)}! 🎉
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
-                    {fmt(total)}
-                  </span>
-                </div>
+            {/* Order Items Preview */}
+            {isItemsOpen && (
+              <div className="mb-3.5 divide-y divide-slate-100 dark:divide-white/5 border-b border-slate-100 dark:border-white/5 pb-2">
+                {cart.items.map((item, idx) => {
+                  const itemQty = Number(item.qty || item.quantity || 1);
+                  const itemPrice = Number(item.price || item.unit_price || 0);
+                  return (
+                    <div key={item.id || idx} className="py-2 first:pt-1 last:pb-1 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
+                          {item.image_url ? (
+                            <img
+                              src={getOptimizedImageUrl(item.image_url, 60, 60)}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span className="text-base">🍲</span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {item.name}
+                          </p>
+                          <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                            <span className="font-bold text-[#EA4C2A]">{itemQty}x</span>
+                            <span>·</span>
+                            <span>{fmt(itemPrice)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">
+                          {fmt(itemPrice * itemQty)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
+
+            {/* Price Breakdown */}
+            <div className="space-y-2 text-xs sm:text-sm">
+              <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+                <span>Subtotal</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{fmt(subtotal)}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+                <span>Delivery Fee</span>
+                <span className={`font-semibold ${freeDelivery ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                  {freeDelivery ? 'FREE' : fmt(deliveryFee)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+                <span>Service Fee</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{fmt(serviceFee)}</span>
+              </div>
+
+              {firstTimeGiveawayDeduction > 0 && (
+                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span className="flex items-center gap-1">
+                    <Gift size={13} />
+                    First-Time ₦1,000 Giveaway
+                  </span>
+                  <span>−{fmt(firstTimeGiveawayDeduction)}</span>
+                </div>
+              )}
+
+              {discount > 0 && (
+                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-semibold">
+                  <span className="flex items-center gap-1">
+                    <Tag size={13} />
+                    Coupon ({promoCode})
+                  </span>
+                  <span>−{fmt(discount)}</span>
+                </div>
+              )}
+
+              {walletDeduction > 0 && (
+                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-semibold">
+                  <span className="flex items-center gap-1">
+                    <Wallet size={13} />
+                    Wallet Credit
+                  </span>
+                  <span>−{fmt(walletDeduction)}</span>
+                </div>
+              )}
+
+              <div className="border-t border-slate-100 dark:border-white/10 pt-2.5 flex justify-between items-center">
+                <div>
+                  <span className="text-sm font-bold text-slate-900 dark:text-white block">Total to Pay</span>
+                  {totalSavings > 0 && (
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                      Total savings: {fmt(totalSavings)} 🎉
+                    </span>
+                  )}
+                </div>
+                <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+                  {fmt(total)}
+                </span>
+              </div>
+            </div>
+
+            {/* Payment Method Badge */}
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-white/10">
+              {total === 0 ? (
+                <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-2">
+                  <Check size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 stroke-[3]" />
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                    100% Free Order · No payment needed!
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <Lock size={12} className="text-emerald-500" />
+                    <span>Secured Paystack (Card, Transfer, USSD)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setKeyInput(paystackKey || '');
+                      setShowKeyModal(true);
+                    }}
+                    className="text-[10px] text-slate-400 hover:text-[#EA4C2A] cursor-pointer"
+                  >
+                    {isValidPaystackKey(paystackKey) ? 'Live' : 'Test Mode'}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Bottom spacer for comfortable scrolling above sticky dock */}
