@@ -2625,8 +2625,12 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
     : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
 
   return (
-    <div 
-      className="fmx-product-card group relative w-full cursor-pointer flex flex-col select-none transition-all duration-300 active:scale-[0.99] p-3 sm:p-3.5 rounded-[26px] bg-white/70 dark:bg-[#161822]/70 backdrop-blur-xl backdrop-saturate-150 border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.35)] hover:shadow-xl hover:border-white dark:hover:border-white/20"
+    <motion.div 
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "60px" }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      className="fmx-product-card group relative w-full cursor-pointer flex flex-col select-none p-3 sm:p-3.5 rounded-[26px] bg-white/70 dark:bg-[#161822]/70 backdrop-blur-xl backdrop-saturate-150 border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.35)] hover:shadow-xl hover:border-white dark:hover:border-white/20 will-change-transform"
       onClick={() => onSelect(item)}
     >
       {/* 1. Food Picture with soft rounded corners in 1-column layout */}
@@ -2638,24 +2642,6 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
           width={600}
           quality={80}
         />
-
-        {/* Frosted Badges / Tags (Top-left) */}
-        {(item.badge || item.rating) && (
-          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10">
-            {item.badge && item.badge.toLowerCase() !== 'none' && (
-              <span className="bg-black/45 backdrop-blur-md border border-white/20 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs">
-                <Flame size={11} className="text-yellow-400 fill-yellow-400" />
-                <span>{item.badge}</span>
-              </span>
-            )}
-            {item.rating && (
-              <span className="bg-black/45 backdrop-blur-md border border-white/20 text-white font-bold text-[10px] px-2 py-1 rounded-full flex items-center gap-0.5 shadow-xs">
-                <Star size={10} className="text-amber-400 fill-amber-400" />
-                <span>{item.rating}</span>
-              </span>
-            )}
-          </div>
-        )}
 
         {/* Favorite Heart Button (Top-right) with Frosted Glass */}
         {onToggleFavorite && (
@@ -2730,7 +2716,7 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 });
 
@@ -2942,33 +2928,20 @@ const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickA
 
   if (isFullWidth) {
     return (
-      <div
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "60px" }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
         onClick={() => isAvailable && onSelect(item)}
-        className={`fmx-product-card group relative w-full mb-3 rounded-2xl p-3 sm:p-3.5 transition-all duration-200 cursor-pointer flex items-center justify-between gap-3.5 border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] bg-white/75 dark:bg-[#161922]/70 backdrop-blur-xl backdrop-saturate-150 hover:shadow-md ${!isAvailable ? 'opacity-65' : ''}`}
+        className={`fmx-product-card group relative w-full mb-3 rounded-2xl p-3 sm:p-3.5 cursor-pointer flex items-center justify-between gap-3.5 border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] bg-white/75 dark:bg-[#161922]/70 backdrop-blur-xl backdrop-saturate-150 hover:shadow-md will-change-transform ${!isAvailable ? 'opacity-65' : ''}`}
       >
         {/* Left: Info, Price, and Stepper */}
         <div className="flex-1 min-w-0 pr-1 flex flex-col justify-between self-stretch py-0.5">
           <div>
-            <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
-              {hasTag && (
-                <span className="bg-[#EA4C2A] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs">
-                  {activeTag}
-                </span>
-              )}
-
-              <span className="text-[9px] font-bold uppercase tracking-wider text-[#EA4C2A] bg-orange-500/10 dark:bg-orange-500/20 px-1.5 py-0.5 rounded-md">
-                Pre-order
-              </span>
-
-              <span className="text-[10.5px] text-slate-400 font-medium flex items-center gap-0.5">
-                <Clock size={11} /> ~{item.prep_time_min || 20}m
-              </span>
-            </div>
-
             <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-white leading-snug line-clamp-2 break-words transition-colors">
               {item.name}
             </h3>
-            {/* Description removed per user request */}
           </div>
 
           <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-slate-100 dark:border-white/5">
@@ -2987,7 +2960,7 @@ const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickA
           </div>
         </div>
 
-        {/* Right: Bigger Picture with rounded corners and badges */}
+        {/* Right: Picture with soft rounded corners */}
         <div className="relative w-26 h-26 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 shadow-inner">
           <OptimizedProductImage
             src={item?.image_url || item?.image || item?.img || item?.photo_url || item?.picture || item?.thumbnail}
@@ -3005,7 +2978,7 @@ const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickA
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -3287,13 +3260,17 @@ const MenuDishRow = React.memo(function MenuDishRow({ item, onSelect, onQuickAdd
   const inCartQty = inCartIdx >= 0 ? cart.items[inCartIdx].qty : 0;
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "60px" }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
       onClick={() => onSelect(item)}
-      className={`fmx-product-card flex items-center gap-3.5 p-3 rounded-2xl border border-white/80 dark:border-white/10 bg-white/70 dark:bg-[#161822]/70 backdrop-blur-xl backdrop-saturate-150 shadow-xs group cursor-pointer select-none transition-all duration-200 hover:shadow-md mb-2.5 ${
+      className={`fmx-product-card flex items-center gap-3.5 p-3 rounded-2xl border border-white/80 dark:border-white/10 bg-white/70 dark:bg-[#161822]/70 backdrop-blur-xl backdrop-saturate-150 shadow-xs group cursor-pointer select-none transition-all duration-200 hover:shadow-md mb-2.5 will-change-transform ${
         isDark ? 'hover:bg-white/[0.08]' : 'hover:bg-white/90'
       }`}
     >
-      {/* Left Dish Photo with optional Badge (Bigger: w-26 to w-30) */}
+      {/* Left Dish Photo */}
       <div className="relative w-26 sm:w-30 h-26 sm:h-30 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0 shadow-xs">
         <OptimizedProductImage
           src={item?.image_url || item?.image || item?.img || item?.photo_url || item?.picture || item?.thumbnail}
@@ -3302,31 +3279,16 @@ const MenuDishRow = React.memo(function MenuDishRow({ item, onSelect, onQuickAdd
           width={280}
           quality={80}
         />
-        {item.badge === 'bestseller' || item.is_bestseller || item.badge === 'Bestseller' ? (
-          <span className="absolute top-1.5 left-1.5 bg-black/75 text-white text-[8.5px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-xs border border-white/10">
-            <Flame size={9} className="fill-white" />
-            <span>Bestseller</span>
-          </span>
-        ) : item.badge === 'new' || item.is_new || item.badge === 'New' ? (
-          <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[8.5px] font-bold px-2 py-0.5 rounded-full shadow-xs">
-            New
-          </span>
-        ) : null}
       </div>
 
-      {/* Right Column: Title, Heart, Ratings, Price & Stepper (Description removed per user request) */}
+      {/* Right Column: Title, Heart, Price & Stepper */}
       <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0 h-full">
-        {/* Row 1: Title + Pre-order Tag + Heart */}
+        {/* Row 1: Title + Heart */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0 pr-1">
-            <div className="flex items-start gap-1.5 flex-wrap">
-              <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white leading-snug line-clamp-2 break-words">
-                {item.name}
-              </h3>
-              <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#EA4C2A] bg-orange-500/10 dark:bg-orange-500/20 px-1.5 py-0.5 rounded-md shrink-0 mt-0.5">
-                Pre-order
-              </span>
-            </div>
+            <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white leading-snug line-clamp-2 break-words">
+              {item.name}
+            </h3>
           </div>
           <button
             type="button"
@@ -3363,7 +3325,7 @@ const MenuDishRow = React.memo(function MenuDishRow({ item, onSelect, onQuickAdd
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 });
 
@@ -7108,6 +7070,28 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
     }
   }, [user]);
 
+  // Instant silent registration on first input of Name
+  const triggerAutoSilentRegister = useCallback(async (nameVal, phoneVal) => {
+    const cleanName = (nameVal ?? contactName).trim();
+    const cleanPhone = (phoneVal ?? contactPhone).trim();
+    if (cleanName.length >= 2) {
+      try {
+        localStorage.setItem('fmx_last_name', cleanName);
+        if (cleanPhone) localStorage.setItem('fmx_last_phone', cleanPhone);
+      } catch {}
+      if (!user && silentRegister) {
+        try {
+          await silentRegister({
+            full_name: cleanName,
+            phone: cleanPhone || '08000000000'
+          });
+        } catch (e) {
+          console.warn('Auto silent register:', e);
+        }
+      }
+    }
+  }, [contactName, contactPhone, user, silentRegister]);
+
   // Surprise Gift
   const [isGift, setIsGift] = useState(false);
   const [recipientName, setRecipientName] = useState('');
@@ -7267,7 +7251,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
       } catch {}
       clearCart();
       triggerHaptic('success');
-      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      confetti({ particleCount: 35, spread: 60, ticks: 100, disableForReducedMotion: true, origin: { y: 0.6 } });
       onSuccess(placedOrder);
     } catch (err) {
       console.error('Payment completion error:', err);
@@ -7331,7 +7315,11 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
       return;
     }
 
-    const nameToUse = contactName.trim() || user?.full_name || 'FoodMaxx Customer';
+    const nameToUse = (contactName.trim() || user?.full_name || '').trim();
+    if (!nameToUse) {
+      toast('Please enter your full name', 'warning');
+      return;
+    }
     const phoneToUse = (contactPhone.trim() || user?.phone || '').trim();
     if (!phoneToUse) {
       toast('Please enter your phone number so our rider can reach you', 'warning');
@@ -7447,8 +7435,10 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         clearCart();
         triggerHaptic('success');
         confetti({
-          particleCount: 100,
-          spread: 80,
+          particleCount: 35,
+          spread: 60,
+          ticks: 100,
+          disableForReducedMotion: true,
           origin: { y: 0.6 }
         });
         toast('🎉 Order placed 100% Free with your Giveaway & Perks!', 'success');
@@ -7540,39 +7530,34 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               </div>
             </div>
 
-            {/* Direct Delivery Address Input */}
+            {/* Direct Delivery Address & Contact Form */}
             <div className="space-y-3">
+              {/* Field 1: Your Name (First & triggers silent registration) */}
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                  Delivery Address <span className="text-[#EA4C2A]">*</span>
+                  Your Full Name <span className="text-[#EA4C2A]">*</span>
                 </label>
                 <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all ${
-                  isDark
-                    ? 'bg-white/5 border-white/10 text-white focus-within:border-[#EA4C2A]/70 focus-within:bg-white/10'
-                    : 'bg-slate-50/80 border-slate-200 text-slate-900 focus-within:border-[#EA4C2A]/70 focus-within:bg-white'
+                  isDark ? 'bg-white/5 border-white/10 text-white focus-within:border-[#EA4C2A]/70' : 'bg-slate-50/80 border-slate-200 text-slate-900 focus-within:border-[#EA4C2A]/70'
                 }`}>
-                  <MapPin size={16} className="text-[#EA4C2A] shrink-0" />
+                  <User size={16} className="text-[#EA4C2A] shrink-0" />
                   <input
                     type="text"
                     required
-                    placeholder="Enter street address, house/apt & area (e.g. 14 Awolowo Ave, Bodija)"
-                    value={deliveryAddress}
-                    onChange={e => setDeliveryAddress(e.target.value)}
+                    placeholder="Enter your full name"
+                    value={contactName}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setContactName(val);
+                      try { localStorage.setItem('fmx_last_name', val.trim()); } catch {}
+                    }}
+                    onBlur={e => triggerAutoSilentRegister(e.target.value, contactPhone)}
                     className="w-full text-xs sm:text-sm font-medium placeholder:text-slate-400 bg-transparent outline-none"
                   />
-                  {deliveryAddress && (
-                    <button
-                      type="button"
-                      onClick={() => setDeliveryAddress('')}
-                      className="text-slate-400 hover:text-slate-600 dark:hover:text-white shrink-0 p-0.5 cursor-pointer"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
                 </div>
               </div>
 
-              {/* Contact Info (2 Columns) */}
+              {/* Field 2 & 3: Phone Number & Delivery Address */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
@@ -7587,7 +7572,12 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                       required
                       placeholder="080 1234 5678"
                       value={contactPhone}
-                      onChange={e => setContactPhone(e.target.value)}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setContactPhone(val);
+                        try { localStorage.setItem('fmx_last_phone', val.trim()); } catch {}
+                      }}
+                      onBlur={e => triggerAutoSilentRegister(contactName, e.target.value)}
                       className="w-full text-xs sm:text-sm font-medium placeholder:text-slate-400 bg-transparent outline-none"
                     />
                   </div>
@@ -7595,19 +7585,35 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                    Your Name
+                    Delivery Address <span className="text-[#EA4C2A]">*</span>
                   </label>
                   <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all ${
-                    isDark ? 'bg-white/5 border-white/10 text-white focus-within:border-[#EA4C2A]/70' : 'bg-slate-50/80 border-slate-200 text-slate-900 focus-within:border-[#EA4C2A]/70'
+                    isDark
+                      ? 'bg-white/5 border-white/10 text-white focus-within:border-[#EA4C2A]/70 focus-within:bg-white/10'
+                      : 'bg-slate-50/80 border-slate-200 text-slate-900 focus-within:border-[#EA4C2A]/70 focus-within:bg-white'
                   }`}>
-                    <User size={15} className="text-slate-400 shrink-0" />
+                    <MapPin size={16} className="text-[#EA4C2A] shrink-0" />
                     <input
                       type="text"
-                      placeholder="Full Name"
-                      value={contactName}
-                      onChange={e => setContactName(e.target.value)}
+                      required
+                      placeholder="Street, house & area in Ibadan"
+                      value={deliveryAddress}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setDeliveryAddress(val);
+                        try { localStorage.setItem('fmx_last_delivery_address', val.trim()); } catch {}
+                      }}
                       className="w-full text-xs sm:text-sm font-medium placeholder:text-slate-400 bg-transparent outline-none"
                     />
+                    {deliveryAddress && (
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryAddress('')}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-white shrink-0 p-0.5 cursor-pointer"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -7808,45 +7814,9 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               </button>
             </div>
 
-            {/* 3. Promo Code Input & 1-Tap Chips */}
+            {/* 3. Promo Code Input */}
             <div>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
-                {[
-                  { code: 'FIRST50', label: '50% OFF' },
-                  { code: 'FOODMAXX10', label: '10% OFF' },
-                  { code: 'FREEDEL', label: 'FREE DEL' }
-                ].map(cp => {
-                  const isSelected = promoCode === cp.code;
-                  return (
-                    <button
-                      key={cp.code}
-                      type="button"
-                      onClick={() => {
-                        triggerHaptic('selection');
-                        if (isSelected) {
-                          removePromo();
-                        } else {
-                          applyPromo(cp.code);
-                        }
-                      }}
-                      className={`shrink-0 px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#EA4C2A] text-white border-[#EA4C2A]'
-                          : isDark
-                            ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                            : 'bg-slate-100 hover:bg-slate-200/80 border-slate-200 text-slate-700'
-                      }`}
-                    >
-                      <Percent size={11} />
-                      <span className="font-bold">{cp.code}</span>
-                      <span className="text-[10px] opacity-80">({cp.label})</span>
-                      {isSelected && <Check size={11} className="stroke-[3]" />}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-1 flex gap-2">
+              <div className="flex gap-2">
                 <div className="relative flex-1">
                   <input
                     className={`w-full pl-3 pr-8 py-2 rounded-xl text-xs uppercase font-bold border outline-none tracking-wider ${
@@ -8354,10 +8324,12 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
     playNativeSound('success');
     triggerHaptic('success');
     confetti({
-      particleCount: 65,
-      spread: 60,
+      particleCount: 35,
+      spread: 55,
+      ticks: 100,
+      disableForReducedMotion: true,
       origin: { y: 0.6 },
-      colors: ['#EA4C2A', '#10B981', '#F59E0B', '#FFFFFF']
+      colors: ['#EA4C2A', '#10B981', '#F59E0B']
     });
   }, []);
 

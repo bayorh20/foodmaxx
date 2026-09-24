@@ -87,13 +87,14 @@ html.dark body {
   will-change: transform, opacity;
 }
 
-/* Automatic off-screen rendering optimization for low-end devices */
+/* Automatic off-screen rendering optimization for silky 60/120fps scrolling */
 .scroll-optimized,
 .dish-card,
 .menu-item-card,
-.restaurant-card {
+.restaurant-card,
+.fmx-product-card {
   content-visibility: auto;
-  contain-intrinsic-size: 0 120px;
+  contain-intrinsic-size: 0 260px;
   contain: layout style paint;
 }
 
