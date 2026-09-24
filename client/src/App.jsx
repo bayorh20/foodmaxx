@@ -695,7 +695,7 @@ function CustomerPortal() {
   const [mobileView, setMobileView] = useState(() => {
     try {
       const s = localStorage.getItem('fmx_mobile_simulator');
-      return s !== null ? JSON.parse(s) : true;
+      return s !== null ? JSON.parse(s) : false;
     } catch {
       return true;
     }
@@ -1454,12 +1454,12 @@ function CustomerPortal() {
               key={activeTab}
               custom={tabDirection}
               {...getTransitionVariants(transitionStyle, tabDirection)}
-              className="w-full relative"
+              className="w-full max-w-7xl mx-auto relative px-0 sm:px-6 lg:px-8"
               style={{ willChange: 'transform, opacity' }}
             >
               {/* MAIN NATIVE WEB APP HEADER (HOME TAB) */}
               {activeTab === 'home' && (
-            <header className="px-4 pt-3.5 pb-2 space-y-2.5">
+            <header className="px-4 sm:px-6 lg:px-8 pt-3.5 pb-2 space-y-2.5 max-w-7xl mx-auto w-full">
               {/* Top Row: Brand Logo + Greeting (Left) & Actions (Right) */}
               <div className="flex items-center justify-between gap-2.5">
                 {/* Brand Logo + Warm Greeting */}
@@ -2425,42 +2425,50 @@ function LiveOrderBanner({ orders, onGoToOrders }) {
 // ============================================================
 function PromoBanner({ onOrderNow, appCopy }) {
   const code = getCopy(appCopy, 'customer_hero', 'promo_banner_code', 'FIRST50');
-  const promoText = getCopy(appCopy, 'customer_hero', 'promo_banner_text', '50% off your first order up to ₦2,500');
-  const heroTitle = getCopy(appCopy, 'customer_hero', 'hero_title', 'Get 50% Off\nYour First Order!');
+  const promoText = getCopy(appCopy, 'customer_hero', 'promo_banner_text', '50% off up to ₦2,500');
+  const heroTitle = getCopy(appCopy, 'customer_hero', 'hero_title', 'Get 50% Off First Order!');
 
   return (
-    <div className="px-4 mb-5">
-      <div className="bg-[#FF5525] rounded-3xl p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between min-h-[140px] shadow-lg shadow-orange-500/20">
-        <div className="relative z-10 w-2/3">
-          <p className="text-white text-[10px] sm:text-xs font-semibold mb-1 opacity-90">
-            Use code <span className="bg-white/20 px-1.5 py-0.5 rounded text-white font-bold ml-0.5 mr-0.5">{code}</span> at checkout.<br/>
-            {promoText}
-          </p>
-          <h2 className="text-white text-lg sm:text-xl font-bold leading-tight mb-3 whitespace-pre-line">
-            {heroTitle}
+    <div className="px-4 sm:px-0 mb-4 w-full">
+      <div className="bg-gradient-to-r from-[#FF5525] via-[#FF6036] to-[#EA4C2A] rounded-2xl px-4 py-2.5 sm:px-5 sm:py-3 relative overflow-hidden flex items-center justify-between min-h-[82px] sm:min-h-[92px] shadow-md shadow-orange-500/15">
+        <div className="relative z-10 max-w-[70%] sm:max-w-[75%] flex flex-col justify-center">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="bg-white/25 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+              Code: {code}
+            </span>
+            <span className="text-white/90 text-[10px] sm:text-[11px] font-medium hidden xs:inline">
+              • {promoText}
+            </span>
+          </div>
+
+          <h2 className="text-white text-sm sm:text-base md:text-lg font-black leading-tight mt-1 mb-1 truncate">
+            {heroTitle.replace('\n', ' ')}
           </h2>
-          <button onClick={onOrderNow} className="bg-[#111111] hover:bg-black text-white text-[10px] sm:text-xs font-bold py-2 px-4 rounded-full w-fit active:scale-95 transition-transform cursor-pointer">
-            Order Now
-          </button>
+
+          <div className="flex items-center gap-2 mt-0.5">
+            <button 
+              onClick={onOrderNow} 
+              className="bg-slate-950 hover:bg-black text-white text-[10px] sm:text-xs font-bold py-1 px-3 sm:px-4 rounded-full active:scale-95 transition-transform cursor-pointer shadow-xs"
+            >
+              Order Now →
+            </button>
+            <span className="text-white/80 text-[10px] xs:hidden truncate">
+              {promoText}
+            </span>
+          </div>
         </div>
         
-        {/* Real Appetizing Golden Fries */}
-        <div className="absolute -right-2 -bottom-4 w-32 h-32 sm:w-36 sm:h-36 rotate-[-8deg] pointer-events-none drop-shadow-2xl">
+        {/* Compact Appetizing Food Artwork */}
+        <div className="absolute -right-2 -bottom-2 w-24 h-24 sm:w-28 sm:h-28 rotate-[-6deg] pointer-events-none drop-shadow-xl shrink-0">
           <img 
-            onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }} 
-            src="https://images.unsplash.com/photo-1576107223932-3580a13346e4?w=400&auto=format&fit=crop&q=80" 
+            onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&q=75'; }} 
+            src="https://images.unsplash.com/photo-1576107223932-3580a13346e4?w=240&auto=format&fit=crop&q=75" 
             alt="Crispy Fries" 
-            className="w-full h-full object-cover rounded-3xl shadow-xl border border-white/20" 
-            loading="lazy"
+            className="w-full h-full object-cover rounded-2xl shadow-lg border border-white/20" 
+            loading="eager"
             decoding="async"
           />
         </div>
-      </div>
-      {/* Pagination indicators */}
-      <div className="flex justify-center items-center gap-1.5 mt-3">
-        <div className="w-5 h-1 bg-slate-800 dark:bg-white rounded-full"></div>
-        <div className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-        <div className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
       </div>
     </div>
   );
@@ -2758,7 +2766,7 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
   
   return (
     <div className="mb-8">
-      <div className="flex justify-between items-center px-4 mb-3.5">
+      <div className="flex justify-between items-center px-4 sm:px-0 mb-3.5">
         <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">{title}</h2>
         <button 
           onClick={onSeeAll}
@@ -2768,8 +2776,8 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
         </button>
       </div>
       
-      {/* 2 Product Cards Per Column Style (Two Columns Grid, Bigger Dimensions) */}
-      <div className="grid grid-cols-2 gap-3.5 sm:gap-4.5 px-4">
+      {/* Responsive Product Cards Grid (2 cols mobile, 3 cols tablet, 4 cols desktop) */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4.5 lg:gap-5 px-4 sm:px-0">
         {picks.map((item, idx) => (
           <TopPickCard 
             key={item.id || idx} 
