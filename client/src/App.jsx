@@ -6219,54 +6219,77 @@ function FoodDetailModal({ restaurant, item, onClose }) {
           </div>
 
           {/* 2. Product Information Block with Curved Top Transition */}
-          <div className={`p-5 space-y-4 -mt-4 relative z-10 rounded-t-[28px] ${
+          <div className={`p-5 space-y-5 -mt-4 relative z-10 rounded-t-[28px] ${
             isDark ? 'bg-[#121418]' : 'bg-white'
-          } shadow-sm`}>
+          }`}>
             
             {/* Title & Price Header */}
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#EA4C2A]/10 text-[#EA4C2A] dark:bg-[#EA4C2A]/20">
-                    {item.category || 'Specialty Dish'}
-                  </span>
-                </div>
-                <h1 className={`text-xl sm:text-2xl font-bold tracking-tight leading-tight ${
+                {/* Category pill */}
+                <span className={`inline-block text-[11px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full mb-2 ${
+                  isDark ? 'bg-[#EA4C2A]/20 text-[#EA4C2A]' : 'bg-[#EA4C2A]/10 text-[#EA4C2A]'
+                }`}>
+                  {item.category || 'Specialty Dish'}
+                </span>
+                {/* Bold item name */}
+                <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight ${
                   isDark ? 'text-white' : 'text-slate-900'
                 }`}>
                   {item.name}
                 </h1>
+
+                {/* Rating Row */}
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="flex items-center gap-1">
+                    {[1,2,3,4,5].map(star => (
+                      <svg key={star} className={`w-3.5 h-3.5 ${star <= 4 ? 'text-amber-400' : 'text-slate-300 dark:text-slate-600'}`} fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                    <span className={`text-xs font-bold ml-0.5 ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                      {item.rating || '4.7'}
+                    </span>
+                  </div>
+                  <span className={`text-[11px] ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+                    ({item.review_count || '238'} reviews)
+                  </span>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    🔥 Popular
+                  </span>
+                </div>
               </div>
 
               {/* Prominent Unit Price Tag */}
-              <div className="text-right shrink-0">
-                <div className="text-xl sm:text-2xl font-black text-[#EA4C2A] tracking-tight">
+              <div className="text-right shrink-0 pt-1">
+                <div className={`text-2xl sm:text-3xl font-black text-[#EA4C2A] tracking-tight`}>
                   {fmt(unitPrice)}
                 </div>
+                <span className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>per serving</span>
                 {sizeAdj > 0 && (
-                  <span className="text-[10px] text-gray-400 font-medium">
+                  <div className="text-[10px] text-gray-400 font-medium mt-0.5">
                     Base {fmt(item.price)} + {fmt(sizeAdj)}
-                  </span>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* 3. Clean Product Description Block */}
-            <p className={`text-sm leading-relaxed font-normal ${
+            {/* Description */}
+            <p className={`text-sm leading-relaxed ${
               isDark ? 'text-gray-300' : 'text-slate-600'
             }`}>
               {item.description || `${item.name} prepared fresh with authentic ingredients and traditional spices. Served hot and ready to enjoy.`}
             </p>
 
-            {/* 4. Modern Attractive Portion Sizes Selector */}
+            {/* 4. Portion Size Selector */}
             {hasSizes && (
-              <div className="space-y-2.5 pt-1">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className={`font-bold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <h3 className={`font-extrabold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       Choose Portion Size
                     </h3>
-                    <p className="text-[11px] text-gray-400">Select one option to continue</p>
+                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>Select one to continue</p>
                   </div>
                   <span className="text-[10px] font-bold text-[#EA4C2A] bg-[#EA4C2A]/10 dark:bg-[#EA4C2A]/20 px-2.5 py-1 rounded-full">
                     Required
@@ -6278,6 +6301,7 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                     const isSelected = selectedSize === s.name;
                     const variationPrice = item.price + (s.price_adjustment || 0);
                     const isBase = (s.price_adjustment || 0) === 0;
+                    const sizeEmoji = idx === 0 ? '🥣' : idx === 1 ? '🍽️' : '🪣';
 
                     return (
                       <button
@@ -6287,61 +6311,54 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                           triggerHaptic('selection');
                           setSelectedSize(s.name);
                         }}
-                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative ${
+                        className={`w-full flex items-center gap-3 p-4 rounded-2xl border text-left transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-[#EA4C2A]/[0.08] dark:bg-[#EA4C2A]/15 border-[#EA4C2A] shadow-xs'
+                            ? 'bg-[#EA4C2A]/[0.08] dark:bg-[#EA4C2A]/15 border-[#EA4C2A] shadow-sm'
                             : isDark
                             ? 'bg-white/[0.03] border-white/10 hover:border-white/20 hover:bg-white/[0.06]'
-                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 shadow-xs'
+                            : 'bg-slate-50/80 border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-xs'
                         }`}
                       >
-                        {/* Left: Radio Indicator + Name + Description */}
-                        <div className="flex items-center gap-3 min-w-0 flex-1 pr-3">
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all border ${
-                            isSelected
-                              ? 'border-[#EA4C2A] bg-[#EA4C2A] text-white shadow-xs'
-                              : isDark
-                              ? 'border-white/30 bg-transparent'
-                              : 'border-slate-300 bg-transparent'
-                          }`}>
-                            {isSelected && <Check size={12} className="stroke-[3]" />}
-                          </div>
+                        {/* Emoji icon */}
+                        <span className="text-xl shrink-0">{sizeEmoji}</span>
 
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-sm font-bold tracking-tight truncate ${
-                                isSelected
-                                  ? (isDark ? 'text-white' : 'text-slate-900')
-                                  : (isDark ? 'text-gray-200' : 'text-slate-700')
-                              }`}>
-                                {s.name}
+                        {/* Name + description */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-extrabold tracking-tight ${
+                              isSelected
+                                ? (isDark ? 'text-white' : 'text-slate-900')
+                                : (isDark ? 'text-gray-200' : 'text-slate-700')
+                            }`}>
+                              {s.name}
+                            </span>
+                            {isBase && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400">
+                                Standard
                               </span>
-                              {isBase && (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300">
-                                  Standard
-                                </span>
-                              )}
-                            </div>
-                            {s.description && (
-                              <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                                {s.description}
-                              </p>
                             )}
                           </div>
+                          {s.description && (
+                            <p className={`text-[11px] mt-0.5 truncate ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
+                              {s.description}
+                            </p>
+                          )}
                         </div>
 
-                        {/* Right: Modern Price Pill */}
-                        <div className="shrink-0 text-right flex flex-col items-end">
+                        {/* Price + radio */}
+                        <div className="shrink-0 text-right flex flex-col items-end gap-1">
                           <span className={`text-sm font-extrabold tracking-tight ${
                             isSelected ? 'text-[#EA4C2A]' : isDark ? 'text-white' : 'text-slate-900'
                           }`}>
                             {fmt(variationPrice)}
                           </span>
-                          {!isBase && (
-                            <span className="text-[10px] font-semibold text-[#EA4C2A]">
-                              +{fmt(s.price_adjustment)}
-                            </span>
-                          )}
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                            isSelected
+                              ? 'border-[#EA4C2A] bg-[#EA4C2A] text-white'
+                              : isDark ? 'border-white/30' : 'border-slate-300'
+                          }`}>
+                            {isSelected && <Check size={11} className="stroke-[3]" />}
+                          </div>
                         </div>
                       </button>
                     );
@@ -6350,60 +6367,69 @@ function FoodDetailModal({ restaurant, item, onClose }) {
               </div>
             )}
 
-            {/* 5. Extras & Add-ons */}
+            {/* 5. Extras — 2-column card grid */}
             {extras.length > 0 && (
-              <div className={`rounded-2xl p-4 border space-y-2.5 ${
-                isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'
-              }`}>
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Plus size={14} className="text-[#EA4C2A]" />
-                    <h3 className={`font-bold text-xs uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Upgrades & Side Extras
+                  <div>
+                    <h3 className={`font-extrabold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Upgrades &amp; Extras
                     </h3>
+                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>Add more to your order</p>
                   </div>
-                  <span className="text-[10px] text-gray-400">Optional</span>
+                  <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${
+                    isDark ? 'bg-white/8 text-gray-400' : 'bg-slate-100 text-slate-400'
+                  }`}>Optional</span>
                 </div>
 
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
                   {extras.map((e, idx) => {
                     const eQty = getExtraQty(e.name);
+                    const isAdded = eQty > 0;
                     return (
                       <div
                         key={e.name || idx}
-                        className={`flex items-center justify-between p-2.5 rounded-xl border transition-colors ${
-                          eQty > 0
-                            ? (isDark ? 'bg-[#EA4C2A]/15 border-[#EA4C2A]/40' : 'bg-orange-50 border-orange-200')
-                            : (isDark ? 'bg-white/5 border-white/5' : 'bg-white border-slate-200/80')
+                        className={`flex flex-col justify-between p-3 rounded-2xl border transition-all ${
+                          isAdded
+                            ? (isDark ? 'bg-[#EA4C2A]/15 border-[#EA4C2A]/50' : 'bg-orange-50 border-orange-300/70')
+                            : (isDark ? 'bg-white/[0.04] border-white/8' : 'bg-slate-50 border-slate-200')
                         }`}
                       >
-                        <div className="min-w-0 flex-1 pr-2">
-                          <span className="text-xs font-bold text-slate-800 dark:text-gray-200 block truncate">{e.name}</span>
-                          <span className="text-[11px] font-semibold text-[#EA4C2A]">+{fmt(e.price_adjustment)}</span>
+                        {/* Name + price */}
+                        <div className="mb-2.5">
+                          <p className={`text-xs font-bold leading-tight ${isDark ? 'text-gray-100' : 'text-slate-800'}`}>
+                            {e.name}
+                          </p>
+                          <p className="text-[11px] font-semibold text-[#EA4C2A] mt-0.5">
+                            +{fmt(e.price_adjustment)}
+                          </p>
                         </div>
 
+                        {/* Controls */}
                         {eQty === 0 ? (
                           <button
                             type="button"
                             onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, 1); }}
-                            className="px-3 py-1 rounded-lg bg-[#EA4C2A]/10 hover:bg-[#EA4C2A] text-[#EA4C2A] hover:text-white font-bold text-xs transition-colors cursor-pointer"
+                            className="w-full py-1.5 rounded-xl bg-[#EA4C2A]/10 hover:bg-[#EA4C2A] text-[#EA4C2A] hover:text-white font-bold text-xs transition-all cursor-pointer active:scale-95"
                           >
                             + Add
                           </button>
                         ) : (
-                          <div className="flex items-center gap-2 bg-white dark:bg-black/30 rounded-lg p-0.5 border border-slate-200 dark:border-white/10">
+                          <div className={`flex items-center justify-between rounded-xl px-1 py-0.5 border ${
+                            isDark ? 'bg-black/30 border-white/10' : 'bg-white border-slate-200'
+                          }`}>
                             <button
                               type="button"
                               onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, -1); }}
-                              className="w-6 h-6 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 flex items-center justify-center font-bold text-xs text-slate-700 dark:text-white cursor-pointer"
+                              className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center font-black text-sm text-slate-700 dark:text-white cursor-pointer"
                             >
                               −
                             </button>
-                            <span className="font-bold text-xs text-[#EA4C2A] w-4 text-center">{eQty}</span>
+                            <span className="font-black text-xs text-[#EA4C2A] w-5 text-center">{eQty}</span>
                             <button
                               type="button"
                               onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, 1); }}
-                              className="w-6 h-6 rounded-md bg-[#EA4C2A] text-white flex items-center justify-center font-bold text-xs cursor-pointer shadow-xs"
+                              className="w-7 h-7 rounded-lg bg-[#EA4C2A] text-white flex items-center justify-center font-black text-sm cursor-pointer"
                             >
                               +
                             </button>
@@ -6416,70 +6442,84 @@ function FoodDetailModal({ restaurant, item, onClose }) {
               </div>
             )}
 
-            {/* 6. Special Instructions Note */}
+            {/* 6. Special Instructions — textarea with character counter */}
             <div>
-              <label className="text-[11px] font-bold text-gray-400 block mb-1">
-                Special Kitchen Notes (Optional)
-              </label>
-              <input
-                type="text"
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+                  <span>🍴</span> Special Kitchen Notes
+                </label>
+                <span className={`text-[11px] font-semibold tabular-nums ${
+                  instructions.length >= 100
+                    ? 'text-[#EA4C2A]'
+                    : isDark ? 'text-gray-600' : 'text-slate-300'
+                }`}>
+                  {instructions.length}/120
+                </span>
+              </div>
+              <textarea
+                rows={2}
+                maxLength={120}
                 placeholder="e.g. Extra spicy, sauce on the side, no onions..."
                 value={instructions}
                 onChange={e => setInstructions(e.target.value)}
-                className={`w-full text-xs rounded-xl px-3.5 py-2.5 border outline-none font-medium transition-colors ${
-                  isDark ? 'bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-[#EA4C2A]' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-gray-400 focus:border-[#EA4C2A]'
+                className={`w-full text-xs rounded-2xl px-4 py-3 border outline-none font-medium resize-none transition-colors leading-relaxed ${
+                  isDark
+                    ? 'bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-[#EA4C2A]/60 focus:bg-white/8'
+                    : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-gray-400 focus:border-[#EA4C2A]/50 focus:bg-white'
                 }`}
               />
             </div>
           </div>
         </div>
 
-        {/* 7. Sticky Bottom Floating Bar (Quantity Stepper + Add to Cart Button) */}
-        <div className={`shrink-0 p-4 border-t ${
-          isDark ? 'bg-[#14161B] border-white/10' : 'bg-white border-slate-100'
-        } pb-[max(1rem,env(safe-area-inset-bottom,1rem))] flex items-center gap-3`}>
+        {/* 7. Sticky Bottom Bar — frosted glass */}
+        <div className={`shrink-0 px-4 pt-3 border-t backdrop-blur-xl ${
+          isDark
+            ? 'bg-[#121418]/90 border-white/8'
+            : 'bg-white/90 border-slate-100'
+        } pb-[max(1.25rem,env(safe-area-inset-bottom,1.25rem))] flex items-center gap-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)]`}>
           
-          {/* Left: Tactile Stepper */}
-          <div className={`flex items-center gap-2 rounded-2xl p-1 border shrink-0 ${
-            isDark ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'
+          {/* Tactile Qty Stepper */}
+          <div className={`flex items-center rounded-2xl border shrink-0 overflow-hidden ${
+            isDark ? 'bg-white/8 border-white/12' : 'bg-slate-100 border-slate-200'
           }`}>
             <button
               type="button"
-              onClick={() => {
-                triggerHaptic('selection');
-                setQty(q => Math.max(1, q - 1));
-              }}
+              onClick={() => { triggerHaptic('selection'); setQty(q => Math.max(1, q - 1)); }}
               disabled={qty <= 1}
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-800 dark:text-white disabled:opacity-30 hover:bg-white/10 active:scale-90 font-black text-sm cursor-pointer transition-all"
+              className={`w-10 h-11 flex items-center justify-center font-black text-lg cursor-pointer transition-all active:scale-90 disabled:opacity-25 ${
+                isDark ? 'text-white hover:bg-white/10' : 'text-slate-800 hover:bg-slate-200'
+              }`}
             >
               −
             </button>
-            <span className="font-black text-sm select-none w-5 text-center text-slate-900 dark:text-white">
+            <span className={`font-black text-sm select-none w-7 text-center ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {qty}
             </span>
             <button
               type="button"
-              onClick={() => {
-                triggerHaptic('selection');
-                setQty(q => q + 1);
-              }}
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-800 dark:text-white hover:bg-white/10 active:scale-90 font-black text-sm cursor-pointer transition-all"
+              onClick={() => { triggerHaptic('selection'); setQty(q => q + 1); }}
+              className={`w-10 h-11 flex items-center justify-center font-black text-lg cursor-pointer transition-all active:scale-90 ${
+                isDark ? 'text-white hover:bg-white/10' : 'text-slate-800 hover:bg-slate-200'
+              }`}
             >
               +
             </button>
           </div>
 
-          {/* Right: Primary Add to Cart Button */}
+          {/* Add to Cart Button */}
           <button
             type="button"
             onClick={handleAdd}
             disabled={!isAvailable}
-            className={`flex-1 py-3.5 px-5 rounded-2xl font-bold text-sm text-white shadow-lg shadow-[#EA4C2A]/25 active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer ${
-              isAvailable ? 'bg-[#EA4C2A] hover:bg-[#D43D1D]' : 'bg-gray-400 opacity-50 cursor-not-allowed'
+            className={`flex-1 py-3.5 px-5 rounded-2xl font-extrabold text-sm text-white active:scale-[0.97] transition-all flex items-center justify-between cursor-pointer ${
+              isAvailable
+                ? 'bg-[#EA4C2A] hover:bg-[#D43D1D] shadow-lg shadow-[#EA4C2A]/30'
+                : 'bg-slate-400/60 cursor-not-allowed'
             }`}
           >
-            <span>{isAvailable ? 'Add to Cart' : 'Currently Sold Out'}</span>
-            <span className="font-extrabold tracking-tight">{fmt(total)}</span>
+            <span>{isAvailable ? 'Add to Cart' : 'Sold Out'}</span>
+            <span className="font-black tracking-tight text-base">{fmt(total)}</span>
           </button>
         </div>
 
