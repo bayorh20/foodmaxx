@@ -718,13 +718,13 @@ function CustomerPortal() {
     }
   });
 
-  const toggleFavorite = (itemId) => {
+  const toggleFavorite = useCallback((itemId) => {
     setFavorites(prev => {
       const next = prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId];
       try { localStorage.setItem('fmx_favs', JSON.stringify(next)); } catch {}
       return next;
     });
-  };
+  }, []);
 
   const [zones, setZones] = useState(() => getStoredZones());
   const [selectedZone, setSelectedZone] = useState(() => getStoredZones()[0] || null);
@@ -1235,8 +1235,8 @@ function CustomerPortal() {
     toast('Address removed from saved spots', 'info');
   }
 
-  function handleQuickAdd(item) {
-    addItem(item.restaurant_id || restaurant?.id || 'rest_foodmaxx', item.restaurant_name || restaurant?.name || 'FoodMaxx', {
+  const handleQuickAdd = useCallback((item) => {
+    addItem('rest_foodmaxx', 'FoodMaxx', {
       id: item.id,
       name: item.name,
       image_url: item.image_url,
@@ -1253,7 +1253,11 @@ function CustomerPortal() {
       qty: 1,
       message: `${item.name} added to cart! 🛒`
     });
-  }
+  }, [addItem, toast]);
+
+  const handleSelectItem = useCallback((item) => {
+    setSelectedItem({ restaurant: { id: 'rest_foodmaxx', name: 'FoodMaxx' }, item });
+  }, []);
 
   // Filtered restaurants for current section
   const featuredRestaurants = restaurants.filter(r => r.featured);
@@ -1544,7 +1548,7 @@ function CustomerPortal() {
                   menuByCategory={menuByCategory}
                   searchQuery={deferredSearchQuery}
                   onSearch={handleSearch}
-                  onSelectItem={(item) => setSelectedItem({ restaurant: restaurant || { id: 'rest_foodmaxx', name: 'FoodMaxx' }, item })}
+                  onSelectItem={handleSelectItem}
                   onQuickAdd={handleQuickAdd}
                   onGoToMenu={() => setActiveTab('menu')}
                   onGoToOrders={() => {
@@ -1566,7 +1570,7 @@ function CustomerPortal() {
                   menuByCategory={menuByCategory}
                   searchQuery={deferredSearchQuery}
                   onSearch={handleSearch}
-                  onSelectItem={(item) => setSelectedItem({ restaurant: restaurant || { id: 'rest_foodmaxx', name: 'FoodMaxx' }, item })}
+                  onSelectItem={handleSelectItem}
                   onQuickAdd={handleQuickAdd}
                   favorites={favorites}
                   onToggleFavorite={toggleFavorite}
@@ -1589,7 +1593,7 @@ function CustomerPortal() {
                 <FavoritesTab
                   favorites={favorites}
                   onToggleFavorite={toggleFavorite}
-                  onSelectItem={(item) => setSelectedItem({ restaurant: restaurant || { id: 'rest_foodmaxx', name: 'FoodMaxx' }, item })}
+                  onSelectItem={handleSelectItem}
                   onQuickAdd={handleQuickAdd}
                   onExplore={() => setActiveTab('home')}
                   isDark={isDark}
@@ -2260,15 +2264,15 @@ function CustomerPortal() {
 // ============================================================
 // PRODUCT QUANTITY STEPPER (AUTO-DISPLAYS WHEN ITEM IN CART)
 // ============================================================
-function ProductQuantityStepper({ item, onQuickAdd, isDark, size = 'sm' }) {
-  const { cart, updateQty } = useCart();
+const ProductQuantityStepper = React.memo(function ProductQuantityStepper({ item, inCartQty: propQty, onQuickAdd, isDark, size = 'sm' }) {
+  const { updateQty } = useCart();
   const dishItem = item?.dish || item;
   const itemId = dishItem?.id;
 
-  const itemIndex = (cart.items || []).findIndex(i => i.id === itemId);
-  const inCartQty = (cart.items || [])
-    .filter(i => i.id === itemId)
-    .reduce((sum, i) => sum + i.qty, 0);
+  const inCartQty = typeof propQty === 'number' ? propQty : (() => {
+    const items = (typeof window !== 'undefined' && window.__fmx_cart_items) ? window.__fmx_cart_items : [];
+    return items.filter(i => (i.id && itemId && String(i.id) === String(itemId)) || (i.name && dishItem?.name && i.name.trim().toLowerCase() === dishItem.name.trim().toLowerCase())).reduce((sum, i) => sum + i.qty, 0);
+  })();
 
   if (inCartQty <= 0) {
     return (
@@ -2298,9 +2302,9 @@ function ProductQuantityStepper({ item, onQuickAdd, isDark, size = 'sm' }) {
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          if (itemIndex >= 0) {
-            updateQty(itemIndex, -1);
-          }
+          const items = (typeof window !== 'undefined' && window.__fmx_cart_items) ? window.__fmx_cart_items : [];
+          const idx = items.findIndex(i => (i.id && itemId && String(i.id) === String(itemId)) || (i.name && dishItem?.name && i.name.trim().toLowerCase() === dishItem.name.trim().toLowerCase()));
+          if (idx >= 0) updateQty(idx, -1);
         }}
         className={`${
           size === 'lg' ? 'w-6 h-6 sm:w-7 sm:h-7' : 'w-5.5 h-5.5'
@@ -2318,9 +2322,11 @@ function ProductQuantityStepper({ item, onQuickAdd, isDark, size = 'sm' }) {
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          if (itemIndex >= 0) {
-            updateQty(itemIndex, 1);
-          } else {
+          const items = (typeof window !== 'undefined' && window.__fmx_cart_items) ? window.__fmx_cart_items : [];
+          const idx = items.findIndex(i => (i.id && itemId && String(i.id) === String(itemId)) || (i.name && dishItem?.name && i.name.trim().toLowerCase() === dishItem.name.trim().toLowerCase()));
+          if (idx >= 0) {
+            updateQty(idx, 1);
+          } else if (typeof onQuickAdd === 'function') {
             onQuickAdd(dishItem);
           }
           trigger3dCartDrop(e, dishItem);
@@ -2334,7 +2340,7 @@ function ProductQuantityStepper({ item, onQuickAdd, isDark, size = 'sm' }) {
       </button>
     </div>
   );
-}
+});
 
 // ============================================================
 // SKELETON LOADER CARD (1 COLUMN FROSTED GLASS)
@@ -2622,12 +2628,8 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
     : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "60px" }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
-      className="fmx-product-card group relative w-full cursor-pointer flex flex-col select-none p-3 sm:p-3.5 rounded-[26px] bg-white dark:bg-[#161822] border border-slate-200/90 dark:border-white/10 will-change-transform"
+    <div 
+      className="fmx-product-card group relative w-full cursor-pointer flex flex-col select-none p-3 sm:p-3.5 rounded-[26px] bg-white dark:bg-[#161822] border border-slate-200/90 dark:border-white/10"
       onClick={() => onSelect(item)}
     >
       {/* 1. Food Picture with soft rounded corners in 1-column layout */}
@@ -2713,7 +2715,7 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 });
 
@@ -2912,11 +2914,11 @@ function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, o
 // ============================================================
 // FOOD ITEM CARD (MODERN ROUNDED CARD FOR MENU & SEARCH)
 // ============================================================
-const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false, isFavorite, onToggleFavorite }) {
-  const { cart } = useCart();
-  const inCartQty = (cart?.items || [])
-    .filter(i => (i.id && item.id && String(i.id) === String(item.id)) || (i.name && item.name && i.name.trim().toLowerCase() === item.name.trim().toLowerCase()))
-    .reduce((sum, i) => sum + i.qty, 0);
+const FoodItemCard = React.memo(function FoodItemCard({ item, inCartQty: propQty, onSelect, onQuickAdd, isDark, isFullWidth = false, isFavorite, onToggleFavorite }) {
+  const inCartQty = typeof propQty === 'number' ? propQty : (() => {
+    const items = (typeof window !== 'undefined' && window.__fmx_cart_items) ? window.__fmx_cart_items : [];
+    return items.filter(i => (i.id && item.id && String(i.id) === String(item.id)) || (i.name && item.name && i.name.trim().toLowerCase() === item.name.trim().toLowerCase())).reduce((sum, i) => sum + i.qty, 0);
+  })();
 
   const displayPrice = fmt(item.price);
   const isAvailable = item.is_available !== false && (item.stock_quantity === undefined || item.stock_quantity > 0);
@@ -2925,13 +2927,9 @@ const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickA
 
   if (isFullWidth) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "60px" }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
+      <div
         onClick={() => isAvailable && onSelect(item)}
-        className={`fmx-product-card group relative w-full mb-3 rounded-2xl p-3 sm:p-3.5 cursor-pointer flex items-center justify-between gap-3.5 border border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#161822] will-change-transform ${!isAvailable ? 'opacity-65' : ''}`}
+        className={`fmx-product-card group relative w-full mb-3 rounded-2xl p-3 sm:p-3.5 cursor-pointer flex items-center justify-between gap-3.5 border border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#161822] ${!isAvailable ? 'opacity-65' : ''}`}
       >
         {/* Left: Info, Price, and Stepper */}
         <div className="flex-1 min-w-0 pr-1 flex flex-col justify-between self-stretch py-0.5">
@@ -2975,7 +2973,7 @@ const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickA
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     );
   }
 
@@ -3012,7 +3010,17 @@ function HomeTab({
   isDark,
   appCopy
 }) {
+  const { cart } = useCart();
   const [selectedHomeCat, setSelectedHomeCat] = useState('all');
+
+  const cartQtyMap = useMemo(() => {
+    const map = {};
+    (cart?.items || []).forEach(ci => {
+      if (ci.id) map[String(ci.id)] = (map[String(ci.id)] || 0) + ci.qty;
+      if (ci.name) map[ci.name.trim().toLowerCase()] = (map[ci.name.trim().toLowerCase()] || 0) + ci.qty;
+    });
+    return map;
+  }, [cart?.items]);
   const [homepageSections, setHomepageSections] = useState(() => {
     try {
       const s = localStorage.getItem('fmx_homepage_sections');
@@ -3127,6 +3135,7 @@ function HomeTab({
               <FoodItemCard
                 key={item.id}
                 item={item}
+                inCartQty={cartQtyMap[item.id] || cartQtyMap[(item.name || '').trim().toLowerCase()] || 0}
                 onSelect={onSelectItem}
                 onQuickAdd={onQuickAdd}
                 isDark={isDark}
@@ -3191,6 +3200,7 @@ function HomeTab({
               <FoodItemCard
                 key={item.id}
                 item={item}
+                inCartQty={cartQtyMap[item.id] || cartQtyMap[(item.name || '').trim().toLowerCase()] || 0}
                 onSelect={onSelectItem}
                 onQuickAdd={onQuickAdd}
                 isDark={isDark}
@@ -3251,19 +3261,11 @@ function HomeTab({
 // ============================================================
 // MENU TAB (MATCHING MOCKUP DESIGN: media_1789214008795.jpg)
 // ============================================================
-const MenuDishRow = React.memo(function MenuDishRow({ item, onSelect, onQuickAdd, onToggleFavorite, isFavorite, isDark }) {
-  const { cart, updateQty } = useCart();
-  const inCartIdx = (cart?.items || []).findIndex(ci => ci.id === item.id || ci.name === item.name);
-  const inCartQty = inCartIdx >= 0 ? cart.items[inCartIdx].qty : 0;
-
+const MenuDishRow = React.memo(function MenuDishRow({ item, inCartQty = 0, onSelect, onQuickAdd, onToggleFavorite, isFavorite, isDark }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "60px" }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
+    <div
       onClick={() => onSelect(item)}
-      className={`fmx-product-card flex items-center gap-3.5 p-3 rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#161822] group cursor-pointer select-none transition-colors duration-150 mb-2.5 will-change-transform ${
+      className={`fmx-product-card flex items-center gap-3.5 p-3 rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#161822] group cursor-pointer select-none transition-colors duration-150 mb-2.5 ${
         isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-slate-50'
       }`}
     >
@@ -3318,11 +3320,11 @@ const MenuDishRow = React.memo(function MenuDishRow({ item, onSelect, onQuickAdd
           </div>
 
           <div onClick={(e) => e.stopPropagation()}>
-            <ProductQuantityStepper item={item} onQuickAdd={onQuickAdd || onSelect} isDark={isDark} size="sm" />
+            <ProductQuantityStepper item={item} inCartQty={inCartQty} onQuickAdd={onQuickAdd || onSelect} isDark={isDark} size="sm" />
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 });
 
@@ -3339,10 +3341,19 @@ function MenuTab({
   onBack,
   isDark
 }) {
-  const { itemCount } = useCart();
+  const { cart, itemCount } = useCart();
   const [selectedCat, setSelectedCat] = useState('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState('');
+
+  const cartQtyMap = useMemo(() => {
+    const map = {};
+    (cart?.items || []).forEach(ci => {
+      if (ci.id) map[String(ci.id)] = (map[String(ci.id)] || 0) + ci.qty;
+      if (ci.name) map[ci.name.trim().toLowerCase()] = (map[ci.name.trim().toLowerCase()] || 0) + ci.qty;
+    });
+    return map;
+  }, [cart?.items]);
 
   // Real live dishes loaded from Firestore
   const allDishes = menuItems || [];
@@ -3541,6 +3552,7 @@ function MenuTab({
           <MenuDishRow
             key={item.id}
             item={item}
+            inCartQty={cartQtyMap[item.id] || cartQtyMap[(item.name || '').trim().toLowerCase()] || 0}
             onSelect={onSelectItem}
             onQuickAdd={onQuickAdd}
             isFavorite={favorites.includes(item.id)}

@@ -88,14 +88,34 @@ html.dark body {
 }
 
 /* Automatic off-screen rendering optimization for silky 60/120fps scrolling */
+@keyframes fmxCardReveal {
+  from {
+    opacity: 0.15;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .scroll-optimized,
 .dish-card,
 .menu-item-card,
 .restaurant-card,
 .fmx-product-card {
   content-visibility: auto;
-  contain-intrinsic-size: 0 260px;
-  contain: layout style paint;
+  contain-intrinsic-size: auto 240px;
+  contain: layout style;
+  animation: fmxCardReveal 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fmx-product-card {
+    animation: none !important;
+  }
 }
 
 /* Fast scrolling containers without frame dropping */
