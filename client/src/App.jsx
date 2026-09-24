@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback, createContext, useContext, useMemo, useDeferredValue, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback, createContext, useContext, useMemo, useDeferredValue, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import './index.css';
@@ -217,7 +217,7 @@ function ToastProvider({ children }) {
         duration: isCart ? 1800 : duration || 2500,
         type: isCart ? 'cart' : type,
         message: msgStr,
-        title: isCart ? msgStr.replace(/added to cart.*$/i, '').replace(/ðŸ›’/g, '').trim() : '',
+        title: isCart ? msgStr.replace(/added to cart.*$/i, '').replace(/🛒/g, '').trim() : '',
         qty: 1
       };
     }
@@ -279,10 +279,10 @@ function ToastProvider({ children }) {
                       </div>
                       <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
                         {t.qty ? <span>Qty: {t.qty}</span> : null}
-                        {t.qty && t.price ? <span>â€¢</span> : null}
+                        {t.qty && t.price ? <span>•</span> : null}
                         {t.price ? (
                           <span className="text-slate-800 dark:text-slate-200 font-bold">
-                            {typeof t.price === 'number' ? `â‚¦${t.price.toLocaleString()}` : t.price}
+                            {typeof t.price === 'number' ? `₦${t.price.toLocaleString()}` : t.price}
                           </span>
                         ) : null}
                       </div>
@@ -473,7 +473,7 @@ function CartProvider({ children }) {
 // ============================================================
 // HELPERS
 // ============================================================
-export const fmt = (n) => `â‚¦${Number(n || 0).toLocaleString()}`;
+export const fmt = (n) => `₦${Number(n || 0).toLocaleString()}`;
 export const statusLabel = {
   ORDER_PLACED: 'Order Placed',
   RESTAURANT_CONFIRMED: 'Restaurant Confirmed',
@@ -502,15 +502,15 @@ export const statusColor = {
 
 export const getStatusEmoji = (status) => {
   switch (status) {
-    case 'PREPARING': return 'ðŸ³';
-    case 'READY_FOR_PICKUP': return 'ðŸ“¦';
-    case 'RIDER_ASSIGNED': return 'ðŸ›µ';
-    case 'RIDER_PICKED_UP': return 'ðŸ›µ';
-    case 'ON_THE_WAY': return 'ðŸ›µ';
-    case 'ARRIVING_SOON': return 'ðŸ¡';
-    case 'DELIVERED': return 'ðŸŽ‰';
-    case 'CANCELLED': return 'âŒ';
-    default: return 'ðŸ“';
+    case 'PREPARING': return '🍳';
+    case 'READY_FOR_PICKUP': return '📦';
+    case 'RIDER_ASSIGNED': return '🛵';
+    case 'RIDER_PICKED_UP': return '🛵';
+    case 'ON_THE_WAY': return '🛵';
+    case 'ARRIVING_SOON': return '🏡';
+    case 'DELIVERED': return '🎉';
+    case 'CANCELLED': return '❌';
+    default: return '📝';
   }
 };
 
@@ -518,13 +518,13 @@ export const getStatusNotificationInfo = (status) => {
   switch (status) {
     case 'PREPARING':
       return {
-        icon: 'ðŸ³',
+        icon: '🍳',
         title: 'Cooking Your Meal!',
         desc: 'FoodMaxx kitchen is freshly grilling and packing your order.'
       };
     case 'READY_FOR_PICKUP':
       return {
-        icon: 'ðŸ“¦',
+        icon: '📦',
         title: 'Order Ready & Packed!',
         desc: 'Your food is packaged hot and waiting for rider pickup.'
       };
@@ -532,31 +532,31 @@ export const getStatusNotificationInfo = (status) => {
     case 'RIDER_PICKED_UP':
     case 'ON_THE_WAY':
       return {
-        icon: 'ðŸ›µ',
+        icon: '🛵',
         title: 'Rider is on the Way!',
         desc: 'Your courier is heading towards your delivery address.'
       };
     case 'ARRIVING_SOON':
       return {
-        icon: 'ðŸ¡',
+        icon: '🏡',
         title: 'Rider Arriving Soon!',
         desc: 'Your rider is pulling up. Please have your delivery PIN ready!'
       };
     case 'DELIVERED':
       return {
-        icon: 'ðŸŽ‰',
+        icon: '🎉',
         title: 'Order Delivered!',
         desc: 'Your meal has arrived! Enjoy your hot food.'
       };
     case 'CANCELLED':
       return {
-        icon: 'âš ï¸',
+        icon: '⚠️',
         title: 'Order Cancelled',
         desc: 'This order was cancelled. Tap to view details.'
       };
     default:
       return {
-        icon: 'âœ¨',
+        icon: '✨',
         title: 'Order Status Updated',
         desc: `Status changed to ${statusLabel[status] || status}`
       };
@@ -617,15 +617,15 @@ function Badge({ children, color = 'red' }) {
 // ============================================================
 function PortalSwitcher({ activePortal, setActivePortal }) {
   const portals = [
-    { id: 'customer', icon: 'ðŸ”', label: 'FoodMaxx App' },
-    { id: 'admin', icon: 'âš™ï¸', label: 'FoodMaxx Admin' },
+    { id: 'customer', icon: '🍔', label: 'FoodMaxx App' },
+    { id: 'admin', icon: '⚙️', label: 'FoodMaxx Admin' },
   ];
 
   return (
     <div className="shrink-0 w-full z-50 bg-gray-900 text-white shadow-md border-b border-gray-800 hidden md:block">
       <div className="flex items-center gap-0 overflow-x-auto hide-scrollbar">
         <div className="flex items-center gap-1 px-3 py-2 border-r border-gray-700 shrink-0">
-          <span className="text-sm font-bold tracking-tight text-red-400">ðŸ” FOODMAXX</span>
+          <span className="text-sm font-bold tracking-tight text-red-400">🍔 FOODMAXX</span>
         </div>
         {portals.map(p => (
           <button
@@ -730,10 +730,10 @@ function CustomerPortal() {
   const [selectedZone, setSelectedZone] = useState(() => getStoredZones()[0] || null);
   const [locationsModalOpen, setLocationsModalOpen] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState([
-    { id: 'addr_1', label: 'Home', address: '123 Maple Street, Springfield', landmark: 'Near UI Main Gate', zone_id: 'zone_bodija', zone_name: 'Bodija, Ibadan', icon: 'ðŸ ' },
-    { id: 'addr_2', label: 'Work', address: 'Heritage Mall, 3rd Floor', landmark: 'Opposite Cocoa House', zone_id: 'zone_dugbe', zone_name: 'Dugbe, Ibadan', icon: 'ðŸ’¼' },
-    { id: 'addr_3', label: 'Campus', address: 'Faculty of Technology, UI', landmark: 'Beside Queen Idia Hall Link', zone_id: 'zone_agbowo', zone_name: 'Agbowo, Ibadan', icon: 'ðŸŽ“' },
-    { id: 'addr_4', label: 'Partner', address: 'Plot 12, Oluyole Extension', landmark: 'Near Domino\'s Pizza', zone_id: 'zone_oluyole', zone_name: 'Oluyole, Ibadan', icon: 'â¤ï¸' }
+    { id: 'addr_1', label: 'Home', address: '123 Maple Street, Springfield', landmark: 'Near UI Main Gate', zone_id: 'zone_bodija', zone_name: 'Bodija, Ibadan', icon: '🏠' },
+    { id: 'addr_2', label: 'Work', address: 'Heritage Mall, 3rd Floor', landmark: 'Opposite Cocoa House', zone_id: 'zone_dugbe', zone_name: 'Dugbe, Ibadan', icon: '💼' },
+    { id: 'addr_3', label: 'Campus', address: 'Faculty of Technology, UI', landmark: 'Beside Queen Idia Hall Link', zone_id: 'zone_agbowo', zone_name: 'Agbowo, Ibadan', icon: '🎓' },
+    { id: 'addr_4', label: 'Partner', address: 'Plot 12, Oluyole Extension', landmark: 'Near Domino\'s Pizza', zone_id: 'zone_oluyole', zone_name: 'Oluyole, Ibadan', icon: '❤️' }
   ]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [orderMode, setOrderMode] = useState('delivery'); // 'delivery' or 'pickup'
@@ -929,7 +929,7 @@ function CustomerPortal() {
           setRefreshSuccess(false);
           setIsRefreshing(false);
           setPullDistance(0);
-          toast('Menu & live status updated! ðŸ¥—', 'success');
+          toast('Menu & live status updated! 🥗', 'success');
         }, 350);
       } catch (err) {
         setIsRefreshing(false);
@@ -1071,7 +1071,7 @@ function CustomerPortal() {
         setTrackingOrder(prev => prev ? { ...prev, order_status: msg.status, riderInfo: msg.riderInfo || prev.riderInfo } : null);
       }
       if (msg.status === 'DELIVERED') {
-        toast(`Your order has been delivered! ðŸŽ‰ Rate your experience.`, 'success', 5000);
+        toast(`Your order has been delivered! 🎉 Rate your experience.`, 'success', 5000);
       }
     });
     const unsubRider = ws.on('RIDER_LOCATION_UPDATE', (msg) => {
@@ -1210,7 +1210,7 @@ function CustomerPortal() {
   async function handleReviewSubmit(data) {
     try {
       await api.submitReview(reviewModal.id, data);
-      toast('Review submitted! Thank you ðŸ™', 'success');
+      toast('Review submitted! Thank you 🙏', 'success');
       setReviewModal(null);
       loadOrders();
     } catch (e) {
@@ -1251,7 +1251,7 @@ function CustomerPortal() {
       price: item.price,
       image: item.image_url,
       qty: 1,
-      message: `${item.name} added to cart! ðŸ›’`
+      message: `${item.name} added to cart! 🛒`
     });
   }, [addItem, toast]);
 
@@ -1321,7 +1321,7 @@ function CustomerPortal() {
                   sessionStorage.setItem('fmx_splash_seen', 'true');
                 } catch {}
                 const res = await silentRegister({ full_name, phone });
-                toast(`Welcome to FoodMaxx, ${full_name}! â‚¦1,000 credit added.`, 'success');
+                toast(`Welcome to FoodMaxx, ${full_name}! ₦1,000 credit added.`, 'success');
                 return res;
               }}
               onGuest={() => {
@@ -1331,7 +1331,7 @@ function CustomerPortal() {
                   sessionStorage.setItem('fmx_splash_seen', 'true');
                 } catch {}
                 setAppStage('ready');
-                toast('Browsing FoodMaxx as Guest ðŸ½ï¸', 'info');
+                toast('Browsing FoodMaxx as Guest 🍽️', 'info');
               }}
             />
           )}
@@ -1352,7 +1352,7 @@ function CustomerPortal() {
               className="absolute top-3 left-3 right-3 z-[150] bg-slate-900/95 text-white p-3 sm:p-3.5 rounded-2xl shadow-2xl border border-white/20 backdrop-blur-xl cursor-pointer flex items-center gap-3 active:scale-[0.99] transition-transform"
             >
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#EA4C2A] to-orange-500 flex items-center justify-center text-xl shrink-0 shadow-lg shadow-[#EA4C2A]/30">
-                {liveStatusBanner.icon || 'ðŸ””'}
+                {liveStatusBanner.icon || '🔔'}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
@@ -1478,11 +1478,11 @@ function CustomerPortal() {
                     <p className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 leading-none mb-0.5">
                       <span>{(() => {
                         const h = new Date().getHours();
-                        return h < 12 ? 'Good Morning â˜€ï¸' : h < 17 ? 'Good Afternoon ðŸŒ¤ï¸' : 'Good Evening ðŸŒ™';
+                        return h < 12 ? 'Good Morning ☀️' : h < 17 ? 'Good Afternoon 🌤️' : 'Good Evening 🌙';
                       })()}</span>
                     </p>
                     <h1 className="text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-tight leading-tight truncate">
-                      {user?.full_name ? user.full_name : 'FoodMaxx Lover'} ðŸ‘‹
+                      {user?.full_name ? user.full_name : 'FoodMaxx Lover'} 👋
                     </h1>
                   </div>
                 </div>
@@ -1962,7 +1962,7 @@ function CustomerPortal() {
                 });
                 setActiveGroupOrder(res.data);
                 setGroupModalOpen(true);
-                toast('Group order created! Share code with friends ðŸ‘¥', 'success');
+                toast('Group order created! Share code with friends 👥', 'success');
               } catch (e) {
                 toast(e.message, 'error');
               }
@@ -1994,7 +1994,7 @@ function CustomerPortal() {
             setGroupModalOpen(false);
             setSelectedRestaurant(null);
             setCartOpen(true);
-            toast(`Group order loaded for ${group.participants.length} people! ðŸ›’`, 'success');
+            toast(`Group order loaded for ${group.participants.length} people! 🛒`, 'success');
           }}
         />
       )}
@@ -2068,9 +2068,9 @@ function CustomerPortal() {
                 try {
                   localStorage.setItem('fmx_active_promo', prize.code);
                 } catch {}
-                toast(`Promo code "${prize.code}" saved for checkout! ðŸŽ`, 'success');
+                toast(`Promo code "${prize.code}" saved for checkout! 🎁`, 'success');
               } else {
-                toast(`Reward claimed! ðŸŽ‰`, 'success');
+                toast(`Reward claimed! 🎉`, 'success');
               }
               setSpinModalOpen(false);
             }}
@@ -2229,7 +2229,7 @@ function CustomerPortal() {
               {drop.image ? (
                 <img src={drop.image} alt={drop.name} className="w-full h-full object-cover rounded-xl" />
               ) : (
-                <span className="text-lg">ðŸ²</span>
+                <span className="text-lg">🍲</span>
               )}
             </motion.div>
           ))}
@@ -2364,12 +2364,12 @@ function SkeletonCard() {
 
 function SkeletonSection({ title = "Top picks on FoodMaxx" }) {
   return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between px-4 sm:px-0 mb-3.5">
+    <div className="mb-5">
+      <div className="flex items-center justify-between px-4 sm:px-0 mb-2.5">
         <div className="h-5 w-44 bg-slate-200 dark:bg-[#1A1D24] rounded-full animate-pulse" />
         <div className="h-4 w-16 bg-slate-100 dark:bg-[#1A1D24] rounded-full animate-pulse" />
       </div>
-      <div className="grid grid-cols-1 gap-y-6 sm:gap-y-7 px-4 sm:px-0">
+      <div className="grid grid-cols-1 gap-y-3 sm:gap-y-3.5 px-4 sm:px-0">
         {[1, 2].map(i => <SkeletonCard key={i} />)}
       </div>
     </div>
@@ -2382,15 +2382,15 @@ function SkeletonSection({ title = "Top picks on FoodMaxx" }) {
 function GreetingBanner({ user, isDark }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
-  const emoji = hour < 12 ? 'â˜€ï¸' : hour < 17 ? 'ðŸŒ¤ï¸' : 'ðŸŒ™';
-  const suggestion = hour < 12 ? 'Start your day right with a hearty breakfast.' : hour < 17 ? 'Lunch is calling â€” treat yourself!' : 'Wind down with your favourite evening meal.';
+  const emoji = hour < 12 ? '☀️' : hour < 17 ? '🌤️' : '🌙';
+  const suggestion = hour < 12 ? 'Start your day right with a hearty breakfast.' : hour < 17 ? 'Lunch is calling — treat yourself!' : 'Wind down with your favourite evening meal.';
 
   return (
     <div className={`mx-4 mb-4 rounded-2xl px-4 py-3 flex items-center gap-3 ${isDark ? 'bg-[#1A1D24]' : 'bg-gray-50'}`}>
       <span className="text-3xl">{emoji}</span>
       <div>
         <p className={`font-bold text-[15px] sm:text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
-          {greeting}{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}! ðŸ‘‹
+          {greeting}{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}! 👋
         </p>
         <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{suggestion}</p>
       </div>
@@ -2422,7 +2422,7 @@ function LiveOrderBanner({ orders, onGoToOrders }) {
 // ============================================================
 function PromoBanner({ onOrderNow, appCopy }) {
   const code = getCopy(appCopy, 'customer_hero', 'promo_banner_code', 'FIRST50');
-  const promoText = getCopy(appCopy, 'customer_hero', 'promo_banner_text', '50% off up to â‚¦2,500');
+  const promoText = getCopy(appCopy, 'customer_hero', 'promo_banner_text', '50% off up to ₦2,500');
   const heroTitle = getCopy(appCopy, 'customer_hero', 'hero_title', 'Get 50% Off First Order!');
 
   return (
@@ -2434,7 +2434,7 @@ function PromoBanner({ onOrderNow, appCopy }) {
               Code: {code}
             </span>
             <span className="text-white/90 text-[10px] sm:text-[11px] font-medium hidden xs:inline">
-              â€¢ {promoText}
+              • {promoText}
             </span>
           </div>
 
@@ -2447,7 +2447,7 @@ function PromoBanner({ onOrderNow, appCopy }) {
               onClick={onOrderNow} 
               className="bg-slate-950 hover:bg-black text-white text-[10px] sm:text-xs font-bold py-1 px-3 sm:px-4 rounded-full active:scale-95 transition-transform cursor-pointer shadow-xs"
             >
-              Order Now â†’
+              Order Now →
             </button>
             <span className="text-white/80 text-[10px] xs:hidden truncate">
               {promoText}
@@ -2735,8 +2735,8 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
   if (picks.length === 0) return null;
   
   return (
-    <div className="mb-8">
-      <div className="flex justify-between items-center px-4 sm:px-0 mb-3.5">
+    <div className="mb-5">
+      <div className="flex justify-between items-center px-4 sm:px-0 mb-2.5">
         <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">{title}</h2>
         <button 
           onClick={onSeeAll}
@@ -2747,7 +2747,7 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
       </div>
       
       {/* 1-column Product Cards Grid across all screen sizes */}
-      <div className="grid grid-cols-1 gap-y-6 sm:gap-y-7 px-4 sm:px-0">
+      <div className="grid grid-cols-1 gap-y-3 sm:gap-y-3.5 px-4 sm:px-0">
         {picks.map((item, idx) => (
           <TopPickCard 
             key={item.id || idx} 
@@ -2776,7 +2776,7 @@ function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, o
       price: 12.90,
       rating: 4.8,
       reviews: '1.2k',
-      time: '25â€“35 min',
+      time: '25–35 min',
       img: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600&auto=format&fit=crop&q=80'
     },
     {
@@ -2786,7 +2786,7 @@ function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, o
       price: 8.50,
       rating: 4.7,
       reviews: '980',
-      time: '20â€“30 min',
+      time: '20–30 min',
       img: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&auto=format&fit=crop&q=80'
     },
     {
@@ -2796,7 +2796,7 @@ function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, o
       price: 6.90,
       rating: 4.9,
       reviews: '850',
-      time: '10â€“15 min',
+      time: '10–15 min',
       img: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=600&auto=format&fit=crop&q=80'
     },
     {
@@ -2806,7 +2806,7 @@ function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, o
       price: 9.50,
       rating: 4.8,
       reviews: '1.5k',
-      time: '15â€“20 min',
+      time: '15–20 min',
       img: 'https://images.unsplash.com/photo-1561651823-34feb02250e4?w=600&auto=format&fit=crop&q=80'
     },
     {
@@ -2816,7 +2816,7 @@ function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, o
       price: 12.90,
       rating: 4.8,
       reviews: '1.2k',
-      time: '25â€“35 min',
+      time: '25–35 min',
       img: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600&auto=format&fit=crop&q=80'
     },
     {
@@ -2826,7 +2826,7 @@ function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, o
       price: 11.50,
       rating: 4.9,
       reviews: '2.1k',
-      time: '20â€“25 min',
+      time: '20–25 min',
       img: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80'
     }
   ];
@@ -2837,7 +2837,7 @@ function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, o
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-bold text-lg text-slate-900 dark:text-white">Your Favorites â¤ï¸</h2>
+          <h2 className="font-bold text-lg text-slate-900 dark:text-white">Your Favorites ❤️</h2>
           <p className="text-xs text-gray-500 dark:text-gray-400">All your saved craved dishes in one place</p>
         </div>
         <span className="text-xs font-bold text-[#EA4C2A] bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-full">
@@ -2848,7 +2848,7 @@ function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, o
       {favItems.length === 0 ? (
         <div className="py-14 px-4 text-center rounded-3xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
           <div className="w-14 h-14 rounded-full bg-red-50 dark:bg-red-950/50 text-[#EA4C2A] flex items-center justify-center mx-auto mb-3 text-2xl">
-            ðŸ¤
+            🤍
           </div>
           <h3 className="font-bold text-sm text-slate-900 dark:text-white mb-1">No favorites saved yet</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs mx-auto mb-4">
@@ -3119,7 +3119,7 @@ function HomeTab({
 
         {filtered.length === 0 ? (
           <div className="text-center py-14 px-4 rounded-3xl bg-gray-50 dark:bg-gray-900">
-            <div className="text-4xl mb-2">ðŸ½ï¸</div>
+            <div className="text-4xl mb-2">🍽️</div>
             <div className="font-bold text-sm text-slate-900 dark:text-white">No dishes found</div>
             <p className="text-xs text-gray-400 mt-1 mb-3">Try searching for "Pasta", "Parfait", "Shawarma", or "Jollof"</p>
             <button
@@ -3563,7 +3563,7 @@ function MenuTab({
 
         {filtered.length === 0 && (
           <div className="py-16 text-center">
-            <div className="text-4xl mb-2">ðŸ½ï¸</div>
+            <div className="text-4xl mb-2">🍽️</div>
             <h3 className="font-bold text-base text-slate-900 dark:text-white mb-1">No dishes found</h3>
             <p className="text-xs text-gray-400 mb-4">Try searching for pasta, parfait, or shawarma</p>
             <button
@@ -3717,7 +3717,7 @@ function OrdersTab({ orders, onOpenTracking, onReview, onExplore, onBack, onRefr
               onClick={() => setFilter('completed')}
               className="mt-2.5 text-xs font-bold text-[#EA4C2A] hover:underline cursor-pointer"
             >
-              View past orders ({pastOrders.length}) â†’
+              View past orders ({pastOrders.length}) →
             </button>
           )}
         </div>
@@ -3799,7 +3799,7 @@ function CleanOrderCard({ order, onTrack, onReview, isDark }) {
       {isActive ? (
         <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-white/6 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-xs font-bold text-[#EA4C2A] dark:text-orange-400 min-w-0">
-            <span className="text-sm">ðŸ›µ</span>
+            <span className="text-sm">🛵</span>
             <span className="truncate">
               {order.delivery_otp ? `Delivery PIN: ${order.delivery_otp}` : 'Courier on the way'}
             </span>
@@ -3873,12 +3873,12 @@ function ProfileTab({
             className="w-20 h-20 rounded-3xl object-cover shadow-xl border border-black/10 dark:border-white/10 shrink-0"
           />
           <span className="absolute -bottom-1 -right-1 bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">
-            ðŸŽ â‚¦1,000
+            🎁 ₦1,000
           </span>
         </div>
         <h3 className="font-bold text-xl text-slate-900 dark:text-white mb-1.5">Sign In to FoodMaxx</h3>
         <p className="text-gray-500 dark:text-gray-400 text-xs mb-6 max-w-xs leading-relaxed">
-          Log in or create an account in seconds to unlock your <span className="font-bold text-emerald-600 dark:text-emerald-400">â‚¦1,000 Welcome Bonus</span>, live order tracking, and fast checkout.
+          Log in or create an account in seconds to unlock your <span className="font-bold text-emerald-600 dark:text-emerald-400">₦1,000 Welcome Bonus</span>, live order tracking, and fast checkout.
         </p>
         <button
           onClick={onOpenOnboarding || onLogin}
@@ -3994,14 +3994,14 @@ function ProfileTab({
         {/* Welcome Bonus Callout Banner */}
         <div className="mt-3.5 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
           <div className="flex items-center gap-1.5 text-amber-300 font-semibold text-[11.5px]">
-            <span>ðŸŽ</span>
-            <span>â‚¦1,000 Welcome Perk Ready to Use</span>
+            <span>🎁</span>
+            <span>₦1,000 Welcome Perk Ready to Use</span>
           </div>
           <button
             onClick={onOpenWallet}
             className="text-[11px] text-gray-300 hover:text-white underline cursor-pointer"
           >
-            View History â†’
+            View History →
           </button>
         </div>
       </div>
@@ -4196,8 +4196,8 @@ function ProfileTab({
 
       {/* App Version Info */}
       <div className="text-center pt-2">
-        <p className="text-[10.5px] text-gray-400 font-medium">FoodMaxx Technologies Â· v2.4.0</p>
-        <p className="text-[9.5px] text-gray-400/80">Crafted with â¤ï¸ for Ibadan Foodies</p>
+        <p className="text-[10.5px] text-gray-400 font-medium">FoodMaxx Technologies · v2.4.0</p>
+        <p className="text-[9.5px] text-gray-400/80">Crafted with ❤️ for Ibadan Foodies</p>
       </div>
     </div>
   );
@@ -4256,7 +4256,7 @@ function SavedLocationsModal({
         landmark: landmark.trim() || 'Near main junction',
         zone_id: zoneObj?.id,
         zone_name: zoneObj?.name || 'Ibadan',
-        icon: label === 'Home' ? 'ðŸ ' : label === 'Work' ? 'ðŸ¢' : label === 'Campus' ? 'ðŸŽ“' : 'ðŸ“'
+        icon: label === 'Home' ? '🏠' : label === 'Work' ? '🏢' : label === 'Campus' ? '🎓' : '📍'
       };
       await onAddNewAddress(newAddr);
       onSelectAddress(newAddr);
@@ -4264,7 +4264,7 @@ function SavedLocationsModal({
       setShowAddForm(false);
       setStreet('');
       setLandmark('');
-      toast('New delivery spot saved with landmark! ðŸ“', 'success');
+      toast('New delivery spot saved with landmark! 📍', 'success');
       onClose();
     } catch (err) {
       toast('Failed to save address', 'error');
@@ -4319,7 +4319,7 @@ function SavedLocationsModal({
                   : 'text-gray-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              ðŸ“ My Places ({savedAddresses.length})
+              📍 My Places ({savedAddresses.length})
             </button>
             <button
               type="button"
@@ -4330,7 +4330,7 @@ function SavedLocationsModal({
                   : 'text-gray-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              ðŸŒ Ibadan Zones ({zones.length})
+              🌐 Ibadan Zones ({zones.length})
             </button>
           </div>
         </div>
@@ -4399,7 +4399,7 @@ function SavedLocationsModal({
 
                   {/* Landmark */}
                   <div>
-                    <label className="text-[10.5px] font-bold text-[#EA4C2A] block mb-1">ðŸ“ Landmark (Crucial for Rider!)</label>
+                    <label className="text-[10.5px] font-bold text-[#EA4C2A] block mb-1">📍 Landmark (Crucial for Rider!)</label>
                     <input
                       type="text"
                       placeholder="e.g. Opposite Zenith Bank ATM, Green gate"
@@ -4486,7 +4486,7 @@ function SavedLocationsModal({
                             </div>
                             {addr.landmark && (
                               <div className="text-[10.5px] text-[#EA4C2A] font-semibold truncate mt-0.5">
-                                ðŸ“ Near {addr.landmark}
+                                📍 Near {addr.landmark}
                               </div>
                             )}
                             <div className="text-[10px] text-gray-400 mt-0.5">{addr.zone_name}</div>
@@ -4555,7 +4555,7 @@ function SavedLocationsModal({
                       <div className="min-w-0 flex-1">
                         <div className="font-bold text-xs text-slate-900 dark:text-white truncate">{z.name}</div>
                         <div className="text-[10.5px] text-gray-500 dark:text-gray-400 mt-0.5">
-                          {fmt(z.delivery_fee)} Â· {z.estimated_delivery_time}
+                          {fmt(z.delivery_fee)} · {z.estimated_delivery_time}
                         </div>
                       </div>
                       {isSelected && (
@@ -4584,11 +4584,11 @@ function InTransitChatDrawer({ open, onClose, order, user, isDark }) {
   const scrollRef = useRef(null);
 
   const quickReplies = [
-    "I'm at the main gate ðŸšª",
-    "Please call when outside ðŸ“ž",
-    "Leave package at security post ðŸ›¡ï¸",
-    "Drive safe! ðŸ™",
-    "On my way downstairs ðŸƒ"
+    "I'm at the main gate 🚪",
+    "Please call when outside 📞",
+    "Leave package at security post 🛡️",
+    "Drive safe! 🙏",
+    "On my way downstairs 🏃"
   ];
 
   const loadMessages = useCallback(async () => {
@@ -4648,10 +4648,10 @@ function InTransitChatDrawer({ open, onClose, order, user, isDark }) {
         <div className="px-4 py-3 border-b border-red-700 flex items-center justify-between shrink-0 bg-gradient-to-r from-red-600 to-red-700 text-white">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">
-              ðŸ›µ
+              🛵
             </div>
             <div>
-              <div className="font-semibold text-xs">Rider Chat Â· {order.riderInfo?.full_name || 'Delivery Partner'}</div>
+              <div className="font-semibold text-xs">Rider Chat · {order.riderInfo?.full_name || 'Delivery Partner'}</div>
               <div className="text-[10px] text-red-100">Order: #{order.order_reference}</div>
             </div>
           </div>
@@ -4663,7 +4663,7 @@ function InTransitChatDrawer({ open, onClose, order, user, isDark }) {
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
           {messages.length === 0 ? (
             <div className="text-center py-10 text-gray-400 text-xs">
-              <div className="text-3xl mb-2">ðŸ’¬</div>
+              <div className="text-3xl mb-2">💬</div>
               <p>No messages yet. Send a note to help your rider locate your address quickly!</p>
             </div>
           ) : (
@@ -4766,11 +4766,11 @@ function MaskedCallModal({ open, onClose, rider, order, isDark }) {
       >
         <div className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/30 mb-6">
           <Shield size={12} />
-          <span>Number Masking Active Â· Privacy Protected</span>
+          <span>Number Masking Active · Privacy Protected</span>
         </div>
 
         <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-red-600 to-red-800 flex items-center justify-center text-3xl font-bold mb-3 shadow-lg shadow-red-600/30 ring-4 ring-red-500/20">
-          {rider?.full_name?.[0] || 'ðŸ›µ'}
+          {rider?.full_name?.[0] || '🛵'}
         </div>
 
         <h3 className="font-bold text-lg mb-0.5">{rider?.full_name || 'FoodMaxx Dispatch Rider'}</h3>
@@ -4784,7 +4784,7 @@ function MaskedCallModal({ open, onClose, rider, order, isDark }) {
 
         {callState === 'connected' && (
           <div className="text-emerald-400 text-sm font-bold my-3 tracking-widest">
-            ðŸŸ¢ {fmtTime(timer)}
+            🟢 {fmtTime(timer)}
           </div>
         )}
 
@@ -4940,7 +4940,7 @@ function MotorcycleRouteMap({ status, eta, isDark, destinationAddress }) {
               <MapPin size={14} className="text-emerald-600" />
             </g>
             <text x="0" y="27" textAnchor="middle" fontSize="10" fontWeight="bold" fill={isDark ? '#10B981' : '#059669'}>
-              {destShort.length > 14 ? destShort.slice(0, 13) + 'â€¦' : destShort}
+              {destShort.length > 14 ? destShort.slice(0, 13) + '…' : destShort}
             </text>
           </g>
 
@@ -5004,7 +5004,7 @@ function DeliveryPinCard({ otp, orderId, onVerified, isDark }) {
     try {
       await api.verifyOrderPIN(orderId, otp);
       setVerified(true);
-      toast('PIN verified! Order marked Delivered ðŸŽ‰', 'success');
+      toast('PIN verified! Order marked Delivered 🎉', 'success');
       if (onVerified) onVerified();
     } catch (e) {
       toast(e.message || 'Verification failed', 'error');
@@ -5210,11 +5210,11 @@ function RestaurantModal({ restaurant: r, onClose, onAddToCart, onOpenCart, onSt
               <img onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }} src={r.logo_url} className="w-14 h-14 rounded-2xl border-2 border-white object-cover shadow-md shrink-0" alt={r.name} />
               <div className="text-white min-w-0 flex-1">
                 <h1 className="font-bold text-lg text-white leading-tight truncate drop-shadow-sm">{r.name}</h1>
-                <p className="text-xs text-white/90 line-clamp-1 mt-0.5">{r.cuisine_types?.join(' â€¢ ')}</p>
+                <p className="text-xs text-white/90 line-clamp-1 mt-0.5">{r.cuisine_types?.join(' • ')}</p>
                 <div className="flex items-center gap-2 text-xs text-white/80 mt-1">
                   <span className="bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white flex items-center gap-1">
                     <Clock size={11} className="text-amber-300" />
-                    <span>{r.delivery_time_min}â€“{r.delivery_time_max} min delivery</span>
+                    <span>{r.delivery_time_min}–{r.delivery_time_max} min delivery</span>
                   </span>
                 </div>
               </div>
@@ -5225,7 +5225,7 @@ function RestaurantModal({ restaurant: r, onClose, onAddToCart, onOpenCart, onSt
           <div className="flex divide-x divide-gray-100 bg-gray-50 text-center text-xs text-gray-600 py-2.5 border-b border-gray-100">
             <div className="flex-1 px-1">
               <Clock size={13} className="mx-auto mb-0.5 text-gray-400" />
-              <span className="font-semibold text-gray-700">{r.delivery_time_min}â€“{r.delivery_time_max}</span> min
+              <span className="font-semibold text-gray-700">{r.delivery_time_min}–{r.delivery_time_max}</span> min
             </div>
             <div className="flex-1 px-1">
               <MapPin size={13} className="mx-auto mb-0.5 text-gray-400" />
@@ -5244,7 +5244,7 @@ function RestaurantModal({ restaurant: r, onClose, onAddToCart, onOpenCart, onSt
           {/* Group Order CTA Banner */}
           <div className="mx-3 my-2.5 p-3 bg-gradient-to-r from-purple-800 to-indigo-900 rounded-2xl text-white flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
-              <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-base shrink-0">ðŸ‘¥</div>
+              <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-base shrink-0">👥</div>
               <div className="min-w-0">
                 <div className="font-semibold text-xs truncate">Ordering with friends or office?</div>
                 <div className="text-[10px] text-purple-200 truncate">Start a group order & split easily</div>
@@ -5350,9 +5350,9 @@ function RestaurantModal({ restaurant: r, onClose, onAddToCart, onOpenCart, onSt
                   <div className="text-[11px] text-gray-500 mt-0.5">{r.reviews_count} reviews</div>
                 </div>
                 <div className="flex-1 text-xs text-gray-600 border-l border-gray-200 pl-4 space-y-1">
-                  <div className="flex justify-between font-medium"><span>Food Quality</span><span className="text-amber-600 font-bold">4.9 â˜…</span></div>
-                  <div className="flex justify-between font-medium"><span>Packaging</span><span className="text-amber-600 font-bold">4.8 â˜…</span></div>
-                  <div className="flex justify-between font-medium"><span>Delivery Speed</span><span className="text-amber-600 font-bold">4.7 â˜…</span></div>
+                  <div className="flex justify-between font-medium"><span>Food Quality</span><span className="text-amber-600 font-bold">4.9 ★</span></div>
+                  <div className="flex justify-between font-medium"><span>Packaging</span><span className="text-amber-600 font-bold">4.8 ★</span></div>
+                  <div className="flex justify-between font-medium"><span>Delivery Speed</span><span className="text-amber-600 font-bold">4.7 ★</span></div>
                 </div>
               </div>
 
@@ -5460,7 +5460,7 @@ function FoodItemRow({ item, onSelect, restaurant }) {
           </span>
           {item.badge && (
             <span className="bg-[#EA4C2A] text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full">
-              ðŸ”¥ {item.badge}
+              🔥 {item.badge}
             </span>
           )}
           {!isAvailable && (
@@ -5633,10 +5633,10 @@ function getCategoryDefaults(item) {
         { name: 'Pitcher / Sharing Jug (1 Litre)', price_adjustment: Math.round(item.price * 0.9 / 50) * 50, description: 'Generous sharing size' },
       ],
       extras: [
-        { name: 'Extra Crushed Ice', price_adjustment: 0, icon: 'ðŸ§Š' },
-        { name: 'Fresh Lime & Lemon Slice', price_adjustment: 150, icon: 'ðŸ‹' },
-        { name: 'Extra Angostura Bitters', price_adjustment: 250, icon: 'ðŸ¹' },
-        { name: 'Served Chilled in Ice Bucket', price_adjustment: 400, icon: 'â„ï¸' },
+        { name: 'Extra Crushed Ice', price_adjustment: 0, icon: '🧊' },
+        { name: 'Fresh Lime & Lemon Slice', price_adjustment: 150, icon: '🍋' },
+        { name: 'Extra Angostura Bitters', price_adjustment: 250, icon: '🍹' },
+        { name: 'Served Chilled in Ice Bucket', price_adjustment: 400, icon: '❄️' },
       ]
     };
   }
@@ -5650,12 +5650,12 @@ function getCategoryDefaults(item) {
         { name: 'Mega Feast (4 Wraps + Assorted Meat Combo)', price_adjustment: 2000, description: 'Generous portion with meat variety' },
       ],
       extras: [
-        { name: 'Extra Gbegiri & Ewedu (Abula)', price_adjustment: 400, icon: 'ðŸ²' },
-        { name: 'Fried Sweet Plantain (Dodo)', price_adjustment: 600, icon: 'ðŸŒ' },
-        { name: 'Extra Goat Meat (Ogunfe Chunk)', price_adjustment: 1500, icon: 'ðŸ¥©' },
-        { name: 'Extra Cow Leg / Bokoto', price_adjustment: 1200, icon: 'ðŸ–' },
-        { name: 'Fried Panla / Titus Fish', price_adjustment: 1400, icon: 'ðŸŸ' },
-        { name: 'Chilled Soft Drink', price_adjustment: 500, icon: 'ðŸ¥¤' },
+        { name: 'Extra Gbegiri & Ewedu (Abula)', price_adjustment: 400, icon: '🍲' },
+        { name: 'Fried Sweet Plantain (Dodo)', price_adjustment: 600, icon: '🍌' },
+        { name: 'Extra Goat Meat (Ogunfe Chunk)', price_adjustment: 1500, icon: '🥩' },
+        { name: 'Extra Cow Leg / Bokoto', price_adjustment: 1200, icon: '🍖' },
+        { name: 'Fried Panla / Titus Fish', price_adjustment: 1400, icon: '🐟' },
+        { name: 'Chilled Soft Drink', price_adjustment: 500, icon: '🥤' },
       ]
     };
   }
@@ -5669,11 +5669,11 @@ function getCategoryDefaults(item) {
         { name: 'Party Platter (12+ Pieces)', price_adjustment: 2600, description: 'Family or group serving' },
       ],
       extras: [
-        { name: 'Extra Sliced Onions & Yaji Spice', price_adjustment: 200, icon: 'ðŸ§…' },
-        { name: 'Fried Sweet Plantain (Dodo)', price_adjustment: 600, icon: 'ðŸŒ' },
-        { name: 'Fried Yam Chips', price_adjustment: 700, icon: 'ðŸ ' },
-        { name: 'Extra Spicy Pepper Dip', price_adjustment: 250, icon: 'ðŸŒ¶ï¸' },
-        { name: 'Chilled Chapman / Soft Drink', price_adjustment: 600, icon: 'ðŸ¥¤' },
+        { name: 'Extra Sliced Onions & Yaji Spice', price_adjustment: 200, icon: '🧅' },
+        { name: 'Fried Sweet Plantain (Dodo)', price_adjustment: 600, icon: '🍌' },
+        { name: 'Fried Yam Chips', price_adjustment: 700, icon: '🍠' },
+        { name: 'Extra Spicy Pepper Dip', price_adjustment: 250, icon: '🌶️' },
+        { name: 'Chilled Chapman / Soft Drink', price_adjustment: 600, icon: '🥤' },
       ]
     };
   }
@@ -5686,12 +5686,12 @@ function getCategoryDefaults(item) {
       { name: 'Jumbo Combo (Platter + Salad + 2 Meats)', price_adjustment: 1800, description: 'Full executive combo meal' },
     ],
     extras: [
-      { name: 'Fried Sweet Plantain (Dodo)', price_adjustment: 600, icon: 'ðŸŒ' },
-      { name: 'Crispy Fried Chicken Piece', price_adjustment: 1500, icon: 'ðŸ—' },
-      { name: 'Peppered Goat Meat (Asun)', price_adjustment: 1800, icon: 'ðŸ¥©' },
-      { name: 'Boiled / Fried Egg', price_adjustment: 350, icon: 'ðŸ³' },
-      { name: 'Fresh Creamy Coleslaw', price_adjustment: 450, icon: 'ðŸ¥—' },
-      { name: 'Chilled Soft Drink', price_adjustment: 500, icon: 'ðŸ¥¤' },
+      { name: 'Fried Sweet Plantain (Dodo)', price_adjustment: 600, icon: '🍌' },
+      { name: 'Crispy Fried Chicken Piece', price_adjustment: 1500, icon: '🍗' },
+      { name: 'Peppered Goat Meat (Asun)', price_adjustment: 1800, icon: '🥩' },
+      { name: 'Boiled / Fried Egg', price_adjustment: 350, icon: '🍳' },
+      { name: 'Fresh Creamy Coleslaw', price_adjustment: 450, icon: '🥗' },
+      { name: 'Chilled Soft Drink', price_adjustment: 500, icon: '🥤' },
     ]
   };
 }
@@ -5716,7 +5716,7 @@ function GroupOrderModal({ restaurant, groupOrder: initialGroup, onClose, onChec
       navigator.clipboard.writeText(group.code);
     }
     setCopied(true);
-    toast(`Group code ${group.code} copied! Share with friends ðŸ‘¥`, 'success');
+    toast(`Group code ${group.code} copied! Share with friends 👥`, 'success');
     setTimeout(() => setCopied(false), 2500);
   };
 
@@ -5751,7 +5751,7 @@ function GroupOrderModal({ restaurant, groupOrder: initialGroup, onClose, onChec
       setShowAddDish(false);
       setSelectedItemToAdd(null);
       setAddQty(1);
-      toast(`Added ${selectedItemToAdd.name} for ${targetName}! ðŸ²`, 'success');
+      toast(`Added ${selectedItemToAdd.name} for ${targetName}! 🍲`, 'success');
     } catch (e) {
       toast(e.message || 'Failed to add item to group', 'error');
     } finally {
@@ -6120,7 +6120,7 @@ function FoodDetailModal({ restaurant, item, onClose }) {
       image: item.image_url,
       qty,
       extras: selectedExtrasList,
-      message: `${item.name} added to cart ðŸ›’`
+      message: `${item.name} added to cart 🛒`
     });
     onClose();
   }
@@ -6133,9 +6133,9 @@ function FoodDetailModal({ restaurant, item, onClose }) {
       url: window.location.href
     });
     if (shared) {
-      toast('Share dialog opened! ðŸ“²', 'info');
+      toast('Share dialog opened! 📲', 'info');
     } else {
-      toast('Link copied to clipboard! ðŸ“‹', 'success');
+      toast('Link copied to clipboard! 📋', 'success');
     }
   };
 
@@ -6207,7 +6207,7 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                   onClick={() => {
                     triggerHaptic('medium');
                     setIsFavorite(f => !f);
-                    toast(isFavorite ? 'Removed from favourites' : 'Saved to favourites â¤ï¸', 'info');
+                    toast(isFavorite ? 'Removed from favourites' : 'Saved to favourites ❤️', 'info');
                   }}
                   className="w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-lg"
                   title="Favorite"
@@ -6255,7 +6255,7 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                     ({item.review_count || '238'} reviews)
                   </span>
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                    ðŸ”¥ Popular
+                    🔥 Popular
                   </span>
                 </div>
               </div>
@@ -6301,7 +6301,7 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                     const isSelected = selectedSize === s.name;
                     const variationPrice = item.price + (s.price_adjustment || 0);
                     const isBase = (s.price_adjustment || 0) === 0;
-                    const sizeEmoji = idx === 0 ? 'ðŸ¥£' : idx === 1 ? 'ðŸ½ï¸' : 'ðŸª£';
+                    const sizeEmoji = idx === 0 ? '🥣' : idx === 1 ? '🍽️' : '🪣';
 
                     return (
                       <button
@@ -6367,7 +6367,7 @@ function FoodDetailModal({ restaurant, item, onClose }) {
               </div>
             )}
 
-            {/* 5. Extras â€” 2-column card grid */}
+            {/* 5. Extras — 2-column card grid */}
             {extras.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -6423,7 +6423,7 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                               onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, -1); }}
                               className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center font-black text-sm text-slate-700 dark:text-white cursor-pointer"
                             >
-                              âˆ’
+                              −
                             </button>
                             <span className="font-black text-xs text-[#EA4C2A] w-5 text-center">{eQty}</span>
                             <button
@@ -6442,11 +6442,11 @@ function FoodDetailModal({ restaurant, item, onClose }) {
               </div>
             )}
 
-            {/* 6. Special Instructions â€” textarea with character counter */}
+            {/* 6. Special Instructions — textarea with character counter */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
-                  <span>ðŸ´</span> Special Kitchen Notes
+                  <span>🍴</span> Special Kitchen Notes
                 </label>
                 <span className={`text-[11px] font-semibold tabular-nums ${
                   instructions.length >= 100
@@ -6472,7 +6472,7 @@ function FoodDetailModal({ restaurant, item, onClose }) {
           </div>
         </div>
 
-        {/* 7. Sticky Bottom Bar â€” frosted glass */}
+        {/* 7. Sticky Bottom Bar — frosted glass */}
         <div className={`shrink-0 px-4 pt-3 border-t backdrop-blur-xl ${
           isDark
             ? 'bg-[#121418]/90 border-white/8'
@@ -6491,7 +6491,7 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                 isDark ? 'text-white hover:bg-white/10' : 'text-slate-800 hover:bg-slate-200'
               }`}
             >
-              âˆ’
+              −
             </button>
             <span className={`font-black text-sm select-none w-7 text-center ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {qty}
@@ -6602,7 +6602,7 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
             <div>
               <h2 className="font-bold text-base text-slate-900 dark:text-white leading-tight">Your Cart</h2>
               <p className="text-xs text-gray-400 font-medium">
-                {cart.restaurantName || 'FoodMaxx'} Â· {totalItemsCount} {totalItemsCount === 1 ? 'item' : 'items'}
+                {cart.restaurantName || 'FoodMaxx'} · {totalItemsCount} {totalItemsCount === 1 ? 'item' : 'items'}
               </p>
             </div>
           </div>
@@ -6628,7 +6628,7 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
         {cart.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 px-6 text-center my-auto">
             <div className="w-20 h-20 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center text-3xl mb-4">
-              ðŸ›’
+              🛒
             </div>
             <h3 className="font-bold text-base text-slate-900 dark:text-white mb-1">
               {getCopy(getAppContent(), 'customer_checkout', 'cart_empty_title', 'Your cart is empty')}
@@ -6734,7 +6734,7 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
               }`}
             >
               <span className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-lg bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center text-xs">âœ¨</span>
+                <span className="w-5 h-5 rounded-lg bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center text-xs">✨</span>
                 <span>Need drinks, sides or extra bites?</span>
               </span>
               <span className="flex items-center gap-1 text-[11px] font-bold text-[#EA4C2A]">
@@ -6758,12 +6758,12 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
             <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-emerald-500/15 border border-amber-500/30 dark:border-amber-400/20 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-[#EA4C2A] text-white flex items-center justify-center text-sm shrink-0 shadow-xs">
-                  ðŸŽ
+                  🎁
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-extrabold text-xs text-amber-600 dark:text-amber-400">
-                      â‚¦1,000 Welcome Wallet Perk
+                      ₦1,000 Welcome Wallet Perk
                     </span>
                     <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                       Active
@@ -6969,7 +6969,7 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
                     }}
                     className="w-full py-2.5 rounded-xl bg-[#EA4C2A] text-white text-xs font-bold shadow-md shadow-[#EA4C2A]/20 cursor-pointer active:scale-[0.98]"
                   >
-                    Done Â· Return to Cart
+                    Done · Return to Cart
                   </button>
                 </div>
               </motion.div>
@@ -7084,7 +7084,7 @@ function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete 
           <div className="text-right">
             <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Pay</span>
             <span className="font-black text-base sm:text-lg text-slate-900 dark:text-white">
-              â‚¦{amount.toLocaleString()}
+              ₦{amount.toLocaleString()}
             </span>
           </div>
         </div>
@@ -7115,9 +7115,9 @@ function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete 
             {/* Tabs */}
             <div className="flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 text-xs font-bold">
               {[
-                { id: 'card', label: 'ðŸ’³ Card' },
-                { id: 'transfer', label: 'ðŸ¦ Bank Transfer' },
-                { id: 'ussd', label: 'ðŸ“± USSD' }
+                { id: 'card', label: '💳 Card' },
+                { id: 'transfer', label: '🏦 Bank Transfer' },
+                { id: 'ussd', label: '📱 USSD' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -7185,7 +7185,7 @@ function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete 
                   onClick={() => handleSimulatePayment('card')}
                   className="w-full py-3 rounded-xl bg-[#09A552] hover:bg-[#088C45] text-white font-bold text-sm shadow-md transition-transform active:scale-[0.98] cursor-pointer mt-2"
                 >
-                  Pay â‚¦{amount.toLocaleString()}
+                  Pay ₦{amount.toLocaleString()}
                 </button>
               </div>
             )}
@@ -7221,7 +7221,7 @@ function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete 
                   <p className="text-[11px] text-emerald-600 font-bold text-center">Account number copied!</p>
                 )}
                 <p className="text-[11px] text-slate-400 text-center">
-                  Transfer exactly â‚¦{amount.toLocaleString()} to the account above.
+                  Transfer exactly ₦{amount.toLocaleString()} to the account above.
                 </p>
 
                 <button
@@ -7307,7 +7307,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   const [loading, setLoading] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
 
-  // Free First-Time â‚¦1,000 Giveaway toggle
+  // Free First-Time ₦1,000 Giveaway toggle
   const [useFirstTimeGiveaway, setUseFirstTimeGiveaway] = useState(true);
 
   // Spin to Win in Checkout modal state
@@ -7417,7 +7417,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   const deliveryFee = freeDelivery ? 0 : (selectedZone?.delivery_fee || 500);
   const serviceFee = 250;
 
-  // First-time â‚¦1,000 Giveaway Deduction:
+  // First-time ₦1,000 Giveaway Deduction:
   const firstTimeGiveawayDeduction = useFirstTimeGiveaway
     ? Math.min(1000, Math.max(0, subtotal - discount))
     : 0;
@@ -7494,7 +7494,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         localStorage.setItem('fmx_active_promo', code);
       } catch {}
       triggerHaptic('success');
-      toast(`Promo ${code} applied! You saved ${fmt(disc)} ðŸŽ‰`, 'success');
+      toast(`Promo ${code} applied! You saved ${fmt(disc)} 🎉`, 'success');
     } catch (e) {
       toast(e.message || 'Failed to apply promo', 'error');
     } finally {
@@ -7706,7 +7706,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         cart_items: cartItems,
         delivery_address: cleanDeliveryAddress,
         delivery_zone: selectedZone?.name || 'Bodija & Ibadan Axis',
-        delivery_instructions: [instructions, landmark].filter(Boolean).join(' Â· ') || '',
+        delivery_instructions: [instructions, landmark].filter(Boolean).join(' · ') || '',
         payment_method: total === 0 ? (firstTimeGiveawayDeduction > 0 ? 'giveaway' : 'wallet') : paymentMethod,
         promo_code: promoCode || '',
         delivery_lat: 7.435,
@@ -7757,7 +7757,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
           disableForReducedMotion: true,
           origin: { y: 0.6 }
         });
-        toast('ðŸŽ‰ Order placed 100% Free!', 'success');
+        toast('🎉 Order placed 100% Free!', 'success');
         onSuccess(placedOrder);
         setLoading(false);
         return;
@@ -7812,7 +7812,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
           disableForReducedMotion: true,
           origin: { y: 0.6 }
         });
-        toast('ðŸŽ‰ Order placed successfully using your FoodMaxx Wallet!', 'success');
+        toast('🎉 Order placed successfully using your FoodMaxx Wallet!', 'success');
         onSuccess(placedOrder);
         setLoading(false);
         return;
@@ -8098,66 +8098,69 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               </div>
               {totalSavings > 0 && (
                 <span className="text-[11px] font-black text-[#EA2A2A] dark:text-[#FF6B4A] bg-[#EA2A2A]/10 px-2.5 py-1 rounded-full border border-[#EA2A2A]/20">
-                  Saving {fmt(totalSavings)} ðŸŽ‰
+                  Saving {fmt(totalSavings)} 🎉
                 </span>
               )}
             </div>
 
-            {/* 1. First-Time â‚¦1,000 Giveaway Toggle */}
-            <div className={`p-3.5 rounded-xl border transition-all mb-2.5 ${
+            {/* 1. First-Time ₦1,000 Giveaway Toggle */}
+            <div className={`p-3.5 rounded-2xl border transition-all mb-2.5 ${
               useFirstTimeGiveaway
-                ? 'bg-red-500/5 dark:bg-red-500/10 border-[#EA2A2A]/30'
-                : 'bg-slate-50 dark:bg-white/5 border-slate-200/80 dark:border-white/10 opacity-80'
+                ? 'bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] border-emerald-500/30 shadow-xs'
+                : 'bg-slate-50 dark:bg-white/5 border-slate-200/80 dark:border-white/10 opacity-75'
             }`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-[#EA2A2A] text-white flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
                     <Gift size={16} className="stroke-[2.5]" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
-                        First-Time â‚¦1,000 Giveaway
+                        Claim your N1000 first time giveaway
                       </span>
-                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#EA2A2A] text-white">
+                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                         Free Gift
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      Instant â‚¦1,000 discount applied directly
+                      Instant ₦1,000 discount applied directly
                     </p>
                   </div>
                 </div>
 
+                {/* Activator switcher - vibrant green and glowing */}
                 <button
                   type="button"
                   onClick={() => {
                     triggerHaptic('selection');
                     setUseFirstTimeGiveaway(prev => !prev);
                   }}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    useFirstTimeGiveaway ? 'bg-[#EA2A2A]' : 'bg-slate-300 dark:bg-white/20'
+                  className={`relative inline-flex h-6.5 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-300 ease-in-out focus:outline-none ${
+                    useFirstTimeGiveaway
+                      ? 'bg-emerald-500 shadow-[0_0_16px_rgba(16,185,129,0.85)] ring-2 ring-emerald-400/60'
+                      : 'bg-slate-300 dark:bg-white/20'
                   }`}
                   role="switch"
                   aria-checked={useFirstTimeGiveaway}
-                  title="Toggle â‚¦1,000 Giveaway"
+                  title="Claim your N1000 first time giveaway"
                 >
                   <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                      useFirstTimeGiveaway ? 'translate-x-5' : 'translate-x-0'
+                    className={`pointer-events-none inline-block h-5.5 w-5.5 transform rounded-full bg-white shadow-md ring-0 transition duration-300 ease-in-out ${
+                      useFirstTimeGiveaway ? 'translate-x-5.5 shadow-[0_0_8px_rgba(255,255,255,0.95)]' : 'translate-x-0'
                     }`}
                   />
                 </button>
               </div>
 
               {useFirstTimeGiveaway && (
-                <div className="mt-2.5 pt-2 border-t border-[#EA2A2A]/20 flex items-center justify-between text-xs">
-                  <span className="text-[#EA2A2A] dark:text-[#FF6B4A] font-bold flex items-center gap-1">
+                <div className="mt-2.5 pt-2 border-t border-emerald-500/20 flex items-center justify-between text-xs">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                     <Check size={13} className="stroke-[3]" />
-                    â‚¦1,000 Welcome Giveaway applied!
+                    ₦1,000 First-Time Giveaway applied!
                   </span>
-                  <span className="font-extrabold text-[#EA2A2A] dark:text-[#FF6B4A]">
-                    âˆ’{fmt(firstTimeGiveawayDeduction)}
+                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                    −{fmt(firstTimeGiveawayDeduction)}
                   </span>
                 </div>
               )}
@@ -8175,7 +8178,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                       {savedSpinPrize ? `Spin Prize Applied: ${savedSpinPrize}` : 'Daily Lucky Spin: Used for today'}
                     </p>
                     <p className="text-[10px] text-slate-400">
-                      Expired for today Â· Resets at midnight (1 spin per day)
+                      Expired for today · Resets at midnight (1 spin per day)
                     </p>
                   </div>
                 </div>
@@ -8194,7 +8197,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                       Spin the Lucky Wheel
                     </p>
                     <p className="text-[10px] text-amber-700 dark:text-amber-300 truncate">
-                      1 free spin today Â· Win up to 20% off
+                      1 free spin today · Win up to 20% off
                     </p>
                   </div>
                 </div>
@@ -8257,7 +8260,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                     <CheckCircle size={13} />
                     Coupon "{promoCode}" applied
                   </span>
-                  <span>âˆ’{fmt(discount)}</span>
+                  <span>−{fmt(discount)}</span>
                 </div>
               )}
             </div>
@@ -8460,14 +8463,14 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               {firstTimeGiveawayDeduction > 0 && (
                 <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-semibold">
                   <span>First-Time Giveaway</span>
-                  <span>âˆ’{fmt(firstTimeGiveawayDeduction)}</span>
+                  <span>−{fmt(firstTimeGiveawayDeduction)}</span>
                 </div>
               )}
 
               {discount > 0 && (
                 <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-semibold">
                   <span>Promo Discount ({promoCode})</span>
-                  <span>âˆ’{fmt(discount)}</span>
+                  <span>−{fmt(discount)}</span>
                 </div>
               )}
 
@@ -8613,7 +8616,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                   </div>
                   <div>
                     <h3 className="text-sm font-bold">Paystack Configuration</h3>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400">Demo test active Â· Live key optional</p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">Demo test active · Live key optional</p>
                   </div>
                 </div>
                 <button
@@ -8652,7 +8655,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                       savePaystackConfig({ publicKey: '', isLive: false });
                       setPaystackKey('');
                       setKeyInput('');
-                      toast('Switched to Paystack Demo Test mode! ðŸ§ª', 'info');
+                      toast('Switched to Paystack Demo Test mode! 🧪', 'info');
                     }}
                     className="text-[10.5px] font-bold px-2.5 py-1 rounded-xl bg-black/10 dark:bg-white/10 hover:bg-black/20 text-inherit cursor-pointer"
                   >
@@ -8666,11 +8669,11 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                   <span>Custom Paystack Public Key</span>
                   {keyInput.trim().startsWith('pk_live_') ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                      â— Live Key
+                      ● Live Key
                     </span>
                   ) : keyInput.trim().startsWith('pk_test_') ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                      â— Test Key
+                      ● Test Key
                     </span>
                   ) : null}
                 </label>
@@ -8692,7 +8695,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                         const clip = await navigator.clipboard.readText();
                         if (clip) {
                           setKeyInput(clip.trim());
-                          toast('Pasted from clipboard! ðŸ“‹', 'info');
+                          toast('Pasted from clipboard! 📋', 'info');
                         }
                       } catch (e) {
                         toast('Clipboard permission required to paste automatically', 'warning');
@@ -8708,14 +8711,14 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               <div className={`p-3 rounded-xl border text-[11px] leading-relaxed ${
                 isDark ? 'bg-white/5 border-white/5 text-gray-300' : 'bg-orange-50/60 border-orange-100 text-gray-600'
               }`}>
-                ðŸ’¡ <span className="font-semibold text-slate-900 dark:text-white">Live Payments:</span> Log into your{' '}
+                💡 <span className="font-semibold text-slate-900 dark:text-white">Live Payments:</span> Log into your{' '}
                 <a
                   href="https://dashboard.paystack.com/#/settings/developer"
                   target="_blank"
                   rel="noreferrer"
                   className="text-[#EA4C2A] underline font-semibold inline-flex items-center gap-0.5"
                 >
-                  Paystack Dashboard â†’ Settings â†’ API Keys
+                  Paystack Dashboard → Settings → API Keys
                 </a>{' '}
                 and paste your <strong className="text-slate-900 dark:text-white">Public Key</strong> here. If empty, the app runs in <strong>Demo Test Mode</strong>.
               </div>
@@ -8729,7 +8732,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                     setKeyInput('');
                     setShowKeyModal(false);
                     triggerHaptic('selection');
-                    toast('Paystack Demo Test Mode Active! ðŸ§ª', 'success');
+                    toast('Paystack Demo Test Mode Active! 🧪', 'success');
                   }}
                   className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border cursor-pointer ${
                     isDark ? 'border-white/10 hover:bg-white/5 text-gray-300' : 'border-slate-200 hover:bg-slate-50 text-slate-700'
@@ -8754,7 +8757,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                     setPaystackKey(cleanKey);
                     setShowKeyModal(false);
                     triggerHaptic('success');
-                    toast(isLive ? 'Paystack Live Key activated! ðŸ’³ðŸŽ‰' : 'Paystack Test Key activated! ðŸ’³', 'success');
+                    toast(isLive ? 'Paystack Live Key activated! 💳🎉' : 'Paystack Test Key activated! 💳', 'success');
                   }}
                   className="flex-1 py-2.5 bg-[#EA4C2A] hover:bg-[#D43D1D] text-white rounded-xl text-xs font-bold shadow-md shadow-[#EA4C2A]/20 cursor-pointer"
                 >
@@ -8774,7 +8777,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 // ============================================================
 function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) {
   const [copiedRef, setCopiedRef] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
+  const [showSummary, setShowSummary] = useState(true);
   const toast = useToast();
 
   useEffect(() => {
@@ -8805,13 +8808,15 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
     ? order.cart_items
     : (Array.isArray(order.items) && order.items.length > 0)
       ? order.items
-      : [];
+      : (Array.isArray(order.order_items) && order.order_items.length > 0)
+        ? order.order_items
+        : [];
   const totalItemsCount = orderItems.reduce((sum, item) => sum + Number(item.qty || item.quantity || 1), 0);
 
   const handleCopyRef = () => {
     navigator.clipboard?.writeText(orderRef);
     setCopiedRef(true);
-    toast('Order reference copied! ðŸ“‹', 'success');
+    toast('Order reference copied! 📋', 'success');
     setTimeout(() => setCopiedRef(false), 2000);
   };
 
@@ -8829,7 +8834,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
         transition={{ type: 'spring', damping: 26, stiffness: 320 }}
         className={`w-full max-w-sm sm:max-w-md ${
           isDark ? 'bg-[#151821] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200'
-        } rounded-t-[32px] sm:rounded-[32px] border shadow-2xl p-5 sm:p-6 relative max-h-[92vh] overflow-y-auto flex flex-col items-center text-center`}
+        } rounded-t-[32px] sm:rounded-[32px] border shadow-2xl p-5 sm:p-6 relative max-h-[92vh] overflow-y-auto overscroll-contain momentum-scroll flex flex-col items-center text-center`}
       >
         {/* Soft Ambient Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-24 bg-emerald-500/15 blur-2xl pointer-events-none rounded-full" />
@@ -8878,7 +8883,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
           {/* Delivery PIN Banner */}
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25">
             <div className="flex items-center gap-2">
-              <span className="text-base">ðŸ›µ</span>
+              <span className="text-base">🛵</span>
               <div>
                 <div className="text-[11px] font-bold text-amber-700 dark:text-amber-400 leading-none">
                   Delivery PIN: {deliveryPin}
@@ -8887,7 +8892,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
               </div>
             </div>
             <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-              Paid âœ“
+              Paid ✓
             </span>
           </div>
         </div>
@@ -8905,7 +8910,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
                 Delivery Address
               </span>
               <span className="text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
-                ~20â€“30 mins
+                ~20–30 mins
               </span>
             </div>
             <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1 leading-snug break-words">
@@ -8913,7 +8918,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
             </div>
             {landmark && (
               <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
-                <span className="text-[10px]">ðŸ“</span>
+                <span className="text-[10px]">📍</span>
                 <span>Landmark: <strong className="text-slate-700 dark:text-slate-300">{landmark}</strong></span>
               </div>
             )}
@@ -8965,7 +8970,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
                     isDark ? 'border-white/8 bg-black/20' : 'border-slate-200/70 bg-white/70'
                   }`}>
                     {/* Items list */}
-                    <div className="max-h-48 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-100 dark:divide-white/5">
+                    <div className="max-h-64 overflow-y-auto overscroll-contain momentum-scroll space-y-2 pr-1 divide-y divide-slate-100 dark:divide-white/5 touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
                       {orderItems.map((item, idx) => {
                         const itemName = item.name || item.item_name || item.product_name || 'Food Item';
                         const qty = Number(item.qty || item.quantity || 1);
@@ -9139,7 +9144,7 @@ function PwaInstallModal({ open, onClose, isDark, onTriggerNativeInstall, isInst
               <span>Install App Now</span>
             </button>
             <p className="text-[11px] text-slate-400">
-              Or tap your browser's menu (â‹®) and select <strong>"Install FoodMaxx"</strong>
+              Or tap your browser's menu (⋮) and select <strong>"Install FoodMaxx"</strong>
             </p>
           </div>
         )}
@@ -9253,18 +9258,18 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
   const currentStep = getMilestoneStep(order.order_status);
 
   const MILESTONES = [
-    { step: 1, label: getCopy(appCopy, 'customer_tracking', 'step_placed_title', 'Placed'), icon: 'ðŸ“' },
-    { step: 2, label: getCopy(appCopy, 'customer_tracking', 'step_kitchen_title', 'Kitchen'), icon: 'ðŸ³' },
-    { step: 3, label: getCopy(appCopy, 'customer_tracking', 'step_transit_title', 'On the Way'), icon: 'ðŸ›µ' },
-    { step: 4, label: getCopy(appCopy, 'customer_tracking', 'step_delivered_title', 'Delivered'), icon: 'ðŸ¡' },
+    { step: 1, label: getCopy(appCopy, 'customer_tracking', 'step_placed_title', 'Placed'), icon: '📝' },
+    { step: 2, label: getCopy(appCopy, 'customer_tracking', 'step_kitchen_title', 'Kitchen'), icon: '🍳' },
+    { step: 3, label: getCopy(appCopy, 'customer_tracking', 'step_transit_title', 'On the Way'), icon: '🛵' },
+    { step: 4, label: getCopy(appCopy, 'customer_tracking', 'step_delivered_title', 'Delivered'), icon: '🏡' },
   ];
 
   const getHeadline = () => {
-    if (isDelivered) return getCopy(appCopy, 'customer_tracking', 'step_delivered_desc', 'Meal Delivered ðŸŽ‰');
+    if (isDelivered) return getCopy(appCopy, 'customer_tracking', 'step_delivered_desc', 'Meal Delivered 🎉');
     if (isCancelled) return 'Order Cancelled';
-    if (currentStep === 3) return getCopy(appCopy, 'customer_tracking', 'step_transit_desc', 'Rider is on the way to your door ðŸ›µ');
-    if (currentStep === 2) return getCopy(appCopy, 'customer_tracking', 'step_kitchen_desc', 'FoodMaxx kitchen is cooking your meal ðŸ³');
-    return getCopy(appCopy, 'customer_tracking', 'step_placed_desc', 'Order confirmed & sent to kitchen âœ¨');
+    if (currentStep === 3) return getCopy(appCopy, 'customer_tracking', 'step_transit_desc', 'Rider is on the way to your door 🛵');
+    if (currentStep === 2) return getCopy(appCopy, 'customer_tracking', 'step_kitchen_desc', 'FoodMaxx kitchen is cooking your meal 🍳');
+    return getCopy(appCopy, 'customer_tracking', 'step_placed_desc', 'Order confirmed & sent to kitchen ✨');
   };
 
   const getSubheadline = () => {
@@ -9465,7 +9470,7 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
                 </div>
               ) : (
                 <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  {isDelivered ? 'Trip Completed' : 'ðŸ›µ On Duty'}
+                  {isDelivered ? 'Trip Completed' : '🛵 On Duty'}
                 </span>
               )}
             </div>
@@ -9491,7 +9496,7 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
                       <Star size={11} className="fill-amber-500" />
                       {rider.rating || 4.9}
                     </span>
-                    <span className="text-slate-400 text-[11px]">â€¢ Verified Courier</span>
+                    <span className="text-slate-400 text-[11px]">• Verified Courier</span>
                   </div>
                 </div>
               </div>
@@ -9562,7 +9567,7 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
 
             {destinationLandmark && (
               <div className="mt-2 pl-9 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <span>ðŸ“</span>
+                <span>📍</span>
                 <span className="font-semibold">Landmark: {destinationLandmark}</span>
               </div>
             )}
@@ -9584,11 +9589,11 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
               className="w-full p-4 sm:p-4.5 flex items-center justify-between text-left cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
             >
               <div className="flex items-center gap-2.5">
-                <span className="text-base">ðŸ§¾</span>
+                <span className="text-base">🧾</span>
                 <div>
                   <h4 className="font-bold text-xs text-slate-900 dark:text-white">Order Receipt & Items</h4>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    {order.items?.length || 0} items â€¢ Total: {fmt(order.total)}
+                    {order.items?.length || 0} items • Total: {fmt(order.total)}
                   </p>
                 </div>
               </div>
@@ -9676,7 +9681,7 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
   async function handlePaystackTopUp() {
     const numAmount = Number(amount);
     if (!numAmount || numAmount < 100) {
-      toast('Please enter a valid top-up amount of at least â‚¦100', 'error');
+      toast('Please enter a valid top-up amount of at least ₦100', 'error');
       return;
     }
 
@@ -9715,7 +9720,7 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
           try {
             const confirmedRef = tx.reference || txRef;
             await api.topUpWallet(numAmount, user?.id || 'usr_customer_default', confirmedRef);
-            toast(`Wallet funded successfully with â‚¦${numAmount.toLocaleString()}! ðŸ’³âœ¨`, 'success');
+            toast(`Wallet funded successfully with ₦${numAmount.toLocaleString()}! 💳✨`, 'success');
             setAmount('2000');
             if (onRefresh) await onRefresh();
           } catch (e) {
@@ -9747,18 +9752,18 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
   );
 
   return (
-    <Modal open={open} onClose={onClose} title="ðŸ’³ FoodMaxx Chow Wallet">
+    <Modal open={open} onClose={onClose} title="💳 FoodMaxx Chow Wallet">
       <div className="p-4 sm:p-5 space-y-4">
         {/* Welcome Bonus Callout Banner */}
         <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-emerald-500/15 border border-amber-500/30 dark:border-amber-400/20 rounded-2xl p-3.5 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-[#EA4C2A] text-white flex items-center justify-center text-xl shrink-0 shadow-sm">
-            ðŸŽ
+            🎁
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="font-extrabold text-xs text-amber-600 dark:text-amber-400">Welcome Chow Perk</span>
               <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                â‚¦1,000 Credited
+                ₦1,000 Credited
               </span>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
@@ -9778,7 +9783,7 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
               <span className="text-[11px] font-mono tracking-widest text-slate-300 uppercase">Chow Pass</span>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/15 text-white backdrop-blur-xs font-mono">
-              NGN Â· â‚¦
+              NGN · ₦
             </span>
           </div>
 
@@ -9829,13 +9834,13 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
           {/* Amount Input */}
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-sm text-slate-400">
-              â‚¦
+              ₦
             </span>
             <input
               type="number"
               min="100"
               className="w-full pl-8 pr-3.5 py-3 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 rounded-xl text-sm font-bold outline-none focus:border-[#09A5DB] transition-colors"
-              placeholder="Or enter custom amount (min â‚¦100)"
+              placeholder="Or enter custom amount (min ₦100)"
               value={amount}
               onChange={e => setAmount(e.target.value)}
             />
@@ -9856,7 +9861,7 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
             ) : (
               <>
                 <CreditCard size={16} className="stroke-[2.5]" />
-                <span>Pay with Paystack {amount && Number(amount) >= 100 ? `â€¢ ${fmt(Number(amount))}` : ''}</span>
+                <span>Pay with Paystack {amount && Number(amount) >= 100 ? `• ${fmt(Number(amount))}` : ''}</span>
               </>
             )}
           </button>
@@ -9864,7 +9869,7 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
           {/* Security & Payment Channels Assurance */}
           <div className="flex items-center justify-center gap-1.5 text-[10.5px] text-gray-400 dark:text-gray-500 pt-0.5">
             <Lock size={11} className="text-emerald-500 shrink-0" />
-            <span>Secured 256-bit encryption Â· Debit Cards, Bank Transfer & USSD</span>
+            <span>Secured 256-bit encryption · Debit Cards, Bank Transfer & USSD</span>
           </div>
         </div>
 
@@ -9916,12 +9921,12 @@ function ReviewModal({ order, onClose, onSubmit }) {
   );
 
   return (
-    <Modal open={true} onClose={onClose} title="â­ Rate Your Experience">
+    <Modal open={true} onClose={onClose} title="⭐ Rate Your Experience">
       <div className="p-5 space-y-4">
         {[
-          { label: 'ðŸ´ Restaurant', value: restaurantRating, set: setRestaurantRating },
-          { label: 'ðŸ” Food Quality', value: foodRating, set: setFoodRating },
-          { label: 'ðŸ›µ Rider', value: riderRating, set: setRiderRating },
+          { label: '🍴 Restaurant', value: restaurantRating, set: setRestaurantRating },
+          { label: '🍔 Food Quality', value: foodRating, set: setFoodRating },
+          { label: '🛵 Rider', value: riderRating, set: setRiderRating },
         ].map(r => (
           <div key={r.label}>
             <div className="font-bold text-sm mb-2">{r.label}</div>
@@ -9974,7 +9979,7 @@ function SupportModal({ open, onClose }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="ðŸ’¬ Contact Support">
+    <Modal open={open} onClose={onClose} title="💬 Contact Support">
       <div className="p-5 space-y-4">
         <div className="grid grid-cols-2 gap-2">
           {['Missing Item', 'Late Delivery', 'Wrong Order', 'Payment Issue', 'Refund Request', 'Other'].map(c => (
@@ -10016,7 +10021,7 @@ function LoginModal({ open, onClose, onSwitchRegister }) {
     setLoading(true);
     try {
       await login(email, password);
-      toast('Welcome back! ðŸŽ‰', 'success');
+      toast('Welcome back! 🎉', 'success');
       onClose();
     } catch (e) {
       toast(e.message, 'error');
@@ -10053,7 +10058,7 @@ function RegisterModal({ open, onClose, onSwitchLogin }) {
     try {
       await api.register({ ...form, role: 'customer' });
       await login(form.email, form.password);
-      toast('Account created! Welcome to FoodMaxx ðŸŽ‰', 'success');
+      toast('Account created! Welcome to FoodMaxx 🎉', 'success');
       onClose();
     } catch (e) {
       toast(e.message, 'error');
@@ -10197,7 +10202,7 @@ function VendorPortal() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8 text-center">
         <div>
-          <div className="text-5xl mb-4">ðŸª</div>
+          <div className="text-5xl mb-4">🏪</div>
           <h2 className="text-2xl font-bold mb-2">Vendor Dashboard</h2>
           <p className="text-gray-500 mb-4">Sign in as a restaurant owner to access the vendor dashboard.</p>
           <p className="text-sm bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-yellow-800">
@@ -10226,7 +10231,7 @@ function VendorPortal() {
       {/* Sidebar */}
       <div className="w-56 bg-gray-900 text-white min-h-screen flex flex-col shrink-0">
         <div className="p-5 border-b border-gray-700">
-          <div className="text-sm font-bold text-red-400 mb-3">ðŸ” FOODMAXX VENDOR</div>
+          <div className="text-sm font-bold text-red-400 mb-3">🍔 FOODMAXX VENDOR</div>
           {restaurant && (
             <>
               <div className="font-bold text-sm truncate">{restaurant.name}</div>
@@ -10392,7 +10397,7 @@ function VendorOrderCard({ order, onStatus }) {
       <div className="flex items-start justify-between mb-2">
         <div>
           <div className="font-bold text-sm">{order.order_reference}</div>
-          <div className="text-xs text-gray-500">{order.customer?.full_name} Â· {fmt(order.total)}</div>
+          <div className="text-xs text-gray-500">{order.customer?.full_name} · {fmt(order.total)}</div>
         </div>
         <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: statusColor[order.order_status] + '20', color: statusColor[order.order_status] }}>
           {statusLabel[order.order_status]}
@@ -10425,7 +10430,7 @@ function AddMenuItemModal({ restaurantId, onClose, onSubmit }) {
       <div className="p-5 space-y-3">
         {[
           { key: 'name', placeholder: 'Food name', type: 'text' },
-          { key: 'price', placeholder: 'Price (â‚¦)', type: 'number' },
+          { key: 'price', placeholder: 'Price (₦)', type: 'number' },
           { key: 'category', placeholder: 'Category', type: 'text' },
           { key: 'prep_time_min', placeholder: 'Prep time (minutes)', type: 'number' },
         ].map(f => (
@@ -10470,8 +10475,8 @@ function VendorSettings({ restaurant, onSaved }) {
       <h1 className="text-2xl font-bold mb-6">Restaurant Settings</h1>
       <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
         {[
-          { key: 'delivery_fee', label: 'Delivery Fee (â‚¦)', type: 'number' },
-          { key: 'min_order', label: 'Minimum Order (â‚¦)', type: 'number' },
+          { key: 'delivery_fee', label: 'Delivery Fee (₦)', type: 'number' },
+          { key: 'min_order', label: 'Minimum Order (₦)', type: 'number' },
           { key: 'delivery_time_min', label: 'Min Delivery Time (mins)', type: 'number' },
           { key: 'delivery_time_max', label: 'Max Delivery Time (mins)', type: 'number' },
           { key: 'operating_hours', label: 'Operating Hours', type: 'text' },
@@ -10554,7 +10559,7 @@ function RiderPortal() {
     try {
       const res = await api.toggleRiderStatus();
       setRider(res.data);
-      toast(res.data.is_online ? 'You are now online! ðŸŸ¢' : 'You are now offline âš«', 'success');
+      toast(res.data.is_online ? 'You are now online! 🟢' : 'You are now offline ⚫', 'success');
     } catch (e) {
       toast(e.message, 'error');
     }
@@ -10567,7 +10572,7 @@ function RiderPortal() {
       const res = await api.acceptDelivery(deliveryOffer.orderId);
       setActiveOrder(res.data.order);
       setDeliveryOffer(null);
-      toast('Delivery accepted! Head to restaurant. ðŸƒ', 'success');
+      toast('Delivery accepted! Head to restaurant. 🏃', 'success');
       loadRider();
     } catch (e) {
       toast(e.message, 'error');
@@ -10588,7 +10593,7 @@ function RiderPortal() {
     setLoading(true);
     try {
       await api.confirmPickup(activeOrder.id);
-      toast('Pickup confirmed! Head to customer ðŸ›µ', 'success');
+      toast('Pickup confirmed! Head to customer 🛵', 'success');
       loadActiveOrder();
     } catch (e) {
       toast(e.message, 'error');
@@ -10618,7 +10623,7 @@ function RiderPortal() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8 text-center">
         <div>
-          <div className="text-5xl mb-4">ðŸ›µ</div>
+          <div className="text-5xl mb-4">🛵</div>
           <h2 className="text-2xl font-bold mb-2">Rider App</h2>
           <p className="text-gray-500 mb-4">Sign in as a rider to access the delivery dashboard.</p>
           <p className="text-sm bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-yellow-800">
@@ -10636,13 +10641,13 @@ function RiderPortal() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-xs text-gray-400">FoodMaxx Rider</div>
-            <div className="font-bold text-lg">{user.full_name.split(' ')[0]} ðŸ‘‹</div>
+            <div className="font-bold text-lg">{user.full_name.split(' ')[0]} 👋</div>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="text-xs text-gray-400">Status</div>
               <div className={`font-medium text-sm ${rider?.is_online ? 'text-green-400' : 'text-gray-400'}`}>
-                {rider?.is_online ? 'ðŸŸ¢ Online' : 'âš« Offline'}
+                {rider?.is_online ? '🟢 Online' : '⚫ Offline'}
               </div>
             </div>
             <button
@@ -10659,7 +10664,7 @@ function RiderPortal() {
           {[
             { label: "Today's Earnings", value: fmt(earnings?.today_earnings || 0) },
             { label: 'Deliveries', value: earnings?.total_deliveries || 0 },
-            { label: 'Rating', value: `â­ ${rider?.rating || 'â€”'}` },
+            { label: 'Rating', value: `⭐ ${rider?.rating || '—'}` },
           ].map((s, i) => (
             <div key={i} className="bg-white/10 rounded-xl p-2.5 text-center">
               <div className="font-bold text-sm">{s.value}</div>
@@ -10696,7 +10701,7 @@ function RiderPortal() {
                 Decline
               </button>
               <button onClick={handleAcceptDelivery} disabled={loading} className="flex-1 bg-green-500 text-white py-4 rounded-2xl font-bold">
-                {loading ? '...' : 'Accept âœ“'}
+                {loading ? '...' : 'Accept ✓'}
               </button>
             </div>
           </div>
@@ -10774,7 +10779,7 @@ function RiderPortal() {
           <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
             {rider?.is_online ? (
               <>
-                <div className="text-5xl mb-4">ðŸ›µ</div>
+                <div className="text-5xl mb-4">🛵</div>
                 <h3 className="font-bold text-xl mb-2">You're online!</h3>
                 <p className="text-gray-500 text-sm">Waiting for delivery assignments...</p>
                 <div className="mt-4 flex gap-1 justify-center">
@@ -10783,7 +10788,7 @@ function RiderPortal() {
               </>
             ) : (
               <>
-                <div className="text-5xl mb-4">ðŸ˜´</div>
+                <div className="text-5xl mb-4">😴</div>
                 <h3 className="font-bold text-xl mb-2">You're offline</h3>
                 <p className="text-gray-500 text-sm mb-4">Go online to start receiving delivery assignments</p>
                 <button onClick={toggleOnline} className="bg-green-500 text-white px-6 py-3 rounded-2xl font-bold">Go Online</button>
@@ -11020,5 +11025,4 @@ export default function App() {
     </ToastProvider>
   );
 }
-
 

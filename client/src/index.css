@@ -87,18 +87,7 @@ html.dark body {
   will-change: transform, opacity;
 }
 
-/* Automatic off-screen rendering optimization for silky 60/120fps scrolling */
-@keyframes fmxCardReveal {
-  from {
-    opacity: 0.15;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* Anti-fatigue silky smooth scrolling with zero jump jitter */
 .scroll-optimized,
 .dish-card,
 .menu-item-card,
@@ -107,15 +96,8 @@ html.dark body {
   content-visibility: auto;
   contain-intrinsic-size: auto 240px;
   contain: layout style;
-  animation: fmxCardReveal 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
   transform: translateZ(0);
   backface-visibility: hidden;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .fmx-product-card {
-    animation: none !important;
-  }
 }
 
 /* Fast scrolling containers without frame dropping */
