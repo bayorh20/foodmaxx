@@ -627,3 +627,55 @@ button, [role="button"] {
   color: #FFFFFF !important;
 }
 
+/* ============================================================
+   GPU HARDWARE-ACCELERATED ANIMATIONS (OFFLOADED FROM JS THREAD)
+   ============================================================ */
+@keyframes fmxGiftFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -7px, 0) rotate(-3deg);
+  }
+}
+
+.animate-fmx-gift {
+  animation: fmxGiftFloat 3s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes fmxSubtleBounce {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+.animate-fmx-subtle-bounce {
+  animation: fmxSubtleBounce 2.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes fmxPulseCart {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.animate-fmx-cart-pulse {
+  animation: fmxPulseCart 3.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Smooth Virtualized Card CSS Containment for 60-120 FPS scrolling */
+.fmx-product-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 160px 240px;
+}
+
+

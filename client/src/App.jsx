@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 
 import NotificationToneModal from './components/NotificationToneModal';
+import OptimizedProductImage, { getOptimizedImageUrl, preloadImage, prefetchCatalogImages } from './components/OptimizedProductImage';
 const AdminPortal = lazy(() => import('./components/AdminPortal'));
 import SplashScreen from './components/SplashScreen';
 import OnboardingFlow from './components/OnboardingFlow';
@@ -449,11 +450,21 @@ function CartProvider({ children }) {
     } catch (e) {}
   }, []);
 
-  const subtotal = (cart.items || []).reduce((s, i) => s + (i.price || 0) * i.qty, 0);
-  const itemCount = (cart.items || []).reduce((s, i) => s + i.qty, 0);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.__fmx_cart_items = cart.items || [];
+    }
+  }, [cart.items]);
+
+  const subtotal = useMemo(() => (cart.items || []).reduce((s, i) => s + (i.price || 0) * i.qty, 0), [cart.items]);
+  const itemCount = useMemo(() => (cart.items || []).reduce((s, i) => s + i.qty, 0), [cart.items]);
+
+  const cartContextValue = useMemo(() => ({
+    cart, addItem, removeItem, updateQty, clearCart, subtotal, itemCount
+  }), [cart, addItem, removeItem, updateQty, clearCart, subtotal, itemCount]);
 
   return (
-    <CartCtx.Provider value={{ cart, addItem, removeItem, updateQty, clearCart, subtotal, itemCount }}>
+    <CartCtx.Provider value={cartContextValue}>
       {children}
     </CartCtx.Provider>
   );
@@ -1672,17 +1683,7 @@ function CustomerPortal() {
                   <div className="h-7 w-8 flex items-center justify-center relative shrink-0">
                     {customNavIcons[tab.id] ? (
                       tab.id === 'orders' ? (
-                        <motion.div
-                          animate={hasActiveDelivery || isActive ? {
-                            y: [0, -1.2, 0]
-                          } : {}}
-                          transition={{
-                            repeat: Infinity,
-                            duration: 2.2,
-                            ease: 'easeInOut'
-                          }}
-                          className="relative flex items-center justify-center"
-                        >
+                        <div className={`relative flex items-center justify-center ${hasActiveDelivery || isActive ? 'animate-fmx-subtle-bounce' : ''}`}>
                           <img 
                             src={customNavIcons[tab.id]} 
                             alt={tab.label}
@@ -1697,19 +1698,9 @@ function CustomerPortal() {
                               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-white dark:border-[#1C2029]"></span>
                             </span>
                           )}
-                        </motion.div>
+                        </div>
                       ) : tab.id === 'cart' ? (
-                        <motion.div
-                          animate={hasCartItems ? {
-                            scale: [1, 1.08, 1]
-                          } : {}}
-                          transition={{
-                            repeat: hasCartItems ? Infinity : 0,
-                            repeatDelay: 3.5,
-                            duration: 0.6
-                          }}
-                          className="relative flex items-center justify-center"
-                        >
+                        <div className={`relative flex items-center justify-center ${hasCartItems ? 'animate-fmx-cart-pulse' : ''}`}>
                           <img 
                             src={customNavIcons[tab.id]} 
                             alt={tab.label}
@@ -1726,7 +1717,7 @@ function CustomerPortal() {
                               </span>
                             </span>
                           )}
-                        </motion.div>
+                        </div>
                       ) : (
                         <img 
                           src={customNavIcons[tab.id]} 
@@ -1845,19 +1836,8 @@ function CustomerPortal() {
           title="Drag me! Tap to Spin & Win"
           aria-label="Spin & Win Daily Rewards"
         >
-          {/* Animated 3D Gift Box Floating Container */}
-          <motion.div
-            animate={{ 
-              y: [0, -7, 0],
-              rotate: [0, -3, 3, 0]
-            }}
-            transition={{
-              repeat: Infinity,
-              duration: 3,
-              ease: 'easeInOut'
-            }}
-            className="relative flex items-center justify-center"
-          >
+          {/* Animated 3D Gift Box Floating Container (Offloaded to GPU CSS) */}
+          <div className="relative flex items-center justify-center animate-fmx-gift pointer-events-none">
             {/* 3D Rendered Premium Gift Box SVG */}
             <svg 
               viewBox="0 0 68 68" 
@@ -1967,7 +1947,7 @@ function CustomerPortal() {
                 <span>SPIN</span>
               </div>
             </div>
-          </motion.div>
+          </div>
         </motion.div>
       )}
 
@@ -2586,13 +2566,8 @@ function CategoryList({ isDark, selectedCategory = 'all', onSelectCategory }) {
 // ============================================================
 // TOP PICKS SECTION (2 PRODUCT CARDS PER ROW, TWO COLUMNS STYLE)
 // ============================================================
-const TopPickCard = React.memo(function TopPickCard({ item, onSelect, onQuickAdd, isFavorite, onToggleFavorite }) {
-  const { cart, updateQty, addItem } = useCart();
-  const inCartIdx = (cart.items || []).findIndex(ci => 
-    (ci.id && item.id && String(ci.id) === String(item.id)) || 
-    (ci.name && item.name && ci.name.trim().toLowerCase() === item.name.trim().toLowerCase())
-  );
-  const inCartQty = inCartIdx >= 0 ? cart.items[inCartIdx].qty : 0;
+const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSelect, onQuickAdd, isFavorite, onToggleFavorite }) {
+  const { updateQty, addItem } = useCart();
   const isAvailable = item.is_available !== false && (item.stock_quantity === undefined || item.stock_quantity > 0);
 
   const handleAdd = (e) => {
@@ -2614,42 +2589,66 @@ const TopPickCard = React.memo(function TopPickCard({ item, onSelect, onQuickAdd
     trigger3dCartDrop(e, item);
   };
 
+  const handleMinus = (e) => {
+    e.stopPropagation();
+    const cartItems = (typeof window !== 'undefined' && window.__fmx_cart_items) ? window.__fmx_cart_items : [];
+    const targetIdx = cartItems.findIndex(ci => 
+      (ci.id && item.id && String(ci.id) === String(item.id)) || 
+      (ci.name && item.name && ci.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+    );
+    if (targetIdx >= 0) {
+      updateQty(targetIdx, -1);
+    }
+  };
+
+  const handlePlus = (e) => {
+    e.stopPropagation();
+    const cartItems = (typeof window !== 'undefined' && window.__fmx_cart_items) ? window.__fmx_cart_items : [];
+    const targetIdx = cartItems.findIndex(ci => 
+      (ci.id && item.id && String(ci.id) === String(item.id)) || 
+      (ci.name && item.name && ci.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+    );
+    if (targetIdx >= 0) {
+      updateQty(targetIdx, 1);
+      trigger3dCartDrop(e, item);
+    } else {
+      handleAdd(e);
+    }
+  };
+
   const activeTag = (item.badge || item.tag || '').trim();
   const hasTag = Boolean(activeTag && activeTag.toLowerCase() !== 'none');
 
   return (
     <div 
-      className={`group relative w-full bg-white dark:bg-[#151821] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg flex flex-col justify-between ${
+      className={`fmx-product-card group relative w-full bg-white dark:bg-[#151821] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl flex flex-col justify-between ${
         inCartQty > 0 
           ? 'border-2 border-[#EA4C2A]/70 dark:border-[#EA4C2A]/80 shadow-md shadow-red-500/10' 
           : 'border border-slate-200/80 dark:border-white/10 shadow-xs hover:border-slate-300 dark:hover:border-white/20'
       }`}
       onClick={() => onSelect(item)}
     >
-      {/* Photo Container */}
-      <div className="relative h-32 xs:h-36 sm:h-44 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0">
-        <img 
-          onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80'; }} 
+      {/* Bigger Photo Container (H-44 to H-56) */}
+      <div className="relative h-44 xs:h-48 sm:h-56 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0">
+        <OptimizedProductImage 
           src={item.image_url} 
           alt={item.name} 
-          className={`w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105 ${
-            !isAvailable ? 'grayscale contrast-75' : ''
-          }`} 
-          loading="lazy" 
-          decoding="async" 
+          isAvailable={isAvailable}
+          width={380}
+          quality={75}
         />
 
         {/* Gradient dark scrim for contrast */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
 
         {/* Top Badges & Favorite Heart Button */}
-        <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1 z-10">
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1 z-10">
           {hasTag ? (
-            <span className="bg-[#EA4C2A] text-white text-[8.5px] sm:text-[9.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-md border border-white/20">
+            <span className="bg-[#EA4C2A] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-md border border-white/20">
               {activeTag}
             </span>
           ) : (
-            <span className="bg-[#EA4C2A] text-white text-[8.5px] sm:text-[9.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-md border border-white/20">
+            <span className="bg-[#EA4C2A] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-md border border-white/20">
               Popular
             </span>
           )}
@@ -2658,24 +2657,24 @@ const TopPickCard = React.memo(function TopPickCard({ item, onSelect, onQuickAdd
           <button 
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(item.id); }}
-            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black/40 hover:bg-black/65 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-90 transition-all cursor-pointer shadow-md hover:text-red-400 shrink-0"
+            className="w-8 h-8 rounded-full bg-black/50 hover:bg-black/75 border border-white/20 flex items-center justify-center text-white active:scale-90 transition-all cursor-pointer shadow-md hover:text-red-400 shrink-0"
             title={isFavorite ? "Remove from favorites" : "Save to favorites"}
           >
-            <Heart size={14} className={isFavorite ? 'fill-red-500 stroke-red-500 scale-110' : 'stroke-white'} />
+            <Heart size={15} className={isFavorite ? 'fill-red-500 stroke-red-500 scale-110' : 'stroke-white'} />
           </button>
         </div>
 
         {/* Prep Time Overlay */}
         {item.prep_time_min && (
-          <span className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md text-white text-[8.5px] sm:text-[9.5px] font-bold px-2 py-0.5 rounded-full border border-white/10 flex items-center gap-1 shadow-xs">
-            <Clock size={9} className="text-amber-400" />
+          <span className="absolute bottom-2.5 left-2.5 bg-black/65 text-white text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10 flex items-center gap-1 shadow-xs">
+            <Clock size={10} className="text-amber-400" />
             <span>{item.prep_time_min}m</span>
           </span>
         )}
 
         {/* Sold Out Overlay */}
         {!isAvailable && (
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center z-20">
+          <div className="absolute inset-0 bg-black/75 flex items-center justify-center z-20">
             <span className="bg-red-600 text-white font-black text-xs uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-2xl border border-white/30">
               Sold Out
             </span>
@@ -2683,83 +2682,58 @@ const TopPickCard = React.memo(function TopPickCard({ item, onSelect, onQuickAdd
         )}
       </div>
       
-      {/* Content Container */}
-      <div className="p-2.5 sm:p-3.5 flex flex-col justify-between flex-1 gap-2">
+      {/* Content Container (Bigger Title & Price, Description Removed per user request) */}
+      <div className="p-3 sm:p-4 flex flex-col justify-between flex-1 gap-2.5">
         <div>
-          <h3 className="font-black text-xs sm:text-sm text-slate-950 dark:text-white leading-snug line-clamp-2 break-words group-hover:text-[#EA4C2A] transition-colors">
+          <h3 className="font-black text-sm sm:text-base text-slate-950 dark:text-white leading-snug line-clamp-2 break-words group-hover:text-[#EA4C2A] transition-colors">
             {item.name}
           </h3>
-          {item.description && (
-            <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1 mt-0.5 leading-tight">
-              {item.description}
-            </p>
-          )}
         </div>
         
         {/* Price & Add / Stepper */}
-        <div className="flex items-center justify-between gap-1 pt-2 border-t border-slate-100 dark:border-white/10 mt-auto">
+        <div className="flex items-center justify-between gap-1 pt-2.5 border-t border-slate-100 dark:border-white/10 mt-auto">
           <div className="min-w-0 flex-1">
-            <span className="font-black text-xs sm:text-sm md:text-base text-slate-950 dark:text-white tracking-tight leading-none block truncate">
+            <span className="font-black text-sm sm:text-base md:text-lg text-slate-950 dark:text-white tracking-tight leading-none block truncate">
               {fmt(item.price || 4500)}
             </span>
           </div>
 
           <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-            <AnimatePresence initial={false}>
-              {inCartQty === 0 ? (
-                <motion.button 
-                  key="add-btn"
-                  disabled={!isAvailable}
-                  initial={{ scale: 0.85, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.85, opacity: 0 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={handleAdd} 
-                  className="h-8 px-2.5 sm:px-3 rounded-xl bg-[#EA4C2A] hover:bg-[#D42222] active:scale-95 disabled:opacity-40 text-white font-black text-[11px] sm:text-xs flex items-center gap-1 shadow-md shadow-red-500/20 transition-all cursor-pointer shrink-0"
-                  title="Add to cart"
+            {inCartQty === 0 ? (
+              <button 
+                disabled={!isAvailable}
+                onClick={handleAdd} 
+                className="h-8.5 px-3 sm:px-3.5 rounded-xl bg-[#EA4C2A] hover:bg-[#D42222] active:scale-95 disabled:opacity-40 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-red-500/20 transition-all cursor-pointer shrink-0"
+                title="Add to cart"
+              >
+                <Plus size={15} className="stroke-[3]" />
+                <span>Add</span>
+              </button>
+            ) : (
+              <div 
+                className="bg-[#EA4C2A] text-white rounded-xl p-0.5 flex items-center gap-1 shadow-md shadow-red-500/20 h-8.5"
+              >
+                <button
+                  type="button"
+                  onClick={handleMinus}
+                  className="w-6.5 h-6.5 rounded-lg bg-black/20 hover:bg-black/35 active:scale-90 text-white flex items-center justify-center cursor-pointer transition-transform shrink-0"
+                  title="Decrease"
                 >
-                  <Plus size={14} className="stroke-[3]" />
-                  <span className="hidden xs:inline">Add</span>
-                </motion.button>
-              ) : (
-                <motion.div 
-                  key="stepper"
-                  initial={{ scale: 0.85, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.85, opacity: 0 }}
-                  className="bg-[#EA4C2A] text-white rounded-xl p-0.5 flex items-center gap-1 shadow-md shadow-red-500/20 h-8"
+                  <Minus size={12} className="stroke-[3]" />
+                </button>
+                <span className="font-black text-xs sm:text-sm min-w-[16px] text-center select-none text-white px-0.5">
+                  {inCartQty}
+                </span>
+                <button
+                  type="button"
+                  onClick={handlePlus}
+                  className="w-6.5 h-6.5 rounded-lg bg-black/20 hover:bg-black/35 active:scale-90 text-white flex items-center justify-center cursor-pointer transition-transform shrink-0"
+                  title="Increase"
                 >
-                  <motion.button
-                    whileTap={{ scale: 0.85 }}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateQty(inCartIdx, -1);
-                    }}
-                    className="w-6 h-6 rounded-lg bg-black/20 hover:bg-black/35 text-white flex items-center justify-center cursor-pointer transition-colors shrink-0"
-                    title="Decrease"
-                  >
-                    <Minus size={11} className="stroke-[3]" />
-                  </motion.button>
-                  <span className="font-black text-xs min-w-[14px] text-center select-none text-white">
-                    {inCartQty}
-                  </span>
-                  <motion.button
-                    whileTap={{ scale: 0.85 }}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateQty(inCartIdx, 1);
-                      trigger3dCartDrop(e, item);
-                    }}
-                    className="w-6 h-6 rounded-lg bg-black/20 hover:bg-black/35 text-white flex items-center justify-center cursor-pointer shadow-xs transition-colors shrink-0"
-                    title="Increase"
-                  >
-                    <Plus size={11} className="stroke-[3]" />
-                  </motion.button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  <Plus size={12} className="stroke-[3]" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -2769,11 +2743,22 @@ const TopPickCard = React.memo(function TopPickCard({ item, onSelect, onQuickAdd
 
 function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectItem, onQuickAdd, onSeeAll, favorites, onToggleFavorite }) {
   const picks = menuItems || [];
+  const { cart } = useCart();
+
+  const cartQtyMap = useMemo(() => {
+    const map = {};
+    (cart?.items || []).forEach(ci => {
+      if (ci.id) map[String(ci.id)] = (map[String(ci.id)] || 0) + ci.qty;
+      if (ci.name) map[ci.name.trim().toLowerCase()] = (map[ci.name.trim().toLowerCase()] || 0) + ci.qty;
+    });
+    return map;
+  }, [cart?.items]);
+
   if (picks.length === 0) return null;
   
   return (
-    <div className="mb-7">
-      <div className="flex justify-between items-center px-4 mb-3">
+    <div className="mb-8">
+      <div className="flex justify-between items-center px-4 mb-3.5">
         <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">{title}</h2>
         <button 
           onClick={onSeeAll}
@@ -2783,12 +2768,13 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
         </button>
       </div>
       
-      {/* 2 Product Cards Per Column Style (Two Columns Grid) */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 px-4">
+      {/* 2 Product Cards Per Column Style (Two Columns Grid, Bigger Dimensions) */}
+      <div className="grid grid-cols-2 gap-3.5 sm:gap-4.5 px-4">
         {picks.map((item, idx) => (
           <TopPickCard 
             key={item.id || idx} 
             item={item} 
+            inCartQty={cartQtyMap[String(item.id)] || (item.name ? cartQtyMap[item.name.trim().toLowerCase()] : 0) || 0}
             onSelect={onSelectItem} 
             onQuickAdd={onQuickAdd}
             isFavorite={favorites?.includes(item.id)}
@@ -2950,9 +2936,9 @@ function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, o
 // ============================================================
 // FOOD ITEM CARD (MODERN ROUNDED CARD FOR MENU & SEARCH)
 // ============================================================
-function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false, isFavorite, onToggleFavorite }) {
+const FoodItemCard = React.memo(function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false, isFavorite, onToggleFavorite }) {
   const { cart } = useCart();
-  const inCartQty = (cart.items || [])
+  const inCartQty = (cart?.items || [])
     .filter(i => (i.id && item.id && String(i.id) === String(item.id)) || (i.name && item.name && i.name.trim().toLowerCase() === item.name.trim().toLowerCase()))
     .reduce((sum, i) => sum + i.qty, 0);
 
@@ -2965,18 +2951,18 @@ function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false,
     return (
       <div
         onClick={() => isAvailable && onSelect(item)}
-        className={`group relative w-full mb-2.5 rounded-xl p-2.5 sm:p-3 transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${
+        className={`fmx-product-card group relative w-full mb-3 rounded-2xl p-3 sm:p-3.5 transition-all duration-200 cursor-pointer flex items-center justify-between gap-3.5 ${
           inCartQty > 0
-            ? 'border border-slate-300 dark:border-white/20 shadow-xs bg-white dark:bg-[#181A20]'
-            : 'border border-slate-100 dark:border-white/5 shadow-xs hover:border-slate-200 dark:hover:border-white/10 hover:shadow-xs bg-white dark:bg-[#181A20]'
+            ? 'border-2 border-[#EA4C2A]/70 dark:border-[#EA4C2A]/80 shadow-md bg-white dark:bg-[#181A20]'
+            : 'border border-slate-200/80 dark:border-white/5 shadow-xs hover:border-slate-300 dark:hover:border-white/10 hover:shadow-xs bg-white dark:bg-[#181A20]'
         } ${!isAvailable ? 'opacity-65' : ''}`}
       >
         {/* Left: Info, Price, and Stepper */}
         <div className="flex-1 min-w-0 pr-1 flex flex-col justify-between self-stretch py-0.5">
           <div>
-            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+            <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
               {hasTag && (
-                <span className="bg-[#EA4C2A] text-white text-[8.5px] font-bold uppercase px-2 py-0.5 rounded-full shadow-xs">
+                <span className="bg-[#EA4C2A] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs">
                   {activeTag}
                 </span>
               )}
@@ -2985,23 +2971,24 @@ function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false,
                 Pre-order
               </span>
 
-              <span className="text-[10px] text-slate-400 font-medium flex items-center gap-0.5">
-                <Clock size={10} /> ~{item.prep_time_min || 20}m
+              <span className="text-[10.5px] text-slate-400 font-medium flex items-center gap-0.5">
+                <Clock size={11} /> ~{item.prep_time_min || 20}m
               </span>
             </div>
 
-            <h3 className="font-bold text-[13px] sm:text-sm text-slate-900 dark:text-white leading-snug line-clamp-2 break-words transition-colors">
+            <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-white leading-snug line-clamp-2 break-words transition-colors">
               {item.name}
             </h3>
+            {/* Description removed per user request */}
           </div>
 
-          <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-slate-100 dark:border-white/5">
+          <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-slate-100 dark:border-white/5">
             <div className="flex items-baseline gap-1.5">
               <span className="font-black text-sm sm:text-base text-slate-950 dark:text-white">
                 {displayPrice}
               </span>
               {inCartQty > 0 && (
-                <span className="text-[9.5px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/10 px-1.5 py-0.5 rounded-md">
+                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/10 px-1.5 py-0.5 rounded-md">
                   {inCartQty} in cart
                 </span>
               )}
@@ -3011,17 +2998,14 @@ function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false,
           </div>
         </div>
 
-        {/* Right: Picture with rounded corners and badges */}
-        <div className="relative w-22 h-22 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 shadow-inner">
-          <img
-            onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }}
+        {/* Right: Bigger Picture with rounded corners and badges */}
+        <div className="relative w-26 h-26 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 shadow-inner">
+          <OptimizedProductImage
             src={item.image_url}
             alt={item.name}
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-108 ${
-              !isAvailable ? 'grayscale contrast-75' : ''
-            }`}
-            loading="lazy"
-            decoding="async"
+            isAvailable={isAvailable}
+            width={240}
+            quality={75}
           />
 
           {!isAvailable && (
@@ -3046,7 +3030,7 @@ function FoodItemCard({ item, onSelect, onQuickAdd, isDark, isFullWidth = false,
       onToggleFavorite={onToggleFavorite || (() => {})}
     />
   );
-}
+});
 
 // ============================================================
 // HOME TAB (FEATURING THE DESIGN MOCKUP)
@@ -3107,6 +3091,41 @@ function HomeTab({
       window.removeEventListener('fmx_homepage_sections_updated', handleCustomUpdate);
     };
   }, []);
+
+  // Prefetch first batch of dishes into memory cache ahead of scroll
+  useEffect(() => {
+    if (Array.isArray(menuItems) && menuItems.length > 0) {
+      prefetchCatalogImages(menuItems, 0, 16, 380);
+    }
+  }, [menuItems]);
+
+  // Memoize homepage sections calculation so multi-pass filtering never runs during scroll
+  const processedSections = useMemo(() => {
+    if (!menuItems || menuItems.length === 0) return [];
+    return homepageSections.filter(s => s.enabled !== false).map(sec => {
+      let sectionItems = [];
+      const filterType = sec.filter_type || 'bestseller';
+      const limit = sec.display_limit || 6;
+
+      if (filterType === 'bestseller') {
+        sectionItems = (menuItems || []).filter(i => i.badge === 'bestseller' || (i.rating && i.rating >= 4.8)).slice(0, limit);
+        if (sectionItems.length === 0) sectionItems = (menuItems || []).slice(0, limit);
+      } else if (filterType === 'popular') {
+        sectionItems = (menuItems || []).filter(i => i.badge === 'popular' || i.badge === 'bestseller').slice(0, limit);
+        if (sectionItems.length === 0) {
+          sectionItems = (menuItems || []).slice(5, 5 + limit).length > 0 ? (menuItems || []).slice(5, 5 + limit) : (menuItems || []).slice(0, limit).reverse();
+        }
+      } else if (filterType === 'deals') {
+        sectionItems = (menuItems || []).filter(item => item.price < 6000).slice(0, limit);
+      } else if (filterType === 'fast') {
+        sectionItems = (menuItems || []).filter(item => item.prep_time_min && item.prep_time_min <= 25).slice(0, limit);
+      } else {
+        sectionItems = (menuItems || []).filter(item => (item.category || '').toLowerCase().includes(filterType.toLowerCase())).slice(0, limit);
+        if (sectionItems.length === 0) sectionItems = (menuItems || []).slice(0, limit);
+      }
+      return { ...sec, items: sectionItems };
+    }).filter(sec => sec.items.length > 0);
+  }, [menuItems, homepageSections]);
 
   // If search query is entered, display search results cleanly
   if (searchQuery) {
@@ -3225,29 +3244,8 @@ function HomeTab({
         </div>
       ) : (
         <>
-          {homepageSections.filter(s => s.enabled !== false).map((sec, sIdx) => {
-            let sectionItems = [];
-            const filterType = sec.filter_type || 'bestseller';
-            const limit = sec.display_limit || 6;
-
-            if (filterType === 'bestseller') {
-              sectionItems = (menuItems || []).filter(i => i.badge === 'bestseller' || (i.rating && i.rating >= 4.8)).slice(0, limit);
-              if (sectionItems.length === 0) sectionItems = (menuItems || []).slice(0, limit);
-            } else if (filterType === 'popular') {
-              sectionItems = (menuItems || []).filter(i => i.badge === 'popular' || i.badge === 'bestseller').slice(0, limit);
-              if (sectionItems.length === 0) {
-                sectionItems = (menuItems || []).slice(5, 5 + limit).length > 0 ? (menuItems || []).slice(5, 5 + limit) : (menuItems || []).slice(0, limit).reverse();
-              }
-            } else if (filterType === 'deals') {
-              sectionItems = (menuItems || []).filter(item => item.price < 6000).slice(0, limit);
-            } else if (filterType === 'fast') {
-              sectionItems = (menuItems || []).filter(item => item.prep_time_min && item.prep_time_min <= 25).slice(0, limit);
-            } else {
-              sectionItems = (menuItems || []).filter(item => (item.category || '').toLowerCase().includes(filterType.toLowerCase())).slice(0, limit);
-              if (sectionItems.length === 0) sectionItems = (menuItems || []).slice(0, limit);
-            }
-
-            if (sectionItems.length === 0) return null;
+          {processedSections.map((sec, sIdx) => {
+            const sectionItems = sec.items || [];
 
             const iconMap = {
               Flame: { comp: Flame, color: 'text-[#EA4C2A] fill-[#EA4C2A]' },
@@ -3294,28 +3292,29 @@ function HomeTab({
 // ============================================================
 // MENU TAB (MATCHING MOCKUP DESIGN: media_1789214008795.jpg)
 // ============================================================
-function MenuDishRow({ item, onSelect, onQuickAdd, onToggleFavorite, isFavorite, isDark }) {
+const MenuDishRow = React.memo(function MenuDishRow({ item, onSelect, onQuickAdd, onToggleFavorite, isFavorite, isDark }) {
   const { cart, updateQty } = useCart();
-  const inCartIdx = (cart.items || []).findIndex(ci => ci.id === item.id || ci.name === item.name);
+  const inCartIdx = (cart?.items || []).findIndex(ci => ci.id === item.id || ci.name === item.name);
   const inCartQty = inCartIdx >= 0 ? cart.items[inCartIdx].qty : 0;
 
   return (
     <div
       onClick={() => onSelect(item)}
-      className={`flex items-center gap-3 py-2.5 border-b border-gray-100 dark:border-white/5 last:border-0 group cursor-pointer select-none transition-colors ${
+      className={`fmx-product-card flex items-center gap-3.5 py-3 border-b border-gray-100 dark:border-white/5 last:border-0 group cursor-pointer select-none transition-colors ${
         isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-gray-50/50'
       }`}
     >
-      {/* Left Dish Photo with optional Badge */}
-      <div className="relative w-22 sm:w-24 h-22 sm:h-24 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0 shadow-2xs">
-        <img onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }}           src={item.image_url}
+      {/* Left Dish Photo with optional Badge (Bigger: w-26 to w-30) */}
+      <div className="relative w-26 sm:w-30 h-26 sm:h-30 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0 shadow-xs">
+        <OptimizedProductImage
+          src={item.image_url}
           alt={item.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          loading="lazy"
-          decoding="async"
+          isAvailable={item.is_available !== false}
+          width={240}
+          quality={75}
         />
         {item.badge === 'bestseller' || item.is_bestseller || item.badge === 'Bestseller' ? (
-          <span className="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-xs text-white text-[8.5px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-xs border border-white/10">
+          <span className="absolute top-1.5 left-1.5 bg-black/75 text-white text-[8.5px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-xs border border-white/10">
             <Flame size={9} className="fill-white" />
             <span>Bestseller</span>
           </span>
@@ -3326,13 +3325,13 @@ function MenuDishRow({ item, onSelect, onQuickAdd, onToggleFavorite, isFavorite,
         ) : null}
       </div>
 
-      {/* Right Column: Title, Heart, Desc, Ratings, Price & Stepper */}
+      {/* Right Column: Title, Heart, Ratings, Price & Stepper (Description removed per user request) */}
       <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0 h-full">
         {/* Row 1: Title + Pre-order Tag + Heart */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0 pr-1">
             <div className="flex items-start gap-1.5 flex-wrap">
-              <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-snug line-clamp-2 break-words">
+              <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white leading-snug line-clamp-2 break-words">
                 {item.name}
               </h3>
               <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#EA4C2A] bg-orange-500/10 dark:bg-orange-500/20 px-1.5 py-0.5 rounded-md shrink-0 mt-0.5">
@@ -3350,7 +3349,7 @@ function MenuDishRow({ item, onSelect, onQuickAdd, onToggleFavorite, isFavorite,
             title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
             <Heart
-              size={16}
+              size={17}
               className={isFavorite ? 'fill-red-500 text-red-500' : 'stroke-[1.75] text-gray-400'}
             />
           </button>
@@ -3358,75 +3357,26 @@ function MenuDishRow({ item, onSelect, onQuickAdd, onToggleFavorite, isFavorite,
 
         {/* Row 2: Subtle prep time note if available */}
         {item.prep_time_min ? (
-          <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
-            <Clock size={10} />
+          <div className="flex items-center gap-1 text-[10.5px] text-slate-400 mt-1">
+            <Clock size={11} />
             <span>~{item.prep_time_min}m</span>
           </div>
         ) : null}
 
-        {/* Row 4: Price & Stepper / Add */}
-        <div className="flex items-center justify-between mt-1.5 pt-0.5">
-          <div className="font-bold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight">
+        {/* Row 3: Price & Stepper / Add */}
+        <div className="flex items-center justify-between mt-2 pt-1">
+          <div className="font-black text-sm sm:text-base text-slate-900 dark:text-white tracking-tight">
             {fmt(item.price)}
           </div>
 
           <div onClick={(e) => e.stopPropagation()}>
-            <AnimatePresence mode="popLayout">
-              {inCartQty === 0 ? (
-                <motion.button 
-                  key="add-btn"
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.8, opacity: 0 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    if(onQuickAdd) onQuickAdd(item);
-                    trigger3dCartDrop(e, item);
-                  }} 
-                  className="w-8 h-8 rounded-xl bg-[#EA4C2A] hover:bg-[#d93f1d] active:scale-95 text-white flex items-center justify-center shadow-xs cursor-pointer"
-                >
-                  <Plus size={16} strokeWidth={2.5} />
-                </motion.button>
-              ) : (
-                <motion.div 
-                  key="stepper"
-                  initial={{ scale: 0.8, opacity: 0, width: 32 }}
-                  animate={{ scale: 1, opacity: 1, width: 'auto' }}
-                  exit={{ scale: 0.8, opacity: 0, width: 32 }}
-                  className="bg-[#EA4C2A] text-white rounded-xl p-0.5 flex items-center gap-1.5 shadow-xs h-8 overflow-hidden"
-                >
-                  <motion.button
-                    whileTap={{ scale: 0.85 }}
-                    type="button"
-                    onClick={() => updateQty(inCartIdx, -1)}
-                    className="w-7 h-7 rounded-lg bg-black/15 hover:bg-black/25 text-white flex items-center justify-center cursor-pointer shrink-0 transition-colors"
-                  >
-                    <Minus size={12} className="stroke-[3]" />
-                  </motion.button>
-                  <span className="font-bold text-xs text-white min-w-[14px] text-center select-none">
-                    {inCartQty}
-                  </span>
-                  <motion.button
-                    whileTap={{ scale: 0.85 }}
-                    type="button"
-                    onClick={(e) => {
-                      updateQty(inCartIdx, 1);
-                      trigger3dCartDrop(e, item);
-                    }}
-                    className="w-7 h-7 rounded-lg bg-black/15 hover:bg-black/25 text-white flex items-center justify-center cursor-pointer shrink-0 transition-colors"
-                  >
-                    <Plus size={12} className="stroke-[3]" />
-                  </motion.button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <ProductQuantityStepper item={item} onQuickAdd={onQuickAdd || onSelect} isDark={isDark} size="sm" />
           </div>
         </div>
       </div>
     </div>
   );
-}
+});
 
 function MenuTab({
   restaurant,
@@ -3460,39 +3410,49 @@ function MenuTab({
     { id: 'drinks', label: 'Chilled Drinks' }
   ];
 
-  let filtered = [...allDishes];
+  const filtered = useMemo(() => {
+    let list = [...allDishes];
 
-  // Search filter
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase();
-    filtered = filtered.filter(i =>
-      (i.name || '').toLowerCase().includes(q) ||
-      (i.description || '').toLowerCase().includes(q) ||
-      (i.category || '').toLowerCase().includes(q)
-    );
-  }
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(i =>
+        (i.name || '').toLowerCase().includes(q) ||
+        (i.description || '').toLowerCase().includes(q) ||
+        (i.category || '').toLowerCase().includes(q)
+      );
+    }
 
-  // Category filter
-  if (selectedCat !== 'all') {
-    filtered = filtered.filter(i => {
-      const cat = (i.category || '').toLowerCase();
-      const name = (i.name || '').toLowerCase();
-      if (selectedCat === 'pasta') return cat.includes('pasta') || name.includes('pasta') || name.includes('spaghetti');
-      if (selectedCat === 'dessert') return cat.includes('dessert') || name.includes('parfait') || name.includes('ice cream') || name.includes('sweet') || name.includes('cake');
-      if (selectedCat === 'fast') return cat.includes('fast') || name.includes('shawarma') || name.includes('burger') || name.includes('wrap');
-      if (selectedCat === 'rice') return cat.includes('rice') || name.includes('jollof') || name.includes('fried rice');
-      if (selectedCat === 'swallow') return cat.includes('swallow') || cat.includes('soup') || name.includes('amala') || name.includes('yam') || name.includes('egusi');
-      if (selectedCat === 'grills') return cat.includes('grill') || name.includes('suya') || name.includes('asun') || name.includes('turkey');
-      if (selectedCat === 'drinks') return cat.includes('drink') || name.includes('chapman') || name.includes('water') || name.includes('coke');
-      return true;
-    });
-  }
+    // Category filter
+    if (selectedCat !== 'all') {
+      list = list.filter(i => {
+        const cat = (i.category || '').toLowerCase();
+        const name = (i.name || '').toLowerCase();
+        if (selectedCat === 'pasta') return cat.includes('pasta') || name.includes('pasta') || name.includes('spaghetti');
+        if (selectedCat === 'dessert') return cat.includes('dessert') || name.includes('parfait') || name.includes('ice cream') || name.includes('sweet') || name.includes('cake');
+        if (selectedCat === 'fast') return cat.includes('fast') || name.includes('shawarma') || name.includes('burger') || name.includes('wrap');
+        if (selectedCat === 'rice') return cat.includes('rice') || name.includes('jollof') || name.includes('fried rice');
+        if (selectedCat === 'swallow') return cat.includes('swallow') || cat.includes('soup') || name.includes('amala') || name.includes('yam') || name.includes('egusi');
+        if (selectedCat === 'grills') return cat.includes('grill') || name.includes('suya') || name.includes('asun') || name.includes('turkey');
+        if (selectedCat === 'drinks') return cat.includes('drink') || name.includes('chapman') || name.includes('water') || name.includes('coke');
+        return true;
+      });
+    }
 
-  // Sort logic
-  if (sortBy === 'price_asc') filtered.sort((a, b) => a.price - b.price);
-  else if (sortBy === 'price_desc') filtered.sort((a, b) => b.price - a.price);
-  else if (sortBy === 'rating') filtered.sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
-  else if (sortBy === 'prep') filtered.sort((a, b) => parseInt(a.prep_time || 25) - parseInt(b.prep_time || 25));
+    // Sort logic
+    if (sortBy === 'price_asc') list.sort((a, b) => a.price - b.price);
+    else if (sortBy === 'price_desc') list.sort((a, b) => b.price - a.price);
+    else if (sortBy === 'rating') list.sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
+    else if (sortBy === 'prep') list.sort((a, b) => parseInt(a.prep_time || 25) - parseInt(b.prep_time || 25));
+
+    return list;
+  }, [allDishes, searchQuery, selectedCat, sortBy]);
+
+  useEffect(() => {
+    if (Array.isArray(filtered) && filtered.length > 0) {
+      prefetchCatalogImages(filtered, 0, 16, 240);
+    }
+  }, [filtered]);
 
   return (
     <div className="pb-24">
