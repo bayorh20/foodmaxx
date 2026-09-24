@@ -7245,7 +7245,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   const { user, silentRegister, updateUser } = useAuth();
   const { isDark } = useTheme();
   const toast = useToast();
-  const paymentMethod = 'paystack';
+  const [paymentMethod, setPaymentMethod] = useState('paystack');
 
   // Saved spin prize from previous spin
   const [savedSpinPrize, setSavedSpinPrize] = useState(() => {
@@ -7375,8 +7375,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   // Landmark
   const [landmark, setLandmark] = useState(selectedAddress?.landmark || '');
 
-  // Wallet
-  const [useWalletBonus, setUseWalletBonus] = useState(true);
+  // Wallet balance for payment method
   const rawWalletBalance = Number(wallet?.balance) || 0;
 
   const deliveryFee = freeDelivery ? 0 : (selectedZone?.delivery_fee || 500);
@@ -7387,12 +7386,8 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
     ? Math.min(1000, Math.max(0, subtotal - discount))
     : 0;
 
-  const grossAfterDiscounts = Math.max(0, subtotal + deliveryFee + serviceFee - discount - firstTimeGiveawayDeduction);
-  const walletDeduction = (useWalletBonus && rawWalletBalance > 0)
-    ? Math.min(rawWalletBalance, grossAfterDiscounts)
-    : 0;
-  const total = Math.max(0, grossAfterDiscounts - walletDeduction);
-  const totalSavings = discount + firstTimeGiveawayDeduction + walletDeduction + (freeDelivery ? (selectedZone?.delivery_fee || 500) : 0);
+  const total = Math.max(0, subtotal + deliveryFee + serviceFee - discount - firstTimeGiveawayDeduction);
+  const totalSavings = discount + firstTimeGiveawayDeduction + (freeDelivery ? (selectedZone?.delivery_fee || 500) : 0);
 
   // Auto-validate promo code from localStorage on mount
   useEffect(() => {
@@ -7489,20 +7484,6 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         amount: total
       });
 
-      if (walletDeduction > 0) {
-        try {
-          await api.deductWallet(
-            walletDeduction,
-            orderData.customer_email || user?.id || 'usr_customer_default',
-            `FoodMaxx Order #${reference} (Wallet Perk Co-Pay)`,
-            reference
-          );
-          onRefreshWallet?.();
-        } catch (wErr) {
-          console.warn('Wallet deduction notice:', wErr);
-        }
-      }
-
       // Place order with payment_reference and normalized pricing
       const finalOrderData = {
         ...orderData,
@@ -7511,7 +7492,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         payment_status: 'paid',
         giveaway_discount: Number(firstTimeGiveawayDeduction) || 0,
         first_time_giveaway: Number(firstTimeGiveawayDeduction) || 0,
-        wallet_deduction: Number(walletDeduction) || 0,
+        wallet_deduction: 0,
         subtotal: Number(subtotal) || 0,
         delivery_fee: Number(deliveryFee) || 0,
         service_fee: Number(serviceFee) || 0,
@@ -7622,9 +7603,13 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
       toast('Please enter your full name', 'warning');
       return;
     }
-    const phoneToUse = (contactPhone.trim() || user?.phone || '').trim();
+    const phoneToUse = (contactPhone || user?.phone || '').replace(/\D/g, '').slice(0, 11);
     if (!phoneToUse) {
-      toast('Please enter your phone number so our rider can reach you', 'warning');
+      toast('Please enter your 11-digit phone number', 'warning');
+      return;
+    }
+    if (phoneToUse.length !== 11) {
+      toast('Phone number must be exactly 11 digits (e.g. 08012345678)', 'warning');
       return;
     }
     const emailToUse = contactEmail.trim() || user?.email || 'customer@foodmaxx.ng';
@@ -7635,9 +7620,16 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
       if (nameToUse) localStorage.setItem('fmx_last_name', nameToUse);
     } catch {}
 
-    if (isGift && (!recipientName.trim() || !recipientPhone.trim())) {
-      toast('Please enter recipient name and phone for the gift order', 'warning');
-      return;
+    if (isGift) {
+      const recPhoneClean = (recipientPhone || '').replace(/\D/g, '').slice(0, 11);
+      if (!recipientName.trim()) {
+        toast('Please enter the recipient name for the gift order', 'warning');
+        return;
+      }
+      if (recPhoneClean.length !== 11) {
+        toast('Recipient phone number must be exactly 11 digits (e.g. 08012345678)', 'warning');
+        return;
+      }
     }
 
     setLoading(true);
@@ -7679,13 +7671,13 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         delivery_address: cleanDeliveryAddress,
         delivery_zone: selectedZone?.name || 'Bodija & Ibadan Axis',
         delivery_instructions: [instructions, landmark].filter(Boolean).join(' · ') || '',
-        payment_method: total === 0 ? (firstTimeGiveawayDeduction > 0 ? 'giveaway' : 'wallet') : 'paystack',
+        payment_method: total === 0 ? (firstTimeGiveawayDeduction > 0 ? 'giveaway' : 'wallet') : paymentMethod,
         promo_code: promoCode || '',
         delivery_lat: 7.435,
         delivery_lng: 3.905,
         is_gift: Boolean(isGift),
         recipient_name: isGift ? (recipientName.trim() || '') : '',
-        recipient_phone: isGift ? (recipientPhone.trim() || '') : '',
+        recipient_phone: isGift ? ((recipientPhone || '').replace(/\D/g, '').slice(0, 11)) : '',
         gift_note: isGift ? (giftNote.trim() || '') : '',
         hide_price: isGift ? Boolean(hidePrice) : false,
         is_scheduled: deliveryTiming === 'schedule',
@@ -7697,31 +7689,17 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         discount: Number(discount) || 0,
         giveaway_discount: Number(firstTimeGiveawayDeduction) || 0,
         first_time_giveaway: Number(firstTimeGiveawayDeduction) || 0,
-        wallet_deduction: Number(walletDeduction) || 0,
+        wallet_deduction: paymentMethod === 'wallet' ? Number(total) : 0,
         total: Number(total) || 0,
         total_amount: Number(total) || 0
       };
 
-      // 100% Free Order (covered by Giveaway, Promo, or Wallet Perk)
+      // 100% Free Order (covered by Giveaway or Promo)
       if (total === 0) {
         const freeRef = `FMX_FREE_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
-        if (walletDeduction > 0) {
-          try {
-            await api.deductWallet(
-              walletDeduction,
-              emailToUse || activeUser?.email || user?.id || 'usr_customer_default',
-              `FoodMaxx Order #${freeRef} (Wallet Perk Co-Pay)`,
-              freeRef
-            );
-            onRefreshWallet?.();
-          } catch (wErr) {
-            console.warn('Wallet deduction error:', wErr);
-          }
-        }
-
         const finalOrderData = {
           ...orderData,
-          payment_method: firstTimeGiveawayDeduction > 0 ? 'giveaway' : 'wallet',
+          payment_method: firstTimeGiveawayDeduction > 0 ? 'giveaway' : 'promo',
           payment_reference: freeRef,
           payment_status: 'paid'
         };
@@ -7743,7 +7721,62 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
           disableForReducedMotion: true,
           origin: { y: 0.6 }
         });
-        toast('🎉 Order placed 100% Free with your Giveaway & Perks!', 'success');
+        toast('🎉 Order placed 100% Free!', 'success');
+        onSuccess(placedOrder);
+        setLoading(false);
+        return;
+      }
+
+      // Balance > 0 and paying directly with FoodMaxx Wallet
+      if (paymentMethod === 'wallet') {
+        if (rawWalletBalance < total) {
+          toast(`Insufficient wallet balance (${fmt(rawWalletBalance)}). Please choose Card/Bank Transfer or top up.`, 'warning');
+          setLoading(false);
+          return;
+        }
+
+        const walletTxRef = `FMX_WAL_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
+        try {
+          await api.deductWallet(
+            total,
+            emailToUse || activeUser?.email || user?.id || 'usr_customer_default',
+            `FoodMaxx Order #${walletTxRef}`,
+            walletTxRef
+          );
+          onRefreshWallet?.();
+        } catch (wErr) {
+          console.error('Wallet deduction error:', wErr);
+          toast(wErr?.message || 'Failed to process wallet payment', 'error');
+          setLoading(false);
+          return;
+        }
+
+        const finalOrderData = {
+          ...orderData,
+          payment_method: 'wallet',
+          payment_reference: walletTxRef,
+          payment_status: 'paid',
+          wallet_deduction: Number(total) || 0
+        };
+
+        const res = await api.createOrder(finalOrderData);
+        const placedOrder = res?.data?.order || res?.data || res?.order || finalOrderData;
+        if (placedOrder?.id) {
+          try { localStorage.setItem('fmx_last_order_id', placedOrder.id); } catch {}
+        }
+        try {
+          window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: placedOrder }));
+        } catch {}
+        clearCart();
+        triggerHaptic('success');
+        confetti({
+          particleCount: 35,
+          spread: 60,
+          ticks: 100,
+          disableForReducedMotion: true,
+          origin: { y: 0.6 }
+        });
+        toast('🎉 Order placed successfully using your FoodMaxx Wallet!', 'success');
         onSuccess(placedOrder);
         setLoading(false);
         return;
@@ -7862,26 +7895,35 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               {/* Field 2 & 3: Phone Number & Delivery Address */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                    Phone Number <span className="text-[#EA4C2A]">*</span>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 flex items-center justify-between">
+                    <span>Phone Number <span className="text-[#EA4C2A]">*</span></span>
+                    <span className={`text-[10px] font-mono ${contactPhone.length === 11 ? 'text-emerald-500 font-bold' : 'text-slate-400'}`}>
+                      {contactPhone.length}/11
+                    </span>
                   </label>
                   <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all ${
                     isDark ? 'bg-white/5 border-white/10 text-white focus-within:border-[#EA4C2A]/70' : 'bg-slate-50/80 border-slate-200 text-slate-900 focus-within:border-[#EA4C2A]/70'
                   }`}>
-                    <Phone size={15} className="text-slate-400 shrink-0" />
+                    <Phone size={15} className={contactPhone.length === 11 ? 'text-emerald-500 shrink-0' : 'text-slate-400 shrink-0'} />
                     <input
                       type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={11}
                       required
-                      placeholder="080 1234 5678"
+                      placeholder="08012345678"
                       value={contactPhone}
                       onChange={e => {
-                        const val = e.target.value;
-                        setContactPhone(val);
-                        try { localStorage.setItem('fmx_last_phone', val.trim()); } catch {}
+                        const numericVal = e.target.value.replace(/\D/g, '').slice(0, 11);
+                        setContactPhone(numericVal);
+                        try { localStorage.setItem('fmx_last_phone', numericVal); } catch {}
                       }}
-                      onBlur={e => triggerAutoSilentRegister(contactName, e.target.value)}
-                      className="w-full text-xs sm:text-sm font-medium placeholder:text-slate-400 bg-transparent outline-none"
+                      onBlur={e => triggerAutoSilentRegister(contactName, e.target.value.replace(/\D/g, '').slice(0, 11))}
+                      className="w-full text-xs sm:text-sm font-medium placeholder:text-slate-400 bg-transparent outline-none font-mono"
                     />
+                    {contactPhone.length === 11 && (
+                      <Check size={14} className="text-emerald-500 shrink-0 stroke-[3]" />
+                    )}
                   </div>
                 </div>
 
@@ -7967,10 +8009,13 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                       />
                       <input
                         type="tel"
-                        placeholder="Recipient's Phone Number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={11}
+                        placeholder="Recipient's Phone (11 digits)"
                         value={recipientPhone}
-                        onChange={e => setRecipientPhone(e.target.value)}
-                        className={`w-full text-xs p-2.5 rounded-lg border outline-none font-medium ${
+                        onChange={e => setRecipientPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                        className={`w-full text-xs p-2.5 rounded-lg border outline-none font-mono font-medium ${
                           isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
                         }`}
                       />
@@ -8181,44 +8226,152 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               )}
             </div>
 
-            {/* 4. Wallet perk bonus if available */}
-            {rawWalletBalance > 0 && (
-              <div className="mt-2.5 p-3 rounded-xl border flex items-center justify-between gap-3 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                    <Wallet size={16} />
+          </div>
+
+          {/* SECTION 3: PAYMENT METHOD */}
+          <div className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+            isDark ? 'bg-[#161822] border-white/10' : 'bg-white border-slate-200'
+          }`}>
+            <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-slate-100 dark:border-white/5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#EA2A2A]/10 text-[#EA2A2A] flex items-center justify-center shrink-0">
+                  <CreditCard size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">Payment Method</h3>
+                  <p className="text-[11px] text-slate-400">Select how you want to pay</p>
+                </div>
+              </div>
+              <span className="text-[10.5px] font-bold text-slate-400">
+                Secured
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {/* Option 1: Pay with FoodMaxx Wallet */}
+              <div
+                onClick={() => {
+                  triggerHaptic('selection');
+                  setPaymentMethod('wallet');
+                }}
+                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                  paymentMethod === 'wallet'
+                    ? isDark
+                      ? 'bg-emerald-500/10 border-emerald-500/50 shadow-sm'
+                      : 'bg-emerald-50/80 border-emerald-500 shadow-sm'
+                    : isDark
+                      ? 'bg-white/5 border-white/10 hover:border-white/20'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    paymentMethod === 'wallet'
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                  }`}>
+                    <Wallet size={18} />
                   </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 dark:text-white block leading-tight">
-                      Wallet Credit ({fmt(rawWalletBalance)})
-                    </span>
-                    <span className="text-[10px] text-slate-400">Apply to reduce your order</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                        Pay with Wallet
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        rawWalletBalance >= total
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                      }`}>
+                        {rawWalletBalance >= total ? 'Ready to Pay' : 'Low Balance'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                      Available Balance: <strong className={rawWalletBalance >= total ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>{fmt(rawWalletBalance)}</strong>
+                    </p>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic('selection');
-                    setUseWalletBonus(prev => !prev);
-                  }}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                    useWalletBonus ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-white/20'
-                  }`}
-                  role="switch"
-                  aria-checked={useWalletBonus}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                      useWalletBonus ? 'translate-x-4' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                  paymentMethod === 'wallet'
+                    ? 'border-emerald-500 bg-emerald-500'
+                    : 'border-slate-300 dark:border-white/20'
+                }`}>
+                  {paymentMethod === 'wallet' && (
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                  )}
+                </div>
               </div>
-            )}
+
+              {/* Warning if wallet is selected and balance is lower than total */}
+              {paymentMethod === 'wallet' && rawWalletBalance < total && total > 0 && (
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-300 flex items-center justify-between">
+                  <span>Balance ({fmt(rawWalletBalance)}) is less than total ({fmt(total)}).</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPaymentMethod('paystack');
+                    }}
+                    className="font-bold underline text-amber-700 dark:text-amber-300 cursor-pointer ml-2"
+                  >
+                    Switch to Card / Bank
+                  </button>
+                </div>
+              )}
+
+              {/* Option 2: Pay with Paystack (Card, Transfer, USSD) */}
+              <div
+                onClick={() => {
+                  triggerHaptic('selection');
+                  setPaymentMethod('paystack');
+                }}
+                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                  paymentMethod === 'paystack'
+                    ? isDark
+                      ? 'bg-[#EA2A2A]/10 border-[#EA2A2A]/50 shadow-sm'
+                      : 'bg-red-50/70 border-[#EA2A2A] shadow-sm'
+                    : isDark
+                      ? 'bg-white/5 border-white/10 hover:border-white/20'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    paymentMethod === 'paystack'
+                      ? 'bg-[#EA2A2A] text-white'
+                      : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300'
+                  }`}>
+                    <CreditCard size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                        Debit Card / Bank Transfer / USSD
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300">
+                        Paystack
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                      Mastercard, Visa, Verve, Transfer & USSD
+                    </p>
+                  </div>
+                </div>
+
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                  paymentMethod === 'paystack'
+                    ? 'border-[#EA2A2A] bg-[#EA2A2A]'
+                    : 'border-slate-300 dark:border-white/20'
+                }`}>
+                  {paymentMethod === 'paystack' && (
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* SECTION 3: ORDER SUMMARY (Simple, Clean & Eye-Friendly) */}
+          {/* SECTION 4: ORDER SUMMARY (Simple, Clean & Eye-Friendly) */}
           <div className={`p-4 sm:p-5 rounded-2xl border transition-all ${
             isDark ? 'bg-[#161822] border-white/10' : 'bg-white border-slate-200'
           }`}>
@@ -8282,13 +8435,6 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                 </div>
               )}
 
-              {walletDeduction > 0 && (
-                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-semibold">
-                  <span>Wallet Credit</span>
-                  <span>−{fmt(walletDeduction)}</span>
-                </div>
-              )}
-
               {/* Final Clear Total Row */}
               <div className="pt-3 mt-1 border-t border-slate-200 dark:border-white/10 flex justify-between items-baseline">
                 <div>
@@ -8329,23 +8475,45 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
           <button
             type="button"
             onClick={() => { triggerHaptic('medium'); placeOrder(); }}
-            disabled={loading || cart.items.length === 0}
+            disabled={loading || cart.items.length === 0 || (paymentMethod === 'wallet' && rawWalletBalance < total && total > 0)}
             className={`flex-1 py-3.5 sm:py-4 px-5 active:scale-[0.98] text-white font-bold text-sm sm:text-base rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50 ${
               total === 0
                 ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-emerald-500/30'
-                : 'bg-[#EA2A2A] hover:bg-[#D42222] shadow-red-500/25'
+                : paymentMethod === 'wallet'
+                  ? rawWalletBalance < total
+                    ? 'bg-slate-400 dark:bg-slate-700 cursor-not-allowed'
+                    : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25'
+                  : 'bg-[#EA2A2A] hover:bg-[#D42222] shadow-red-500/25'
             }`}
           >
             {loading ? (
               <>
                 <RefreshCw size={18} className="animate-spin" />
-                <span>{total === 0 ? 'Processing Free Order...' : 'Processing Order...'}</span>
+                <span>
+                  {total === 0
+                    ? 'Processing Free Order...'
+                    : paymentMethod === 'wallet'
+                      ? 'Paying with Wallet...'
+                      : 'Processing Order...'}
+                </span>
               </>
             ) : total === 0 ? (
               <>
                 <Gift size={18} />
                 <span>Place 100% Free Order</span>
               </>
+            ) : paymentMethod === 'wallet' ? (
+              rawWalletBalance < total ? (
+                <>
+                  <Wallet size={18} />
+                  <span>Insufficient Wallet Balance</span>
+                </>
+              ) : (
+                <>
+                  <Wallet size={18} />
+                  <span>Pay with Wallet</span>
+                </>
+              )
             ) : (
               <>
                 <span>Pay Now</span>
