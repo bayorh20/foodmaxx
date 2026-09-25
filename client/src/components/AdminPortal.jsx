@@ -13,12 +13,13 @@ import {
   Moon, Sun, Gift, Calendar, QrCode, MessageCircle, Share2, Bookmark, Sparkles, PhoneCall,
   CreditCard, Flame, ShieldCheck, Utensils, SlidersHorizontal, UserCheck, Printer,
   Lock, Copy, Smartphone, Building2, Mic, ShoppingBag, ChevronDown, ChevronUp, Monitor, Key,
-  FolderPlus, ArrowUp, ArrowDown, Video, FileText, Info, RotateCw,
+  FolderPlus, ArrowUp, ArrowDown, Video, FileText, Info, RotateCw, Volume2,
   Columns, LayoutList, Grid, Bike, Edit3, Radio, Palette, Camera, LayoutDashboard
 } from 'lucide-react';
 import { api, FMXWebSocket } from '../services/api';
 import { db } from '../services/firebaseDb';
-import { triggerHaptic, playOrderNotificationSound } from '../services/nativeMobile';
+import { triggerHaptic, playOrderNotificationSound, playNativeSound, playToneById, NOTIFICATION_TONES } from '../services/nativeMobile';
+import { getStoredPaystackConfig, savePaystackConfig } from '../services/paystack';
 import { getAppContent, saveAppContent, resetAppContent, fetchLiveAppContent, subscribeLiveAppContent, getCopy, DEFAULT_APP_CONTENT } from '../services/appContent';
 import NotificationToneModal from './NotificationToneModal';
 import { useAuth, useToast, useWS, useTheme, fmt, statusLabel, statusColor, getStatusEmoji, getStatusNotificationInfo, compressImageFile, getItemSizeAndExtras } from '../App';
@@ -2572,8 +2573,8 @@ const ADMIN_THEMES = {
     sidebarActive: '#202534',
     card: '#FFFFFF',
     border: '#E2E8F0',
-    text: '#0F172A',
-    subtext: '#64748B',
+    text: '#000000',
+    subtext: '#111827',
     accent: '#EA4C2A',
     accentWarm: '#F59E0B'
   },
@@ -2817,8 +2818,55 @@ function AdminPortal() {
       const cached = localStorage.getItem('fmx_store_settings');
       if (cached) return JSON.parse(cached);
     } catch {}
-    return { is_open: true, isOpen: true, kitchen_status: 'open' };
+    return {
+      store_name: 'FoodMaxx Kitchen & Grills',
+      tagline: 'Fastest Fresh Food Delivery in Ibadan',
+      phone: '+234 802 345 6789',
+      whatsapp_dispatch: '+234 812 345 6789',
+      address: '24 Awolowo Avenue, Old Bodija, Ibadan, Oyo State',
+      city: 'Ibadan',
+      opening_time: '08:00',
+      closing_time: '23:00',
+      prep_time_minutes: 20,
+      announcement: '⚡ Fresh firewood party jollof & gourmet grills ready for immediate delivery!',
+      is_open: true,
+      isOpen: true,
+      kitchen_status: 'open',
+      min_order_amount: 1500,
+      packaging_fee: 300,
+      service_fee: 150,
+      free_delivery_threshold: 15000,
+      auto_confirm_paid_orders: true,
+      allow_preorders: true,
+      max_active_orders: 40,
+      payout_bank_name: 'Guaranty Trust Bank (GTBank)',
+      payout_account_number: '0123456789',
+      payout_account_name: 'FoodMaxx Kitchen Ltd',
+      paystack_public_key: 'pk_live_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a',
+      paystack_is_live: true,
+      enable_paystack: true,
+      enable_bank_transfer: true,
+      enable_cash_on_delivery: true,
+      sound_alert_enabled: true,
+      kitchen_chime_volume: 85,
+      notification_tone_id: 'chime_standard',
+      whatsapp_notify_customer: true,
+      whatsapp_order_placed_msg: 'Hello {customer_name}! Your FoodMaxx order #{order_ref} for {amount} has been received and confirmed. Chef is prepping now! 🍳',
+      whatsapp_dispatched_msg: 'Hi {customer_name}! Rider {rider_name} ({rider_phone}) is on the way with your hot FoodMaxx meal! Delivery PIN: {delivery_pin}. 🛵',
+      whatsapp_delivered_msg: 'Order #{order_ref} delivered! Bon appétit from FoodMaxx Ibadan. Rate your experience: https://foodmaxxapp.web.app 🍔',
+      thermal_printer_enabled: true,
+      thermal_paper_size: '58mm',
+      auto_print_on_confirm: false,
+      receipt_header_note: 'FOODMAXX IBD - FRESH & HOT',
+      receipt_footer_note: 'Thank you for dining with FoodMaxx! For catering: 08023456789',
+      admin_password: 'admin',
+      kitchen_staff_pin: '1234',
+      require_delivery_otp: true
+    };
   });
+  const [settingsSubTab, setSettingsSubTab] = useState('profile');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [testingToneId, setTestingToneId] = useState(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Active Modals for Order actions
@@ -3554,6 +3602,105 @@ function AdminPortal() {
     }
   }
 
+  // Live Sound Tone Tester for Kitchen Chimes
+  function handleTestTone(toneId) {
+    setTestingToneId(toneId);
+    playToneById(toneId, true);
+    triggerHaptic('success');
+    setTimeout(() => setTestingToneId(null), 1200);
+  }
+
+  // Thermal POS Sample Receipt Print Trigger
+  function handlePrintSampleReceipt() {
+    const is80mm = settings.thermal_paper_size === '80mm';
+    const width = is80mm ? '80mm' : '58mm';
+    const printWindow = window.open('', '_blank', 'width=420,height=650');
+    if (!printWindow) {
+      toast('Pop-up blocked. Please allow pop-ups to print thermal receipts.', 'error');
+      return;
+    }
+    const sampleHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Sample Thermal Receipt - FoodMaxx</title>
+          <style>
+            @page { margin: 0; size: ${width} auto; }
+            body { font-family: 'Courier New', monospace; font-size: 13px; font-weight: bold; margin: 10px; color: #000; }
+            .center { text-align: center; }
+            .bold { font-weight: 900; }
+            .line { border-top: 2px dashed #000; margin: 8px 0; }
+            .row { display: flex; justify-content: space-between; }
+          </style>
+        </head>
+        <body>
+          <div class="center bold" style="font-size: 16px;">${settings.store_name || 'FOODMAXX KITCHEN & GRILLS'}</div>
+          <div class="center">${settings.address || '24 Awolowo Ave, Old Bodija, Ibadan'}</div>
+          <div class="center">Tel: ${settings.phone || '08023456789'}</div>
+          <div class="center" style="font-size: 12px; margin-top: 4px;">${settings.receipt_header_note || 'FOODMAXX IBD - FRESH & HOT'}</div>
+          <div class="line"></div>
+          <div class="row"><span class="bold">SAMPLE ORDER:</span><span class="bold">#FMX-7729</span></div>
+          <div class="row"><span>DATE:</span><span>${new Date().toLocaleString()}</span></div>
+          <div class="row"><span>DISPATCH:</span><span>EXPRESS DELIVERY</span></div>
+          <div class="line"></div>
+          <div class="row"><span class="bold">1x Firewood Jollof & Asun</span><span>NGN 4,800</span></div>
+          <div style="font-size: 11px; margin-left: 12px;">+ Extra Spicy Pepper Sauce</div>
+          <div class="row"><span class="bold">1x Grilled Jumbo Turkey</span><span>NGN 3,500</span></div>
+          <div class="row"><span class="bold">1x Chilled Chapman Cocktail</span><span>NGN 1,200</span></div>
+          <div class="line"></div>
+          <div class="row"><span>Subtotal:</span><span>NGN 9,500</span></div>
+          <div class="row"><span>Packaging Fee:</span><span>NGN ${settings.packaging_fee || 300}</span></div>
+          <div class="row"><span>Service Fee:</span><span>NGN ${settings.service_fee || 150}</span></div>
+          <div class="row"><span>Delivery Fee:</span><span>NGN 800</span></div>
+          <div class="line"></div>
+          <div class="row bold" style="font-size: 15px;"><span>TOTAL PAID:</span><span>NGN ${(10300 + Number(settings.packaging_fee || 300) + Number(settings.service_fee || 150)).toLocaleString()}</span></div>
+          <div class="row"><span>PAYMENT:</span><span>ONLINE (PAYSTACK VERIFIED)</span></div>
+          <div class="line"></div>
+          <div class="center bold" style="font-size: 16px; margin: 6px 0;">DELIVERY OTP: 8294</div>
+          <div class="center" style="font-size: 12px;">${settings.receipt_footer_note || 'Thank you for dining with FoodMaxx!'}</div>
+          <div class="center" style="font-size: 10px; margin-top: 10px;">*** SAMPLE HARDWARE PRINT SUCCESSFUL ***</div>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(sampleHtml);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  }
+
+  // Save All Store Settings to Firestore & Local Storage
+  async function handleSaveAllSettings(customUpdates = null) {
+    setSavingSettings(true);
+    try {
+      const merged = { ...settings, ...(customUpdates || {}) };
+      if (merged.paystack_public_key) {
+        savePaystackConfig({
+          publicKey: merged.paystack_public_key.trim(),
+          isLive: merged.paystack_is_live !== false
+        });
+      }
+      const res = await api.saveAdminSettings(merged);
+      if (res?.data) {
+        setSettings(res.data);
+      } else {
+        setSettings(merged);
+      }
+      try {
+        localStorage.setItem('fmx_store_settings', JSON.stringify(merged));
+        window.dispatchEvent(new CustomEvent('fmx_store_settings_updated', { detail: merged }));
+      } catch (e) {}
+      playNativeSound('success');
+      toast('All store settings saved and synced across FoodMaxx! 🏬✅', 'success');
+    } catch (e) {
+      toast('Failed to save settings: ' + (e.message || 'Network error'), 'error');
+    } finally {
+      setSavingSettings(false);
+    }
+  }
+
   // 1-Click Product Availability Toggle
   async function toggleProductAvailability(product) {
     const nextState = !product.is_available;
@@ -3914,10 +4061,10 @@ function AdminPortal() {
 
   return (
     <div 
-      className={`min-h-screen flex flex-col md:flex-row antialiased font-sans selection:bg-[#EA4C2A] selection:text-white transition-colors duration-200 ${currentAdminTheme.id === 'saas' || currentAdminTheme.id === 'light' ? 'bg-[#F8F9FA] text-slate-800' : 'admin-portal-dark dark'}`}
+      className={`min-h-screen flex flex-col md:flex-row antialiased font-sans selection:bg-[#EA4C2A] selection:text-white transition-colors duration-200 ${currentAdminTheme.id === 'saas' || currentAdminTheme.id === 'light' ? 'bg-[#F8F9FA] text-black font-semibold' : 'admin-portal-dark dark'}`}
       style={{
         backgroundColor: currentAdminTheme.bg,
-        color: currentAdminTheme.text
+        color: currentAdminTheme.id === 'saas' ? '#000000' : currentAdminTheme.text
       }}
     >
       {/* Mobile Top Header */}
@@ -3935,13 +4082,15 @@ function AdminPortal() {
           >
             <MoreVertical size={18} />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-[#EA4C2A] flex items-center justify-center text-white shadow-xs">
-              <ChefHat size={18} />
-            </div>
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/foodmaxx-logo.png"
+              alt="FoodMaxx"
+              className="w-9 h-9 rounded-xl object-contain bg-white p-0.5 shadow-xs border border-white/20 shrink-0"
+            />
             <div>
-              <div className="font-black text-sm text-white tracking-tight">FoodMaxx</div>
-              <div className="text-[10px] font-medium text-slate-400">Restaurant Admin</div>
+              <div className="font-black text-base text-white tracking-tight leading-tight">FoodMaxx</div>
+              <div className="text-xs font-bold text-slate-300">Restaurant Admin</div>
             </div>
           </div>
         </div>
@@ -3951,7 +4100,7 @@ function AdminPortal() {
             type="button"
             onClick={toggleKitchenStatus}
             title={settings.is_open !== false ? 'Kitchen is Open. Tap to Close for Orders' : 'Kitchen is Closed. Tap to Open for Orders'}
-            className={`px-3 py-1 rounded-full text-[11px] font-black border cursor-pointer flex items-center gap-1.5 shadow-2xs transition-all ${
+            className={`px-3 py-1.5 rounded-full text-xs font-black border cursor-pointer flex items-center gap-1.5 shadow-2xs transition-all ${
               settings.is_open !== false
                 ? 'bg-emerald-50 text-emerald-950 border-emerald-400'
                 : 'bg-rose-50 text-rose-950 border-rose-400'
@@ -3984,15 +4133,17 @@ function AdminPortal() {
           >
             <div className="flex items-center justify-between pb-4 border-b border-[#1E2330] mb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#EA4C2A] flex items-center justify-center text-white shadow-xs">
-                  <ChefHat size={20} />
-                </div>
+                <img
+                  src="/foodmaxx-logo.png"
+                  alt="FoodMaxx"
+                  className="w-10 h-10 rounded-xl object-contain bg-white p-0.5 shadow-xs border border-white/20 shrink-0"
+                />
                 <div>
-                  <div className="text-base font-bold text-white">FoodMaxx</div>
-                  <div className="text-[11px] text-slate-400">Restaurant Admin</div>
+                  <div className="text-lg font-black text-white">FoodMaxx</div>
+                  <div className="text-xs font-bold text-slate-300">Restaurant Admin</div>
                 </div>
               </div>
-              <button onClick={() => setMobileNavOpen(false)} className="p-1.5 rounded-lg bg-white/5 text-slate-400 border border-white/10 cursor-pointer">
+              <button onClick={() => setMobileNavOpen(false)} className="p-1.5 rounded-lg bg-white/5 text-slate-300 border border-white/10 cursor-pointer hover:text-white">
                 <X size={18} />
               </button>
             </div>
@@ -4007,22 +4158,22 @@ function AdminPortal() {
                       handleNavChange(item.id);
                       setMobileNavOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                       active 
                         ? 'bg-[#202534] text-white shadow-xs' 
-                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                        : 'text-slate-300 hover:bg-white/5 hover:text-white'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <item.icon size={16} className={active ? 'text-white' : 'text-slate-400'} />
+                      <item.icon size={18} className={active ? 'text-white' : 'text-slate-300'} />
                       <span>{item.label}</span>
                     </div>
                     {item.badge ? (
-                      <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                      <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-xs font-black flex items-center justify-center shrink-0">
                         {item.badge}
                       </span>
                     ) : item.alertBadge ? (
-                      <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold animate-pulse">
+                      <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
                         {item.alertBadge}
                       </span>
                     ) : null}
@@ -4037,7 +4188,7 @@ function AdminPortal() {
                   window.history.pushState(null, '', '/');
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 }}
-                className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold rounded-xl text-xs text-center cursor-pointer transition-colors"
+                className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-bold rounded-xl text-xs text-center cursor-pointer transition-colors"
               >
                 🍔 Switch to Customer Store
               </button>
@@ -4053,12 +4204,14 @@ function AdminPortal() {
       >
         {/* Brand Header */}
         <div className="p-5 flex items-center gap-3 border-b border-[#1E2330]">
-          <div className="w-10 h-10 rounded-2xl bg-[#EA4C2A] flex items-center justify-center text-white shadow-md shadow-[#EA4C2A]/25 shrink-0">
-            <ChefHat size={22} className="text-white" />
-          </div>
+          <img
+            src="/foodmaxx-logo.png"
+            alt="FoodMaxx Logo"
+            className="w-11 h-11 rounded-2xl object-contain bg-white p-1 shadow-md shadow-orange-500/25 shrink-0 border border-white/20"
+          />
           <div className="min-w-0">
-            <h1 className="text-base font-extrabold text-white tracking-tight leading-tight truncate">FoodMaxx</h1>
-            <p className="text-xs text-slate-400 font-medium truncate">Restaurant Admin</p>
+            <h1 className="text-lg font-black text-white tracking-tight leading-tight truncate">FoodMaxx</h1>
+            <p className="text-xs text-slate-300 font-bold truncate">Restaurant Admin</p>
           </div>
         </div>
 
@@ -4070,22 +4223,22 @@ function AdminPortal() {
               <button
                 key={item.id}
                 onClick={() => handleNavChange(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                   active
                     ? 'bg-[#202534] text-white shadow-xs'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                    : 'text-slate-300 hover:text-white hover:bg-white/[0.04]'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <item.icon size={17} className={active ? 'text-white' : 'text-slate-400'} />
+                  <item.icon size={19} className={active ? 'text-white' : 'text-slate-300'} />
                   <span>{item.label}</span>
                 </div>
                 {item.badge ? (
-                  <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                  <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-xs font-black flex items-center justify-center shrink-0">
                     {item.badge}
                   </span>
                 ) : item.alertBadge ? (
-                  <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-[10px] font-bold border border-rose-500/30">
+                  <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-xs font-black border border-rose-500/30">
                     {item.alertBadge}
                   </span>
                 ) : null}
@@ -4102,7 +4255,7 @@ function AdminPortal() {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-white truncate">{user?.full_name || 'FoodMaxx Admin'}</p>
-              <p className="text-[10px] text-slate-400 truncate">Store Manager</p>
+              <p className="text-xs text-slate-300 truncate">Store Manager</p>
             </div>
           </div>
           <button
@@ -4111,10 +4264,10 @@ function AdminPortal() {
               window.history.pushState(null, '', '/');
               window.dispatchEvent(new PopStateEvent('popstate'));
             }}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
             title="Switch to Customer Store"
           >
-            <LogOut size={15} />
+            <LogOut size={16} />
           </button>
         </div>
       </aside>
@@ -4126,21 +4279,28 @@ function AdminPortal() {
       >
         {/* Top Header (Matching Reference Image) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight">
-              {activeSection === 'overview' ? 'Dashboard' :
-               activeSection === 'orders' ? 'Orders' :
-               activeSection === 'products' ? 'Menu' :
-               activeSection === 'inventory' ? 'Inventory' :
-               activeSection === 'customers' ? 'Customers' :
-               activeSection === 'reports' ? 'Reports' :
-               activeSection === 'zones' ? 'Delivery Areas' :
-               activeSection === 'promotions' ? 'Discounts' :
-               activeSection === 'settings' ? 'Settings' : 'Dashboard'}
-            </h1>
-            <p className="text-xs sm:text-sm text-black font-bold mt-0.5">
-              Welcome back! Here's what's happening at FoodMaxx.
-            </p>
+          <div className="flex items-center gap-3.5">
+            <img
+              src="/foodmaxx-logo.png"
+              alt="FoodMaxx"
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-contain bg-white p-1 border border-slate-300 shadow-sm shrink-0"
+            />
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-black tracking-tight">
+                {activeSection === 'overview' ? 'Dashboard' :
+                 activeSection === 'orders' ? 'Orders' :
+                 activeSection === 'products' ? 'Menu' :
+                 activeSection === 'inventory' ? 'Inventory' :
+                 activeSection === 'customers' ? 'Customers' :
+                 activeSection === 'reports' ? 'Reports' :
+                 activeSection === 'zones' ? 'Delivery Areas' :
+                 activeSection === 'promotions' ? 'Discounts' :
+                 activeSection === 'settings' ? 'Settings' : 'Dashboard'}
+              </h1>
+              <p className="text-sm sm:text-base text-black font-bold mt-0.5">
+                Welcome back! Here's what's happening at FoodMaxx.
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -4149,7 +4309,7 @@ function AdminPortal() {
               type="button"
               onClick={toggleKitchenStatus}
               title={settings.is_open !== false ? 'Kitchen is Open. Click to Close Store for Orders' : 'Kitchen is Closed. Click to Open Store for Orders'}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-black border flex items-center gap-2 cursor-pointer transition-all shadow-xs ${
+              className={`px-4 py-2 rounded-full text-sm font-black border flex items-center gap-2 cursor-pointer transition-all shadow-xs ${
                 settings.is_open !== false
                   ? 'bg-emerald-50 text-emerald-950 border-emerald-400 hover:bg-emerald-100 hover:border-emerald-500'
                   : 'bg-rose-50 text-rose-950 border-rose-400 hover:bg-rose-100 hover:border-rose-500'
@@ -4159,16 +4319,16 @@ function AdminPortal() {
               <span className="text-black font-black">
                 {settings.is_open !== false ? 'Open for Orders' : 'Close for Orders'}
               </span>
-              <span className="text-[10px] font-bold text-black bg-white/90 px-1.5 py-0.5 rounded-md border border-slate-300">
+              <span className="text-xs font-black text-black bg-white/90 px-2 py-0.5 rounded-md border border-slate-300">
                 {settings.is_open !== false ? 'Tap to Close' : 'Tap to Open'}
               </span>
             </button>
 
             {/* Restaurant Profile Pill */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 rounded-full shadow-xs">
-              <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-6 h-6 rounded-full object-cover border border-slate-200" />
-              <span className="text-xs font-black text-black">FoodMaxx</span>
-              <ChevronDown size={14} className="text-black" />
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 rounded-full shadow-xs">
+              <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-7 h-7 rounded-full object-cover border border-slate-200" />
+              <span className="text-sm font-black text-black">FoodMaxx</span>
+              <ChevronDown size={15} className="text-black" />
             </div>
 
             {/* Quick Loud Chime Audio Bell */}
@@ -4246,33 +4406,33 @@ function AdminPortal() {
               {/* Card 1: Total Orders */}
               <div className="bg-[#FFF5F5] border border-rose-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-black text-black mb-1">Total Orders</p>
-                  <h3 className="text-2xl sm:text-3xl font-black text-black tracking-tight">
+                  <p className="text-sm font-black text-black mb-1">Total Orders</p>
+                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
                     {orders.length || overview?.totalOrders || 24}
                   </h3>
-                  <p className="text-xs font-bold text-emerald-700 flex items-center gap-1 mt-1">
+                  <p className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1 mt-1">
                     <span>↑ 20%</span>
                     <span className="text-black font-bold">vs. yesterday</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#EF4444] text-white flex items-center justify-center shadow-md shadow-rose-500/25 shrink-0">
-                  <ShoppingBag size={22} />
+                  <ShoppingBag size={24} />
                 </div>
               </div>
 
               {/* Card 2: Total Revenue */}
               <div className="bg-[#F0FDF4] border border-emerald-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-black text-black mb-1">Total Revenue</p>
-                  <h3 className="text-2xl sm:text-3xl font-black text-black tracking-tight">
+                  <p className="text-sm font-black text-black mb-1">Total Revenue</p>
+                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
                     ₦{Number(todayRevenue).toLocaleString()}
                   </h3>
-                  <p className="text-xs font-bold text-emerald-700 flex items-center gap-1 mt-1">
+                  <p className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1 mt-1">
                     <span>↑ 18%</span>
                     <span className="text-black font-bold">vs. yesterday</span>
                   </p>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-[#10B981] text-white flex items-center justify-center shadow-md shadow-emerald-500/25 shrink-0 font-black text-xl">
+                <div className="w-12 h-12 rounded-2xl bg-[#10B981] text-white flex items-center justify-center shadow-md shadow-emerald-500/25 shrink-0 font-black text-2xl">
                   ₦
                 </div>
               </div>
@@ -4280,34 +4440,34 @@ function AdminPortal() {
               {/* Card 3: New Customers */}
               <div className="bg-[#EFF6FF] border border-blue-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-black text-black mb-1">New Customers</p>
-                  <h3 className="text-2xl sm:text-3xl font-black text-black tracking-tight">
+                  <p className="text-sm font-black text-black mb-1">New Customers</p>
+                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
                     {customers.length || overview?.totalCustomers || 12}
                   </h3>
-                  <p className="text-xs font-bold text-emerald-700 flex items-center gap-1 mt-1">
+                  <p className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1 mt-1">
                     <span>↑ 33%</span>
                     <span className="text-black font-bold">vs. yesterday</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#3B82F6] text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
-                  <Users size={22} />
+                  <Users size={24} />
                 </div>
               </div>
 
               {/* Card 4: Average Rating */}
               <div className="bg-[#FFFBEB] border border-amber-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-black text-black mb-1">Average Rating</p>
-                  <h3 className="text-2xl sm:text-3xl font-black text-black tracking-tight">
+                  <p className="text-sm font-black text-black mb-1">Average Rating</p>
+                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
                     4.8
                   </h3>
-                  <p className="text-xs font-bold text-emerald-700 flex items-center gap-1 mt-1">
+                  <p className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1 mt-1">
                     <span>↑ 0.2</span>
                     <span className="text-black font-bold">vs. last week</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#F59E0B] text-white flex items-center justify-center shadow-md shadow-amber-500/25 shrink-0">
-                  <Star size={22} className="fill-white" />
+                  <Star size={24} className="fill-white" />
                 </div>
               </div>
             </div>
@@ -4319,10 +4479,10 @@ function AdminPortal() {
                 {/* Recent Orders Card */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-base font-black text-black">Recent Orders</h2>
+                    <h2 className="text-lg sm:text-xl font-black text-black">Recent Orders</h2>
                     <button
                       onClick={() => handleNavChange('orders')}
-                      className="text-xs font-black text-blue-700 hover:text-blue-900 transition-colors cursor-pointer"
+                      className="text-sm font-black text-blue-700 hover:text-blue-900 transition-colors cursor-pointer"
                     >
                       View All →
                     </button>
@@ -4331,7 +4491,7 @@ function AdminPortal() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
-                        <tr className="border-b border-slate-200 text-xs font-black text-black uppercase tracking-wider">
+                        <tr className="border-b border-slate-300 text-sm font-black text-black uppercase tracking-wider">
                           <th className="pb-3 pl-1 font-black text-black">#</th>
                           <th className="pb-3 font-black text-black">Customer</th>
                           <th className="pb-3 font-black text-black">Items</th>
@@ -4340,7 +4500,7 @@ function AdminPortal() {
                           <th className="pb-3 pr-1 text-right font-black text-black">Time</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 text-xs">
+                      <tbody className="divide-y divide-slate-100 text-sm">
                         {orders.slice(0, 5).map(order => {
                           const status = order.order_status;
                           const isPrep = status === 'PREPARING';
@@ -4378,24 +4538,24 @@ function AdminPortal() {
                               onClick={() => setSlipOrder(order)}
                               className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
                             >
-                              <td className="py-3.5 pl-1 font-black text-black font-mono">
+                              <td className="py-3.5 pl-1 font-black text-black font-mono text-sm">
                                 #{order.order_reference?.slice(-4) || order.id?.slice(0, 4)}
                               </td>
-                              <td className="py-3.5 font-bold text-black">
+                              <td className="py-3.5 font-black text-black text-sm">
                                 {order.customer?.full_name || 'Customer'}
                               </td>
-                              <td className="py-3.5 font-bold text-black">
+                              <td className="py-3.5 font-bold text-black text-sm">
                                 {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
                               </td>
-                              <td className="py-3.5 font-black text-black text-sm">
+                              <td className="py-3.5 font-black text-black text-base font-mono">
                                 ₦{Number(order.total_amount || 0).toLocaleString()}
                               </td>
                               <td className="py-3.5">
-                                <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-black ${badgeClass}`}>
+                                <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${badgeClass}`}>
                                   {badgeLabel}
                                 </span>
                               </td>
-                              <td className="py-3.5 pr-1 text-right font-black text-black font-mono">
+                              <td className="py-3.5 pr-1 text-right font-black text-black font-mono text-sm">
                                 {timeFormatted}
                               </td>
                             </tr>
@@ -4404,7 +4564,7 @@ function AdminPortal() {
 
                         {orders.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="py-8 text-center text-black font-bold text-xs">
+                            <td colSpan={6} className="py-8 text-center text-black font-bold text-sm">
                               No customer orders placed yet.
                             </td>
                           </tr>
@@ -4417,10 +4577,10 @@ function AdminPortal() {
                 {/* Popular Menu Items Card (Matching Reference Image) */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-base font-black text-black">Popular Menu Items</h2>
+                    <h2 className="text-lg sm:text-xl font-black text-black">Popular Menu Items</h2>
                     <button
                       onClick={() => handleNavChange('products')}
-                      className="text-xs font-black text-blue-700 hover:text-blue-900 transition-colors cursor-pointer"
+                      className="text-sm font-black text-blue-700 hover:text-blue-900 transition-colors cursor-pointer"
                     >
                       View Menu →
                     </button>
@@ -4429,7 +4589,7 @@ function AdminPortal() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
-                        <tr className="border-b border-slate-200 text-xs font-black text-black uppercase tracking-wider">
+                        <tr className="border-b border-slate-300 text-sm font-black text-black uppercase tracking-wider">
                           <th className="pb-3 pl-1 font-black text-black">#</th>
                           <th className="pb-3 font-black text-black">Item</th>
                           <th className="pb-3 font-black text-black">Price</th>
@@ -4438,12 +4598,12 @@ function AdminPortal() {
                           <th className="pb-3 pr-1 text-right font-black text-black">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 text-xs">
+                      <tbody className="divide-y divide-slate-100 text-sm">
                         {products.slice(0, 5).map((dish, idx) => {
                           return (
                             <tr key={dish.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="py-3 pl-1 font-mono font-black text-black">{idx + 1}</td>
-                              <td className="py-3">
+                              <td className="py-3.5 pl-1 font-mono font-black text-black text-sm">{idx + 1}</td>
+                              <td className="py-3.5">
                                 <div className="flex items-center gap-3">
                                   <img
                                     src={dish.image_url || dish.image || '/food-placeholder.png'}
@@ -4451,23 +4611,23 @@ function AdminPortal() {
                                     className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
                                     onError={(e) => { e.target.src = '/food-placeholder.png'; }}
                                   />
-                                  <span className="font-black text-black truncate max-w-[160px] text-xs">
+                                  <span className="font-black text-black truncate max-w-[190px] text-sm">
                                     {dish.name}
                                   </span>
                                 </div>
                               </td>
-                              <td className="py-3 font-black text-black text-sm">
+                              <td className="py-3.5 font-black text-black text-base font-mono">
                                 ₦{Number(dish.price || 0).toLocaleString()}
                               </td>
-                              <td className="py-3 text-black font-black">
+                              <td className="py-3.5 text-black font-black text-sm font-mono">
                                 {dish.orders_count || (18 - idx * 2)}
                               </td>
-                              <td className="py-3">
-                                <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black bg-[#DCFCE7] text-[#15803D] border border-emerald-300">
+                              <td className="py-3.5">
+                                <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-[#DCFCE7] text-[#15803D] border border-emerald-300">
                                   Active
                                 </span>
                               </td>
-                              <td className="py-3 pr-1 text-right">
+                              <td className="py-3.5 pr-1 text-right">
                                 <div className="inline-flex items-center gap-1.5 justify-end">
                                   <button
                                     type="button"
@@ -4475,7 +4635,7 @@ function AdminPortal() {
                                       setEditingProduct(dish);
                                       setProductModalOpen(true);
                                     }}
-                                    className="px-3 py-1 bg-white border border-slate-300 hover:bg-slate-100 text-black text-xs font-black rounded-lg transition-colors cursor-pointer shadow-xs"
+                                    className="px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-black text-xs font-black rounded-lg transition-colors cursor-pointer shadow-xs"
                                   >
                                     Edit
                                   </button>
@@ -4487,7 +4647,7 @@ function AdminPortal() {
 
                         {products.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="py-8 text-center text-black font-bold text-xs">
+                            <td colSpan={6} className="py-8 text-center text-black font-bold text-sm">
                               No menu items added yet. Click Add Menu Item below.
                             </td>
                           </tr>
@@ -4503,17 +4663,17 @@ function AdminPortal() {
                 {/* Today's Sales Card with SVG Area Curve Chart */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-base font-black text-black">Today's Sales</h2>
-                    <div className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 border border-slate-300 rounded-lg text-xs font-black text-black">
+                    <h2 className="text-lg sm:text-xl font-black text-black">Today's Sales</h2>
+                    <div className="flex items-center gap-1 px-3 py-1 bg-slate-100 border border-slate-300 rounded-lg text-xs font-black text-black">
                       <span>Today</span>
-                      <ChevronDown size={13} className="text-black" />
+                      <ChevronDown size={14} className="text-black" />
                     </div>
                   </div>
 
-                  <h3 className="text-2xl sm:text-3xl font-black text-black tracking-tight mt-3">
+                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight mt-3">
                     ₦{Number(todayRevenue).toLocaleString()}
                   </h3>
-                  <p className="text-xs font-black text-emerald-700 flex items-center gap-1 mt-1 mb-6">
+                  <p className="text-xs sm:text-sm font-black text-emerald-800 flex items-center gap-1 mt-1 mb-6">
                     <span>↑ 18%</span>
                     <span className="text-black font-bold">vs. yesterday</span>
                   </p>
@@ -4534,10 +4694,10 @@ function AdminPortal() {
                       <line x1="30" y1="120" x2="310" y2="120" stroke="#CBD5E1" strokeWidth="1.5" />
 
                       {/* Y Axis Labels */}
-                      <text x="5" y="18" fill="#000000" fontSize="9" fontWeight="bold" fontFamily="sans-serif">1,500</text>
-                      <text x="5" y="53" fill="#000000" fontSize="9" fontWeight="bold" fontFamily="sans-serif">1,000</text>
-                      <text x="12" y="88" fill="#000000" fontSize="9" fontWeight="bold" fontFamily="sans-serif">500</text>
-                      <text x="20" y="122" fill="#000000" fontSize="9" fontWeight="bold" fontFamily="sans-serif">0</text>
+                      <text x="5" y="18" fill="#000000" fontSize="11" fontWeight="bold" fontFamily="sans-serif">1,500</text>
+                      <text x="5" y="53" fill="#000000" fontSize="11" fontWeight="bold" fontFamily="sans-serif">1,000</text>
+                      <text x="12" y="88" fill="#000000" fontSize="11" fontWeight="bold" fontFamily="sans-serif">500</text>
+                      <text x="20" y="122" fill="#000000" fontSize="11" fontWeight="bold" fontFamily="sans-serif">0</text>
 
                       {/* Area fill */}
                       <path
@@ -4560,7 +4720,7 @@ function AdminPortal() {
                       <circle cx="310" cy="40" r="4" fill="#10B981" stroke="#000000" strokeWidth="1.5" />
                     </svg>
                     {/* Time labels below */}
-                    <div className="flex justify-between text-[11px] text-black font-black pl-6 pt-1">
+                    <div className="flex justify-between text-xs text-black font-black pl-6 pt-1">
                       <span>6 AM</span>
                       <span>10 AM</span>
                       <span>2 PM</span>
@@ -4572,7 +4732,7 @@ function AdminPortal() {
 
                 {/* Quick Actions Card (2x2 Grid matching reference image) */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
-                  <h2 className="text-base font-black text-black mb-4">Quick Actions</h2>
+                  <h2 className="text-lg sm:text-xl font-black text-black mb-4">Quick Actions</h2>
                   <div className="grid grid-cols-2 gap-3.5">
                     {/* Action 1: Add Menu Item */}
                     <button
@@ -4583,10 +4743,10 @@ function AdminPortal() {
                       }}
                       className="p-4 bg-[#ECFDF5] hover:bg-[#D1FAE5] border border-emerald-200 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
                     >
-                      <div className="w-8 h-8 rounded-full bg-[#10B981] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                        <Plus size={16} strokeWidth={3} />
+                      <div className="w-9 h-9 rounded-full bg-[#10B981] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                        <Plus size={18} strokeWidth={3} />
                       </div>
-                      <span className="text-xs font-black text-black text-center">Add Menu Item</span>
+                      <span className="text-sm font-black text-black text-center">Add Menu Item</span>
                     </button>
 
                     {/* Action 2: Manage Orders */}
@@ -4595,10 +4755,10 @@ function AdminPortal() {
                       onClick={() => handleNavChange('orders')}
                       className="p-4 bg-[#EFF6FF] hover:bg-[#DBEAFE] border border-blue-200 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
                     >
-                      <div className="w-8 h-8 rounded-xl bg-[#3B82F6] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                        <ClipboardList size={16} />
+                      <div className="w-9 h-9 rounded-xl bg-[#3B82F6] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                        <ClipboardList size={18} />
                       </div>
-                      <span className="text-xs font-black text-black text-center">Manage Orders</span>
+                      <span className="text-sm font-black text-black text-center">Manage Orders</span>
                     </button>
 
                     {/* Action 3: Update Inventory */}
@@ -4607,10 +4767,10 @@ function AdminPortal() {
                       onClick={() => handleNavChange('inventory')}
                       className="p-4 bg-[#FFFBEB] hover:bg-[#FEF3C7] border border-amber-200 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
                     >
-                      <div className="w-8 h-8 rounded-xl bg-[#F59E0B] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                        <Package size={16} />
+                      <div className="w-9 h-9 rounded-xl bg-[#F59E0B] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                        <Package size={18} />
                       </div>
-                      <span className="text-xs font-black text-black text-center">Update Inventory</span>
+                      <span className="text-sm font-black text-black text-center">Update Inventory</span>
                     </button>
 
                     {/* Action 4: Restaurant Settings */}
@@ -4619,10 +4779,10 @@ function AdminPortal() {
                       onClick={() => handleNavChange('settings')}
                       className="p-4 bg-[#FAF5FF] hover:bg-[#F3E8FF] border border-purple-200 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
                     >
-                      <div className="w-8 h-8 rounded-xl bg-[#A855F7] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                        <Settings size={16} />
+                      <div className="w-9 h-9 rounded-xl bg-[#A855F7] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                        <Settings size={18} />
                       </div>
-                      <span className="text-xs font-black text-black text-center">Restaurant Settings</span>
+                      <span className="text-sm font-black text-black text-center">Restaurant Settings</span>
                     </button>
                   </div>
                 </div>
@@ -5642,11 +5802,11 @@ function AdminPortal() {
 
                 {homepageSections.length === 0 ? (
                   <div className="bg-white border border-slate-200/80 rounded-2xl p-8 text-center shadow-xs">
-                    <p className="text-sm text-slate-500 mb-3">No homepage sections configured.</p>
+                    <p className="text-sm font-bold text-black mb-3">No homepage sections configured.</p>
                     <button
                       type="button"
                       onClick={handleResetHomepageSections}
-                      className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43B1B] text-white rounded-xl text-xs font-bold shadow-xs"
+                      className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43B1B] text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
                     >
                       Restore Default Sections
                     </button>
@@ -5657,7 +5817,7 @@ function AdminPortal() {
                       <div
                         key={sec.id}
                         className={`bg-white border rounded-2xl p-4 transition-all shadow-xs ${
-                          sec.enabled ? 'border-slate-200/80 hover:border-slate-300' : 'border-slate-200 opacity-75'
+                          sec.enabled ? 'border-slate-300 hover:border-slate-400' : 'border-slate-200 opacity-85'
                         }`}
                       >
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -5668,7 +5828,7 @@ function AdminPortal() {
                                 type="button"
                                 disabled={idx === 0}
                                 onClick={() => handleMoveSection(idx, -1)}
-                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 disabled:cursor-not-allowed cursor-pointer transition-colors border border-slate-200"
+                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-black disabled:cursor-not-allowed cursor-pointer transition-colors border border-slate-300"
                                 title="Move Up"
                               >
                                 <ArrowUp size={12} />
@@ -5677,7 +5837,7 @@ function AdminPortal() {
                                 type="button"
                                 disabled={idx === homepageSections.length - 1}
                                 onClick={() => handleMoveSection(idx, 1)}
-                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 disabled:cursor-not-allowed cursor-pointer transition-colors border border-slate-200"
+                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-black disabled:cursor-not-allowed cursor-pointer transition-colors border border-slate-300"
                                 title="Move Down"
                               >
                                 <ArrowDown size={12} />
@@ -5686,14 +5846,14 @@ function AdminPortal() {
 
                             <div className="flex-1 space-y-2 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 uppercase shrink-0">
+                                <span className="text-xs font-black px-2.5 py-0.5 rounded-md bg-slate-100 text-black border border-slate-300 uppercase shrink-0">
                                   Row #{idx + 1}
                                 </span>
                                 <input
                                   type="text"
                                   value={sec.title}
                                   onChange={e => handleUpdateSection(sec.id, e.target.value, sec.subtitle)}
-                                  className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#EA4C2A] focus:bg-white flex-1 min-w-[180px] max-w-sm"
+                                  className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-black text-black focus:outline-none focus:border-[#EA4C2A] focus:bg-white flex-1 min-w-[180px] max-w-sm"
                                   placeholder="Section Title"
                                 />
                               </div>
@@ -5701,7 +5861,7 @@ function AdminPortal() {
                                 type="text"
                                 value={sec.subtitle}
                                 onChange={e => handleUpdateSection(sec.id, sec.title, e.target.value)}
-                                className="w-full max-w-md bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] text-slate-600 focus:outline-none focus:border-slate-300 focus:bg-white"
+                                className="w-full max-w-md bg-slate-50 border border-slate-300 rounded-lg px-3 py-1 text-xs font-bold text-black focus:outline-none focus:border-slate-400 focus:bg-white"
                                 placeholder="Subtitle Description (e.g. Curated popular items)"
                               />
                             </div>
@@ -5710,14 +5870,14 @@ function AdminPortal() {
                           {/* Filter, Limit, Visibility, and Delete Controls */}
                           <div className="flex items-center gap-2 flex-wrap shrink-0 self-end lg:self-center">
                             {/* Section Icon Selector */}
-                            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
-                              <span className="text-[10px] text-slate-500 font-semibold">Icon:</span>
+                            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1">
+                              <span className="text-xs text-black font-black">Icon:</span>
                               <select
                                 value={sec.icon || 'Sparkles'}
                                 onChange={e => {
                                   handleUpdateSection(sec.id, { icon: e.target.value });
                                 }}
-                                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                                className="bg-transparent text-xs font-black text-black focus:outline-none cursor-pointer"
                               >
                                 <option value="Sparkles">✨ Sparkles</option>
                                 <option value="Flame">🔥 Flame (Hot)</option>
@@ -5733,14 +5893,14 @@ function AdminPortal() {
                             </div>
 
                             {/* Filter Type Dropdown */}
-                            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
-                              <span className="text-[10px] text-slate-500 font-semibold">Filter:</span>
+                            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1">
+                              <span className="text-xs text-black font-black">Filter:</span>
                               <select
                                 value={sec.filter_type || 'bestseller'}
                                 onChange={e => {
                                   handleUpdateSection(sec.id, { filter_type: e.target.value });
                                 }}
-                                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                                className="bg-transparent text-xs font-black text-black focus:outline-none cursor-pointer"
                               >
                                 <option value="bestseller">⭐ Bestsellers</option>
                                 <option value="popular">🔥 Trending</option>
@@ -5757,14 +5917,14 @@ function AdminPortal() {
                             </div>
 
                             {/* Display Limit */}
-                            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
-                              <span className="text-[10px] text-slate-500 font-semibold">Max:</span>
+                            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1">
+                              <span className="text-xs text-black font-black">Max:</span>
                               <select
                                 value={sec.display_limit || 6}
                                 onChange={e => {
                                   handleUpdateSection(sec.id, { display_limit: Number(e.target.value) });
                                 }}
-                                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                                className="bg-transparent text-xs font-black text-black focus:outline-none cursor-pointer"
                               >
                                 <option value={4}>4 items</option>
                                 <option value={6}>6 items</option>
@@ -5777,10 +5937,10 @@ function AdminPortal() {
                             <button
                               type="button"
                               onClick={() => handleToggleSection(sec.id)}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                                 sec.enabled
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                                  : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+                                  ? 'bg-emerald-50 text-emerald-950 border border-emerald-300 hover:bg-emerald-100'
+                                  : 'bg-slate-100 text-black border border-slate-300 hover:bg-slate-200'
                               }`}
                             >
                               {sec.enabled ? '🟢 Visible on Home' : '🔴 Hidden on Home'}
@@ -5790,7 +5950,7 @@ function AdminPortal() {
                             <button
                               type="button"
                               onClick={() => handleDeleteSection(sec.id)}
-                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer border border-slate-200"
+                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-black hover:text-rose-700 transition-colors cursor-pointer border border-slate-300"
                               title="Delete section"
                             >
                               <Trash2 size={13} />
@@ -5813,59 +5973,59 @@ function AdminPortal() {
         {activeSection === 'promotions' && (
           <div className="space-y-5">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-300 p-5 rounded-2xl shadow-xs">
               <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Tag size={18} className="text-[#EA4C2A]" />
+                <h3 className="text-xl sm:text-2xl font-black text-black flex items-center gap-2">
+                  <Tag size={20} className="text-[#EA4C2A]" />
                   <span>Discount Codes & Promos</span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">Create discounts your customers can apply during checkout</p>
+                <p className="text-sm font-bold text-black mt-0.5">Create discounts your customers can apply during checkout</p>
               </div>
               <button
                 onClick={() => setPromoModalOpen(true)}
-                className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-95 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+                className="px-4 py-2.5 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-95 text-white font-black rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
               >
-                <Plus size={15} /> Create New Code
+                <Plus size={16} /> Create New Code
               </button>
             </div>
 
             {/* Curated 1-Tap Promo Ideas Shelf */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
+            <div className="bg-white border border-slate-300 rounded-2xl p-5 sm:p-6 shadow-xs">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <Sparkles size={14} className="text-amber-500" />
+                  <h4 className="text-sm font-black text-black uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles size={16} className="text-amber-500" />
                     <span>Popular Promo Ideas (1-Tap Setup)</span>
                   </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Click any promo to turn it on for your store</p>
+                  <p className="text-xs font-bold text-black mt-0.5">Click any promo to turn it on for your store</p>
                 </div>
-                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                <span className="text-xs font-black text-black bg-slate-100 px-3 py-1 rounded-lg border border-slate-300">
                   Ready to Use
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
                 {PROMO_IDEAS.map(idea => {
                   const alreadyExists = promotions.some(p => p.code === idea.code);
                   return (
                     <div
                       key={idea.id}
-                      className="bg-slate-50/70 border border-slate-200 hover:border-slate-300 rounded-2xl p-4 flex flex-col justify-between transition-all group shadow-2xs"
+                      className="bg-slate-50 border border-slate-300 hover:border-slate-400 rounded-2xl p-4 flex flex-col justify-between transition-all group shadow-xs"
                     >
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-xl">{idea.icon}</span>
-                          <span className="text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white text-slate-600 border border-slate-200">
+                          <span className="text-2xl">{idea.icon}</span>
+                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white text-black border border-slate-300">
                             {idea.badge}
                           </span>
                         </div>
-                        <div className="font-mono font-black text-sm text-[#EA4C2A] tracking-wide">{idea.code}</div>
-                        <div className="font-bold text-xs text-slate-900 mt-1">{idea.title}</div>
-                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">{idea.description}</p>
+                        <div className="font-mono font-black text-base text-[#EA4C2A] tracking-wide">{idea.code}</div>
+                        <div className="font-black text-sm text-black mt-1">{idea.title}</div>
+                        <p className="text-xs font-bold text-black mt-1 line-clamp-2">{idea.description}</p>
                       </div>
 
-                      <div className="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between">
-                        <span className="text-[10px] text-slate-500">Min: ₦{Number(idea.min_order).toLocaleString()}</span>
+                      <div className="mt-3.5 pt-3 border-t border-slate-300 flex items-center justify-between">
+                        <span className="text-xs font-black text-black">Min: ₦{Number(idea.min_order).toLocaleString()}</span>
                         <button
                           type="button"
                           disabled={alreadyExists}
@@ -5888,10 +6048,10 @@ function AdminPortal() {
                               toast('Failed to activate promo', 'error');
                             }
                           }}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                          className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
                             alreadyExists
-                              ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                              : 'bg-orange-50 hover:bg-[#EA4C2A] text-[#EA4C2A] hover:text-white border border-orange-200'
+                              ? 'bg-slate-200 text-black cursor-not-allowed opacity-75'
+                              : 'bg-orange-50 hover:bg-[#EA4C2A] text-[#EA4C2A] hover:text-white border border-orange-300'
                           }`}
                         >
                           {alreadyExists ? 'Active' : '+ Activate'}
@@ -6085,235 +6245,885 @@ function AdminPortal() {
         {/* TAB 9: STORE SETTINGS */}
         {/* ============================================================ */}
         {activeSection === 'settings' && (
-          <div className="max-w-2xl space-y-4">
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-5 shadow-xs">
-              <div className="pb-4 border-b border-slate-200">
-                <h3 className="text-base font-black text-black">FoodMaxx Configuration</h3>
-                <p className="text-xs text-black font-semibold mt-0.5">Manage store details, payout bank accounts, and payment gateways.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-black mb-1">Store Name</label>
-                <input
-                  type="text"
-                  value={settings.store_name || 'FoodMaxx'}
-                  onChange={e => setSettings({ ...settings, store_name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-black outline-none focus:border-[#EA4C2A] focus:bg-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-6 max-w-5xl">
+            {/* TOP SETTINGS HEADER & SUBTAB PILL BAR */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
                 <div>
-                  <label className="block text-xs font-black text-black mb-1">Phone Line</label>
-                  <input
-                    type="text"
-                    value={settings.phone || ''}
-                    placeholder="e.g. +234 800 000 0000"
-                    onChange={e => setSettings({ ...settings, phone: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-black mb-1">WhatsApp Dispatch Hotline</label>
-                  <input
-                    type="text"
-                    value={settings.whatsapp_dispatch || ''}
-                    placeholder="e.g. +234 800 000 0000"
-                    onChange={e => setSettings({ ...settings, whatsapp_dispatch: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-black mb-1">Kitchen Address (Ibadan)</label>
-                <input
-                  type="text"
-                  value={settings.address || ''}
-                  placeholder="e.g. 24 Awolowo Avenue, Old Bodija, Ibadan"
-                  onChange={e => setSettings({ ...settings, address: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
-                />
-              </div>
-
-              {/* PAYOUT SETTLEMENT BANK ACCOUNT */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🏦</span>
-                  <div>
-                    <h4 className="font-black text-xs text-black">Merchant Payout Bank Account</h4>
-                    <p className="text-[10px] text-black font-semibold">
-                      Bank account where daily revenue and earnings settlements are disbursed
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-black text-black mb-1">Bank Name</label>
-                    <input
-                      type="text"
-                      value={settings.payout_bank_name || ''}
-                      onChange={e => setSettings({ ...settings, payout_bank_name: e.target.value })}
-                      placeholder="e.g. Guaranty Trust Bank"
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black text-black mb-1">Account Number</label>
-                    <input
-                      type="text"
-                      maxLength={10}
-                      value={settings.payout_account_number || ''}
-                      onChange={e => setSettings({ ...settings, payout_account_number: e.target.value.replace(/\D/g, '') })}
-                      placeholder="10-digit NUBAN"
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black text-black mb-1">Account Name</label>
-                    <input
-                      type="text"
-                      value={settings.payout_account_name || ''}
-                      onChange={e => setSettings({ ...settings, payout_account_name: e.target.value })}
-                      placeholder="e.g. FoodMaxx Kitchen Ltd"
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-black mb-1">Store Announcement Banner</label>
-                <textarea
-                  rows={2}
-                  value={settings.announcement || ''}
-                  onChange={e => setSettings({ ...settings, announcement: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
-                  placeholder="e.g. ⚡ Fresh firewood party jollof & gourmet grills ready for immediate delivery!"
-                />
-              </div>
-
-              {/* PAYSTACK CONFIG */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">⚡</span>
-                    <div>
-                      <h4 className="font-black text-xs text-black">Paystack Payment Gateway</h4>
-                      <p className="text-[10px] text-emerald-800 font-bold flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse inline-block"></span>
-                        Active & Ready
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-[9.5px] bg-emerald-50 text-emerald-950 font-black px-2.5 py-0.5 rounded-full border border-emerald-300 uppercase">
-                    🟢 Active
-                  </span>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black text-black mb-1">
-                    Paystack Public Key (pk_live_... or pk_test_...)
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue={getStoredPaystackConfig().publicKey || 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a'}
-                    id="admin-paystack-public-key"
-                    placeholder="e.g. pk_live_xxxx or pk_test_xxxx"
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-black font-bold">Gateway Status:</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const input = document.getElementById('admin-paystack-public-key');
-                        const key = input ? input.value.trim() : '';
-                        savePaystackConfig({ publicKey: key, isLive: true });
-                        toast('Paystack saved as Live Active! 🟢', 'success');
-                      }}
-                      className="px-3 py-1.5 rounded-xl text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-all shadow-xs"
-                    >
-                      Save & Activate
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const input = document.getElementById('admin-paystack-public-key');
-                        const key = input ? input.value.trim() : '';
-                        savePaystackConfig({ publicKey: key, isLive: false });
-                        toast('Paystack set to Test Mode ⚡', 'info');
-                      }}
-                      className="px-3 py-1.5 rounded-xl text-[11px] font-black bg-slate-100 hover:bg-slate-200 text-black cursor-pointer transition-all border border-slate-300"
-                    >
-                      Test Mode
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECURITY & ADMIN ACCESS PASSWORD */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🔒</span>
-                    <div>
-                      <h4 className="font-black text-xs text-black">Admin Access Password</h4>
-                      <p className="text-[10px] text-black font-semibold">
-                        Password required to access this FoodMaxx Admin Suite
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black text-black mb-1">
-                    Store Manager Password
-                  </label>
-                  <input
-                    type="password"
-                    value={settings.admin_password || ''}
-                    onChange={e => setSettings({ ...settings, admin_password: e.target.value })}
-                    placeholder="Enter new admin password"
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
-                  />
-                  <p className="text-[10px] text-black font-semibold mt-1">
-                    Keep this confidential. This protects your revenue, customer data, and store control.
+                  <h2 className="text-xl sm:text-2xl font-black text-black flex items-center gap-2.5">
+                    <Settings className="text-[#EA4C2A]" size={24} />
+                    <span>Restaurant Settings & Operations</span>
+                  </h2>
+                  <p className="text-sm font-bold text-black mt-0.5">
+                    Configure store operating schedule, pricing & fees, settlement bank account, audio chimes, and POS hardware.
                   </p>
                 </div>
-              </div>
 
-              <div className="pt-3 flex items-center justify-between border-t border-slate-200">
-                <div>
-                  <span className="text-xs font-black text-black block">Accept Customer Orders:</span>
-                  <span className="text-[10px] font-bold text-slate-700">Control store open/close ordering status</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={savingSettings}
+                    onClick={() => handleSaveAllSettings()}
+                    className="px-5 py-2.5 bg-[#EA4C2A] hover:bg-[#D43B1B] disabled:bg-slate-300 active:scale-95 text-white rounded-xl font-black text-sm shadow-md shadow-[#EA4C2A]/20 transition-all cursor-pointer flex items-center gap-2 shrink-0"
+                  >
+                    {savingSettings ? (
+                      <>
+                        <RefreshCw size={15} className="animate-spin" />
+                        <span>Saving Changes...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={16} />
+                        <span>Save Store Settings</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={toggleKitchenStatus}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs flex items-center gap-2 ${
-                    settings.is_open !== false ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-rose-600 text-white hover:bg-rose-700'
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${settings.is_open !== false ? 'bg-white animate-pulse' : 'bg-white'}`} />
-                  <span>{settings.is_open !== false ? '🟢 Open for Orders (Click to Close)' : '🔴 Close for Orders (Click to Open)'}</span>
-                </button>
               </div>
 
-              <button
-                onClick={async () => {
-                  await api.saveAdminSettings(settings);
-                  toast('All store settings saved successfully! ✅', 'success');
-                }}
-                className="w-full py-3 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-98 text-white rounded-xl font-bold text-xs transition-all shadow-xs cursor-pointer"
-              >
-                Save Store Settings
-              </button>
+              {/* Subtab Pill Selectors */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {[
+                  { id: 'profile', label: 'Store Profile & Hours', icon: Store },
+                  { id: 'ordering', label: 'Ordering & Fees', icon: SlidersHorizontal },
+                  { id: 'payments', label: 'Payouts & Payments', icon: CreditCard },
+                  { id: 'alerts', label: 'Audio Chimes & WhatsApp', icon: Bell },
+                  { id: 'printer', label: 'Thermal POS & Hardware', icon: Printer },
+                  { id: 'security', label: 'Security & Staff PIN', icon: ShieldCheck },
+                ].map(tab => {
+                  const active = settingsSubTab === tab.id;
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setSettingsSubTab(tab.id)}
+                      className={`px-4 py-2 rounded-xl text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
+                        active
+                          ? 'bg-[#EA4C2A] text-white shadow-xs'
+                          : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300'
+                      }`}
+                    >
+                      <Icon size={16} className={active ? 'text-white' : 'text-black'} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
+            {/* ======================================================== */}
+            {/* SUBTAB 1: STORE PROFILE & OPERATING HOURS */}
+            {/* ======================================================== */}
+            {settingsSubTab === 'profile' && (
+              <div className="space-y-5">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
+                  <div>
+                    <h3 className="text-lg font-black text-black">Store Profile & Operating Schedule</h3>
+                    <p className="text-sm font-bold text-black mt-0.5">Basic brand contact info and live opening/closing controls.</p>
+                  </div>
+
+                  {/* Immediate Store Open/Close Orders Status */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 font-black shadow-xs ${
+                        settings.is_open !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                      }`}>
+                        {settings.is_open !== false ? '🟢' : '🔴'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-base font-black text-black">Store Ordering Status:</h4>
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase ${
+                            settings.is_open !== false ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                          }`}>
+                            {settings.is_open !== false ? 'Open for Orders' : 'Closed for Orders'}
+                          </span>
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold text-black mt-0.5">
+                          {settings.is_open !== false
+                            ? 'Customers across Ibadan can currently place orders for delivery.'
+                            : 'Ordering is temporarily paused. Customers see a Friendly Kitchen Closed banner.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={toggleKitchenStatus}
+                      className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all cursor-pointer shadow-xs shrink-0 flex items-center gap-2 ${
+                        settings.is_open !== false
+                          ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                      <span>{settings.is_open !== false ? 'Close Kitchen for Orders' : 'Open Kitchen for Orders'}</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-black text-black mb-1.5">Restaurant / Store Name</label>
+                      <input
+                        type="text"
+                        value={settings.store_name || 'FoodMaxx Kitchen & Grills'}
+                        onChange={e => setSettings({ ...settings, store_name: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-black outline-none focus:border-[#EA4C2A] focus:bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-black text-black mb-1.5">Brand Tagline</label>
+                      <input
+                        type="text"
+                        value={settings.tagline || 'Fastest Fresh Food Delivery in Ibadan'}
+                        onChange={e => setSettings({ ...settings, tagline: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-black text-black mb-1.5">Kitchen Phone Line</label>
+                      <input
+                        type="text"
+                        value={settings.phone || ''}
+                        placeholder="e.g. +234 802 345 6789"
+                        onChange={e => setSettings({ ...settings, phone: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-black text-black mb-1.5">WhatsApp Dispatch Hotline</label>
+                      <input
+                        type="text"
+                        value={settings.whatsapp_dispatch || ''}
+                        placeholder="e.g. +234 812 345 6789"
+                        onChange={e => setSettings({ ...settings, whatsapp_dispatch: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-black text-black mb-1.5">Kitchen Physical Address (Ibadan)</label>
+                      <input
+                        type="text"
+                        value={settings.address || '24 Awolowo Avenue, Old Bodija, Ibadan, Oyo State'}
+                        onChange={e => setSettings({ ...settings, address: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-black text-black mb-1.5">City & State</label>
+                      <input
+                        type="text"
+                        value={settings.city || 'Ibadan, Oyo State'}
+                        onChange={e => setSettings({ ...settings, city: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Daily Hours & Prep Buffer */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-4">
+                    <h4 className="font-black text-sm text-black flex items-center gap-2">
+                      <Clock size={16} className="text-[#EA4C2A]" />
+                      <span>Daily Operating Hours & Cooking Buffer</span>
+                    </h4>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1">Opening Time</label>
+                        <input
+                          type="time"
+                          value={settings.opening_time || '08:00'}
+                          onChange={e => setSettings({ ...settings, opening_time: e.target.value })}
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1">Closing Time</label>
+                        <input
+                          type="time"
+                          value={settings.closing_time || '23:00'}
+                          onChange={e => setSettings({ ...settings, closing_time: e.target.value })}
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1">Kitchen Prep Buffer (Minutes)</label>
+                        <input
+                          type="number"
+                          min={5}
+                          max={90}
+                          value={settings.prep_time_minutes ?? 20}
+                          onChange={e => setSettings({ ...settings, prep_time_minutes: Number(e.target.value) })}
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-black text-black mb-1.5">Store Announcement Banner</label>
+                    <textarea
+                      rows={2}
+                      value={settings.announcement || ''}
+                      onChange={e => setSettings({ ...settings, announcement: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                      placeholder="e.g. ⚡ Fresh firewood party jollof & gourmet grills ready for immediate delivery!"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ======================================================== */}
+            {/* SUBTAB 2: ORDERING RULES & FEES */}
+            {/* ======================================================== */}
+            {settingsSubTab === 'ordering' && (
+              <div className="space-y-5">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
+                  <div>
+                    <h3 className="text-lg font-black text-black">Ordering Rules, Surcharges & Limits</h3>
+                    <p className="text-sm font-bold text-black mt-0.5">Control minimum order spend, packaging fees, and automated kitchen workflows.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-300">
+                      <label className="block text-xs font-black text-black mb-1">Minimum Order Spend (₦)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={100}
+                        value={settings.min_order_amount ?? 1500}
+                        onChange={e => setSettings({ ...settings, min_order_amount: Number(e.target.value) })}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                      />
+                      <span className="text-xs text-black font-semibold mt-1 block">Checkout disabled below this value.</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-300">
+                      <label className="block text-xs font-black text-black mb-1">Packaging / Takeaway Pack (₦)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={50}
+                        value={settings.packaging_fee ?? 300}
+                        onChange={e => setSettings({ ...settings, packaging_fee: Number(e.target.value) })}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                      />
+                      <span className="text-xs text-black font-semibold mt-1 block">Added to every takeout order.</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-300">
+                      <label className="block text-xs font-black text-black mb-1">Platform Service Fee (₦)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={50}
+                        value={settings.service_fee ?? 150}
+                        onChange={e => setSettings({ ...settings, service_fee: Number(e.target.value) })}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                      />
+                      <span className="text-xs text-black font-semibold mt-1 block">Fixed order processing fee.</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-300">
+                      <label className="block text-xs font-black text-black mb-1">Free Delivery Spend (₦)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={500}
+                        value={settings.free_delivery_threshold ?? 15000}
+                        onChange={e => setSettings({ ...settings, free_delivery_threshold: Number(e.target.value) })}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                      />
+                      <span className="text-xs text-black font-semibold mt-1 block">Cart threshold for ₦0 delivery.</span>
+                    </div>
+                  </div>
+
+                  {/* Toggle Features */}
+                  <div className="space-y-3 pt-2 border-t border-slate-200">
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-black text-black">Auto-Confirm Paid Orders</div>
+                        <div className="text-xs font-bold text-black mt-0.5">
+                          Automatically transition Paystack-verified paid orders to "Confirmed / Cooking" without waiting for kitchen tap.
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={settings.auto_confirm_paid_orders !== false}
+                        onChange={e => setSettings({ ...settings, auto_confirm_paid_orders: e.target.checked })}
+                        className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-black text-black">Allow Scheduled Pre-Orders</div>
+                        <div className="text-xs font-bold text-black mt-0.5">
+                          Allow customers to select delivery times for later today or tomorrow during checkout.
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={settings.allow_preorders !== false}
+                        onChange={e => setSettings({ ...settings, allow_preorders: e.target.checked })}
+                        className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-black text-black">Kitchen Order Queue Cap</div>
+                        <div className="text-xs font-bold text-black mt-0.5">
+                          Maximum active orders cook line can handle simultaneously before temporarily pacing orders.
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={5}
+                          max={100}
+                          value={settings.max_active_orders ?? 40}
+                          onChange={e => setSettings({ ...settings, max_active_orders: Number(e.target.value) })}
+                          className="w-20 bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-sm text-black font-black text-center"
+                        />
+                        <span className="text-xs font-bold text-black">orders</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ======================================================== */}
+            {/* SUBTAB 3: PAYMENTS & PAYOUTS */}
+            {/* ======================================================== */}
+            {settingsSubTab === 'payments' && (
+              <div className="space-y-5">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
+                  <div>
+                    <h3 className="text-lg font-black text-black">Merchant Payouts & Payment Gateways</h3>
+                    <p className="text-sm font-bold text-black mt-0.5">Manage bank account for daily settlements and Paystack keys.</p>
+                  </div>
+
+                  {/* PAYOUT SETTLEMENT BANK ACCOUNT */}
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-4">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-2xl">🏦</span>
+                      <div>
+                        <h4 className="font-black text-sm text-black">Merchant Settlement Bank Account</h4>
+                        <p className="text-xs text-black font-bold mt-0.5">
+                          Disbursement destination for your daily earnings, online orders, and customer transfers.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1">Bank Name</label>
+                        <input
+                          type="text"
+                          value={settings.payout_bank_name || 'Guaranty Trust Bank (GTBank)'}
+                          onChange={e => setSettings({ ...settings, payout_bank_name: e.target.value })}
+                          placeholder="e.g. Guaranty Trust Bank"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1">Account Number (10-Digit NUBAN)</label>
+                        <input
+                          type="text"
+                          maxLength={10}
+                          value={settings.payout_account_number || '0123456789'}
+                          onChange={e => setSettings({ ...settings, payout_account_number: e.target.value.replace(/\D/g, '') })}
+                          placeholder="10-digit NUBAN"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1">Account Beneficiary Name</label>
+                        <input
+                          type="text"
+                          value={settings.payout_account_name || 'FoodMaxx Kitchen Ltd'}
+                          onChange={e => setSettings({ ...settings, payout_account_name: e.target.value })}
+                          placeholder="e.g. FoodMaxx Kitchen Ltd"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* PAYSTACK CONFIG */}
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-2xl">⚡</span>
+                        <div>
+                          <h4 className="font-black text-sm text-black">Paystack Payment Gateway (Cards, Transfer, USSD)</h4>
+                          <p className="text-xs text-emerald-800 font-bold flex items-center gap-1 mt-0.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse inline-block" />
+                            Active & Ready for Checkout
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-xs font-black px-3 py-1 rounded-full border uppercase ${
+                        settings.paystack_is_live !== false
+                          ? 'bg-emerald-50 text-emerald-950 border-emerald-400'
+                          : 'bg-amber-50 text-amber-950 border-amber-400'
+                      }`}>
+                        {settings.paystack_is_live !== false ? '🟢 Live Production' : '⚡ Test Mode'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-black mb-1.5">
+                        Paystack Public Key (pk_live_... or pk_test_...)
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.paystack_public_key || getStoredPaystackConfig().publicKey || 'pk_live_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a'}
+                        onChange={e => setSettings({ ...settings, paystack_public_key: e.target.value })}
+                        placeholder="pk_live_xxxx or pk_test_xxxx"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-xs text-black font-bold">Switch Gateway Environment:</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentKey = settings.paystack_public_key || getStoredPaystackConfig().publicKey;
+                            setSettings({ ...settings, paystack_is_live: true });
+                            savePaystackConfig({ publicKey: currentKey, isLive: true });
+                            toast('Paystack saved as Live Active! 🟢', 'success');
+                          }}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                            settings.paystack_is_live !== false ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-black'
+                          }`}
+                        >
+                          🟢 Live Production
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentKey = settings.paystack_public_key || getStoredPaystackConfig().publicKey;
+                            setSettings({ ...settings, paystack_is_live: false });
+                            savePaystackConfig({ publicKey: currentKey, isLive: false });
+                            toast('Paystack set to Test Mode ⚡', 'info');
+                          }}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                            settings.paystack_is_live === false ? 'bg-amber-600 text-white' : 'bg-slate-200 text-black'
+                          }`}
+                        >
+                          ⚡ Test Mode
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Customer Payment Methods Toggle */}
+                  <div className="space-y-3 pt-2 border-t border-slate-200">
+                    <h4 className="font-black text-sm text-black">Customer Payment Methods Allowed</h4>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-black text-black">💳 Online Card & USSD</div>
+                          <div className="text-[11px] font-bold text-black">Paystack instant charge</div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={settings.enable_paystack !== false}
+                          onChange={e => setSettings({ ...settings, enable_paystack: e.target.checked })}
+                          className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-black text-black">🏦 Direct Bank Transfer</div>
+                          <div className="text-[11px] font-bold text-black">Customer transfers to NUBAN</div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={settings.enable_bank_transfer !== false}
+                          onChange={e => setSettings({ ...settings, enable_bank_transfer: e.target.checked })}
+                          className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-black text-black">💵 Cash on Delivery (COD)</div>
+                          <div className="text-[11px] font-bold text-black">Pay cash to rider upon arrival</div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={settings.enable_cash_on_delivery !== false}
+                          onChange={e => setSettings({ ...settings, enable_cash_on_delivery: e.target.checked })}
+                          className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ======================================================== */}
+            {/* SUBTAB 4: AUDIO ALERTS & WHATSAPP TEMPLATES */}
+            {/* ======================================================== */}
+            {settingsSubTab === 'alerts' && (
+              <div className="space-y-5">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
+                  <div>
+                    <h3 className="text-lg font-black text-black">Kitchen Audio Chimes & Automated WhatsApp Alerts</h3>
+                    <p className="text-sm font-bold text-black mt-0.5">
+                      Configure high-volume synthesized Web Audio order tones and customizable WhatsApp notification copy.
+                    </p>
+                  </div>
+
+                  {/* KITCHEN CHIME SOUND STUDIO */}
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-2xl">🔊</span>
+                        <div>
+                          <h4 className="font-black text-sm text-black">Instant Kitchen Chime Tone</h4>
+                          <p className="text-xs text-black font-bold">Plays immediately when customer places an order on FoodMaxx.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const tone = settings.notification_tone_id || 'chime_standard';
+                            handleTestTone(tone);
+                          }}
+                          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95"
+                        >
+                          <Volume2 size={16} />
+                          <span>{testingToneId ? 'Playing Tone 🔊' : 'Test Active Sound'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1.5">Select Chime Tone (22 Synthesized Sounds)</label>
+                        <select
+                          value={settings.notification_tone_id || 'chime_standard'}
+                          onChange={e => {
+                            const newTone = e.target.value;
+                            setSettings({ ...settings, notification_tone_id: newTone });
+                            handleTestTone(newTone);
+                          }}
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                        >
+                          {(NOTIFICATION_TONES || []).map(t => (
+                            <option key={t.id} value={t.id}>
+                              {t.name} ({t.category || 'Kitchen'})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1.5">
+                          Chime Volume Level: {settings.kitchen_chime_volume ?? 85}%
+                        </label>
+                        <input
+                          type="range"
+                          min={20}
+                          max={100}
+                          value={settings.kitchen_chime_volume ?? 85}
+                          onChange={e => setSettings({ ...settings, kitchen_chime_volume: Number(e.target.value) })}
+                          className="w-full accent-[#EA4C2A] cursor-pointer mt-2"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* WHATSAPP AUTOMATION TEMPLATES */}
+                  <div className="space-y-4 pt-2 border-t border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="text-emerald-700" size={18} />
+                        <h4 className="font-black text-sm text-black">Automated WhatsApp Customer Templates</h4>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-black">Enabled:</span>
+                        <input
+                          type="checkbox"
+                          checked={settings.whatsapp_notify_customer !== false}
+                          onChange={e => setSettings({ ...settings, whatsapp_notify_customer: e.target.checked })}
+                          className="w-5 h-5 accent-emerald-600 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-black font-bold bg-amber-50 p-2.5 rounded-xl border border-amber-300 flex items-center gap-2 flex-wrap">
+                      <span>💡 Available merge tags:</span>
+                      <code className="bg-white px-1.5 py-0.5 rounded border border-amber-300 font-black font-mono">{"{customer_name}"}</code>
+                      <code className="bg-white px-1.5 py-0.5 rounded border border-amber-300 font-black font-mono">{"{order_ref}"}</code>
+                      <code className="bg-white px-1.5 py-0.5 rounded border border-amber-300 font-black font-mono">{"{amount}"}</code>
+                      <code className="bg-white px-1.5 py-0.5 rounded border border-amber-300 font-black font-mono">{"{delivery_pin}"}</code>
+                      <code className="bg-white px-1.5 py-0.5 rounded border border-amber-300 font-black font-mono">{"{rider_name}"}</code>
+                      <code className="bg-white px-1.5 py-0.5 rounded border border-amber-300 font-black font-mono">{"{rider_phone}"}</code>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1">1. Order Placed & Confirmed Message</label>
+                        <textarea
+                          rows={2}
+                          value={settings.whatsapp_order_placed_msg || 'Hello {customer_name}! Your FoodMaxx order #{order_ref} for {amount} has been received and confirmed. Chef is prepping now! 🍳'}
+                          onChange={e => setSettings({ ...settings, whatsapp_order_placed_msg: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1">2. Dispatch & Rider on Way Message</label>
+                        <textarea
+                          rows={2}
+                          value={settings.whatsapp_dispatched_msg || 'Hi {customer_name}! Rider {rider_name} ({rider_phone}) is on the way with your hot FoodMaxx meal! Delivery PIN: {delivery_pin}. 🛵'}
+                          onChange={e => setSettings({ ...settings, whatsapp_dispatched_msg: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1">3. Meal Delivered & Rating Message</label>
+                        <textarea
+                          rows={2}
+                          value={settings.whatsapp_delivered_msg || 'Order #{order_ref} delivered! Bon appétit from FoodMaxx Ibadan. Rate your experience: https://foodmaxxapp.web.app 🍔'}
+                          onChange={e => setSettings({ ...settings, whatsapp_delivered_msg: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ======================================================== */}
+            {/* SUBTAB 5: THERMAL POS & HARDWARE */}
+            {/* ======================================================== */}
+            {settingsSubTab === 'printer' && (
+              <div className="space-y-5">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
+                  <div>
+                    <h3 className="text-lg font-black text-black">Thermal POS Receipt Printer & Hardware</h3>
+                    <p className="text-sm font-bold text-black mt-0.5">
+                      Configure Bluetooth, USB, and network thermal slip printers (58mm pocket POS and 80mm desktop thermal).
+                    </p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-800 flex items-center justify-center font-black text-xl shrink-0 shadow-xs">
+                        🖨️
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-black">Test Hardware Print Dialog</h4>
+                        <p className="text-xs font-bold text-black mt-0.5">Send a simulated order ticket to verify roll width and print margins.</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handlePrintSampleReceipt}
+                      className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center gap-2 cursor-pointer shadow-xs transition-all active:scale-95 shrink-0"
+                    >
+                      <Printer size={16} />
+                      <span>Print Sample Thermal Receipt</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-black text-black mb-1.5">Paper Roll Size</label>
+                      <select
+                        value={settings.thermal_paper_size || '58mm'}
+                        onChange={e => setSettings({ ...settings, thermal_paper_size: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                      >
+                        <option value="58mm">58mm Standard Pocket POS (Most Common in Nigeria)</option>
+                        <option value="80mm">80mm Wide Desktop Thermal Printer (Epson / Star)</option>
+                      </select>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-black text-black">Auto-Print on Acceptance</div>
+                        <div className="text-[11px] font-bold text-black">Open print dialog immediately when order confirmed</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={settings.auto_print_on_confirm === true}
+                        onChange={e => setSettings({ ...settings, auto_print_on_confirm: e.target.checked })}
+                        className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-black text-black mb-1.5">Receipt Top Header Note</label>
+                      <input
+                        type="text"
+                        value={settings.receipt_header_note || 'FOODMAXX IBD - FRESH & HOT'}
+                        onChange={e => setSettings({ ...settings, receipt_header_note: e.target.value })}
+                        placeholder="e.g. FOODMAXX IBD - FRESH & HOT"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-black mb-1.5">Receipt Footer Greeting</label>
+                      <input
+                        type="text"
+                        value={settings.receipt_footer_note || 'Thank you for dining with FoodMaxx! For catering: 08023456789'}
+                        onChange={e => setSettings({ ...settings, receipt_footer_note: e.target.value })}
+                        placeholder="e.g. Thank you for dining with FoodMaxx!"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ======================================================== */}
+            {/* SUBTAB 6: SECURITY & STAFF ACCESS */}
+            {/* ======================================================== */}
+            {settingsSubTab === 'security' && (
+              <div className="space-y-5">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
+                  <div>
+                    <h3 className="text-lg font-black text-black">Security, Staff Access & System Controls</h3>
+                    <p className="text-sm font-bold text-black mt-0.5">
+                      Store manager admin password, line cook PIN, courier verification rules, and cache tools.
+                    </p>
+                  </div>
+
+                  {/* ADMIN PASSWORD */}
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Lock size={18} className="text-[#EA4C2A]" />
+                      <h4 className="font-black text-sm text-black">Store Manager Admin Password</h4>
+                    </div>
+
+                    <div>
+                      <input
+                        type="text"
+                        value={settings.admin_password || 'admin'}
+                        onChange={e => setSettings({ ...settings, admin_password: e.target.value })}
+                        placeholder="Enter admin password"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                      />
+                      <p className="text-xs text-black font-bold mt-1.5">
+                        Required to sign in to this Admin Operations Center. Keep this confidential.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* KITCHEN COOK PIN */}
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Key size={18} className="text-amber-600" />
+                      <h4 className="font-black text-sm text-black">Kitchen Line Cook Quick PIN</h4>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="text"
+                        maxLength={4}
+                        value={settings.kitchen_staff_pin || '1234'}
+                        onChange={e => setSettings({ ...settings, kitchen_staff_pin: e.target.value.replace(/\D/g, '') })}
+                        placeholder="4 digits"
+                        className="w-32 bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-base text-black font-mono font-black text-center outline-none focus:border-[#EA4C2A]"
+                      />
+                      <p className="text-xs text-black font-bold">
+                        4-digit PIN for line cooks to accept and bump orders without full admin financial access.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* COURIER DELIVERY OTP ENFORCEMENT */}
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-black text-black">Require 4-Digit Delivery Code from Customer</div>
+                      <div className="text-xs font-bold text-black mt-0.5">
+                        Prevents disputed deliveries. Rider must input customer OTP code before order marked Delivered.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.require_delivery_otp !== false}
+                      onChange={e => setSettings({ ...settings, require_delivery_otp: e.target.checked })}
+                      className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                    />
+                  </div>
+
+                  {/* CACHE & STORAGE PURGE */}
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-black text-black">Clear Local App Cache & Re-Sync</div>
+                      <div className="text-xs font-bold text-black mt-0.5">
+                        Forces a clean refresh from Firebase Firestore and resets local state cache.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          localStorage.removeItem('fmx_store_settings');
+                          localStorage.removeItem('fmx_admin_overview');
+                        } catch (e) {}
+                        toast('Cache cleared! Re-syncing with cloud...', 'info');
+                        setTimeout(() => window.location.reload(), 600);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-black text-xs cursor-pointer shadow-xs transition-colors shrink-0"
+                    >
+                      Clear Cache & Reload
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* BOTTOM SAVE BUTTON */}
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                disabled={savingSettings}
+                onClick={() => handleSaveAllSettings()}
+                className="w-full sm:w-auto px-8 py-3.5 bg-[#EA4C2A] hover:bg-[#D43B1B] disabled:bg-slate-300 active:scale-95 text-white rounded-xl font-black text-sm shadow-md shadow-[#EA4C2A]/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                {savingSettings ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    <span>Saving Store Settings...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={18} />
+                    <span>Save All Store Settings</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
