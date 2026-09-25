@@ -3421,7 +3421,7 @@ function AdminPortal() {
         if (ord?.data && Array.isArray(ord.data)) setOrders(ord.data);
         if (rd?.data && Array.isArray(rd.data)) setRiders(rd.data);
         if (cust?.data && Array.isArray(cust.data)) setCustomers(cust.data);
-      } else if (section === 'orders' || section === 'kds' || section === 'dispatch_map') {
+      } else if (section === 'orders') {
         const [o, r] = await Promise.all([api.getAdminOrders().catch(() => null), api.getAdminRiders().catch(() => null)]);
         if (o?.data && Array.isArray(o.data)) setOrders(o.data);
         if (r?.data && Array.isArray(r.data)) setRiders(r.data);
@@ -4555,332 +4555,111 @@ function AdminPortal() {
             </div>
 
             {/* ============================================================ */}
-            {/* ORDER MANAGEMENT QUICK ACTIONS HUB */}
+            {/* RECENT ORDERS SNAPSHOT */}
             {/* ============================================================ */}
             <div 
               className="border rounded-3xl p-5 sm:p-6 shadow-xl transition-all"
               style={{ backgroundColor: currentAdminTheme.card, borderColor: currentAdminTheme.border }}
             >
-              {/* Header & Controls */}
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b" style={{ borderColor: currentAdminTheme.border }}>
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-base font-black">
-                      ⚡
-                    </div>
-                    <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                      Order Management Quick Actions
-                    </h2>
-                    {pendingOrdersCount > 0 && (
-                      <span className="bg-amber-500 text-slate-950 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full animate-pulse shadow-md shadow-amber-500/30">
-                        {pendingOrdersCount} Action Needed
-                      </span>
-                    )}
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b" style={{ borderColor: currentAdminTheme.border }}>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-sm font-black">
+                    🛍️
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Manage kitchen dispatch, change order status with custom notifications, and print slips directly from Overview.
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                        Recent Orders
+                      </h2>
+                      {pendingOrdersCount > 0 && (
+                        <span className="bg-amber-500 text-slate-950 text-[10px] font-black uppercase px-2 py-0.5 rounded-full animate-pulse shadow-md shadow-amber-500/30">
+                          {pendingOrdersCount} New
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Latest customer orders. Manage prep, riders, and delivery in the Orders tab.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Batch & Action Buttons */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {pendingOrdersCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleBatchAcceptPending}
-                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-lg shadow-emerald-600/25 flex items-center gap-1.5 active:scale-95"
-                    >
-                      <span>🍳</span>
-                      <span>Accept All Pending ({pendingOrdersCount})</span>
-                    </button>
-                  )}
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => handleNavChange('orders')}
-                    className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 hover:text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-md shadow-emerald-600/25 flex items-center gap-1.5"
                   >
-                    <span>Full Orders View</span>
+                    <span>View All Orders ({orders.length})</span>
                     <span>→</span>
                   </button>
                 </div>
               </div>
 
-              {/* Status Filter Pills */}
-              <div className="flex items-center gap-2 py-3 overflow-x-auto no-scrollbar">
-                {[
-                  { id: 'all', label: 'All Live Orders', count: orders.length },
-                  { id: 'pending', label: 'Pending Kitchen', count: pendingOrdersCount },
-                  { id: 'preparing', label: 'Cooking on Grill', count: inPrepOrdersCount },
-                  { id: 'on_the_way', label: 'Out with Rider', count: orders.filter(o => o.order_status === 'ON_THE_WAY' || o.order_status === 'RIDER_ASSIGNED').length }
-                ].map(tab => {
-                  const active = overviewOrderFilter === tab.id;
+              {/* Order List */}
+              <div className="divide-y divide-[#1F222C] mt-2">
+                {orders.slice(0, 5).map(order => {
+                  const itemsSummary = (order.items || []).map(i => `${i.quantity}x ${i.product_name || i.name}`).join(', ') || 'Custom meal package';
+                  const isPending = order.order_status === 'CONFIRMED' || order.order_status === 'ORDER_PLACED';
+                  const isPrep = order.order_status === 'PREPARING';
+                  const isReady = order.order_status === 'READY_FOR_PICKUP';
+                  const isEnRoute = order.order_status === 'ON_THE_WAY' || order.order_status === 'RIDER_ASSIGNED';
+                  const isDone = order.order_status === 'DELIVERED';
+
                   return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setOverviewOrderFilter(tab.id)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                        active
-                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
-                          : 'bg-white/5 text-slate-400 hover:text-slate-200 border border-white/10'
-                      }`}
+                    <div
+                      key={order.id}
+                      onClick={() => handleNavChange('orders')}
+                      className="py-3 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/[0.02] rounded-xl cursor-pointer transition-colors group"
                     >
-                      <span>{tab.label}</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                        active ? 'bg-black/30 text-white' : 'bg-black/40 text-slate-400'
-                      }`}>
-                        {tab.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Quick Actions Order Grid */}
-              <div className="space-y-3 mt-1">
-                {orders
-                  .filter(o => {
-                    if (overviewOrderFilter === 'pending') return o.order_status === 'CONFIRMED' || o.order_status === 'ORDER_PLACED';
-                    if (overviewOrderFilter === 'preparing') return o.order_status === 'PREPARING';
-                    if (overviewOrderFilter === 'on_the_way') return o.order_status === 'ON_THE_WAY' || o.order_status === 'RIDER_ASSIGNED' || o.order_status === 'READY_FOR_PICKUP';
-                    return true;
-                  })
-                  .slice(0, 6)
-                  .map(order => {
-                    const isPending = order.order_status === 'CONFIRMED' || order.order_status === 'ORDER_PLACED';
-                    const isPrep = order.order_status === 'PREPARING';
-                    const isReady = order.order_status === 'READY_FOR_PICKUP';
-                    const isEnRoute = order.order_status === 'ON_THE_WAY' || order.order_status === 'RIDER_ASSIGNED';
-                    const isDone = order.order_status === 'DELIVERED';
-                    const itemsSummary = (order.items || []).map(i => `${i.quantity}x ${i.product_name || i.name}`).join(', ') || 'Custom meal package';
-
-                    return (
-                      <div
-                        key={order.id}
-                        className="bg-[#0E0F14] border border-[#1F222C] hover:border-[#262A36] rounded-2xl p-4 transition-all"
-                      >
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                          {/* Left: Order Info */}
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <span
-                                onClick={() => setSlipOrder(order)}
-                                className="font-mono font-bold text-white text-xs bg-[#1A1C23] hover:bg-[#252834] px-2.5 py-1 rounded-lg border border-[#262A36] hover:border-emerald-500 hover:text-emerald-400 cursor-pointer transition-all"
-                                title="Click to view full order slip and receipt"
-                              >
-                                #{order.order_reference || order.id?.slice(0, 8)}
-                              </span>
-                              <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
-                                isPending ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                isPrep ? 'bg-[#EA4C2A]/20 text-[#EA4C2A] border border-[#EA4C2A]/30' :
-                                isEnRoute ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                                isDone ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                                'bg-slate-800 text-slate-400'
-                              }`}>
-                                {order.order_status?.replace(/_/g, ' ')}
-                              </span>
-                              <span className="text-[11px] text-slate-500">
-                                {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-
-                            <div className="text-xs font-bold text-white truncate mb-0.5">
-                              {order.customer?.full_name || 'Customer'}
-                              <span className="font-normal text-slate-400 ml-2">📍 {order.delivery_zone || 'Ibadan'}</span>
-                            </div>
-                            <div className="text-[11px] text-slate-400 truncate">
-                              {itemsSummary}
-                            </div>
-
-                            {/* Custom Notification Message preview if present */}
-                            {(order.custom_notification_message || order.status_notes) && (
-                              <div className="mt-2 text-[11px] text-[#EA4C2A] bg-[#EA4C2A]/10 border border-[#EA4C2A]/25 rounded-lg px-2.5 py-1 flex items-center gap-1.5 w-fit">
-                                <span>💬</span>
-                                <span className="font-medium">"{order.custom_notification_message || order.status_notes}"</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Middle: Price & Payment */}
-                          <div className="flex items-center gap-3 lg:border-l lg:border-r border-[#1F222C] lg:px-4 shrink-0">
-                            <div>
-                              <div className="text-sm font-black text-white">
-                                ₦{Number(order.total_amount || 0).toLocaleString()}
-                              </div>
-                              <span className="text-[10px] font-bold text-emerald-400">
-                                {order.payment_status === 'paid' ? '● Paid (Online)' : '● Pay on Delivery'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Right: Quick Action Buttons */}
-                          <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                            {/* Primary Step Progression */}
-                            {isPending && (
-                              <button
-                                type="button"
-                                onClick={() => handleAdvanceOrderStatus(order, 'PREPARING', 'Accepted by kitchen & grilling now')}
-                                className="px-3 py-1.5 bg-[#EA4C2A] hover:bg-[#D43B1B] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md shadow-[#EA4C2A]/20 flex items-center gap-1"
-                              >
-                                <span>🍳</span>
-                                <span>Start Prep</span>
-                              </button>
-                            )}
-
-                            {isPrep && (
-                              <button
-                                type="button"
-                                onClick={() => setAssignRiderOrder(order)}
-                                className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-slate-950 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-                              >
-                                <span>🛵</span>
-                                <span>Assign Rider</span>
-                              </button>
-                            )}
-
-                            {(isReady || order.order_status === 'RIDER_ASSIGNED') && (
-                              <button
-                                type="button"
-                                onClick={() => handleAdvanceOrderStatus(order, 'ON_THE_WAY', 'Rider is on the way with your package')}
-                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-                              >
-                                <span>🚚</span>
-                                <span>Mark On Way</span>
-                              </button>
-                            )}
-
-                            {order.order_status === 'ON_THE_WAY' && (
-                              <button
-                                type="button"
-                                onClick={() => setVerifyOtpOrder(order)}
-                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-                              >
-                                <span>✅</span>
-                                <span>Verify Delivery</span>
-                              </button>
-                            )}
-
-                            {/* Change Status & Custom Message Button (Fulfills Request 9) */}
-                            <button
-                              type="button"
-                              onClick={() => setStatusModalOrder(order)}
-                              className="px-3 py-1.5 bg-[#1A1C23] hover:bg-[#232734] border border-[#EA4C2A]/40 text-[#EA4C2A] hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-                              title="Change order status and send custom notification message"
-                            >
-                              <span>⚡</span>
-                              <span>Status & Message</span>
-                            </button>
-
-                            {/* Kitchen Slip Print */}
-                            <button
-                              type="button"
-                              onClick={() => setSlipOrder(order)}
-                              className="p-1.5 bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer"
-                              title="Print Kitchen Slip"
-                            >
-                              <Printer size={14} />
-                            </button>
-
-                            {/* Contact Customer */}
-                            {(order.customer_phone || order.customer?.phone) && (
-                              <>
-                                <a
-                                  href={`tel:${order.customer_phone || order.customer?.phone}`}
-                                  className="p-1.5 bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] text-emerald-400 rounded-xl transition-all"
-                                  title="Call Customer"
-                                >
-                                  <Phone size={14} />
-                                </a>
-                                <a
-                                  href={`https://wa.me/${String(order.customer_phone || order.customer?.phone).replace(/[^0-9]/g, '')}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="p-1.5 bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] text-emerald-400 rounded-xl transition-all"
-                                  title="WhatsApp Customer"
-                                >
-                                  <MessageSquare size={14} />
-                                </a>
-                              </>
-                            )}
-                          </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="font-mono font-bold text-white text-xs bg-[#1A1C23] px-2 py-0.5 rounded-md border border-[#262A36]">
+                            #{order.order_reference || order.id?.slice(0, 8)}
+                          </span>
+                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                            isPending ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                            isPrep ? 'bg-[#EA4C2A]/20 text-[#EA4C2A] border border-[#EA4C2A]/30' :
+                            isReady ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
+                            isEnRoute ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                            isDone ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                            'bg-slate-800 text-slate-400'
+                          }`}>
+                            {order.order_status?.replace(/_/g, ' ')}
+                          </span>
+                          <span className="text-[11px] text-slate-500">
+                            {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-300 font-medium truncate">
+                          <span className="text-white font-bold">{order.customer?.full_name || 'Customer'}</span>
+                          <span className="text-slate-400 ml-2">📍 {order.delivery_zone || 'Ibadan'}</span>
+                          <span className="text-slate-500 ml-2">• {itemsSummary}</span>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                        <div className="text-left sm:text-right">
+                          <div className="text-sm font-black text-white">
+                            ₦{Number(order.total_amount || 0).toLocaleString()}
+                          </div>
+                          <span className="text-[10px] text-emerald-400 font-medium">
+                            {order.payment_status === 'paid' ? 'Paid (Online)' : 'Pay on Delivery'}
+                          </span>
+                        </div>
+                        <span className="text-slate-400 group-hover:text-emerald-400 transition-colors text-xs font-bold px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 group-hover:border-emerald-500/30">
+                          Manage →
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
 
                 {orders.length === 0 && (
                   <div className="text-center py-8 text-slate-500 text-xs">
-                    No orders currently in this category.
+                    No orders placed yet.
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* 1-Click Excel / CSV Export Center */}
-            <div className="bg-[#121318] border border-[#1F222C] rounded-3xl p-5 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#1F222C] mb-4">
-                <div>
-                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                    <Download size={15} className="text-emerald-400" />
-                    <span>Download Data & Reports</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Download clean spreadsheets you can open in Microsoft Excel or Google Sheets.
-                  </p>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400 uppercase bg-[#0B0C0E] px-2.5 py-1 rounded-lg border border-[#1F222C] shrink-0">
-                  ⚡ Excel / CSV Files
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <button
-                  type="button"
-                  onClick={handleExportOrders}
-                  className="p-3.5 bg-[#1A1C23] hover:bg-[#222530] border border-[#262A36] hover:border-[#EA4C2A]/40 rounded-2xl text-left transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Orders List (CSV)</span>
-                    <Download size={13} className="text-slate-500 group-hover:text-emerald-400 transition-colors" />
-                  </div>
-                  <p className="text-[11px] text-slate-400">All customer orders with items, addresses, and delivery status.</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleExportDailySales}
-                  className="p-3.5 bg-[#1A1C23] hover:bg-[#222530] border border-[#262A36] hover:border-[#EA4C2A]/40 rounded-2xl text-left transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Daily Sales & Profit (CSV)</span>
-                    <Download size={13} className="text-slate-500 group-hover:text-emerald-400 transition-colors" />
-                  </div>
-                  <p className="text-[11px] text-slate-400">Daily revenue, estimated food costs, and profits for the past 7 days.</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleExportMenuMargins}
-                  className="p-3.5 bg-[#1A1C23] hover:bg-[#222530] border border-[#262A36] hover:border-[#EA4C2A]/40 rounded-2xl text-left transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Menu Profits & Sales (CSV)</span>
-                    <Download size={13} className="text-slate-500 group-hover:text-emerald-400 transition-colors" />
-                  </div>
-                  <p className="text-[11px] text-slate-400">Selling price, estimated ingredient costs, and profit margin for each dish.</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleExportPayouts}
-                  className="p-3.5 bg-[#1A1C23] hover:bg-[#222530] border border-[#262A36] hover:border-[#EA4C2A]/40 rounded-2xl text-left transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Bank Payouts (CSV)</span>
-                    <Download size={13} className="text-slate-500 group-hover:text-emerald-400 transition-colors" />
-                  </div>
-                  <p className="text-[11px] text-slate-400">Daily bank deposits, payment card fees, and rider disbursements.</p>
-                </button>
               </div>
             </div>
 
@@ -4922,59 +4701,46 @@ function AdminPortal() {
               </div>
             )}
 
-            {/* Quick Kitchen Action Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-[#121318] border border-[#1F222C] rounded-3xl p-5 flex flex-col justify-between shadow-sm">
+            {/* 1-Click Excel / CSV Export Center */}
+            <div className="bg-[#121318] border border-[#1F222C] rounded-3xl p-5 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#1F222C] mb-4">
                 <div>
-                  <div className="text-[#EA4C2A] text-lg font-bold mb-1 flex items-center gap-2">
-                    <BarChart2 size={18} />
-                    <span>Busy Hours & Profits</span>
-                  </div>
-                  <div className="text-xs text-slate-400">
-                    See when orders peak and check how much profit each dish makes.
-                  </div>
+                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                    <Download size={15} className="text-emerald-400" />
+                    <span>Download Data & Reports</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Download clean spreadsheets you can open in Microsoft Excel or Google Sheets.
+                  </p>
                 </div>
-                <button
-                  onClick={() => handleNavChange('analytics')}
-                  className="mt-4 w-full py-2.5 bg-[#1A1C23] hover:bg-[#222530] border border-[#262A36] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                >
-                  View Busy Hours & Profits →
-                </button>
+                <span className="text-[10px] font-mono text-slate-400 uppercase bg-[#0B0C0E] px-2.5 py-1 rounded-lg border border-[#1F222C] shrink-0">
+                  ⚡ Excel / CSV Files
+                </span>
               </div>
 
-              <div className="bg-[#121318] border border-[#1F222C] rounded-3xl p-5 flex flex-col justify-between shadow-sm">
-                <div>
-                  <div className="text-emerald-400 text-lg font-bold mb-1 flex items-center gap-2">
-                    <DollarSign size={18} />
-                    <span>Bank Payouts</span>
-                  </div>
-                  <div className="text-xs text-slate-400">
-                    Check daily bank payouts, card fees, and rider payments.
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
-                  onClick={() => handleNavChange('payouts')}
-                  className="mt-4 w-full py-2.5 bg-[#1A1C23] hover:bg-[#222530] border border-[#262A36] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  type="button"
+                  onClick={handleExportOrders}
+                  className="p-3.5 bg-[#1A1C23] hover:bg-[#222530] border border-[#262A36] hover:border-[#EA4C2A]/40 rounded-2xl text-left transition-all cursor-pointer group"
                 >
-                  View Bank Payouts ({payouts.length}) →
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Orders List (CSV)</span>
+                    <Download size={13} className="text-slate-500 group-hover:text-emerald-400 transition-colors" />
+                  </div>
+                  <p className="text-[11px] text-slate-400">All customer orders with items, addresses, and delivery status.</p>
                 </button>
-              </div>
 
-              <div className="bg-[#121318] border border-[#1F222C] rounded-3xl p-5 flex flex-col justify-between shadow-sm">
-                <div>
-                  <div className="text-yellow-400 text-lg font-bold mb-1 flex items-center gap-2">
-                    <Users size={18} />
-                    <span>Customer Retention</span>
-                  </div>
-                  <div className="text-xs text-slate-400">
-                    See regular customers and send a discount code to customers who haven't ordered recently.
-                  </div>
-                </div>
                 <button
-                  onClick={() => handleNavChange('customers')}
-                  className="mt-4 w-full py-2.5 bg-[#1A1C23] hover:bg-[#222530] border border-[#262A36] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  type="button"
+                  onClick={handleExportDailySales}
+                  className="p-3.5 bg-[#1A1C23] hover:bg-[#222530] border border-[#262A36] hover:border-[#EA4C2A]/40 rounded-2xl text-left transition-all cursor-pointer group"
                 >
-                  View Customers ({customers.length}) →
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Daily Sales & Profit (CSV)</span>
+                    <Download size={13} className="text-slate-500 group-hover:text-emerald-400 transition-colors" />
+                  </div>
+                  <p className="text-[11px] text-slate-400">Daily revenue, estimated food costs, and profits for the past 7 days.</p>
                 </button>
               </div>
             </div>
