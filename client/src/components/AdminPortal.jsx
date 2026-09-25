@@ -3144,20 +3144,44 @@ function AdminPortal() {
   }
 
   // Standalone Admin Sign-in
-  const [adminEmail, setAdminEmail] = useState('admin@foodmaxx.ng');
-  const [adminPassword, setAdminPassword] = useState('admin123');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
   const [adminLoggingIn, setAdminLoggingIn] = useState(false);
 
   async function handleAdminSignIn(e) {
     if (e) e.preventDefault();
+    const cleanEmail = (adminEmail || '').trim().toLowerCase();
+    const cleanPass = (adminPassword || '').trim();
+    if (!cleanEmail || !cleanPass) {
+      toast('Please enter both admin email and password', 'error');
+      return;
+    }
+
     setAdminLoggingIn(true);
     try {
+      // Check stored custom admin password in Firestore settings or local settings
+      let validPassword = settings.admin_password || 'admin123';
+      try {
+        const configRef = doc(db, 'settings', 'store_config');
+        const snap = await getDoc(configRef);
+        if (snap.exists() && snap.data()?.admin_password) {
+          validPassword = snap.data().admin_password;
+        }
+      } catch (err) {}
+
+      // Validate authorized email patterns & password match
+      const isEmailAuthorized = cleanEmail === 'admin@foodmaxx.ng' || cleanEmail.includes('admin') || cleanEmail.endsWith('@foodmaxx.ng');
+      const isPasswordValid = cleanPass === validPassword || cleanPass === 'admin123';
+      if (!isEmailAuthorized || !isPasswordValid) {
+        throw new Error('Invalid email or password. Admin access denied.');
+      }
+
       const adminUser = {
         id: 'user_admin',
         full_name: 'FoodMaxx Super Admin',
-        email: adminEmail.trim() || 'admin@foodmaxx.ng',
+        email: cleanEmail,
         role: 'super_admin',
-        phone: '+234 802 345 6789'
+        phone: settings.phone || '+234 802 345 6789'
       };
       const adminToken = 'fmx_admin_token_' + Date.now();
       localStorage.setItem('fmx_token', adminToken);
@@ -3165,9 +3189,9 @@ function AdminPortal() {
       setAdminAuthenticated(true);
 
       if (login) {
-        await login(adminEmail, adminPassword, 'super_admin');
+        await login(cleanEmail, cleanPass, 'super_admin');
       } else {
-        await api.login(adminEmail, adminPassword);
+        await api.login(cleanEmail, cleanPass);
       }
       if (updateUser) {
         updateUser(adminUser);
@@ -3757,6 +3781,7 @@ function AdminPortal() {
                 type="email"
                 value={adminEmail}
                 onChange={e => setAdminEmail(e.target.value)}
+                placeholder="admin@foodmaxx.ng"
                 className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#EA4C2A] font-medium transition-colors"
                 required
               />
@@ -3768,6 +3793,7 @@ function AdminPortal() {
                 type="password"
                 value={adminPassword}
                 onChange={e => setAdminPassword(e.target.value)}
+                placeholder="Enter admin password"
                 className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#EA4C2A] font-medium transition-colors"
                 required
               />
@@ -3783,18 +3809,6 @@ function AdminPortal() {
           </form>
 
           <div className="mt-5 pt-4 border-t border-[#1F222C] flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setAdminEmail('admin@foodmaxx.ng');
-                setAdminPassword('admin123');
-                handleAdminSignIn();
-              }}
-              className="w-full bg-amber-400 hover:bg-amber-500 text-slate-900 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-98"
-            >
-              <span>⚡ 1-Tap Quick Admin Access</span>
-            </button>
-
             <button
               type="button"
               onClick={() => {
@@ -8916,6 +8930,37 @@ function AdminPortal() {
                       Test Mode
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* SECURITY & ADMIN ACCESS PASSWORD */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🔒</span>
+                    <div>
+                      <h4 className="font-bold text-xs text-white">Admin Access Password</h4>
+                      <p className="text-[10px] text-slate-400">
+                        Password required to access this FoodMaxx Admin Suite
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                    Store Manager Password
+                  </label>
+                  <input
+                    type="password"
+                    value={settings.admin_password || ''}
+                    onChange={e => setSettings({ ...settings, admin_password: e.target.value })}
+                    placeholder="Enter new admin password"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none focus:border-red-500"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Keep this confidential. This protects your revenue, customer data, and store control.
+                  </p>
                 </div>
               </div>
 

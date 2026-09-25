@@ -10981,10 +10981,12 @@ export default function App() {
         <AuthProvider>
           <CartProvider>
             <div className="h-[100dvh] min-h-[100dvh] w-full bg-slate-950 flex flex-col overflow-hidden">
-              <PortalSwitcher
-                activePortal={activePortal}
-                setActivePortal={switchPortal}
-              />
+              {(activePortal === 'admin' || (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'))) && (
+                <PortalSwitcher
+                  activePortal={activePortal}
+                  setActivePortal={switchPortal}
+                />
+              )}
 
               {activePortal === 'customer' ? (
                 <div className="flex-1 min-h-0 w-full flex items-center justify-center p-0 overflow-hidden">
