@@ -357,6 +357,14 @@ export const api = {
       return { success: false, message: 'Invalid or expired promo code' };
     }
 
+    if (codeClean === 'WELCOME1000') {
+      try {
+        if (typeof window !== 'undefined' && window.localStorage?.getItem('fmx_giveaway_claimed') === 'true') {
+          return { success: false, message: 'The ₦1,000 giveaway is valid only once per customer and has already been claimed.' };
+        }
+      } catch {}
+    }
+
     if (matched.min_order && Number(subtotal) < Number(matched.min_order)) {
       return { success: false, message: `Minimum order of ₦${matched.min_order.toLocaleString()} required` };
     }

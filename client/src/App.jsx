@@ -7319,8 +7319,18 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   const [loading, setLoading] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
 
-  // Free First-Time ₦1,000 Giveaway toggle
+  // Free First-Time ₦1,000 Giveaway toggle & strictly 1-time per customer claim tracker
   const [useFirstTimeGiveaway, setUseFirstTimeGiveaway] = useState(true);
+  const [giveawayClaimedState, setGiveawayClaimedState] = useState(() => {
+    try {
+      if (localStorage.getItem('fmx_giveaway_claimed') === 'true') return true;
+      const lp = localStorage.getItem('fmx_last_phone');
+      if (lp && localStorage.getItem(`fmx_giveaway_claimed_${lp}`) === 'true') return true;
+      return false;
+    } catch {
+      return false;
+    }
+  });
 
   // Spin to Win in Checkout modal state
   const [spinInCheckoutOpen, setSpinInCheckoutOpen] = useState(false);
@@ -7429,8 +7439,42 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   const deliveryFee = freeDelivery ? 0 : (selectedZone?.delivery_fee || 500);
   const serviceFee = 250;
 
-  // First-time ₦1,000 Giveaway Deduction:
-  const firstTimeGiveawayDeduction = useFirstTimeGiveaway
+  // Check if ₦1,000 giveaway has already been claimed on this device, by this account, or by this phone
+  const currentCleanPhone = (contactPhone || user?.phone || '').replace(/\D/g, '').slice(0, 11);
+  const isGiveawayClaimed = Boolean(
+    giveawayClaimedState ||
+    user?.giveaway_claimed ||
+    (user && ((user.orders_count || 0) > 0 || (user.total_orders || 0) > 0)) ||
+    (() => {
+      try {
+        if (localStorage.getItem('fmx_giveaway_claimed') === 'true') return true;
+        if (currentCleanPhone && localStorage.getItem(`fmx_giveaway_claimed_${currentCleanPhone}`) === 'true') return true;
+        const lastPhone = localStorage.getItem('fmx_last_phone');
+        if (lastPhone && localStorage.getItem(`fmx_giveaway_claimed_${lastPhone}`) === 'true') return true;
+        return false;
+      } catch {
+        return false;
+      }
+    })()
+  );
+
+  const markGiveawayAsClaimed = (phoneNum) => {
+    try {
+      localStorage.setItem('fmx_giveaway_claimed', 'true');
+      const p = (phoneNum || contactPhone || user?.phone || '').replace(/\D/g, '').slice(0, 11);
+      if (p) {
+        localStorage.setItem(`fmx_giveaway_claimed_${p}`, 'true');
+      }
+      if (user?.id) {
+        localStorage.setItem(`fmx_giveaway_claimed_${user.id}`, 'true');
+      }
+      setGiveawayClaimedState(true);
+    } catch {}
+  };
+
+  // First-time ₦1,000 Giveaway Deduction (strictly 1-time per customer):
+  const effectiveUseGiveaway = !isGiveawayClaimed && useFirstTimeGiveaway;
+  const firstTimeGiveawayDeduction = effectiveUseGiveaway
     ? Math.min(1000, Math.max(0, subtotal - discount))
     : 0;
 
@@ -7481,6 +7525,12 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
   async function applyPromo(overrideCode) {
     const code = (typeof overrideCode === 'string' ? overrideCode : promoCode).trim().toUpperCase();
     if (!code) return;
+
+    if (code === 'WELCOME1000' && isGiveawayClaimed) {
+      toast('The ₦1,000 giveaway is valid only once per customer and has already been claimed.', 'warning');
+      return;
+    }
+
     setPromoCode(code);
     setPromoLoading(true);
     try {
@@ -7546,6 +7596,9 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
       const placedOrder = res?.data?.order || res?.data || res?.order || finalOrderData;
       if (placedOrder?.id) {
         try { localStorage.setItem('fmx_last_order_id', placedOrder.id); } catch {}
+      }
+      if (Number(firstTimeGiveawayDeduction) > 0 || effectiveUseGiveaway) {
+        markGiveawayAsClaimed(orderData.customer_phone);
       }
       try {
         window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: placedOrder }));
@@ -7749,6 +7802,9 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         if (placedOrder?.id) {
           try { localStorage.setItem('fmx_last_order_id', placedOrder.id); } catch {}
         }
+        if (Number(firstTimeGiveawayDeduction) > 0 || effectiveUseGiveaway) {
+          markGiveawayAsClaimed(phoneToUse);
+        }
         try {
           window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: placedOrder }));
         } catch {}
@@ -7803,6 +7859,9 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         const placedOrder = res?.data?.order || res?.data || res?.order || finalOrderData;
         if (placedOrder?.id) {
           try { localStorage.setItem('fmx_last_order_id', placedOrder.id); } catch {}
+        }
+        if (Number(firstTimeGiveawayDeduction) > 0 || effectiveUseGiveaway) {
+          markGiveawayAsClaimed(phoneToUse);
         }
         try {
           window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: placedOrder }));
@@ -8107,61 +8166,81 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
               )}
             </div>
 
-            {/* 1. First-Time ₦1,000 Giveaway Toggle */}
+            {/* 1. First-Time ₦1,000 Giveaway Toggle (Strictly 1-time per customer) */}
             <div className={`p-3.5 rounded-2xl border transition-all mb-2.5 ${
-              useFirstTimeGiveaway
-                ? 'bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] border-emerald-500/30 shadow-xs'
-                : 'bg-slate-50 dark:bg-white/5 border-slate-200/80 dark:border-white/10 opacity-75'
+              isGiveawayClaimed
+                ? 'bg-slate-50 dark:bg-white/[0.03] border-slate-200/60 dark:border-white/10 opacity-70'
+                : effectiveUseGiveaway
+                  ? 'bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] border-emerald-500/30 shadow-xs'
+                  : 'bg-slate-50 dark:bg-white/5 border-slate-200/80 dark:border-white/10 opacity-75'
             }`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                    isGiveawayClaimed 
+                      ? 'bg-slate-200/70 dark:bg-white/10 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-white/10'
+                      : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  }`}>
                     <Gift size={16} className="stroke-[2.5]" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
-                        Claim your N1000 first time giveaway
+                        ₦1,000 First Order Discount
                       </span>
-                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        Free Gift
-                      </span>
+                      {isGiveawayClaimed ? (
+                        <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-white/15 text-slate-600 dark:text-slate-300 border border-slate-300/60 dark:border-white/20">
+                          Used
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          1st Order
+                        </span>
+                      )}
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      Instant ₦1,000 discount applied directly
+                      {isGiveawayClaimed 
+                        ? 'Already used on your first order'
+                        : 'Save ₦1,000 instantly on your first meal'}
                     </p>
                   </div>
                 </div>
 
-                {/* Activator switcher - vibrant green and glowing */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic('selection');
-                    setUseFirstTimeGiveaway(prev => !prev);
-                  }}
-                  className={`relative inline-flex h-6.5 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-300 ease-in-out focus:outline-none ${
-                    useFirstTimeGiveaway
-                      ? 'bg-emerald-500 shadow-[0_0_16px_rgba(16,185,129,0.85)] ring-2 ring-emerald-400/60'
-                      : 'bg-slate-300 dark:bg-white/20'
-                  }`}
-                  role="switch"
-                  aria-checked={useFirstTimeGiveaway}
-                  title="Claim your N1000 first time giveaway"
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-5.5 w-5.5 transform rounded-full bg-white shadow-md ring-0 transition duration-300 ease-in-out ${
-                      useFirstTimeGiveaway ? 'translate-x-5.5 shadow-[0_0_8px_rgba(255,255,255,0.95)]' : 'translate-x-0'
+                {/* Activator switcher - disabled if already claimed */}
+                {isGiveawayClaimed ? (
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-200/50 dark:bg-white/5 px-2.5 py-1 rounded-lg border border-slate-300/40 dark:border-white/10 shrink-0">
+                    Claimed
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('selection');
+                      setUseFirstTimeGiveaway(prev => !prev);
+                    }}
+                    className={`relative inline-flex h-6.5 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-300 ease-in-out focus:outline-none ${
+                      effectiveUseGiveaway
+                        ? 'bg-emerald-500 shadow-[0_0_16px_rgba(16,185,129,0.85)] ring-2 ring-emerald-400/60'
+                        : 'bg-slate-300 dark:bg-white/20'
                     }`}
-                  />
-                </button>
+                    role="switch"
+                    aria-checked={effectiveUseGiveaway}
+                    title="Apply ₦1,000 first order discount"
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5.5 w-5.5 transform rounded-full bg-white shadow-md ring-0 transition duration-300 ease-in-out ${
+                        effectiveUseGiveaway ? 'translate-x-5.5 shadow-[0_0_8px_rgba(255,255,255,0.95)]' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                )}
               </div>
 
-              {useFirstTimeGiveaway && (
+              {!isGiveawayClaimed && effectiveUseGiveaway && (
                 <div className="mt-2.5 pt-2 border-t border-emerald-500/20 flex items-center justify-between text-xs">
                   <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                     <Check size={13} className="stroke-[3]" />
-                    ₦1,000 First-Time Giveaway applied!
+                    ₦1,000 First Order Discount applied!
                   </span>
                   <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
                     −{fmt(firstTimeGiveawayDeduction)}
@@ -8466,7 +8545,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
 
               {firstTimeGiveawayDeduction > 0 && (
                 <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-semibold">
-                  <span>First-Time Giveaway</span>
+                  <span>First Order Discount</span>
                   <span>−{fmt(firstTimeGiveawayDeduction)}</span>
                 </div>
               )}
