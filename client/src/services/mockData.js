@@ -338,7 +338,7 @@ export const FOODMAXX_DEFAULT_USER = {
   id: 'user_babatunde',
   full_name: 'Babatunde Alabi',
   email: 'babatunde@ui.edu.ng',
-  phone: '+234 803 111 2233',
+  phone: '',
   role: 'customer',
   avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80'
 };

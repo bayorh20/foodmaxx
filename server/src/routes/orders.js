@@ -196,7 +196,7 @@ router.get('/', requireAuth, (req, res) => {
       if (o.rider_id) {
         const rData = db.findById('riders', o.rider_id);
         const rUser = rData ? db.findById('users', rData.user_id) : null;
-        rider = rData ? { ...rData, name: rUser?.full_name || 'Dispatch Rider', phone: rUser?.phone || '08000000000' } : null;
+        rider = rData ? { ...rData, name: rUser?.full_name || 'Dispatch Rider', phone: rUser?.phone || '' } : null;
       }
       return {
         ...o,
@@ -241,7 +241,7 @@ router.get('/:id', requireAuth, (req, res) => {
       rider = rData ? {
         ...rData,
         name: rUser?.full_name || 'Dispatch Rider',
-        phone: rUser?.phone || '08000000000',
+        phone: rUser?.phone || '',
         current_lat: rLoc?.latitude || 7.435,
         current_lng: rLoc?.longitude || 3.905
       } : null;

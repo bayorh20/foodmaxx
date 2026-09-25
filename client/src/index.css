@@ -631,6 +631,61 @@ button, [role="button"] {
 }
 
 /* ============================================================
+   ADMIN SUITE DARK TYPOGRAPHY CONTRAST SAFEGUARDS
+   Ensures headings, labels, table cells, and dropdown options
+   always render with bright, legible contrast against dark surfaces
+   regardless of OS/browser light/dark mode preference.
+   ============================================================ */
+.admin-portal-dark,
+.admin-portal-dark.dark {
+  color: #F8FAFC !important;
+}
+
+.admin-portal-dark h1,
+.admin-portal-dark h2,
+.admin-portal-dark h3,
+.admin-portal-dark h4,
+.admin-portal-dark h5,
+.admin-portal-dark h6 {
+  color: #F8FAFC !important;
+}
+
+/* Override global heading / text utility overrides when inside dark admin */
+.admin-portal-dark .text-slate-900:not(.admin-light-override),
+.admin-portal-dark .text-slate-950:not(.admin-light-override),
+.admin-portal-dark .text-gray-900:not(.admin-light-override),
+.admin-portal-dark .text-black:not(.admin-light-override) {
+  color: #F8FAFC !important;
+}
+
+.admin-portal-dark .text-slate-800:not(.admin-light-override),
+.admin-portal-dark .text-gray-800:not(.admin-light-override) {
+  color: #E2E8F0 !important;
+}
+
+.admin-portal-dark .text-slate-700:not(.admin-light-override),
+.admin-portal-dark .text-gray-700:not(.admin-light-override) {
+  color: #CBD5E1 !important;
+}
+
+/* Native select dropdown and option contrast */
+.admin-portal-dark select option,
+select option {
+  background-color: #0F172A !important;
+  color: #F8FAFC !important;
+}
+
+/* Light theme exception inside admin when executive_light is selected */
+.admin-theme-light h1,
+.admin-theme-light h2,
+.admin-theme-light h3,
+.admin-theme-light h4,
+.admin-theme-light h5,
+.admin-theme-light h6 {
+  color: #0F172A !important;
+}
+
+/* ============================================================
    GPU HARDWARE-ACCELERATED ANIMATIONS (OFFLOADED FROM JS THREAD)
    ============================================================ */
 @keyframes fmxGiftFloat {

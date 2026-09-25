@@ -14,7 +14,7 @@ function seedDatabase() {
       email: process.env.INITIAL_ADMIN_EMAIL || 'admin@foodmaxx.ng',
       password_hash: adminPasswordHash,
       full_name: 'FoodMaxx Super Admin',
-      phone: '+234 802 345 6789',
+      phone: '',
       role: 'super_admin',
       avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&auto=format&fit=crop&q=80',
       status: 'active'

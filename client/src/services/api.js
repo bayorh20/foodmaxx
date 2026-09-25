@@ -146,7 +146,7 @@ export const api = {
       id: isAdmin ? 'user_admin' : ('user_' + emailLower.replace(/[^a-z0-9]/g, '_')),
       full_name: isAdmin ? 'FoodMaxx Super Admin' : (emailLower.split('@')[0] || 'FoodMaxx Customer'),
       email: emailLower,
-      phone: isAdmin ? '+234 802 345 6789' : '',
+      phone: '',
       role: isAdmin ? 'super_admin' : 'customer'
     };
     const token = 'fmx_token_' + Date.now();
@@ -223,7 +223,7 @@ export const api = {
       min_order: settings.min_order || 1500,
       is_open: settings.is_open !== false,
       address: settings.address || '24 Awolowo Avenue, Old Bodija, Ibadan',
-      phone: settings.phone || '+234 812 345 6789',
+      phone: settings.phone || '',
       image_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
       menu: products,
       menuItems: products,
@@ -233,6 +233,11 @@ export const api = {
       })).filter(g => g.items.length > 0)
     };
     return { success: true, data: flagship };
+  },
+
+  getStoreSettings: async () => {
+    const data = await getLiveSettings();
+    return { success: true, data };
   },
 
   getRestaurants: async () => {

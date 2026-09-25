@@ -4780,7 +4780,7 @@ function MaskedCallModal({ open, onClose, rider, order, isDark }) {
         </div>
 
         <h3 className="font-bold text-lg mb-0.5">{rider?.full_name || 'FoodMaxx Dispatch Rider'}</h3>
-        <p className="text-xs text-gray-400 mb-2">Relay Phone: +234 1 888 0900 (Virtual)</p>
+        <p className="text-xs text-gray-400 mb-2">Encrypted FoodMaxx Voice Relay</p>
 
         {callState === 'connecting' && (
           <div className="flex items-center gap-2 text-yellow-400 text-xs font-semibold animate-pulse my-3">
@@ -7026,6 +7026,19 @@ function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete 
   const [cardNumber, setCardNumber] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
+  const [storeSettings, setStoreSettings] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    api.getStoreSettings?.().then(res => {
+      if (mounted && res?.data) setStoreSettings(res.data);
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  const bankName = storeSettings?.payout_bank_name || 'Official Merchant Account';
+  const accountNumber = storeSettings?.payout_account_number || '';
+  const accountName = storeSettings?.payout_account_name || 'FoodMaxx Kitchen Ltd';
 
   if (!open || !data) return null;
 
@@ -7054,8 +7067,9 @@ function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete 
   };
 
   const copyAccountNumber = () => {
+    if (!accountNumber) return;
     try {
-      if (navigator.clipboard) navigator.clipboard.writeText('0248591832');
+      if (navigator.clipboard) navigator.clipboard.writeText(accountNumber);
     } catch {}
     setCopiedAccount(true);
     triggerHaptic('selection');
@@ -7202,25 +7216,29 @@ function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete 
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2 text-xs">
                   <div className="flex justify-between items-center text-slate-400">
                     <span>Bank Name</span>
-                    <strong className="text-slate-900 dark:text-white">Wema Bank / Titan</strong>
+                    <strong className="text-slate-900 dark:text-white">{bankName}</strong>
                   </div>
                   <div className="flex justify-between items-center text-slate-400">
                     <span>Account Number</span>
                     <div className="flex items-center gap-1.5">
-                      <strong className="font-mono text-sm text-[#0AA5FF]">0248591832</strong>
-                      <button
-                        type="button"
-                        onClick={copyAccountNumber}
-                        className="p-1 rounded-md bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:opacity-80 cursor-pointer"
-                        title="Copy account number"
-                      >
-                        <Copy size={12} />
-                      </button>
+                      <strong className="font-mono text-sm text-[#0AA5FF]">
+                        {accountNumber || 'Official Merchant Line'}
+                      </strong>
+                      {accountNumber && (
+                        <button
+                          type="button"
+                          onClick={copyAccountNumber}
+                          className="p-1 rounded-md bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:opacity-80 cursor-pointer"
+                          title="Copy account number"
+                        >
+                          <Copy size={12} />
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="flex justify-between items-center text-slate-400">
                     <span>Beneficiary</span>
-                    <strong className="text-slate-900 dark:text-white">FoodMaxx Kitchen / Paystack</strong>
+                    <strong className="text-slate-900 dark:text-white">{accountName}</strong>
                   </div>
                 </div>
                 {copiedAccount && (
@@ -7244,13 +7262,13 @@ function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete 
             {activeTab === 'ussd' && (
               <div className="space-y-3 text-center">
                 <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                  <span className="text-[11px] text-slate-400 block mb-1">GTBank USSD Code</span>
-                  <div className="font-mono font-bold text-base text-[#0AA5FF] tracking-wider">
-                    *737*2*{amount}*4892#
+                  <span className="text-[11px] text-slate-400 block mb-1">Direct Bank USSD</span>
+                  <div className="font-mono font-bold text-sm text-[#0AA5FF] tracking-wider">
+                    {accountNumber ? `Transfer ₦${amount.toLocaleString()} to ${accountNumber} via your bank app or USSD` : 'Pay via your Mobile Banking App / USSD'}
                   </div>
                 </div>
                 <p className="text-[11px] text-slate-400">
-                  Dial the code on your phone linked to your bank account.
+                  Dial your bank's transfer code on your phone linked to your bank account.
                 </p>
                 <button
                   type="button"
@@ -7381,7 +7399,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         try {
           await silentRegister({
             full_name: cleanName,
-            phone: cleanPhone || '08000000000'
+            phone: cleanPhone || ''
           });
         } catch (e) {
           console.warn('Auto silent register:', e);
@@ -7631,7 +7649,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
       return;
     }
     if (phoneToUse.length !== 11) {
-      toast('Phone number must be exactly 11 digits (e.g. 08012345678)', 'warning');
+      toast('Phone number must be exactly 11 digits (e.g. 080XXXXXXXX)', 'warning');
       return;
     }
     const emailToUse = contactEmail.trim() || user?.email || 'customer@foodmaxx.ng';
@@ -7649,7 +7667,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
         return;
       }
       if (recPhoneClean.length !== 11) {
-        toast('Recipient phone number must be exactly 11 digits (e.g. 08012345678)', 'warning');
+        toast('Recipient phone number must be exactly 11 digits (e.g. 080XXXXXXXX)', 'warning');
         return;
       }
     }
@@ -7933,7 +7951,7 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                       pattern="[0-9]*"
                       maxLength={11}
                       required
-                      placeholder="08012345678"
+                      placeholder="080XXXXXXXX"
                       value={contactPhone}
                       onChange={e => {
                         const numericVal = e.target.value.replace(/\D/g, '').slice(0, 11);
@@ -8781,8 +8799,8 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
 
   if (!order) return null;
 
-  const orderRef = order.order_reference || order.id?.slice(0, 8) || 'FMX-001';
-  const deliveryPin = order.delivery_otp || order.pin || '4821';
+  const orderRef = order.order_reference || order.id || '';
+  const deliveryPin = order.delivery_otp || order.pin || '';
   const totalAmount = order.total || order.total_amount || 0;
 
   // Resolve full delivery address safely
@@ -9203,16 +9221,18 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
   const destinationInstructions = order.delivery_instructions || order.instructions || '';
 
   // Reliable courier information with mobile number
-  const rider = order.riderInfo || order.assigned_rider || {
-    full_name: 'Tunde Balogun',
-    phone: '+234 803 456 7890',
-    vehicle_type: 'Honda Ace 125 (OY-BDJ-492)',
-    rating: 4.9,
-  };
-  const riderPhone = rider.phone || order.rider_phone || '+234 803 456 7890';
+  const hasAssignedRider = Boolean(order.riderInfo || order.assigned_rider || order.rider_name || order.rider_phone);
+  const rider = order.riderInfo || order.assigned_rider || (hasAssignedRider ? {
+    full_name: order.rider_name || 'Assigned Courier',
+    phone: order.rider_phone || '',
+    vehicle_type: order.vehicle_type || 'Delivery Motorcycle',
+    rating: order.rider_rating || 4.9,
+  } : null);
+  const riderPhone = rider?.phone || order.rider_phone || '';
   const cleanPhone = riderPhone.replace(/[^0-9+]/g, '');
 
   const handleCopyPhone = () => {
+    if (!riderPhone) return;
     navigator.clipboard?.writeText(riderPhone);
     setCopiedPhone(true);
     toast('Rider phone number copied to clipboard', 'success');
@@ -9227,7 +9247,8 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
   };
 
   const handleCopyPin = () => {
-    const pin = String(order.delivery_otp || '4821');
+    const pin = String(order.delivery_otp || order.pin || '');
+    if (!pin) return;
     navigator.clipboard?.writeText(pin);
     setCopiedPin(true);
     toast(`Delivery PIN (${pin}) copied!`, 'success');
@@ -9461,72 +9482,107 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#EA4C2A] to-orange-400 text-white font-black text-lg flex items-center justify-center shadow-md shadow-[#EA4C2A]/20 shrink-0">
-                    {rider.full_name?.[0] || 'T'}
+            {rider ? (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#EA4C2A] to-orange-400 text-white font-black text-lg flex items-center justify-center shadow-md shadow-[#EA4C2A]/20 shrink-0">
+                        {rider.full_name?.[0] || 'C'}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-[#181B24]" />
+                    </div>
+
+                    <div className="min-w-0">
+                      <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">
+                        {rider.full_name}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {rider.vehicle_type}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="flex items-center gap-0.5 text-xs font-bold text-amber-500">
+                          <Star size={11} className="fill-amber-500" />
+                          {rider.rating || 5.0}
+                        </span>
+                        <span className="text-slate-400 text-[11px]">• Verified Courier</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-[#181B24]" />
+
+                  {/* Rider Phone Chip */}
+                  {riderPhone && (
+                    <button
+                      type="button"
+                      onClick={handleCopyPhone}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0 border ${
+                        copiedPhone
+                          ? 'bg-emerald-500 text-white border-emerald-500'
+                          : isDark
+                          ? 'bg-white/5 hover:bg-white/10 text-slate-200 border-white/10'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                      }`}
+                      title="Copy phone"
+                    >
+                      <span>{riderPhone}</span>
+                      {copiedPhone ? <Check size={11} /> : <Copy size={11} className="opacity-60" />}
+                    </button>
+                  )}
                 </div>
 
+                {/* Quick Contact Action Buttons */}
+                <div className="grid grid-cols-2 gap-2.5 mt-4 pt-3.5 border-t border-slate-100 dark:border-white/8">
+                  <button
+                    type="button"
+                    onClick={() => setChatOpen(true)}
+                    className="py-2.5 px-3 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-[#EA4C2A]/25 transition-all cursor-pointer"
+                  >
+                    <MessageCircle size={14} />
+                    <span>Chat with Rider</span>
+                  </button>
+                  {cleanPhone ? (
+                    <a
+                      href={`tel:${cleanPhone}`}
+                      className={`py-2.5 px-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 border transition-all active:scale-95 cursor-pointer text-center ${
+                        isDark
+                          ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                      }`}
+                    >
+                      <PhoneCall size={14} className="text-emerald-500" />
+                      <span>Call Rider</span>
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setChatOpen(true)}
+                      className={`py-2.5 px-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 border transition-all active:scale-95 cursor-pointer text-center ${
+                        isDark
+                          ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                      }`}
+                    >
+                      <PhoneCall size={14} className="text-emerald-500" />
+                      <span>In-App Dispatch Line</span>
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-3 py-1">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 font-bold text-2xl flex items-center justify-center shrink-0 border border-amber-500/20">
+                  🛵
+                </div>
                 <div className="min-w-0">
-                  <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">
-                    {rider.full_name}
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                    Courier Pending Assignment
                   </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                    {rider.vehicle_type}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Our nearest dispatch courier will be paired once your meal is boxed.
                   </p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="flex items-center gap-0.5 text-xs font-bold text-amber-500">
-                      <Star size={11} className="fill-amber-500" />
-                      {rider.rating || 4.9}
-                    </span>
-                    <span className="text-slate-400 text-[11px]">• Verified Courier</span>
-                  </div>
                 </div>
               </div>
-
-              {/* Rider Phone Chip */}
-              <button
-                type="button"
-                onClick={handleCopyPhone}
-                className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0 border ${
-                  copiedPhone
-                    ? 'bg-emerald-500 text-white border-emerald-500'
-                    : isDark
-                    ? 'bg-white/5 hover:bg-white/10 text-slate-200 border-white/10'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                }`}
-                title="Copy phone"
-              >
-                <span>{riderPhone}</span>
-                {copiedPhone ? <Check size={11} /> : <Copy size={11} className="opacity-60" />}
-              </button>
-            </div>
-
-            {/* Quick Contact Action Buttons */}
-            <div className="grid grid-cols-2 gap-2.5 mt-4 pt-3.5 border-t border-slate-100 dark:border-white/8">
-              <button
-                type="button"
-                onClick={() => setChatOpen(true)}
-                className="py-2.5 px-3 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-[#EA4C2A]/25 transition-all cursor-pointer"
-              >
-                <MessageCircle size={14} />
-                <span>Chat with Rider</span>
-              </button>
-              <a
-                href={`tel:${cleanPhone}`}
-                className={`py-2.5 px-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 border transition-all active:scale-95 cursor-pointer text-center ${
-                  isDark
-                    ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-                }`}
-              >
-                <PhoneCall size={14} className="text-emerald-500" />
-                <span>Call Rider</span>
-              </a>
-            </div>
+            )}
           </div>
 
           {/* Delivery Destination Card */}
@@ -10858,7 +10914,7 @@ function AuthProvider({ children }) {
         id: 'user_admin',
         full_name: 'FoodMaxx Super Admin',
         email: email || 'admin@foodmaxx.ng',
-        phone: '+234 802 345 6789',
+        phone: finalUser?.phone || '',
         role: 'super_admin'
       };
     }
@@ -10993,7 +11049,7 @@ export default function App() {
                   <CustomerPortal />
                 </div>
               ) : (
-                <div className="flex-1 min-h-0 w-full overflow-y-auto bg-gray-50">
+                <div className="flex-1 min-h-0 w-full overflow-y-auto bg-[#0B0F19] admin-portal-dark dark">
                   <Suspense fallback={
                     <div className="h-full w-full min-h-[400px] flex flex-col items-center justify-center p-8 text-white font-medium">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#EA4C2A] mb-3"></div>

@@ -2447,12 +2447,14 @@ function AdminVerifyOtpModal({ open, onClose, order, onVerified }) {
 // ============================================================
 // ADMIN KITCHEN SLIP / RECEIPT MODAL
 // ============================================================
-function AdminKitchenSlipModal({ open, onClose, order }) {
+function AdminKitchenSlipModal({ open, onClose, order, settings }) {
   if (!open || !order) return null;
+  const storePhone = settings?.phone || '';
+  const storeAddress = settings?.address || 'Old Bodija, Ibadan';
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-white text-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 relative animate-scale-up font-mono">
+      <div className="bg-white text-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 relative animate-scale-up font-mono admin-light-override">
         <button
           onClick={onClose}
           className="absolute top-5 right-5 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 no-print cursor-pointer"
@@ -2462,8 +2464,8 @@ function AdminKitchenSlipModal({ open, onClose, order }) {
 
         <div className="text-center border-b-2 border-dashed border-gray-300 pb-4 mb-4">
           <div className="flex items-center justify-center gap-2 mb-1"><img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-6 h-6 rounded-lg object-cover" /><span className="text-base font-bold tracking-tighter">FOODMAXX</span></div>
-          <div className="text-[11px] text-gray-600">24 Awolowo Ave, Old Bodija, Ibadan</div>
-          <div className="text-[11px] text-gray-600">Tel: +234 802 345 6789</div>
+          <div className="text-[11px] text-gray-600">{storeAddress}</div>
+          {storePhone && <div className="text-[11px] text-gray-600">Tel: {storePhone}</div>}
           <div className="mt-2 text-xs font-bold bg-gray-100 py-1 rounded-md">KITCHEN PREP TICKET</div>
         </div>
 
@@ -3181,7 +3183,7 @@ function AdminPortal() {
         full_name: 'FoodMaxx Super Admin',
         email: cleanEmail,
         role: 'super_admin',
-        phone: settings.phone || '+234 802 345 6789'
+        phone: settings.phone || ''
       };
       const adminToken = 'fmx_admin_token_' + Date.now();
       localStorage.setItem('fmx_token', adminToken);
@@ -3766,7 +3768,7 @@ function AdminPortal() {
 
   if (!isSuperAdmin) {
     return (
-      <div className="min-h-screen bg-[#0B0C0E] text-white flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#0B0C0E] text-white flex items-center justify-center p-4 admin-portal-dark dark">
         <div className="w-full max-w-md bg-[#121318] border border-[#1F222C] rounded-3xl p-6 sm:p-8 shadow-2xl">
           <div className="text-center mb-6">
             <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-16 h-16 rounded-2xl mx-auto mb-3 shadow-md border border-[#EA4C2A]/30 object-cover" />
@@ -3878,7 +3880,7 @@ function AdminPortal() {
 
   return (
     <div 
-      className="min-h-screen flex flex-col md:flex-row antialiased font-sans selection:bg-emerald-500 selection:text-white transition-colors duration-200"
+      className={`min-h-screen flex flex-col md:flex-row antialiased font-sans selection:bg-emerald-500 selection:text-white transition-colors duration-200 ${currentAdminTheme.id === 'light' ? 'admin-theme-light' : 'admin-portal-dark dark'}`}
       style={{
         backgroundColor: currentAdminTheme.bg,
         color: currentAdminTheme.text
@@ -7568,13 +7570,30 @@ function AdminPortal() {
                   <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4.5 flex flex-col justify-between">
                     <div>
                       <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Your Payout Bank</span>
-                      <div className="text-sm font-black text-white mt-1">Guaranty Trust Bank (GTB)</div>
-                      <div className="text-xs text-slate-400 font-mono">0123456789 · FoodMaxx Kitchen Ltd</div>
+                      <div className="text-sm font-black text-white mt-1">
+                        {settings.payout_bank_name || 'Bank Not Configured'}
+                      </div>
+                      <div className="text-xs text-slate-400 font-mono">
+                        {settings.payout_account_number 
+                          ? `${settings.payout_account_number} · ${settings.payout_account_name || 'FoodMaxx Kitchen Ltd'}` 
+                          : 'Configure account in Store Settings'}
+                      </div>
                     </div>
-                    <span className="text-[10px] font-bold text-emerald-400 mt-2 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      Verified & Active Account
-                    </span>
+                    {settings.payout_account_number ? (
+                      <span className="text-[10px] font-bold text-emerald-400 mt-2 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Verified Settlement Account
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => loadSection('settings')}
+                        className="text-[10px] font-bold text-amber-400 hover:text-amber-300 mt-2 text-left flex items-center gap-1 cursor-pointer"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                        Setup Bank in Store Settings →
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -8407,7 +8426,7 @@ function AdminPortal() {
                         </div>
                       </div>
                       <h4 className="text-base font-bold text-white">{activeTicket.customer_name}</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">{activeTicket.customer_phone || '0124567989922'}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{activeTicket.customer_phone || 'No phone provided'}</p>
                       <p className="text-xs text-slate-400">{customerEmail}</p>
                       <div className="flex items-center gap-1.5 text-xs text-emerald-400 mt-1 font-medium">
                         <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -8834,7 +8853,8 @@ function AdminPortal() {
                   <label className="block text-xs font-medium text-slate-300 mb-1">Phone Line</label>
                   <input
                     type="text"
-                    value={settings.phone || '+234 802 345 6789'}
+                    value={settings.phone || ''}
+                    placeholder="e.g. +234 800 000 0000"
                     onChange={e => setSettings({ ...settings, phone: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-red-500"
                   />
@@ -8843,7 +8863,8 @@ function AdminPortal() {
                   <label className="block text-xs font-medium text-slate-300 mb-1">WhatsApp Dispatch Hotline</label>
                   <input
                     type="text"
-                    value={settings.whatsapp_dispatch || '+234 803 456 7890'}
+                    value={settings.whatsapp_dispatch || ''}
+                    placeholder="e.g. +234 800 000 0000"
                     onChange={e => setSettings({ ...settings, whatsapp_dispatch: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-red-500"
                   />
@@ -8854,10 +8875,58 @@ function AdminPortal() {
                 <label className="block text-xs font-medium text-slate-300 mb-1">Kitchen Address (Ibadan)</label>
                 <input
                   type="text"
-                  value={settings.address || '24 Awolowo Avenue, Old Bodija, Ibadan'}
+                  value={settings.address || ''}
+                  placeholder="e.g. 24 Awolowo Avenue, Old Bodija, Ibadan"
                   onChange={e => setSettings({ ...settings, address: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-red-500"
                 />
+              </div>
+
+              {/* PAYOUT SETTLEMENT BANK ACCOUNT */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🏦</span>
+                  <div>
+                    <h4 className="font-bold text-xs text-white">Merchant Payout Bank Account</h4>
+                    <p className="text-[10px] text-slate-400">
+                      Bank account where daily revenue and earnings settlements are disbursed
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">Bank Name</label>
+                    <input
+                      type="text"
+                      value={settings.payout_bank_name || ''}
+                      onChange={e => setSettings({ ...settings, payout_bank_name: e.target.value })}
+                      placeholder="e.g. Guaranty Trust Bank"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">Account Number</label>
+                    <input
+                      type="text"
+                      maxLength={10}
+                      value={settings.payout_account_number || ''}
+                      onChange={e => setSettings({ ...settings, payout_account_number: e.target.value.replace(/\D/g, '') })}
+                      placeholder="10-digit NUBAN"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">Account Name</label>
+                    <input
+                      type="text"
+                      value={settings.payout_account_name || ''}
+                      onChange={e => setSettings({ ...settings, payout_account_name: e.target.value })}
+                      placeholder="e.g. FoodMaxx Kitchen Ltd"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-red-500"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -9055,6 +9124,7 @@ function AdminPortal() {
       <AdminKitchenSlipModal
         open={Boolean(slipOrder)}
         order={slipOrder}
+        settings={settings}
         onClose={() => setSlipOrder(null)}
       />
 

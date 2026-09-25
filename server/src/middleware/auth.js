@@ -42,7 +42,7 @@ function requireAuth(req, res, next) {
           email: 'customer@foodmaxx.ng',
           password_hash: 'guest_hash',
           full_name: 'Valued Customer',
-          phone: '+234 800 000 0000',
+          phone: '',
           role: 'customer',
           status: 'active'
         });
