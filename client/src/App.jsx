@@ -1490,29 +1490,25 @@ function CustomerPortal() {
               {/* MAIN NATIVE WEB APP HEADER (HOME TAB) */}
               {activeTab === 'home' && (
             <header className="px-4 sm:px-6 lg:px-8 pt-4 pb-3.5 space-y-3.5 max-w-7xl mx-auto w-full">
-              {/* Top Row: Brand Logo + Greeting (Left) & Actions (Right) */}
+              {/* Top Row: Brand Logo + Greeting with Name (Left) & Actions (Right) */}
               <div className="flex items-center justify-between gap-3">
-                {/* Brand Logo + Greeting with First Name & Craving Headline */}
-                <div className="flex items-center gap-3 min-w-0 flex-1">
+                {/* Brand Logo + Greeting with Customer Name */}
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <img
                     src="/foodmaxx-logo.png"
                     alt="FoodMaxx"
-                    className="w-11 h-11 rounded-2xl object-cover shadow-sm shrink-0 border border-red-500/15"
+                    className="w-10 h-10 rounded-2xl object-cover shadow-sm shrink-0 border border-red-500/15"
                   />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 leading-none mb-1 truncate">
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 leading-tight">
                       <span>{(() => {
                         const h = new Date().getHours();
                         const timeOfDay = h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
                         const emoji = h < 12 ? '☀️' : h < 17 ? '🌤️' : '🌙';
-                        const rawName = user?.full_name || user?.name || '';
-                        const firstName = rawName.trim().split(' ')[0];
-                        return firstName ? `${timeOfDay}, ${firstName} ${emoji}` : `${timeOfDay} ${emoji}`;
+                        const rawName = (user?.full_name || user?.name || '').trim();
+                        return rawName ? `${timeOfDay}, ${rawName} ${emoji}` : `${timeOfDay} ${emoji}`;
                       })()}</span>
                     </p>
-                    <h1 className="text-sm sm:text-base md:text-lg font-black text-slate-900 dark:text-white tracking-tight leading-tight truncate">
-                      What do you crave for today?
-                    </h1>
                   </div>
                 </div>
 
@@ -1548,6 +1544,13 @@ function CustomerPortal() {
                     )}
                   </button>
                 </div>
+              </div>
+
+              {/* Row 2: Headline - "What do you crave for today?" (Full width, completely visible with no truncation) */}
+              <div className="pt-0.5">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
+                  What do you crave for today?
+                </h1>
               </div>
 
               {/* Search Bar Row (Clean, balanced moderate spacing) */}
