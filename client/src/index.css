@@ -641,31 +641,37 @@ button, [role="button"] {
   color: #F8FAFC !important;
 }
 
-.admin-portal-dark h1,
-.admin-portal-dark h2,
-.admin-portal-dark h3,
-.admin-portal-dark h4,
-.admin-portal-dark h5,
-.admin-portal-dark h6 {
+/* Headings in dark admin default to crisp light text UNLESS inside a light container */
+.admin-portal-dark h1:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *),
+.admin-portal-dark h2:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *),
+.admin-portal-dark h3:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *),
+.admin-portal-dark h4:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *),
+.admin-portal-dark h5:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *),
+.admin-portal-dark h6:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *) {
   color: #F8FAFC !important;
 }
 
-/* Override global heading / text utility overrides when inside dark admin */
-.admin-portal-dark .text-slate-900:not(.admin-light-override),
-.admin-portal-dark .text-slate-950:not(.admin-light-override),
-.admin-portal-dark .text-gray-900:not(.admin-light-override),
-.admin-portal-dark .text-black:not(.admin-light-override) {
-  color: #F8FAFC !important;
-}
-
-.admin-portal-dark .text-slate-800:not(.admin-light-override),
-.admin-portal-dark .text-gray-800:not(.admin-light-override) {
-  color: #E2E8F0 !important;
-}
-
-.admin-portal-dark .text-slate-700:not(.admin-light-override),
-.admin-portal-dark .text-gray-700:not(.admin-light-override) {
-  color: #CBD5E1 !important;
+/* Any light card, light table, or light badge inside dark admin MUST retain dark text */
+.admin-portal-dark .bg-white,
+.admin-portal-dark .bg-white *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-amber-5"]):not([class*="bg-purple-6"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
+.admin-portal-dark [class*="bg-\[\#FFF"] *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
+.admin-portal-dark [class*="bg-\[\#F0F"] *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
+.admin-portal-dark [class*="bg-\[\#EFF"] *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
+.admin-portal-dark [class*="bg-\[\#FAF"] *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
+.admin-portal-dark [class*="bg-\[\#ECF"] *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
+.admin-portal-dark .bg-slate-50 *,
+.admin-portal-dark .bg-slate-100 *,
+.admin-portal-dark .bg-gray-50 *,
+.admin-portal-dark .bg-gray-100 *,
+.admin-portal-dark .bg-white h1,
+.admin-portal-dark .bg-white h2,
+.admin-portal-dark .bg-white h3,
+.admin-portal-dark .bg-white h4,
+.admin-portal-dark .bg-white h5,
+.admin-portal-dark .bg-white h6,
+.admin-portal-dark .text-black,
+.admin-portal-dark .admin-light-override {
+  color: #000000 !important;
 }
 
 /* Native select dropdown and option contrast */

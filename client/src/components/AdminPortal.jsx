@@ -2459,98 +2459,98 @@ function AdminKitchenSlipModal({ open, onClose, order, settings }) {
       <div className="bg-white text-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 relative animate-scale-up font-mono admin-light-override">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 no-print cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-300 flex items-center justify-center text-black no-print cursor-pointer"
         >
           <X size={18} />
         </button>
 
-        <div className="text-center border-b-2 border-dashed border-gray-300 pb-4 mb-4">
-          <div className="flex items-center justify-center gap-2 mb-1"><img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-6 h-6 rounded-lg object-cover" /><span className="text-base font-bold tracking-tighter">FOODMAXX</span></div>
-          <div className="text-[11px] text-gray-600">{storeAddress}</div>
-          {storePhone && <div className="text-[11px] text-gray-600">Tel: {storePhone}</div>}
-          <div className="mt-2 text-xs font-bold bg-gray-100 py-1 rounded-md">KITCHEN PREP TICKET</div>
+        <div className="text-center border-b-2 border-dashed border-slate-400 pb-4 mb-4">
+          <div className="flex items-center justify-center gap-2 mb-1"><img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-6 h-6 rounded-lg object-cover" /><span className="text-base font-black tracking-tighter text-black">FOODMAXX</span></div>
+          <div className="text-xs text-black font-bold">{storeAddress}</div>
+          {storePhone && <div className="text-xs text-black font-bold">Tel: {storePhone}</div>}
+          <div className="mt-2 text-xs font-black bg-slate-100 border border-slate-300 py-1 rounded-md text-black">KITCHEN PREP TICKET</div>
         </div>
 
-        <div className="text-xs space-y-1 mb-4 border-b border-gray-200 pb-3">
+        <div className="text-xs space-y-1.5 mb-4 border-b border-slate-300 pb-3">
           <div className="flex justify-between">
-            <span className="font-bold">Order Ref:</span>
-            <span className="font-bold text-red-600">{order.order_reference}</span>
+            <span className="font-black text-black">Order Ref:</span>
+            <span className="font-mono font-black text-red-600 text-sm">{order.order_reference}</span>
           </div>
-          <div className="flex justify-between text-gray-600">
+          <div className="flex justify-between text-black font-bold">
             <span>Date & Time:</span>
-            <span>{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, {new Date(order.created_at).toLocaleDateString()}</span>
+            <span className="font-bold">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, {new Date(order.created_at).toLocaleDateString()}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-bold">Customer:</span>
-            <span className="font-bold">{order.customer?.full_name}</span>
+            <span className="font-black text-black">Customer:</span>
+            <span className="font-black text-black">{order.customer?.full_name}</span>
           </div>
-          <div className="flex justify-between text-gray-600">
+          <div className="flex justify-between text-black font-bold">
             <span>Phone:</span>
-            <span>{order.customer?.phone}</span>
+            <span className="font-mono font-black">{order.customer?.phone}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-bold">Zone / Area:</span>
-            <span className="font-bold text-gray-900">{order.delivery_zone || 'Bodija'}</span>
+            <span className="font-black text-black">Zone / Area:</span>
+            <span className="font-black text-black">{order.delivery_zone || 'Bodija'}</span>
           </div>
           {order.delivery_landmark && (
-            <div className="text-[11px] text-amber-800 bg-amber-50 p-1.5 rounded-md font-bold mt-1">
+            <div className="text-xs text-black bg-amber-100 border border-amber-300 p-2 rounded-md font-black mt-1">
               📍 Landmark: {order.delivery_landmark}
             </div>
           )}
         </div>
 
         <div className="mb-4">
-          <div className="text-xs font-semibold border-b border-gray-300 pb-1 mb-2">ORDER ITEMS</div>
+          <div className="text-xs font-black border-b border-slate-400 pb-1 mb-2 text-black uppercase tracking-wider">ORDER ITEMS</div>
           <div className="space-y-2">
             {(order.items || []).map((item, idx) => (
               <div key={idx} className="flex justify-between items-start text-xs">
                 <div className="flex-1 pr-2">
-                  <div className="font-bold">{item.qty || 1}x {item.name}</div>
+                  <div className="font-black text-black">{item.qty || 1}x {item.name}</div>
                   {item.selectedExtras?.length > 0 && (
-                    <div className="text-[10px] text-gray-500 pl-3">+ {item.selectedExtras.join(', ')}</div>
+                    <div className="text-xs text-black font-bold pl-3">+ {item.selectedExtras.join(', ')}</div>
                   )}
                 </div>
-                <div className="font-bold">₦{((item.price || 0) * (item.qty || 1)).toLocaleString()}</div>
+                <div className="font-mono font-black text-black text-sm">₦{((item.price || 0) * (item.qty || 1)).toLocaleString()}</div>
               </div>
             ))}
           </div>
         </div>
 
         {order.is_gift && (
-          <div className="bg-red-50 text-red-700 p-2 rounded-xl text-xs mb-3 font-bold border border-red-200">
+          <div className="bg-red-50 text-red-950 p-2.5 rounded-xl text-xs mb-3 font-black border border-red-300">
             🎁 Gift Order for: {order.recipient_name} ({order.recipient_phone})
-            {order.gift_note && <div className="text-[11px] font-normal mt-0.5">Note: "{order.gift_note}"</div>}
+            {order.gift_note && <div className="text-xs font-bold text-black mt-0.5">Note: "{order.gift_note}"</div>}
           </div>
         )}
 
-        <div className="border-t-2 border-dashed border-gray-300 pt-3 space-y-1 text-xs mb-4">
-          <div className="flex justify-between text-gray-600">
+        <div className="border-t-2 border-dashed border-slate-400 pt-3 space-y-1.5 text-xs mb-4">
+          <div className="flex justify-between text-black font-bold">
             <span>Subtotal:</span>
-            <span>₦{(order.subtotal || 0).toLocaleString()}</span>
+            <span className="font-mono font-black">₦{(order.subtotal || 0).toLocaleString()}</span>
           </div>
-          <div className="flex justify-between text-gray-600">
+          <div className="flex justify-between text-black font-bold">
             <span>Delivery Fee:</span>
-            <span>₦{(order.delivery_fee || 500).toLocaleString()}</span>
+            <span className="font-mono font-black">₦{(order.delivery_fee || 500).toLocaleString()}</span>
           </div>
-          <div className="flex justify-between font-bold text-sm pt-1 border-t border-gray-200">
-            <span>TOTAL:</span>
-            <span className="text-red-600">₦{(order.total || 0).toLocaleString()}</span>
+          <div className="flex justify-between font-black text-base pt-1.5 border-t border-slate-300">
+            <span className="text-black">TOTAL:</span>
+            <span className="text-[#EA4C2A] font-mono">₦{(order.total || 0).toLocaleString()}</span>
           </div>
-          <div className="text-[10px] text-gray-500 pt-1">
-            Payment: {order.payment_method?.toUpperCase()} · Security OTP: <strong>{order.delivery_otp}</strong>
+          <div className="text-xs text-black font-bold pt-1">
+            Payment: <strong className="text-black uppercase">{order.payment_method?.toUpperCase()}</strong> · Security OTP: <strong className="font-mono text-emerald-800 font-black">{order.delivery_otp}</strong>
           </div>
         </div>
 
         <div className="flex gap-2 no-print">
           <button
             onClick={() => window.print()}
-            className="flex-1 py-2.5 bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+            className="flex-1 py-2.5 bg-black hover:bg-slate-900 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
           >
             <Printer size={14} /> Print Kitchen Slip
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs cursor-pointer"
+            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 font-black rounded-xl text-xs cursor-pointer"
           >
             Close
           </button>
@@ -5293,7 +5293,7 @@ function AdminPortal() {
                   placeholder="Search order ref, customer, phone..."
                   value={orderSearch}
                   onChange={e => setOrderSearch(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white transition-colors placeholder:text-slate-600"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white transition-colors placeholder:text-slate-900"
                 />
               </div>
             </div>
@@ -5867,7 +5867,7 @@ function AdminPortal() {
                             <h3 className="font-black text-xs sm:text-sm text-black truncate">{cat.name}</h3>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-[11px] text-black font-bold">{dishCount} {dishCount === 1 ? 'dish' : 'dishes'}</span>
-                              <span className="text-[10px] text-slate-400 font-bold">•</span>
+                              <span className="text-xs text-black font-black">•</span>
                               <button
                                 type="button"
                                 onClick={() => handleToggleCategory(cat)}
@@ -7625,7 +7625,7 @@ function AdminPortal() {
                               .replace(/{free_item}/g, settings.late_include_free_item ? (settings.late_free_item_name || 'a complimentary drink') : '')
                               .replace(/{store_phone}/g, settings.phone || '+234 802 345 6789')}
                           </p>
-                          <div className="text-right text-[10px] text-slate-500 font-mono flex items-center justify-end gap-1 pt-1">
+                          <div className="text-right text-[10px] text-slate-700 font-bold font-mono flex items-center justify-end gap-1 pt-1">
                             <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             <span className="text-sky-500 font-bold">✓✓</span>
                           </div>

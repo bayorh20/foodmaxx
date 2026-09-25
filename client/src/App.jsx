@@ -763,20 +763,8 @@ function CustomerPortal() {
   const isSpinDraggingRef = useRef(false);
   const [placedOrderSuccess, setPlacedOrderSuccess] = useState(null);
 
-  // Auto-trigger Spin & Win game popup once per day on arrival (after 1.8s)
-  useEffect(() => {
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const lastSpin = localStorage.getItem('fmx_last_spin_date');
-      const dismissedToday = sessionStorage.getItem('fmx_spin_dismissed_' + today);
-      if (lastSpin !== today && !dismissedToday) {
-        const timer = setTimeout(() => {
-          setSpinModalOpen(true);
-        }, 1800);
-        return () => clearTimeout(timer);
-      }
-    } catch (e) {}
-  }, []);
+  // Spin & Win modal is accessible on demand (clean, distraction-free home arrival)
+  // Auto-popup removed to keep home screen clean without interruptions
 
   useEffect(() => {
     const handleOpenSpin = () => setSpinModalOpen(true);
@@ -1501,41 +1489,45 @@ function CustomerPortal() {
             >
               {/* MAIN NATIVE WEB APP HEADER (HOME TAB) */}
               {activeTab === 'home' && (
-            <header className="px-4 sm:px-6 lg:px-8 pt-3.5 pb-2 space-y-2.5 max-w-7xl mx-auto w-full">
+            <header className="px-4 sm:px-6 lg:px-8 pt-4 pb-3.5 space-y-3.5 max-w-7xl mx-auto w-full">
               {/* Top Row: Brand Logo + Greeting (Left) & Actions (Right) */}
-              <div className="flex items-center justify-between gap-2.5">
-                {/* Brand Logo + Warm Greeting */}
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-3">
+                {/* Brand Logo + Greeting with First Name & Craving Headline */}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <img
                     src="/foodmaxx-logo.png"
                     alt="FoodMaxx"
-                    className="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0 border border-red-500/15"
+                    className="w-11 h-11 rounded-2xl object-cover shadow-sm shrink-0 border border-red-500/15"
                   />
-                  <div className="min-w-0">
-                    <p className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 leading-none mb-0.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 leading-none mb-1 truncate">
                       <span>{(() => {
                         const h = new Date().getHours();
-                        return h < 12 ? 'Good Morning ☀️' : h < 17 ? 'Good Afternoon 🌤️' : 'Good Evening 🌙';
+                        const timeOfDay = h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
+                        const emoji = h < 12 ? '☀️' : h < 17 ? '🌤️' : '🌙';
+                        const rawName = user?.full_name || user?.name || '';
+                        const firstName = rawName.trim().split(' ')[0];
+                        return firstName ? `${timeOfDay}, ${firstName} ${emoji}` : `${timeOfDay} ${emoji}`;
                       })()}</span>
                     </p>
-                    <h1 className="text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-tight leading-tight truncate">
-                      {user?.full_name ? user.full_name : 'FoodMaxx Lover'} 👋
+                    <h1 className="text-sm sm:text-base md:text-lg font-black text-slate-900 dark:text-white tracking-tight leading-tight truncate">
+                      What do you crave for today?
                     </h1>
                   </div>
                 </div>
 
-                {/* Right Action Icons (Theme, Notifications, Spin & Win, Cart) */}
-                <div className="flex items-center gap-1.5 shrink-0">
+                {/* Right Action Icons (Theme, Shopping Cart) */}
+                <div className="flex items-center gap-2 shrink-0">
                   {/* Day/Night switch */}
                   <button
                     onClick={toggleDark}
-                    className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200/70 dark:hover:bg-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 active:scale-95 transition-all cursor-pointer border border-slate-200/60 dark:border-white/5"
+                    className="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200/70 dark:hover:bg-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 active:scale-95 transition-all cursor-pointer border border-slate-200/60 dark:border-white/5"
                     title="Toggle Theme"
                   >
                     {isDark ? (
-                      <Sun size={16} className="text-amber-400 fill-amber-400/20" />
+                      <Sun size={17} className="text-amber-400 fill-amber-400/20" />
                     ) : (
-                      <Moon size={16} className="text-slate-700 fill-slate-700/10" />
+                      <Moon size={17} className="text-slate-700 fill-slate-700/10" />
                     )}
                   </button>
 
@@ -1545,12 +1537,12 @@ function CustomerPortal() {
                       if (typeof triggerHaptic === 'function') triggerHaptic('light');
                       setCartOpen(true);
                     }}
-                    className="relative w-8 h-8 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm shadow-red-500/20 hover:bg-[#d93f1d]"
+                    className="relative w-9 h-9 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm shadow-red-500/20 hover:bg-[#d93f1d]"
                     title="Shopping Cart"
                   >
-                    <ShoppingBag size={16} />
+                    <ShoppingBag size={17} />
                     {itemCount > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 bg-white text-[#EA4C2A] text-[9.5px] font-black rounded-full flex items-center justify-center border border-[#EA4C2A] shadow-xs">
+                      <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-white text-[#EA4C2A] text-[9.5px] font-black rounded-full flex items-center justify-center border border-[#EA4C2A] shadow-xs">
                         {itemCount}
                       </span>
                     )}
@@ -1558,10 +1550,9 @@ function CustomerPortal() {
                 </div>
               </div>
 
-
-              {/* Search Bar Row */}
-              <div className="relative flex items-center bg-slate-100 dark:bg-[#1A1D24] text-slate-900 dark:text-white rounded-xl px-3.5 py-2.5 border border-slate-200/60 dark:border-white/5 focus-within:border-[#EA4C2A]/60 focus-within:bg-white dark:focus-within:bg-[#1A1D24] transition-all shadow-xs">
-                <Search size={17} className="text-slate-400 shrink-0" />
+              {/* Search Bar Row (Clean, balanced moderate spacing) */}
+              <div className="relative flex items-center bg-slate-100 dark:bg-[#1A1D24] text-slate-900 dark:text-white rounded-2xl px-4 py-2.5 sm:py-3 border border-slate-200/60 dark:border-white/5 focus-within:border-[#EA4C2A]/60 focus-within:bg-white dark:focus-within:bg-[#1A1D24] transition-all shadow-xs">
+                <Search size={18} className="text-slate-400 shrink-0" />
                 <input
                   type="text"
                   className="w-full bg-transparent text-xs sm:text-sm font-semibold outline-none placeholder:text-slate-400 placeholder:font-normal mx-2.5"
@@ -1572,7 +1563,7 @@ function CustomerPortal() {
                   }}
                 />
                 <button onClick={() => toast('Voice search coming soon!', 'info')} className="text-[#EA4C2A] shrink-0 hover:opacity-80 transition-opacity cursor-pointer p-0.5">
-                  <Mic size={17} />
+                  <Mic size={18} />
                 </button>
               </div>
             </header>
@@ -2464,7 +2455,7 @@ function PromoBanner({ onOrderNow, appCopy }) {
   const heroTitle = getCopy(appCopy, 'customer_hero', 'hero_title', 'Fresh Meals, Fast Delivery');
 
   return (
-    <div className="px-4 sm:px-0 mb-4 w-full">
+    <div className="px-4 sm:px-0 mb-6 sm:mb-8 w-full">
       <div className="bg-gradient-to-r from-[#FF5525] via-[#FF6036] to-[#EA4C2A] rounded-2xl px-4 py-2.5 sm:px-5 sm:py-3 relative overflow-hidden flex items-center justify-between min-h-[82px] sm:min-h-[92px] shadow-md shadow-orange-500/15">
         <div className="relative z-10 max-w-[70%] sm:max-w-[75%] flex flex-col justify-center">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -2779,8 +2770,8 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
   if (picks.length === 0) return null;
   
   return (
-    <div className="mb-5">
-      <div className="flex justify-between items-center px-4 sm:px-0 mb-2.5">
+    <div className="mb-7 sm:mb-9">
+      <div className="flex justify-between items-center px-4 sm:px-0 mb-3 sm:mb-3.5">
         <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">{title}</h2>
         <button 
           onClick={onSeeAll}
