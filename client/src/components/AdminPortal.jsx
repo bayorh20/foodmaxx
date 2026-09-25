@@ -14,7 +14,8 @@ import {
   CreditCard, Flame, ShieldCheck, Utensils, SlidersHorizontal, UserCheck, Printer,
   Lock, Copy, Smartphone, Building2, Mic, ShoppingBag, ChevronDown, ChevronUp, Monitor, Key,
   FolderPlus, ArrowUp, ArrowDown, Video, FileText, Info, RotateCw, Volume2,
-  Columns, LayoutList, Grid, Bike, Edit3, Radio, Palette, Camera, LayoutDashboard
+  Columns, LayoutList, Grid, Bike, Edit3, Radio, Palette, Camera, LayoutDashboard,
+  HeartHandshake, AlertTriangle
 } from 'lucide-react';
 import { api, FMXWebSocket } from '../services/api';
 import { db } from '../services/firebaseDb';
@@ -2861,13 +2862,45 @@ function AdminPortal() {
       receipt_footer_note: 'Thank you for dining with FoodMaxx! For catering: 08023456789',
       admin_password: 'admin',
       kitchen_staff_pin: '1234',
-      require_delivery_otp: true
+      require_delivery_otp: true,
+      late_delivery_enabled: true,
+      late_delivery_threshold_mins: 35,
+      late_compensation_type: 'discount_code',
+      late_discount_percent: 20,
+      late_discount_amount: 500,
+      late_promo_code_prefix: 'SORRY',
+      late_apology_tone: 'warm',
+      late_whatsapp_template: 'Dear {customer_name}, we sincerely apologize that your FoodMaxx order #{order_ref} is experiencing an unexpected delay ({delay_minutes} mins). Chef is speeding up your hot meal right now! 🙏 To make it up to you, please enjoy {compensation_val} on your next order with coupon code *{coupon_code}*. Plus, we have included {free_item} on the house! Thank you for dining with FoodMaxx Ibadan. 🍲',
+      late_include_free_item: true,
+      late_free_item_name: 'Complimentary Chilled Soft Drink / Extra Dodo',
+      late_auto_generate_coupon: true
     };
   });
   const [settingsSubTab, setSettingsSubTab] = useState('profile');
   const [savingSettings, setSavingSettings] = useState(false);
   const [testingToneId, setTestingToneId] = useState(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Late Delivery Apology History
+  const [apologyHistory, setApologyHistory] = useState(() => {
+    try {
+      const cached = localStorage.getItem('fmx_apology_history');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [
+      {
+        id: 'apol_demo_1',
+        orderRef: 'FMX-7821',
+        customerName: 'Adebayo Ogunlesi',
+        phone: '+234 803 111 2233',
+        code: 'SORRY20-9182',
+        compensation: '20% OFF',
+        delayMins: 38,
+        sentAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+        message: 'Apology and 20% discount coupon dispatched via WhatsApp.'
+      }
+    ];
+  });
 
   // Active Modals for Order actions
   const [assignRiderOrder, setAssignRiderOrder] = useState(null);
@@ -3125,20 +3158,149 @@ function AdminPortal() {
     exportToCSV(`foodmaxx_settlements_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
   }
 
-  // Delayed Orders Calculation & Remediation
-  const delayedOrders = orders.filter(o => {
-    if (['DELIVERED', 'CANCELLED'].includes(o.order_status)) return false;
-    const elapsedMins = (Date.now() - new Date(o.created_at).getTime()) / 60000;
-    return elapsedMins > 25;
-  });
+  // Delayed Orders Calculation & Remediation (Uses Settings Threshold)
+  const delayedOrders = useMemo(() => {
+    const threshold = Number(settings.late_delivery_threshold_mins) || 35;
+    return orders.filter(o => {
+      if (['DELIVERED', 'CANCELLED'].includes(o.order_status)) return false;
+      const elapsedMins = (Date.now() - new Date(o.created_at).getTime()) / 60000;
+      return elapsedMins > threshold;
+    });
+  }, [orders, settings.late_delivery_threshold_mins]);
   const delayedOrdersCount = delayedOrders.length;
+
+  // Tone presets for late delivery apology messages
+  const APOLOGY_TONE_PRESETS = {
+    warm: {
+      label: '💖 Warm & Sincere',
+      template: 'Dear {customer_name}, we sincerely apologize that your FoodMaxx order #{order_ref} is experiencing an unexpected delay ({delay_minutes} mins). Chef is speeding up your hot meal right now! 🙏 To make it up to you, please enjoy {compensation_val} on your next order with coupon code *{coupon_code}*. Plus, we have included {free_item} on the house! Thank you for dining with FoodMaxx Ibadan. 🍲'
+    },
+    prof: {
+      label: '⚡ Professional & Swift',
+      template: 'Dear {customer_name}, this is an urgent service update regarding FoodMaxx order #{order_ref}. Your order has exceeded our target preparation window by {delay_minutes} mins. We have prioritized your dispatch. As an apology, coupon code *{coupon_code}* for {compensation_val} has been activated for your phone number. Store manager helpline: {store_phone}.'
+    },
+    naija: {
+      label: '🍲 Naija Foodie & Friendly',
+      template: 'E kaasan {customer_name}! We sincerely beg your pardon o! 🙏 Your FoodMaxx order #{order_ref} is taking a little extra time ({delay_minutes} mins) because our chef is ensuring every portion is freshly cooked & steaming hot. To apologize, please use coupon code *{coupon_code}* for {compensation_val} on your next chow, plus we packed {free_item} for you! 🍔 - FoodMaxx Bodija'
+    }
+  };
+
+  async function handleDispatchLateApology(targetOrder) {
+    if (!targetOrder) return;
+    try {
+      const elapsedMins = Math.max(1, Math.round((Date.now() - new Date(targetOrder.created_at || Date.now()).getTime()) / 60000));
+      const customerName = targetOrder.customer_name || targetOrder.customer?.full_name || 'Valued Foodie';
+      const orderRef = targetOrder.order_reference || targetOrder.id?.slice(0, 8) || 'FMX-LATE';
+      const phone = targetOrder.customer_phone || targetOrder.customer?.phone || targetOrder.phone || '+234 802 345 6789';
+
+      // 1. Generate unique coupon
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const prefix = (settings.late_promo_code_prefix || 'SORRY').toUpperCase().trim();
+      const code = `${prefix}${randomSuffix}`;
+
+      let compensationVal = '20% OFF';
+      let discountType = 'percentage';
+      let discountValue = '20';
+
+      if (settings.late_compensation_type === 'fixed_naira') {
+        const amount = Number(settings.late_discount_amount) || 500;
+        compensationVal = `₦${amount.toLocaleString()} OFF`;
+        discountType = 'fixed';
+        discountValue = String(amount);
+      } else if (settings.late_compensation_type === 'free_delivery') {
+        compensationVal = 'FREE DELIVERY';
+        discountType = 'fixed';
+        discountValue = '1500';
+      } else if (settings.late_compensation_type === 'free_item') {
+        compensationVal = `FREE ${settings.late_free_item_name || 'Drink/Side'}`;
+        discountType = 'percentage';
+        discountValue = '15';
+      } else {
+        const pct = Number(settings.late_discount_percent) || 20;
+        compensationVal = `${pct}% OFF`;
+        discountType = 'percentage';
+        discountValue = String(pct);
+      }
+
+      // Auto-register promo in store promotions so customer can redeem immediately
+      if (settings.late_auto_generate_coupon !== false) {
+        try {
+          await api.savePromotion({
+            code: code,
+            title: `Apology Discount · Order #${orderRef}`,
+            description: `FoodMaxx Late Delivery Apology Goodwill (${compensationVal})`,
+            discount_type: discountType,
+            discount_value: discountValue,
+            min_order: '2000',
+            max_discount: '3000',
+            usage_limit: '1',
+            is_active: true
+          });
+          setPromotions(prev => [{
+            id: `promo_${Date.now()}`,
+            code,
+            title: `Apology (${compensationVal})`,
+            description: `Generated for order #${orderRef}`,
+            discount_type: discountType,
+            discount_value: discountValue,
+            is_active: true
+          }, ...prev]);
+        } catch (err) {
+          console.warn('Could not auto-save promotion to API:', err);
+        }
+      }
+
+      // 2. Format message
+      let template = settings.late_whatsapp_template || 
+        'Dear {customer_name}, we sincerely apologize that your FoodMaxx order #{order_ref} is experiencing an unexpected delay ({delay_minutes} mins). Chef is speeding up your hot meal right now! 🙏 To make it up to you, please enjoy {compensation_val} on your next order with coupon code *{coupon_code}*. Plus, we have included {free_item} on the house! Thank you for dining with FoodMaxx Ibadan. 🍲';
+      
+      const freeItemText = settings.late_include_free_item ? (settings.late_free_item_name || 'a complimentary drink') : '';
+      
+      const msg = template
+        .replace(/{customer_name}/g, customerName)
+        .replace(/{order_ref}/g, orderRef)
+        .replace(/{delay_minutes}/g, String(elapsedMins))
+        .replace(/{coupon_code}/g, code)
+        .replace(/{compensation_val}/g, compensationVal)
+        .replace(/{free_item}/g, freeItemText)
+        .replace(/{store_phone}/g, settings.phone || '+234 802 345 6789');
+
+      // 3. Save to history
+      const historyItem = {
+        id: `apol_${Date.now()}`,
+        orderRef,
+        customerName,
+        phone,
+        code,
+        compensation: compensationVal,
+        delayMins: elapsedMins,
+        sentAt: new Date().toISOString(),
+        message: msg
+      };
+      
+      setApologyHistory(prev => {
+        const next = [historyItem, ...prev.slice(0, 29)];
+        try { localStorage.setItem('fmx_apology_history', JSON.stringify(next)); } catch (e) {}
+        return next;
+      });
+
+      // 4. Open WhatsApp
+      const cleanPhone = String(phone).replace(/\D/g, '');
+      const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+      window.open(whatsappUrl, '_blank');
+
+      toast(`Apology & coupon ${code} created and opened in WhatsApp! 🎁`, 'success');
+    } catch (e) {
+      toast('Failed to dispatch apology: ' + (e.message || 'Error'), 'error');
+    }
+  }
 
   function handleNotifyDelay(order) {
     toast(`Delay alert dispatched to ${order.customer?.full_name || 'customer'} with updated ETA! 📲`, 'success');
   }
 
   function handleDispatchDelayApologyPerk(order) {
-    toast(`₦500 Apology coupon dispatched to ${order.customer?.phone || 'customer'}! 🎁`, 'success');
+    handleDispatchLateApology(order);
   }
 
   function handleSendWinbackPromo(customer) {
@@ -6287,6 +6449,7 @@ function AdminPortal() {
                   { id: 'profile', label: 'Store Profile & Hours', icon: Store },
                   { id: 'ordering', label: 'Ordering & Fees', icon: SlidersHorizontal },
                   { id: 'payments', label: 'Payouts & Payments', icon: CreditCard },
+                  { id: 'apology', label: 'Late Delivery Apology', icon: HeartHandshake, badge: delayedOrdersCount > 0 ? `${delayedOrdersCount} Overdue` : null },
                   { id: 'alerts', label: 'Audio Chimes & WhatsApp', icon: Bell },
                   { id: 'printer', label: 'Thermal POS & Hardware', icon: Printer },
                   { id: 'security', label: 'Security & Staff PIN', icon: ShieldCheck },
@@ -6306,6 +6469,11 @@ function AdminPortal() {
                     >
                       <Icon size={16} className={active ? 'text-white' : 'text-black'} />
                       <span>{tab.label}</span>
+                      {tab.badge && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-600 text-white animate-pulse">
+                          {tab.badge}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -7100,6 +7268,532 @@ function AdminPortal() {
                       Clear Cache & Reload
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ======================================================== */}
+            {/* SUBTAB 7: SPECIAL LATE DELIVERY APOLOGY MANAGEMENT */}
+            {/* ======================================================== */}
+            {settingsSubTab === 'apology' && (
+              <div className="space-y-6">
+                {/* Top Banner & Master Toggle */}
+                <div className="bg-white border border-slate-300 rounded-2xl p-6 sm:p-7 space-y-5 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+                        <HeartHandshake size={26} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-xl font-black text-black">Special Late Delivery Apology Management</h3>
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+                            settings.late_delivery_enabled !== false
+                              ? 'bg-emerald-50 text-emerald-950 border border-emerald-300'
+                              : 'bg-slate-100 text-black border border-slate-300'
+                          }`}>
+                            {settings.late_delivery_enabled !== false ? '🟢 Active & Protecting Diners' : '⚪ System Paused'}
+                          </span>
+                        </div>
+                        <p className="text-sm font-bold text-black mt-1">
+                          Proactively recover delayed diners across Ibadan. Auto-generate apology coupon codes and dispatch heartfelt WhatsApp messages with 1 click.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings.late_delivery_enabled !== false}
+                          onChange={e => setSettings({ ...settings, late_delivery_enabled: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-14 h-7 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-[#EA4C2A]"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Overdue alert indicator */}
+                  <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    delayedOrdersCount > 0
+                      ? 'bg-rose-50 border-rose-300 text-rose-950'
+                      : 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{delayedOrdersCount > 0 ? '⚠️' : '✅'}</span>
+                      <div>
+                        <div className="text-sm font-black">
+                          {delayedOrdersCount > 0
+                            ? `${delayedOrdersCount} Live Order(s) Currently Exceeding Delivery SLA!`
+                            : 'All Live Deliveries On Schedule!'}
+                        </div>
+                        <div className="text-xs font-bold mt-0.5">
+                          {delayedOrdersCount > 0
+                            ? `Orders have been cooking or in transit longer than ${settings.late_delivery_threshold_mins || 35} mins. Apology buttons are active below.`
+                            : `Kitchen prep and courier transit times are within your ${settings.late_delivery_threshold_mins || 35}-minute SLA target.`}
+                        </div>
+                      </div>
+                    </div>
+                    {delayedOrdersCount > 0 && (
+                      <span className="px-3 py-1 bg-rose-600 text-white rounded-lg text-xs font-black shrink-0 animate-pulse">
+                        Action Recommended
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2-Column: Delay Triggers & Compensation Settings */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* CARD 1: DELAY TRIGGER RULES */}
+                  <div className="bg-white border border-slate-300 rounded-2xl p-6 space-y-5 shadow-xs">
+                    <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
+                      <Clock size={18} className="text-[#EA4C2A]" />
+                      <h4 className="font-black text-base text-black">Delay Triggers & SLA Rules</h4>
+                    </div>
+
+                    {/* Delay Threshold Input */}
+                    <div>
+                      <label className="block text-xs font-black text-black uppercase tracking-wider mb-2">
+                        Late Delivery SLA Threshold (Minutes)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="number"
+                          min={15}
+                          max={120}
+                          value={settings.late_delivery_threshold_mins || 35}
+                          onChange={e => setSettings({ ...settings, late_delivery_threshold_mins: Math.max(10, Number(e.target.value)) })}
+                          className="w-28 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-base font-black font-mono text-black outline-none focus:border-[#EA4C2A] focus:bg-white text-center"
+                        />
+                        <span className="text-sm font-black text-black">minutes after order placement</span>
+                      </div>
+                      <div className="flex gap-2 mt-2.5">
+                        {[25, 35, 45, 60].map(mins => (
+                          <button
+                            key={mins}
+                            type="button"
+                            onClick={() => setSettings({ ...settings, late_delivery_threshold_mins: mins })}
+                            className={`px-3 py-1 rounded-lg text-xs font-black transition-colors cursor-pointer border ${
+                              settings.late_delivery_threshold_mins === mins
+                                ? 'bg-[#EA4C2A] text-white border-[#EA4C2A]'
+                                : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                            }`}
+                          >
+                            {mins} mins
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-black font-bold mt-2">
+                        Orders active beyond this duration will be highlighted in bright rose on the Kitchen Display and Orders feed with a 1-tap WhatsApp apology trigger.
+                      </p>
+                    </div>
+
+                    {/* Auto Register Promo in Database */}
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-black text-black">Auto-Activate Coupon in Store Checkout</div>
+                        <div className="text-xs font-bold text-black mt-0.5">
+                          Automatically creates and enables the generated coupon code in FoodMaxx so the diner can redeem it immediately.
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={settings.late_auto_generate_coupon !== false}
+                        onChange={e => setSettings({ ...settings, late_auto_generate_coupon: e.target.checked })}
+                        className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* CARD 2: COMPENSATION & GOODWILL PACK */}
+                  <div className="bg-white border border-slate-300 rounded-2xl p-6 space-y-5 shadow-xs">
+                    <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
+                      <Gift size={18} className="text-[#EA4C2A]" />
+                      <h4 className="font-black text-base text-black">Customer Compensation Pack</h4>
+                    </div>
+
+                    {/* Compensation Type Selector */}
+                    <div>
+                      <label className="block text-xs font-black text-black uppercase tracking-wider mb-2">
+                        Goodwill Compensation Type
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: 'discount_code', label: 'Percentage % Off', desc: 'e.g. 20% off next order' },
+                          { id: 'fixed_naira', label: 'Fixed Naira ₦ Off', desc: 'e.g. ₦500 or ₦1,000 off' },
+                          { id: 'free_delivery', label: 'Free Next Delivery', desc: '100% off delivery fee' },
+                          { id: 'free_item', label: 'Complimentary Treat', desc: 'Free drink or side pack' }
+                        ].map(comp => {
+                          const active = (settings.late_compensation_type || 'discount_code') === comp.id;
+                          return (
+                            <button
+                              key={comp.id}
+                              type="button"
+                              onClick={() => setSettings({ ...settings, late_compensation_type: comp.id })}
+                              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                                active
+                                  ? 'bg-orange-50 border-[#EA4C2A] ring-1 ring-[#EA4C2A]'
+                                  : 'bg-slate-50 hover:bg-slate-100 border-slate-300'
+                              }`}
+                            >
+                              <div className="text-xs font-black text-black">{comp.label}</div>
+                              <div className="text-[11px] font-bold text-black mt-0.5">{comp.desc}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Dynamic Value Input */}
+                    {(settings.late_compensation_type === 'discount_code' || !settings.late_compensation_type) && (
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1.5">Discount Percentage (%)</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={5}
+                            max={50}
+                            value={settings.late_discount_percent || 20}
+                            onChange={e => setSettings({ ...settings, late_discount_percent: Number(e.target.value) })}
+                            className="w-28 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-black font-mono text-black outline-none focus:border-[#EA4C2A] text-center"
+                          />
+                          <span className="text-sm font-black text-black">% discount applied to next meal</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {settings.late_compensation_type === 'fixed_naira' && (
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1.5">Naira Discount Amount (₦)</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            step={100}
+                            min={200}
+                            value={settings.late_discount_amount || 500}
+                            onChange={e => setSettings({ ...settings, late_discount_amount: Number(e.target.value) })}
+                            className="w-32 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-black font-mono text-black outline-none focus:border-[#EA4C2A] text-center"
+                          />
+                          <span className="text-sm font-black text-black">₦ deduction on next order</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Coupon Prefix */}
+                    <div>
+                      <label className="block text-xs font-black text-black mb-1.5">Voucher Code Prefix</label>
+                      <input
+                        type="text"
+                        value={settings.late_promo_code_prefix || 'SORRY'}
+                        onChange={e => setSettings({ ...settings, late_promo_code_prefix: e.target.value.toUpperCase() })}
+                        className="w-48 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-mono font-black text-black uppercase outline-none focus:border-[#EA4C2A]"
+                        placeholder="e.g. SORRY"
+                      />
+                      <p className="text-xs text-black font-bold mt-1">
+                        Will generate unique codes like: <span className="font-mono font-black text-[#EA4C2A]">{settings.late_promo_code_prefix || 'SORRY'}20-8492</span>
+                      </p>
+                    </div>
+
+                    {/* Complimentary Kitchen Item */}
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-black flex items-center gap-2">
+                          <span>Include Free Kitchen Item in Bag</span>
+                        </label>
+                        <input
+                          type="checkbox"
+                          checked={settings.late_include_free_item !== false}
+                          onChange={e => setSettings({ ...settings, late_include_free_item: e.target.checked })}
+                          className="w-4 h-4 accent-[#EA4C2A] cursor-pointer"
+                        />
+                      </div>
+                      {settings.late_include_free_item !== false && (
+                        <input
+                          type="text"
+                          value={settings.late_free_item_name || 'Complimentary Chilled Soft Drink / Extra Dodo'}
+                          onChange={e => setSettings({ ...settings, late_free_item_name: e.target.value })}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          placeholder="e.g. Chilled Soft Drink / Extra Fried Plantain"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* CARD 3: WHATSAPP APOLOGY COMMUNICATION & TONE */}
+                <div className="bg-white border border-slate-300 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare size={18} className="text-[#EA4C2A]" />
+                      <h4 className="font-black text-base text-black">WhatsApp Apology Message & Tone</h4>
+                    </div>
+                    <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-300">
+                      ⚡ 1-Tap Customer Dispatch
+                    </span>
+                  </div>
+
+                  {/* Tone Presets Selector */}
+                  <div>
+                    <label className="block text-xs font-black text-black uppercase tracking-wider mb-2">
+                      Select Apology Tone (Click to Apply Preset)
+                    </label>
+                    <div className="flex flex-wrap gap-2.5">
+                      {Object.entries(APOLOGY_TONE_PRESETS).map(([key, tone]) => {
+                        const active = (settings.late_apology_tone || 'warm') === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => {
+                              setSettings({
+                                ...settings,
+                                late_apology_tone: key,
+                                late_whatsapp_template: tone.template
+                              });
+                              toast(`Switched to "${tone.label}" tone!`, 'info');
+                            }}
+                            className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                              active
+                                ? 'bg-[#EA4C2A] text-white border-[#EA4C2A] shadow-xs'
+                                : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                            }`}
+                          >
+                            <span>{tone.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Message Template Editor & Live Preview */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    {/* Left: Template Editor */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-black text-black">WhatsApp Message Template</label>
+                      <textarea
+                        rows={6}
+                        value={settings.late_whatsapp_template || APOLOGY_TONE_PRESETS.warm.template}
+                        onChange={e => setSettings({ ...settings, late_whatsapp_template: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3.5 text-xs text-black font-medium outline-none focus:border-[#EA4C2A] focus:bg-white leading-relaxed resize-y"
+                      />
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-[10px] text-black font-black uppercase mr-1">Insert Tags:</span>
+                        {[
+                          '{customer_name}',
+                          '{order_ref}',
+                          '{delay_minutes}',
+                          '{coupon_code}',
+                          '{compensation_val}',
+                          '{free_item}',
+                          '{store_phone}'
+                        ].map(tag => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              const cur = settings.late_whatsapp_template || '';
+                              setSettings({ ...settings, late_whatsapp_template: cur + ' ' + tag });
+                            }}
+                            className="text-[11px] font-mono font-bold bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black px-2 py-0.5 rounded cursor-pointer transition-colors"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Right: Authentic WhatsApp Message Preview Bubble */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-black text-black flex items-center justify-between">
+                        <span>Customer WhatsApp Screen Preview</span>
+                        <span className="text-[11px] text-emerald-800 font-bold">● Live rendering</span>
+                      </label>
+                      <div className="bg-[#E5DDD5] dark:bg-[#121B22] p-4 rounded-2xl border border-slate-300 shadow-inner min-h-[170px] flex flex-col justify-end">
+                        <div className="bg-white dark:bg-[#1F2C34] p-3.5 rounded-2xl rounded-bl-xs shadow-md border border-slate-200/50 max-w-[92%] space-y-1.5">
+                          <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100">
+                            <span className="font-black text-xs text-emerald-800">FoodMaxx Kitchen Ibadan</span>
+                            <span className="text-[10px] text-emerald-600 font-bold">✔ Verified</span>
+                          </div>
+                          <p className="text-xs text-black dark:text-white font-medium leading-relaxed whitespace-pre-wrap">
+                            {(settings.late_whatsapp_template || APOLOGY_TONE_PRESETS.warm.template)
+                              .replace(/{customer_name}/g, 'Babajide Adeyemi')
+                              .replace(/{order_ref}/g, 'FMX-9281')
+                              .replace(/{delay_minutes}/g, '42')
+                              .replace(/{coupon_code}/g, `${settings.late_promo_code_prefix || 'SORRY'}20-9281`)
+                              .replace(/{compensation_val}/g, settings.late_compensation_type === 'fixed_naira' ? `₦${settings.late_discount_amount || 500} OFF` : '20% OFF')
+                              .replace(/{free_item}/g, settings.late_include_free_item ? (settings.late_free_item_name || 'a complimentary drink') : '')
+                              .replace(/{store_phone}/g, settings.phone || '+234 802 345 6789')}
+                          </p>
+                          <div className="text-right text-[10px] text-slate-500 font-mono flex items-center justify-end gap-1 pt-1">
+                            <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-sky-500 font-bold">✓✓</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CARD 4: LIVE DELAYED ORDERS RADAR & 1-CLICK APOLOGY CONSOLE */}
+                <div className="bg-white border border-slate-300 rounded-2xl p-6 sm:p-7 space-y-5 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                    <div>
+                      <h4 className="font-black text-base text-black flex items-center gap-2">
+                        <span>⚡ Active Delayed Orders Radar</span>
+                        <span className="text-xs font-mono font-black px-2.5 py-0.5 rounded-full bg-slate-100 text-black border border-slate-300">
+                          {delayedOrders.length} detected
+                        </span>
+                      </h4>
+                      <p className="text-xs font-bold text-black mt-0.5">
+                        Orders exceeding your {settings.late_delivery_threshold_mins || 35}-minute SLA. Click dispatch to automatically generate the voucher and open customer WhatsApp.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Test mock order
+                        const mockOrder = {
+                          id: 'order_test_' + Date.now(),
+                          order_reference: 'FMX-TEST' + Math.floor(100 + Math.random() * 900),
+                          customer_name: 'Test Customer (Demo)',
+                          customer_phone: settings.whatsapp_dispatch || settings.phone || '+2348023456789',
+                          created_at: new Date(Date.now() - 48 * 60000).toISOString(),
+                          delivery_zone: 'Bodija, Ibadan',
+                          total_amount: 4500
+                        };
+                        handleDispatchLateApology(mockOrder);
+                      }}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0"
+                    >
+                      <Sparkles size={14} className="text-amber-500" />
+                      <span>Test Apology (Simulate Order)</span>
+                    </button>
+                  </div>
+
+                  {delayedOrders.length === 0 ? (
+                    <div className="p-8 rounded-2xl bg-emerald-50/70 border border-emerald-300 text-center space-y-2">
+                      <div className="text-3xl">🎉</div>
+                      <div className="text-base font-black text-emerald-950">All Deliveries Running Smoothly!</div>
+                      <p className="text-xs font-bold text-emerald-900 max-w-md mx-auto">
+                        There are currently no active orders exceeding your {settings.late_delivery_threshold_mins || 35}-minute target. You can simulate an apology test with the button above.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {delayedOrders.map(order => {
+                        const elapsedMins = Math.round((Date.now() - new Date(order.created_at).getTime()) / 60000);
+                        const overdueMins = elapsedMins - (Number(settings.late_delivery_threshold_mins) || 35);
+                        return (
+                          <div
+                            key={order.id}
+                            className="p-4 rounded-2xl bg-rose-50/80 border border-rose-300 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:bg-rose-50"
+                          >
+                            <div className="flex items-start gap-3.5 min-w-0">
+                              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-xs">
+                                ⏱️
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono font-black text-sm text-black">
+                                    #{order.order_reference || order.id?.slice(0, 8)}
+                                  </span>
+                                  <span className="text-xs font-black text-black">· {order.customer_name || 'Customer'}</span>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">
+                                    +{overdueMins}m Overdue
+                                  </span>
+                                </div>
+                                <div className="text-xs text-black font-bold mt-1">
+                                  <span>{order.delivery_zone || 'Ibadan'}</span>
+                                  <span className="mx-1.5">•</span>
+                                  <span>Elapsed: <strong className="font-mono font-black text-rose-800">{elapsedMins} mins</strong></span>
+                                  <span className="mx-1.5">•</span>
+                                  <span>Status: <strong className="uppercase">{order.order_status || 'PREPARING'}</strong></span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleDispatchLateApology(order)}
+                                className="px-4 py-2.5 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-95 text-white font-black rounded-xl text-xs flex items-center gap-2 shadow-xs cursor-pointer transition-all"
+                              >
+                                <HeartHandshake size={15} />
+                                <span>Send WhatsApp Apology & Coupon</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* CARD 5: APOLOGY & GOODWILL DISPATCH AUDIT LOG */}
+                <div className="bg-white border border-slate-300 rounded-2xl p-6 sm:p-7 space-y-4 shadow-xs">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                    <div>
+                      <h4 className="font-black text-base text-black flex items-center gap-2">
+                        <CheckCircle size={18} className="text-emerald-700" />
+                        <span>Recent Apologies & Vouchers Issued</span>
+                      </h4>
+                      <p className="text-xs font-bold text-black mt-0.5">Audit log of apology compensation sent to customers.</p>
+                    </div>
+                    <span className="text-xs font-mono font-black text-black bg-slate-100 px-3 py-1 rounded-lg border border-slate-300">
+                      {apologyHistory.length} Recorded
+                    </span>
+                  </div>
+
+                  {apologyHistory.length === 0 ? (
+                    <p className="text-xs text-black font-bold py-4 text-center">No apologies have been dispatched yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-200 text-black uppercase font-black tracking-wider">
+                            <th className="pb-2.5 pl-1">Order Ref</th>
+                            <th className="pb-2.5">Customer</th>
+                            <th className="pb-2.5">Voucher Code</th>
+                            <th className="pb-2.5">Goodwill Perk</th>
+                            <th className="pb-2.5">Dispatched At</th>
+                            <th className="pb-2.5 pr-1 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {apologyHistory.map(item => (
+                            <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="py-3 pl-1 font-mono font-black text-black">#{item.orderRef}</td>
+                              <td className="py-3 font-bold text-black">
+                                <div>{item.customerName}</div>
+                                <div className="text-[11px] font-mono text-black">{item.phone}</div>
+                              </td>
+                              <td className="py-3">
+                                <span className="font-mono font-black text-xs text-[#EA4C2A] bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
+                                  {item.code}
+                                </span>
+                              </td>
+                              <td className="py-3 font-black text-black">{item.compensation}</td>
+                              <td className="py-3 text-black font-bold">
+                                {new Date(item.sentAt).toLocaleDateString()} {new Date(item.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </td>
+                              <td className="py-3 pr-1 text-right">
+                                <a
+                                  href={`https://wa.me/${String(item.phone).replace(/\D/g, '')}?text=${encodeURIComponent(item.message || '')}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-lg text-xs font-black transition-colors"
+                                >
+                                  <span>💬 Re-open</span>
+                                </a>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
