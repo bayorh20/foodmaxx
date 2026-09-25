@@ -1256,6 +1256,14 @@ function CustomerPortal() {
   }, [addItem, toast]);
 
   const handleSelectItem = useCallback((item) => {
+    if (item?.image_url) {
+      const img = new Image();
+      const cleanUrl = String(item.image_url).trim();
+      const targetUrl = cleanUrl.includes('images.unsplash.com') 
+        ? `${cleanUrl.split('?')[0]}?w=800&auto=format&fit=crop&q=75`
+        : cleanUrl;
+      img.src = targetUrl;
+    }
     setSelectedItem({ restaurant: { id: 'rest_foodmaxx', name: 'FoodMaxx' }, item });
   }, []);
 
@@ -6062,7 +6070,22 @@ function FoodDetailModal({ restaurant, item, onClose }) {
 
   const currentSizeObj = hasSizes ? (sizes.find(s => s.name === selectedSize) || sizes[0]) : null;
   const sizeAdj = currentSizeObj?.price_adjustment || 0;
-  const heroImage = currentSizeObj?.image_url || item.image_url;
+  const rawHeroImage = currentSizeObj?.image_url || item.image_url;
+  const heroImage = getOptimizedImageUrl(rawHeroImage, 800);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  useEffect(() => {
+    setImageLoaded(false);
+    if (heroImage) {
+      const img = new Image();
+      img.src = heroImage;
+      if (img.complete) {
+        setImageLoaded(true);
+      } else {
+        img.onload = () => setImageLoaded(true);
+      }
+    }
+  }, [heroImage]);
 
   const pairingPrices = {
     'Cold Chapman': 1200,
@@ -6169,18 +6192,29 @@ function FoodDetailModal({ restaurant, item, onClose }) {
           
           {/* 1. Immersive Hero Media Card - Fills the Upper Part */}
           <div className="relative h-80 sm:h-96 md:h-[420px] w-full bg-slate-900 overflow-hidden shrink-0">
+            {/* Shimmer skeleton while loading */}
+            {!imageLoaded && (
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 animate-pulse flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-emerald-400 animate-spin" />
+              </div>
+            )}
             <motion.img
               key={heroImage}
-              initial={{ scale: 1.04 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: 0.35, ease: 'easeOut' }}
+              initial={{ opacity: 0.3, scale: 1.02 }}
+              animate={{ opacity: imageLoaded ? 1 : 0.6, scale: 1 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              onLoad={() => setImageLoaded(true)}
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80';
+                e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=75';
+                setImageLoaded(true);
               }}
               src={heroImage}
               alt={item.name}
-              className="w-full h-full object-cover object-center"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+              className={`w-full h-full object-cover object-center transition-all duration-300 ${imageLoaded ? 'filter-none' : 'blur-xs scale-105'}`}
             />
             {/* Soft Ambient Vignette Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 pointer-events-none" />
@@ -7062,8 +7096,8 @@ function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete 
             channel: paymentChannel
           });
         }
-      }, 1000);
-    }, 2000);
+      }, 500);
+    }, 900);
   };
 
   const copyAccountNumber = () => {
@@ -7615,71 +7649,34 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
     }
   }
 
-  async function handlePaystackCheckout(orderData, activeUser) {
+  function handlePaystackCheckout(orderData, activeUser) {
     const activeKey = (paystackKey || getStoredPaystackConfig().publicKey || 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a').trim();
     const txRef = `FMX_PSTK_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
     const effectiveEmail = activeUser?.email || orderData.customer_email || 'customer@foodmaxx.ng';
     const effectiveName = activeUser?.full_name || orderData.customer_name || 'FoodMaxx Customer';
     const effectivePhone = activeUser?.phone || orderData.customer_phone || '';
 
-    await loadPaystackScript();
-
-    try {
-      launchRealPaystack({
-        key: activeKey,
-        email: effectiveEmail,
-        amount: total,
-        reference: txRef,
-        customerName: effectiveName,
-        phone: effectivePhone,
-        metadata: {
-          custom_fields: [
-            { display_name: 'Customer Name', variable_name: 'customer_name', value: effectiveName },
-            { display_name: 'Customer Phone', variable_name: 'customer_phone', value: effectivePhone },
-            { display_name: 'Order Subtotal', variable_name: 'order_subtotal', value: `NGN ${subtotal}` },
-            { display_name: 'Delivery Address', variable_name: 'delivery_address', value: orderData.delivery_address || '' }
-          ]
-        },
-        onSuccess: async (tx) => {
-          await completePaystackOrder(orderData, tx.reference || txRef);
-        },
-        onCancel: () => {
-          toast('Paystack payment window closed', 'info');
-          setLoading(false);
-        },
-        onError: (err) => {
-          console.warn('Native Paystack popup open failed or blocked, switching to Paystack modal:', err);
-          pendingOrderDataRef.current = orderData;
-          setPaystackModalData({
-            key: activeKey,
-            email: effectiveEmail,
-            amount: total,
-            reference: txRef,
-            customerName: effectiveName,
-            phone: effectivePhone,
-            metadata: {},
-            orderData
-          });
-          setPaystackModalOpen(true);
-          setLoading(false);
-        }
-      });
-    } catch (err) {
-      console.warn('Paystack checkout initialization error, switching to Paystack modal:', err);
-      pendingOrderDataRef.current = orderData;
-      setPaystackModalData({
-        key: activeKey,
-        email: effectiveEmail,
-        amount: total,
-        reference: txRef,
-        customerName: effectiveName,
-        phone: effectivePhone,
-        metadata: {},
-        orderData
-      });
-      setPaystackModalOpen(true);
-      setLoading(false);
-    }
+    // Immediately open Paystack Modal with zero network delay (0ms)
+    pendingOrderDataRef.current = orderData;
+    setPaystackModalData({
+      key: activeKey,
+      email: effectiveEmail,
+      amount: total,
+      reference: txRef,
+      customerName: effectiveName,
+      phone: effectivePhone,
+      metadata: {
+        custom_fields: [
+          { display_name: 'Customer Name', variable_name: 'customer_name', value: effectiveName },
+          { display_name: 'Customer Phone', variable_name: 'customer_phone', value: effectivePhone },
+          { display_name: 'Order Subtotal', variable_name: 'order_subtotal', value: `NGN ${subtotal}` },
+          { display_name: 'Delivery Address', variable_name: 'delivery_address', value: orderData.delivery_address || '' }
+        ]
+      },
+      orderData
+    });
+    setPaystackModalOpen(true);
+    setLoading(false);
   }
 
   async function placeOrder() {
@@ -7725,15 +7722,24 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
       }
     }
 
-    setLoading(true);
+    // For wallet/free order, show quick loading; for Paystack, open instantly
+    if (paymentMethod !== 'paystack' || total === 0) {
+      setLoading(true);
+    }
     try {
       let activeUser = user;
       if (!activeUser && silentRegister) {
-        activeUser = await silentRegister({
+        // Run silent registration asynchronously in background so modal opens without lag
+        silentRegister({
           full_name: nameToUse,
           phone: phoneToUse,
           email: emailToUse || undefined
-        });
+        }).catch(() => {});
+        activeUser = {
+          full_name: nameToUse,
+          phone: phoneToUse,
+          email: emailToUse
+        };
       } else if (isEditingContact && updateUser) {
         updateUser({
           full_name: nameToUse,
