@@ -29,6 +29,7 @@ import OptimizedProductImage, { getOptimizedImageUrl, preloadImage, prefetchCata
 const AdminPortal = lazy(() => import('./components/AdminPortal'));
 import SplashScreen from './components/SplashScreen';
 import OnboardingFlow from './components/OnboardingFlow';
+import ThemeSelectionScreen from './components/ThemeSelectionScreen';
 import TransitionStudioModal, { getTransitionVariants } from './components/TransitionStudioModal';
 import SpinAndWinModal from './components/SpinAndWinModal';
 import {
@@ -149,7 +150,7 @@ const AuthCtx = createContext(null);
 const CartCtx = createContext(null);
 const ToastCtx = createContext(null);
 const WSCtx = createContext(null);
-const ThemeCtx = createContext({ isDark: false, toggleDark: () => {} });
+const ThemeCtx = createContext({ isDark: false, toggleDark: () => {}, setTheme: () => {} });
 
 export function useAuth() { return useContext(AuthCtx); }
 export function useCart() { return useContext(CartCtx); }
@@ -170,6 +171,12 @@ function ThemeProvider({ children }) {
     });
   };
 
+  const setTheme = (theme) => {
+    const next = theme === 'dark';
+    setIsDark(next);
+    localStorage.setItem('fmx_theme', next ? 'dark' : 'light');
+  };
+
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
@@ -179,7 +186,7 @@ function ThemeProvider({ children }) {
   }, [isDark]);
 
   return (
-    <ThemeCtx.Provider value={{ isDark, toggleDark }}>
+    <ThemeCtx.Provider value={{ isDark, toggleDark, setTheme }}>
       {children}
     </ThemeCtx.Provider>
   );
@@ -658,12 +665,18 @@ function CustomerPortal() {
   const { cart, itemCount, subtotal, addItem, clearCart } = useCart();
   const toast = useToast();
   const ws = useWS();
-  const { isDark, toggleDark } = useTheme();
+  const { isDark, toggleDark, setTheme } = useTheme();
 
   const [appStage, setAppStage] = useState(() => {
     try {
+      const themeChosen = localStorage.getItem('fmx_theme_chosen') === 'true';
       const onboarded = localStorage.getItem('fmx_onboarded') === 'true';
       const splashSeen = localStorage.getItem('fmx_splash_seen') === 'true' || sessionStorage.getItem('fmx_splash_seen') === 'true';
+
+      // First-time access: Prompt user to choose preferred theme first
+      if (!themeChosen) {
+        return 'theme_select';
+      }
 
       // Never show splash page on reload if user has already visited or onboarded
       if (onboarded || splashSeen) {
@@ -1294,8 +1307,24 @@ function CustomerPortal() {
            : 'w-full max-w-md sm:max-w-lg md:max-w-xl h-full min-h-[100dvh] md:min-h-0 md:h-[94vh] md:max-h-[920px] md:rounded-3xl md:border md:border-slate-200/90 dark:md:border-white/10 shadow-2xl md:my-auto'
          }`}>
 
-        {/* SPLASH SCREEN & ONBOARDING / PERMISSIONS / SILENT REGISTRATION */}
-        <AnimatePresence>
+        {/* FIRST-TIME THEME SELECTION, SPLASH SCREEN & ONBOARDING */}
+        <AnimatePresence mode="wait">
+          {appStage === 'theme_select' && (
+            <ThemeSelectionScreen
+              onSelectTheme={(selectedTheme) => {
+                setTheme(selectedTheme);
+                try {
+                  localStorage.setItem('fmx_theme_chosen', 'true');
+                } catch {}
+                const onboarded = localStorage.getItem('fmx_onboarded') === 'true';
+                if (onboarded) {
+                  setAppStage('ready');
+                } else {
+                  setAppStage('splash');
+                }
+              }}
+            />
+          )}
           {appStage === 'splash' && (
             <SplashScreen 
               onFinish={() => {
@@ -1622,6 +1651,7 @@ function CustomerPortal() {
                   onOpenTransitionStudio={() => setTransitionModalOpen(true)}
                   onOpenOrders={() => setActiveTab('orders')}
                   onOpenFavorites={() => setActiveTab('favorites')}
+                  onOpenThemeSelection={() => setAppStage('theme_select')}
                   isDark={isDark} toggleDark={toggleDark}
                 />
               )}
@@ -3874,6 +3904,7 @@ function ProfileTab({
   onOpenTransitionStudio,
   onOpenOrders,
   onOpenFavorites,
+  onOpenThemeSelection,
   isDark,
   toggleDark
 }) {
@@ -4114,6 +4145,14 @@ function ProfileTab({
               isToggle: true,
               onClick: toggleDark,
               color: isDark ? 'text-amber-400' : 'text-indigo-500'
+            },
+            {
+              icon: Palette,
+              label: 'Choose Preferred Theme Screen',
+              badge: 'Setup',
+              badgeColor: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
+              onClick: onOpenThemeSelection,
+              color: 'text-rose-500'
             },
             {
               icon: Compass,
