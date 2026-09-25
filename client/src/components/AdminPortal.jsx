@@ -2812,9 +2812,13 @@ function AdminPortal() {
   const [ticketFilter, setTicketFilter] = useState('all'); // 'all' | 'open' | 'resolved'
   const [ticketSearch, setTicketSearch] = useState('');
   const [ticketDraftReply, setTicketDraftReply] = useState('');
-  const [sendingTicketReply, setSendingTicketReply] = useState(false);
-  const [settings, setSettings] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState(() => {
+    try {
+      const cached = localStorage.getItem('fmx_store_settings');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return { is_open: true, isOpen: true, kitchen_status: 'open' };
+  });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Active Modals for Order actions
@@ -3239,10 +3243,19 @@ function AdminPortal() {
       }).catch(() => {});
       api.getAdminRiders().then(r => r?.data && setRiders(r.data)).catch(() => {});
       api.getAdminPayouts().then(r => r?.data && setPayouts(r.data)).catch(() => {});
+      api.getAdminSettings().then(r => {
+        if (r?.data) {
+          setSettings(r.data);
+          try {
+            localStorage.setItem('fmx_store_settings', JSON.stringify(r.data));
+            localStorage.setItem('foodmaxx_store_open', String(r.data.is_open !== false));
+          } catch {}
+        }
+      }).catch(() => {});
     }
   }, [isSuperAdmin]);
 
-  // Firestore real-time admin subscriptions (Products, Addons & Support)
+  // Firestore real-time admin subscriptions (Products, Addons, Settings, Riders & Support)
   useEffect(() => {
     if (!isSuperAdmin) return;
     const unsubProducts = api.subscribeLiveProducts
@@ -3277,12 +3290,24 @@ function AdminPortal() {
           }
         })
       : null;
+    const unsubSettings = api.subscribeLiveSettings
+      ? api.subscribeLiveSettings((liveSettings) => {
+          if (liveSettings && typeof liveSettings === 'object') {
+            setSettings(liveSettings);
+            try {
+              localStorage.setItem('fmx_store_settings', JSON.stringify(liveSettings));
+              localStorage.setItem('foodmaxx_store_open', String(liveSettings.is_open !== false));
+            } catch {}
+          }
+        })
+      : null;
     return () => {
       if (typeof unsubProducts === 'function') unsubProducts();
       if (typeof unsubAddons === 'function') unsubAddons();
       if (typeof unsubSupport === 'function') unsubSupport();
       if (typeof unsubRiders === 'function') unsubRiders();
       if (typeof unsubSections === 'function') unsubSections();
+      if (typeof unsubSettings === 'function') unsubSettings();
     };
   }, [isSuperAdmin]);
 
@@ -3498,13 +3523,34 @@ function AdminPortal() {
 
   // Quick Kitchen Open/Close Toggle
   async function toggleKitchenStatus() {
-    const nextStatus = settings.is_open === false ? true : false;
+    const isCurrentlyOpen = settings.is_open !== false;
+    const nextStatus = !isCurrentlyOpen;
+    const optimistic = {
+      ...settings,
+      is_open: nextStatus,
+      isOpen: nextStatus,
+      kitchen_status: nextStatus ? 'open' : 'closed'
+    };
+    setSettings(optimistic);
     try {
-      const updated = await api.saveAdminSettings({ ...settings, is_open: nextStatus });
-      setSettings(updated.data || { ...settings, is_open: nextStatus });
-      toast(`Kitchen is now ${nextStatus ? '🟢 OPEN (Accepting Orders)' : '🔴 PAUSED (Kitchen Busy)'}`, nextStatus ? 'success' : 'warning');
+      localStorage.setItem('fmx_store_settings', JSON.stringify(optimistic));
+      localStorage.setItem('foodmaxx_store_open', String(nextStatus));
+      window.dispatchEvent(new CustomEvent('fmx_store_settings_updated', { detail: optimistic }));
+    } catch {}
+
+    try {
+      const updated = await api.saveAdminSettings(optimistic);
+      if (updated?.data) {
+        setSettings(updated.data);
+      }
+      playNativeSound('success');
+      toast(
+        nextStatus ? '🟢 Store is now OPEN for Orders' : '🔴 Store is now CLOSED for Orders',
+        nextStatus ? 'success' : 'warning'
+      );
     } catch (e) {
-      toast('Failed to toggle kitchen status', 'error');
+      setSettings(prev => ({ ...prev, is_open: isCurrentlyOpen, isOpen: isCurrentlyOpen, kitchen_status: isCurrentlyOpen ? 'open' : 'closed' }));
+      toast('Failed to update kitchen status: ' + (e?.message || 'Network error'), 'error');
     }
   }
 
@@ -3904,14 +3950,15 @@ function AdminPortal() {
           <button
             type="button"
             onClick={toggleKitchenStatus}
-            className={`px-3 py-1 rounded-full text-[11px] font-semibold border cursor-pointer flex items-center gap-1.5 ${
+            title={settings.is_open !== false ? 'Kitchen is Open. Tap to Close for Orders' : 'Kitchen is Closed. Tap to Open for Orders'}
+            className={`px-3 py-1 rounded-full text-[11px] font-black border cursor-pointer flex items-center gap-1.5 shadow-2xs transition-all ${
               settings.is_open !== false
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-rose-50 text-rose-700 border-rose-200'
+                ? 'bg-emerald-50 text-emerald-950 border-emerald-400'
+                : 'bg-rose-50 text-rose-950 border-rose-400'
             }`}
           >
-            <span className={`w-2 h-2 rounded-full ${settings.is_open !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-            <span>{settings.is_open !== false ? 'Open' : 'Closed'}</span>
+            <span className={`w-2 h-2 rounded-full shrink-0 ${settings.is_open !== false ? 'bg-emerald-600 animate-pulse' : 'bg-rose-600'}`} />
+            <span className="text-black font-black">{settings.is_open !== false ? 'Open for Orders' : 'Close for Orders'}</span>
           </button>
           <button
             onClick={() => {
@@ -4080,7 +4127,7 @@ function AdminPortal() {
         {/* Top Header (Matching Reference Image) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight">
               {activeSection === 'overview' ? 'Dashboard' :
                activeSection === 'orders' ? 'Orders' :
                activeSection === 'products' ? 'Menu' :
@@ -4091,32 +4138,37 @@ function AdminPortal() {
                activeSection === 'promotions' ? 'Discounts' :
                activeSection === 'settings' ? 'Settings' : 'Dashboard'}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 font-normal mt-0.5">
+            <p className="text-xs sm:text-sm text-black font-bold mt-0.5">
               Welcome back! Here's what's happening at FoodMaxx.
             </p>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Open for Orders Pill */}
+            {/* Open / Close for Orders Pill Button */}
             <button
               type="button"
               onClick={toggleKitchenStatus}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border flex items-center gap-2 cursor-pointer transition-all shadow-xs ${
+              title={settings.is_open !== false ? 'Kitchen is Open. Click to Close Store for Orders' : 'Kitchen is Closed. Click to Open Store for Orders'}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-black border flex items-center gap-2 cursor-pointer transition-all shadow-xs ${
                 settings.is_open !== false
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                  : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                  ? 'bg-emerald-50 text-emerald-950 border-emerald-400 hover:bg-emerald-100 hover:border-emerald-500'
+                  : 'bg-rose-50 text-rose-950 border-rose-400 hover:bg-rose-100 hover:border-rose-500'
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${settings.is_open !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-              <span>{settings.is_open !== false ? 'Open for Orders' : 'Store Closed'}</span>
-              <ChevronDown size={14} className="opacity-60" />
+              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${settings.is_open !== false ? 'bg-emerald-600 animate-pulse' : 'bg-rose-600'}`} />
+              <span className="text-black font-black">
+                {settings.is_open !== false ? 'Open for Orders' : 'Close for Orders'}
+              </span>
+              <span className="text-[10px] font-bold text-black bg-white/90 px-1.5 py-0.5 rounded-md border border-slate-300">
+                {settings.is_open !== false ? 'Tap to Close' : 'Tap to Open'}
+              </span>
             </button>
 
             {/* Restaurant Profile Pill */}
-            <div className="flex items-center gap-2 px-2.5 py-1 bg-white border border-slate-200 rounded-full shadow-xs">
-              <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-6 h-6 rounded-full object-cover border border-slate-100" />
-              <span className="text-xs font-bold text-slate-800">FoodMaxx</span>
-              <ChevronDown size={14} className="text-slate-400" />
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 rounded-full shadow-xs">
+              <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-6 h-6 rounded-full object-cover border border-slate-200" />
+              <span className="text-xs font-black text-black">FoodMaxx</span>
+              <ChevronDown size={14} className="text-black" />
             </div>
 
             {/* Quick Loud Chime Audio Bell */}
@@ -4135,12 +4187,12 @@ function AdminPortal() {
               }}
               className={`p-2 rounded-full border text-xs font-bold transition-all cursor-pointer shadow-xs ${
                 orderSoundEnabled
-                  ? 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100'
-                  : 'bg-slate-100 border-slate-200 text-slate-400'
+                  ? 'bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200'
+                  : 'bg-slate-100 border-slate-300 text-black'
               }`}
               title={orderSoundEnabled ? 'Kitchen Chime Active (Tap to Mute)' : 'Chime Muted (Tap to Enable)'}
             >
-              <Bell size={15} className={orderSoundEnabled ? 'fill-amber-500 text-amber-600' : ''} />
+              <Bell size={15} className={orderSoundEnabled ? 'fill-amber-600 text-amber-800' : 'text-black'} />
             </button>
 
             {/* Theme Picker */}
@@ -4151,7 +4203,7 @@ function AdminPortal() {
                 const nextIdx = (keys.indexOf(adminThemeKey) + 1) % keys.length;
                 selectAdminTheme(keys[nextIdx]);
               }}
-              className="p-2 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors shadow-xs cursor-pointer"
+              className="p-2 rounded-full bg-white border border-slate-300 text-black hover:bg-slate-50 transition-colors shadow-xs cursor-pointer font-bold"
               title={`Cycle Theme (Current: ${currentAdminTheme.name})`}
             >
               <Palette size={14} style={{ color: currentAdminTheme.accent }} />
@@ -4166,23 +4218,23 @@ function AdminPortal() {
           <div className="space-y-6">
             {/* Optional Delayed Orders Banner if delayed orders exist */}
             {delayedOrdersCount > 0 && (
-              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="bg-rose-50 border border-rose-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-lg shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-rose-200 text-rose-800 flex items-center justify-center font-black text-lg shrink-0">
                     ⏱️
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm text-slate-900">
+                    <h3 className="font-black text-sm text-black">
                       {delayedOrdersCount} Orders Running Late (&gt;25 mins)
                     </h3>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-black font-semibold">
                       Kitchen queue is taking longer than expected. Assign courier or notify customer.
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => handleNavChange('orders')}
-                  className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0"
+                  className="px-3.5 py-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-black transition-all cursor-pointer shadow-xs shrink-0"
                 >
                   Manage Late Orders →
                 </button>
@@ -4192,15 +4244,15 @@ function AdminPortal() {
             {/* Top 4 Statistic Cards (Matching Reference Image) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {/* Card 1: Total Orders */}
-              <div className="bg-[#FFF5F5] border border-rose-100/90 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-[#FFF5F5] border border-rose-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-slate-500 mb-1">Total Orders</p>
-                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  <p className="text-xs font-black text-black mb-1">Total Orders</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-black tracking-tight">
                     {orders.length || overview?.totalOrders || 24}
                   </h3>
-                  <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1 mt-1">
+                  <p className="text-xs font-bold text-emerald-700 flex items-center gap-1 mt-1">
                     <span>↑ 20%</span>
-                    <span className="text-slate-400 font-normal">vs. yesterday</span>
+                    <span className="text-black font-bold">vs. yesterday</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#EF4444] text-white flex items-center justify-center shadow-md shadow-rose-500/25 shrink-0">
@@ -4209,32 +4261,32 @@ function AdminPortal() {
               </div>
 
               {/* Card 2: Total Revenue */}
-              <div className="bg-[#F0FDF4] border border-emerald-100/90 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-[#F0FDF4] border border-emerald-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-slate-500 mb-1">Total Revenue</p>
-                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  <p className="text-xs font-black text-black mb-1">Total Revenue</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-black tracking-tight">
                     ₦{Number(todayRevenue).toLocaleString()}
                   </h3>
-                  <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1 mt-1">
+                  <p className="text-xs font-bold text-emerald-700 flex items-center gap-1 mt-1">
                     <span>↑ 18%</span>
-                    <span className="text-slate-400 font-normal">vs. yesterday</span>
+                    <span className="text-black font-bold">vs. yesterday</span>
                   </p>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-[#10B981] text-white flex items-center justify-center shadow-md shadow-emerald-500/25 shrink-0 font-bold text-xl">
+                <div className="w-12 h-12 rounded-2xl bg-[#10B981] text-white flex items-center justify-center shadow-md shadow-emerald-500/25 shrink-0 font-black text-xl">
                   ₦
                 </div>
               </div>
 
               {/* Card 3: New Customers */}
-              <div className="bg-[#EFF6FF] border border-blue-100/90 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-[#EFF6FF] border border-blue-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-slate-500 mb-1">New Customers</p>
-                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  <p className="text-xs font-black text-black mb-1">New Customers</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-black tracking-tight">
                     {customers.length || overview?.totalCustomers || 12}
                   </h3>
-                  <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1 mt-1">
+                  <p className="text-xs font-bold text-emerald-700 flex items-center gap-1 mt-1">
                     <span>↑ 33%</span>
-                    <span className="text-slate-400 font-normal">vs. yesterday</span>
+                    <span className="text-black font-bold">vs. yesterday</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#3B82F6] text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
@@ -4243,15 +4295,15 @@ function AdminPortal() {
               </div>
 
               {/* Card 4: Average Rating */}
-              <div className="bg-[#FFFBEB] border border-amber-100/90 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-[#FFFBEB] border border-amber-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-slate-500 mb-1">Average Rating</p>
-                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  <p className="text-xs font-black text-black mb-1">Average Rating</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-black tracking-tight">
                     4.8
                   </h3>
-                  <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1 mt-1">
+                  <p className="text-xs font-bold text-emerald-700 flex items-center gap-1 mt-1">
                     <span>↑ 0.2</span>
-                    <span className="text-slate-400 font-normal">vs. last week</span>
+                    <span className="text-black font-bold">vs. last week</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#F59E0B] text-white flex items-center justify-center shadow-md shadow-amber-500/25 shrink-0">
@@ -4267,25 +4319,25 @@ function AdminPortal() {
                 {/* Recent Orders Card */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-base font-bold text-slate-900">Recent Orders</h2>
+                    <h2 className="text-base font-black text-black">Recent Orders</h2>
                     <button
                       onClick={() => handleNavChange('orders')}
-                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
+                      className="text-xs font-black text-blue-700 hover:text-blue-900 transition-colors cursor-pointer"
                     >
-                      View All
+                      View All →
                     </button>
                   </div>
 
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
-                        <tr className="border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                          <th className="pb-3 pl-1 font-semibold">#</th>
-                          <th className="pb-3 font-semibold">Customer</th>
-                          <th className="pb-3 font-semibold">Items</th>
-                          <th className="pb-3 font-semibold">Amount</th>
-                          <th className="pb-3 font-semibold">Status</th>
-                          <th className="pb-3 pr-1 text-right font-semibold">Time</th>
+                        <tr className="border-b border-slate-200 text-xs font-black text-black uppercase tracking-wider">
+                          <th className="pb-3 pl-1 font-black text-black">#</th>
+                          <th className="pb-3 font-black text-black">Customer</th>
+                          <th className="pb-3 font-black text-black">Items</th>
+                          <th className="pb-3 font-black text-black">Amount</th>
+                          <th className="pb-3 font-black text-black">Status</th>
+                          <th className="pb-3 pr-1 text-right font-black text-black">Time</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs">
@@ -4298,14 +4350,14 @@ function AdminPortal() {
                           const isPending = status === 'CONFIRMED' || status === 'ORDER_PLACED';
 
                           const badgeClass = isPrep
-                            ? 'bg-[#FEF3C7] text-[#D97706]'
+                            ? 'bg-[#FEF3C7] text-[#92400E] border border-amber-300'
                             : isEnRoute
-                            ? 'bg-[#E0F2FE] text-[#0284C7]'
+                            ? 'bg-[#E0F2FE] text-[#0369A1] border border-sky-300'
                             : isDone
-                            ? 'bg-[#DCFCE7] text-[#16A34A]'
+                            ? 'bg-[#DCFCE7] text-[#15803D] border border-emerald-300'
                             : isCancel
-                            ? 'bg-[#FEE2E2] text-[#DC2626]'
-                            : 'bg-[#F3E8FF] text-[#9333EA]';
+                            ? 'bg-[#FEE2E2] text-[#B91C1C] border border-rose-300'
+                            : 'bg-[#F3E8FF] text-[#7E22CE] border border-purple-300';
 
                           const badgeLabel = isPrep
                             ? 'Preparing'
@@ -4324,26 +4376,26 @@ function AdminPortal() {
                             <tr
                               key={order.id}
                               onClick={() => setSlipOrder(order)}
-                              className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
+                              className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
                             >
-                              <td className="py-3.5 pl-1 font-semibold text-slate-600 font-mono">
+                              <td className="py-3.5 pl-1 font-black text-black font-mono">
                                 #{order.order_reference?.slice(-4) || order.id?.slice(0, 4)}
                               </td>
-                              <td className="py-3.5 font-medium text-slate-800">
+                              <td className="py-3.5 font-bold text-black">
                                 {order.customer?.full_name || 'Customer'}
                               </td>
-                              <td className="py-3.5 text-slate-500">
+                              <td className="py-3.5 font-bold text-black">
                                 {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
                               </td>
-                              <td className="py-3.5 font-bold text-slate-900">
+                              <td className="py-3.5 font-black text-black text-sm">
                                 ₦{Number(order.total_amount || 0).toLocaleString()}
                               </td>
                               <td className="py-3.5">
-                                <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold ${badgeClass}`}>
+                                <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-black ${badgeClass}`}>
                                   {badgeLabel}
                                 </span>
                               </td>
-                              <td className="py-3.5 pr-1 text-right text-slate-400 font-mono">
+                              <td className="py-3.5 pr-1 text-right font-black text-black font-mono">
                                 {timeFormatted}
                               </td>
                             </tr>
@@ -4352,7 +4404,7 @@ function AdminPortal() {
 
                         {orders.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="py-8 text-center text-slate-400 text-xs">
+                            <td colSpan={6} className="py-8 text-center text-black font-bold text-xs">
                               No customer orders placed yet.
                             </td>
                           </tr>
@@ -4365,53 +4417,53 @@ function AdminPortal() {
                 {/* Popular Menu Items Card (Matching Reference Image) */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-base font-bold text-slate-900">Popular Menu Items</h2>
+                    <h2 className="text-base font-black text-black">Popular Menu Items</h2>
                     <button
                       onClick={() => handleNavChange('products')}
-                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
+                      className="text-xs font-black text-blue-700 hover:text-blue-900 transition-colors cursor-pointer"
                     >
-                      View Menu
+                      View Menu →
                     </button>
                   </div>
 
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
-                        <tr className="border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                          <th className="pb-3 pl-1 font-semibold">#</th>
-                          <th className="pb-3 font-semibold">Item</th>
-                          <th className="pb-3 font-semibold">Price</th>
-                          <th className="pb-3 font-semibold">Orders</th>
-                          <th className="pb-3 font-semibold">Status</th>
-                          <th className="pb-3 pr-1 text-right font-semibold">Action</th>
+                        <tr className="border-b border-slate-200 text-xs font-black text-black uppercase tracking-wider">
+                          <th className="pb-3 pl-1 font-black text-black">#</th>
+                          <th className="pb-3 font-black text-black">Item</th>
+                          <th className="pb-3 font-black text-black">Price</th>
+                          <th className="pb-3 font-black text-black">Orders</th>
+                          <th className="pb-3 font-black text-black">Status</th>
+                          <th className="pb-3 pr-1 text-right font-black text-black">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs">
                         {products.slice(0, 5).map((dish, idx) => {
                           return (
-                            <tr key={dish.id || idx} className="hover:bg-slate-50/70 transition-colors">
-                              <td className="py-3 pl-1 font-mono text-slate-400">{idx + 1}</td>
+                            <tr key={dish.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-3 pl-1 font-mono font-black text-black">{idx + 1}</td>
                               <td className="py-3">
                                 <div className="flex items-center gap-3">
                                   <img
                                     src={dish.image_url || dish.image || '/food-placeholder.png'}
                                     alt={dish.name}
-                                    className="w-9 h-9 rounded-xl object-cover border border-slate-100 shrink-0"
+                                    className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
                                     onError={(e) => { e.target.src = '/food-placeholder.png'; }}
                                   />
-                                  <span className="font-semibold text-slate-800 truncate max-w-[150px]">
+                                  <span className="font-black text-black truncate max-w-[160px] text-xs">
                                     {dish.name}
                                   </span>
                                 </div>
                               </td>
-                              <td className="py-3 font-bold text-slate-900">
+                              <td className="py-3 font-black text-black text-sm">
                                 ₦{Number(dish.price || 0).toLocaleString()}
                               </td>
-                              <td className="py-3 text-slate-500 font-medium">
+                              <td className="py-3 text-black font-black">
                                 {dish.orders_count || (18 - idx * 2)}
                               </td>
                               <td className="py-3">
-                                <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#DCFCE7] text-[#16A34A]">
+                                <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black bg-[#DCFCE7] text-[#15803D] border border-emerald-300">
                                   Active
                                 </span>
                               </td>
@@ -4423,7 +4475,7 @@ function AdminPortal() {
                                       setEditingProduct(dish);
                                       setProductModalOpen(true);
                                     }}
-                                    className="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                                    className="px-3 py-1 bg-white border border-slate-300 hover:bg-slate-100 text-black text-xs font-black rounded-lg transition-colors cursor-pointer shadow-xs"
                                   >
                                     Edit
                                   </button>
@@ -4435,7 +4487,7 @@ function AdminPortal() {
 
                         {products.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="py-8 text-center text-slate-400 text-xs">
+                            <td colSpan={6} className="py-8 text-center text-black font-bold text-xs">
                               No menu items added yet. Click Add Menu Item below.
                             </td>
                           </tr>
@@ -4451,19 +4503,19 @@ function AdminPortal() {
                 {/* Today's Sales Card with SVG Area Curve Chart */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-base font-bold text-slate-900">Today's Sales</h2>
-                    <div className="flex items-center gap-1 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600">
+                    <h2 className="text-base font-black text-black">Today's Sales</h2>
+                    <div className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 border border-slate-300 rounded-lg text-xs font-black text-black">
                       <span>Today</span>
-                      <ChevronDown size={13} className="text-slate-400" />
+                      <ChevronDown size={13} className="text-black" />
                     </div>
                   </div>
 
-                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-3">
+                  <h3 className="text-2xl sm:text-3xl font-black text-black tracking-tight mt-3">
                     ₦{Number(todayRevenue).toLocaleString()}
                   </h3>
-                  <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1 mt-1 mb-6">
+                  <p className="text-xs font-black text-emerald-700 flex items-center gap-1 mt-1 mb-6">
                     <span>↑ 18%</span>
-                    <span className="text-slate-400 font-normal">vs. yesterday</span>
+                    <span className="text-black font-bold">vs. yesterday</span>
                   </p>
 
                   {/* Smooth Area Line Chart matching reference image */}
@@ -4476,16 +4528,16 @@ function AdminPortal() {
                         </linearGradient>
                       </defs>
                       {/* Grid Lines */}
-                      <line x1="30" y1="15" x2="310" y2="15" stroke="#F1F5F9" strokeWidth="1" />
-                      <line x1="30" y1="50" x2="310" y2="50" stroke="#F1F5F9" strokeWidth="1" />
-                      <line x1="30" y1="85" x2="310" y2="85" stroke="#F1F5F9" strokeWidth="1" />
-                      <line x1="30" y1="120" x2="310" y2="120" stroke="#E2E8F0" strokeWidth="1" />
+                      <line x1="30" y1="15" x2="310" y2="15" stroke="#E2E8F0" strokeWidth="1" />
+                      <line x1="30" y1="50" x2="310" y2="50" stroke="#E2E8F0" strokeWidth="1" />
+                      <line x1="30" y1="85" x2="310" y2="85" stroke="#E2E8F0" strokeWidth="1" />
+                      <line x1="30" y1="120" x2="310" y2="120" stroke="#CBD5E1" strokeWidth="1.5" />
 
                       {/* Y Axis Labels */}
-                      <text x="5" y="18" fill="#94A3B8" fontSize="9" fontFamily="sans-serif">1,500</text>
-                      <text x="5" y="53" fill="#94A3B8" fontSize="9" fontFamily="sans-serif">1,000</text>
-                      <text x="12" y="88" fill="#94A3B8" fontSize="9" fontFamily="sans-serif">500</text>
-                      <text x="20" y="122" fill="#94A3B8" fontSize="9" fontFamily="sans-serif">0</text>
+                      <text x="5" y="18" fill="#000000" fontSize="9" fontWeight="bold" fontFamily="sans-serif">1,500</text>
+                      <text x="5" y="53" fill="#000000" fontSize="9" fontWeight="bold" fontFamily="sans-serif">1,000</text>
+                      <text x="12" y="88" fill="#000000" fontSize="9" fontWeight="bold" fontFamily="sans-serif">500</text>
+                      <text x="20" y="122" fill="#000000" fontSize="9" fontWeight="bold" fontFamily="sans-serif">0</text>
 
                       {/* Area fill */}
                       <path
@@ -4497,18 +4549,18 @@ function AdminPortal() {
                         d="M 35 115 Q 70 95 105 85 T 175 60 T 245 25 T 310 40"
                         fill="none"
                         stroke="#10B981"
-                        strokeWidth="2.5"
+                        strokeWidth="3"
                         strokeLinecap="round"
                       />
                       {/* Data points */}
-                      <circle cx="35" cy="115" r="3.5" fill="#10B981" stroke="#FFFFFF" strokeWidth="1.5" />
-                      <circle cx="105" cy="85" r="3.5" fill="#10B981" stroke="#FFFFFF" strokeWidth="1.5" />
-                      <circle cx="175" cy="60" r="3.5" fill="#10B981" stroke="#FFFFFF" strokeWidth="1.5" />
-                      <circle cx="245" cy="25" r="3.5" fill="#10B981" stroke="#FFFFFF" strokeWidth="1.5" />
-                      <circle cx="310" cy="40" r="3.5" fill="#10B981" stroke="#FFFFFF" strokeWidth="1.5" />
+                      <circle cx="35" cy="115" r="4" fill="#10B981" stroke="#000000" strokeWidth="1.5" />
+                      <circle cx="105" cy="85" r="4" fill="#10B981" stroke="#000000" strokeWidth="1.5" />
+                      <circle cx="175" cy="60" r="4" fill="#10B981" stroke="#000000" strokeWidth="1.5" />
+                      <circle cx="245" cy="25" r="4" fill="#10B981" stroke="#000000" strokeWidth="1.5" />
+                      <circle cx="310" cy="40" r="4" fill="#10B981" stroke="#000000" strokeWidth="1.5" />
                     </svg>
                     {/* Time labels below */}
-                    <div className="flex justify-between text-[10px] text-slate-400 font-medium pl-6 pt-1">
+                    <div className="flex justify-between text-[11px] text-black font-black pl-6 pt-1">
                       <span>6 AM</span>
                       <span>10 AM</span>
                       <span>2 PM</span>
@@ -4520,7 +4572,7 @@ function AdminPortal() {
 
                 {/* Quick Actions Card (2x2 Grid matching reference image) */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
-                  <h2 className="text-base font-bold text-slate-900 mb-4">Quick Actions</h2>
+                  <h2 className="text-base font-black text-black mb-4">Quick Actions</h2>
                   <div className="grid grid-cols-2 gap-3.5">
                     {/* Action 1: Add Menu Item */}
                     <button
@@ -4529,48 +4581,48 @@ function AdminPortal() {
                         setEditingProduct(null);
                         setProductModalOpen(true);
                       }}
-                      className="p-4 bg-[#ECFDF5] hover:bg-[#D1FAE5] border border-emerald-100 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
+                      className="p-4 bg-[#ECFDF5] hover:bg-[#D1FAE5] border border-emerald-200 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
                     >
                       <div className="w-8 h-8 rounded-full bg-[#10B981] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
                         <Plus size={16} strokeWidth={3} />
                       </div>
-                      <span className="text-xs font-bold text-slate-800 text-center">Add Menu Item</span>
+                      <span className="text-xs font-black text-black text-center">Add Menu Item</span>
                     </button>
 
                     {/* Action 2: Manage Orders */}
                     <button
                       type="button"
                       onClick={() => handleNavChange('orders')}
-                      className="p-4 bg-[#EFF6FF] hover:bg-[#DBEAFE] border border-blue-100 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
+                      className="p-4 bg-[#EFF6FF] hover:bg-[#DBEAFE] border border-blue-200 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
                     >
                       <div className="w-8 h-8 rounded-xl bg-[#3B82F6] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
                         <ClipboardList size={16} />
                       </div>
-                      <span className="text-xs font-bold text-slate-800 text-center">Manage Orders</span>
+                      <span className="text-xs font-black text-black text-center">Manage Orders</span>
                     </button>
 
                     {/* Action 3: Update Inventory */}
                     <button
                       type="button"
                       onClick={() => handleNavChange('inventory')}
-                      className="p-4 bg-[#FFFBEB] hover:bg-[#FEF3C7] border border-amber-100 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
+                      className="p-4 bg-[#FFFBEB] hover:bg-[#FEF3C7] border border-amber-200 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
                     >
                       <div className="w-8 h-8 rounded-xl bg-[#F59E0B] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
                         <Package size={16} />
                       </div>
-                      <span className="text-xs font-bold text-slate-800 text-center">Update Inventory</span>
+                      <span className="text-xs font-black text-black text-center">Update Inventory</span>
                     </button>
 
                     {/* Action 4: Restaurant Settings */}
                     <button
                       type="button"
                       onClick={() => handleNavChange('settings')}
-                      className="p-4 bg-[#FAF5FF] hover:bg-[#F3E8FF] border border-purple-100 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
+                      className="p-4 bg-[#FAF5FF] hover:bg-[#F3E8FF] border border-purple-200 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group shadow-xs active:scale-97"
                     >
                       <div className="w-8 h-8 rounded-xl bg-[#A855F7] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
                         <Settings size={16} />
                       </div>
-                      <span className="text-xs font-bold text-slate-800 text-center">Restaurant Settings</span>
+                      <span className="text-xs font-black text-black text-center">Restaurant Settings</span>
                     </button>
                   </div>
                 </div>
@@ -4580,21 +4632,22 @@ function AdminPortal() {
         )}
 
         {/* ============================================================ */}
+        {/* ============================================================ */}
         {/* TAB: INVENTORY (STOCK CONTROL) */}
         {/* ============================================================ */}
         {activeSection === 'inventory' && (
           <div className="space-y-6">
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">Inventory & Stock Control</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <h2 className="text-lg font-black text-black">Inventory & Stock Control</h2>
+                  <p className="text-xs text-black font-semibold mt-0.5">
                     Monitor dish stock counts, trigger quick restocks, and manage food availability.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                    lowStockCount > 0 ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                  <span className={`px-3 py-1 rounded-full text-xs font-black border ${
+                    lowStockCount > 0 ? 'bg-rose-50 text-rose-800 border-rose-300' : 'bg-emerald-50 text-emerald-800 border-emerald-300'
                   }`}>
                     {lowStockCount > 0 ? `⚠️ ${lowStockCount} Dishes Low in Stock` : '✅ All Dishes in Stock'}
                   </span>
@@ -4604,13 +4657,13 @@ function AdminPortal() {
               <div className="overflow-x-auto mt-4">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                      <th className="pb-3 pl-1 font-semibold">Dish</th>
-                      <th className="pb-3 font-semibold">Category</th>
-                      <th className="pb-3 font-semibold">Current Stock</th>
-                      <th className="pb-3 font-semibold">Status</th>
-                      <th className="pb-3 font-semibold">Quick Restock</th>
-                      <th className="pb-3 pr-1 text-right font-semibold">Availability</th>
+                    <tr className="border-b border-slate-200 text-xs font-black text-black uppercase tracking-wider">
+                      <th className="pb-3 pl-1 font-black text-black">Dish</th>
+                      <th className="pb-3 font-black text-black">Category</th>
+                      <th className="pb-3 font-black text-black">Current Stock</th>
+                      <th className="pb-3 font-black text-black">Status</th>
+                      <th className="pb-3 font-black text-black">Quick Restock</th>
+                      <th className="pb-3 pr-1 text-right font-black text-black">Availability</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
@@ -4620,40 +4673,40 @@ function AdminPortal() {
                       const isOut = stock <= 0 || p.is_available === false;
 
                       return (
-                        <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="py-3 pl-1">
+                        <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3.5 pl-1">
                             <div className="flex items-center gap-3">
                               <img
                                 src={p.image_url || p.image || '/food-placeholder.png'}
                                 alt={p.name}
-                                className="w-9 h-9 rounded-xl object-cover border border-slate-100 shrink-0"
+                                className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
                                 onError={(e) => { e.target.src = '/food-placeholder.png'; }}
                               />
                               <div>
-                                <span className="font-semibold text-slate-900 block truncate max-w-[180px]">{p.name}</span>
-                                <span className="text-[11px] text-slate-400 font-mono">₦{Number(p.price || 0).toLocaleString()}</span>
+                                <span className="font-black text-black block truncate max-w-[190px] text-xs">{p.name}</span>
+                                <span className="text-xs text-black font-black font-mono">₦{Number(p.price || 0).toLocaleString()}</span>
                               </div>
                             </div>
                           </td>
-                          <td className="py-3 text-slate-600 font-medium">
+                          <td className="py-3.5 text-black font-bold">
                             {p.category || 'Meals'}
                           </td>
-                          <td className="py-3">
-                            <span className="font-bold text-slate-900 font-mono text-sm">{stock}</span>
-                            <span className="text-slate-400 text-[11px] ml-1">portions</span>
+                          <td className="py-3.5">
+                            <span className="font-black text-black font-mono text-sm">{stock}</span>
+                            <span className="text-black font-bold text-xs ml-1">portions</span>
                           </td>
-                          <td className="py-3">
-                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                          <td className="py-3.5">
+                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black border ${
                               isOut 
-                                ? 'bg-rose-50 text-rose-600 border border-rose-200' 
+                                ? 'bg-rose-50 text-rose-800 border-rose-300' 
                                 : isLow 
-                                ? 'bg-amber-50 text-amber-600 border border-amber-200' 
-                                : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                ? 'bg-amber-50 text-amber-800 border-amber-300' 
+                                : 'bg-emerald-50 text-emerald-800 border-emerald-300'
                             }`}>
                               {isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'Healthy'}
                             </span>
                           </td>
-                          <td className="py-3">
+                          <td className="py-3.5">
                             <div className="flex items-center gap-1.5">
                               {[10, 25, 50].map(addQty => (
                                 <button
@@ -4665,14 +4718,14 @@ function AdminPortal() {
                                     toast(`Restocked ${p.name} by +${addQty}! (Total: ${nextStock}) 📦`, 'success');
                                     loadSection('products');
                                   }}
-                                  className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded text-[11px] font-bold text-slate-700 transition-colors cursor-pointer"
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-xs font-black text-black transition-colors cursor-pointer shadow-xs"
                                 >
                                   +{addQty}
                                 </button>
                               ))}
                             </div>
                           </td>
-                          <td className="py-3 pr-1 text-right">
+                          <td className="py-3.5 pr-1 text-right">
                             <button
                               type="button"
                               onClick={async () => {
@@ -4681,10 +4734,10 @@ function AdminPortal() {
                                 toast(`${p.name} is now ${nextAvail ? 'Available' : 'Unavailable'}`, 'info');
                                 loadSection('products');
                               }}
-                              className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                              className={`px-3 py-1.5 rounded-lg text-xs font-black border transition-all cursor-pointer shadow-xs ${
                                 p.is_available !== false
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                                  : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                                  : 'bg-slate-100 text-black border-slate-300 hover:bg-slate-200'
                               }`}
                             >
                               {p.is_available !== false ? 'In Menu' : 'Hidden'}
@@ -4706,14 +4759,14 @@ function AdminPortal() {
         {activeSection === 'customers' && (
           <div className="space-y-6">
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">Customer Directory</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <h2 className="text-lg font-black text-black">Customer Directory</h2>
+                  <p className="text-xs text-black font-semibold mt-0.5">
                     View customer loyalty, order frequencies, and reach out via WhatsApp.
                   </p>
                 </div>
-                <span className="text-xs font-semibold px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
+                <span className="text-xs font-black px-3.5 py-1 bg-blue-50 text-blue-900 border border-blue-300 rounded-full">
                   {customers.length} Registered Foodies
                 </span>
               </div>
@@ -4721,12 +4774,12 @@ function AdminPortal() {
               <div className="overflow-x-auto mt-4">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                      <th className="pb-3 pl-1 font-semibold">Customer</th>
-                      <th className="pb-3 font-semibold">Phone</th>
-                      <th className="pb-3 font-semibold">Total Orders</th>
-                      <th className="pb-3 font-semibold">Total Spent</th>
-                      <th className="pb-3 pr-1 text-right font-semibold">Actions</th>
+                    <tr className="border-b border-slate-200 text-xs font-black text-black uppercase tracking-wider">
+                      <th className="pb-3 pl-1 font-black text-black">Customer</th>
+                      <th className="pb-3 font-black text-black">Phone</th>
+                      <th className="pb-3 font-black text-black">Total Orders</th>
+                      <th className="pb-3 font-black text-black">Total Spent</th>
+                      <th className="pb-3 pr-1 text-right font-black text-black">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
@@ -4738,34 +4791,34 @@ function AdminPortal() {
                       orders_count: 1,
                       total_spent: o.total_amount || 0
                     }))).slice(0, 15).map((cust, idx) => (
-                      <tr key={cust.id || idx} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-3 pl-1">
+                      <tr key={cust.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 pl-1">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-xs">
+                            <div className="w-9 h-9 rounded-full bg-slate-200 text-black font-black flex items-center justify-center text-xs border border-slate-300">
                               {(cust.full_name || 'C').charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <span className="font-semibold text-slate-900 block">{cust.full_name || 'Customer'}</span>
-                              <span className="text-[11px] text-slate-400">{cust.email || '—'}</span>
+                              <span className="font-black text-black block text-xs">{cust.full_name || 'Customer'}</span>
+                              <span className="text-[11px] text-slate-800 font-bold">{cust.email || '—'}</span>
                             </div>
                           </div>
                         </td>
-                        <td className="py-3 font-mono text-slate-600 font-medium">
+                        <td className="py-3.5 font-mono text-black font-black">
                           {cust.phone || '—'}
                         </td>
-                        <td className="py-3 font-semibold text-slate-800">
+                        <td className="py-3.5 font-black text-black">
                           {cust.orders_count || 1} orders
                         </td>
-                        <td className="py-3 font-bold text-slate-900 font-mono">
+                        <td className="py-3.5 font-black text-black font-mono text-sm">
                           ₦{Number(cust.total_spent || 3500).toLocaleString()}
                         </td>
-                        <td className="py-3 pr-1 text-right">
+                        <td className="py-3.5 pr-1 text-right">
                           {cust.phone && (
                             <a
                               href={`https://wa.me/${String(cust.phone).replace(/[^0-9]/g, '')}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-lg text-xs font-black transition-colors shadow-xs"
                             >
                               <span>💬 WhatsApp</span>
                             </a>
@@ -4790,28 +4843,28 @@ function AdminPortal() {
               <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h2 className="font-bold text-base text-slate-900">Orders in the Last 7 Days</h2>
-                    <p className="text-xs text-slate-500">Total customer orders fulfilled each day across Ibadan</p>
+                    <h2 className="font-black text-base text-black">Orders in the Last 7 Days</h2>
+                    <p className="text-xs text-black font-semibold mt-0.5">Total customer orders fulfilled each day across Ibadan</p>
                   </div>
-                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                  <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-300">
                     +18% this week
                   </span>
                 </div>
 
-                <div className="flex items-end gap-3 sm:gap-4 h-44 pt-4 border-b border-slate-100 pb-2">
+                <div className="flex items-end gap-3 sm:gap-4 h-44 pt-4 border-b border-slate-200 pb-2">
                   {overview.last7Days.map((d, idx) => {
                     const maxOrders = Math.max(...overview.last7Days.map(x => x.orders), 1);
                     const pct = Math.max(12, (d.orders / maxOrders) * 100);
                     return (
                       <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                        <div className="text-[11px] font-bold text-slate-600 group-hover:text-emerald-600 transition-colors">
+                        <div className="text-xs font-black text-black group-hover:text-emerald-700 transition-colors">
                           {d.orders}
                         </div>
                         <div
                           className="w-full bg-[#EA4C2A] hover:bg-[#D43B1B] rounded-t-xl transition-all"
                           style={{ height: `${pct}%` }}
                         />
-                        <div className="text-[11px] text-slate-400 font-mono">
+                        <div className="text-xs text-black font-black font-mono">
                           {d.date.slice(5)}
                         </div>
                       </div>
@@ -4823,17 +4876,17 @@ function AdminPortal() {
 
             {/* 1-Click Excel / CSV Export Center */}
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 mb-4">
                 <div>
-                  <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
-                    <Download size={17} className="text-emerald-600" />
+                  <h3 className="font-black text-base text-black flex items-center gap-2">
+                    <Download size={18} className="text-emerald-700" />
                     <span>Download Data & Spreadsheets</span>
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-black font-semibold mt-0.5">
                     Download clean spreadsheets you can open in Microsoft Excel or Google Sheets.
                   </p>
                 </div>
-                <span className="text-[10px] font-mono text-slate-500 uppercase bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 shrink-0">
+                <span className="text-xs font-mono font-black text-black uppercase bg-slate-100 px-3 py-1 rounded-lg border border-slate-300 shrink-0">
                   ⚡ CSV / Excel
                 </span>
               </div>
@@ -4842,25 +4895,25 @@ function AdminPortal() {
                 <button
                   type="button"
                   onClick={handleExportOrders}
-                  className="p-4 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/90 rounded-2xl text-left transition-all cursor-pointer group"
+                  className="p-4 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-2xl text-left transition-all cursor-pointer group shadow-xs"
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Orders List (CSV)</span>
-                    <Download size={14} className="text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                    <span className="text-xs font-black text-black group-hover:text-emerald-700 transition-colors">Orders List (CSV)</span>
+                    <Download size={15} className="text-black group-hover:text-emerald-700 transition-colors" />
                   </div>
-                  <p className="text-[11px] text-slate-500">All customer orders with items, addresses, and delivery status.</p>
+                  <p className="text-xs text-black font-semibold">All customer orders with items, addresses, and delivery status.</p>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleExportDailySales}
-                  className="p-4 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/90 rounded-2xl text-left transition-all cursor-pointer group"
+                  className="p-4 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-2xl text-left transition-all cursor-pointer group shadow-xs"
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Daily Sales & Profit (CSV)</span>
-                    <Download size={14} className="text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                    <span className="text-xs font-black text-black group-hover:text-emerald-700 transition-colors">Daily Sales & Profit (CSV)</span>
+                    <Download size={15} className="text-black group-hover:text-emerald-700 transition-colors" />
                   </div>
-                  <p className="text-[11px] text-slate-500">Daily revenue, estimated food costs, and profits for the past 7 days.</p>
+                  <p className="text-xs text-black font-semibold">Daily revenue, estimated food costs, and profits for the past 7 days.</p>
                 </button>
               </div>
             </div>
@@ -4891,17 +4944,17 @@ function AdminPortal() {
                     <button
                       key={tab.id}
                       onClick={() => setOrderFilterStatus(tab.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                         active
                           ? 'bg-[#EA4C2A] text-white shadow-xs'
                           : tab.isAlert && tab.count > 0 
-                          ? 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100' 
-                          : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
+                          ? 'bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100' 
+                          : 'bg-slate-100 text-black hover:bg-slate-200 border border-slate-300'
                       }`}
                     >
                       <span>{tab.label}</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                        active ? 'bg-black/20 text-white' : 'bg-slate-200 text-slate-600'
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-black ${
+                        active ? 'bg-black/25 text-white' : 'bg-slate-300 text-black'
                       }`}>
                         {tab.count}
                       </span>
@@ -4912,13 +4965,13 @@ function AdminPortal() {
 
               {/* Search input */}
               <div className="relative min-w-[240px]">
-                <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                <Search size={14} className="absolute left-3 top-2.5 text-black" />
                 <input
                   type="text"
                   placeholder="Search order ref, customer, phone..."
                   value={orderSearch}
                   onChange={e => setOrderSearch(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 outline-none focus:border-[#EA4C2A] focus:bg-white transition-colors"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white transition-colors placeholder:text-slate-600"
                 />
               </div>
             </div>
@@ -4951,29 +5004,30 @@ function AdminPortal() {
                   <div
                     key={order.id}
                     className={`bg-white border rounded-2xl p-5 sm:p-6 transition-all shadow-xs space-y-4 ${
-                      isLate ? 'border-rose-300 ring-1 ring-rose-100' : 'border-slate-200/80 hover:border-slate-300'
+                      isLate ? 'border-rose-400 ring-2 ring-rose-200' : 'border-slate-200/80 hover:border-slate-300'
                     }`}
                   >
                     {/* Card Header */}
-                    <div className="flex flex-wrap items-start justify-between gap-3 pb-3.5 border-b border-slate-100">
+                    <div className="flex flex-wrap items-start justify-between gap-3 pb-3.5 border-b border-slate-200">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center font-bold text-sm text-[#EA4C2A] shrink-0">
+                        <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center font-bold text-sm text-[#EA4C2A] shrink-0">
                           📦
                         </div>
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <span
                               onClick={() => setSlipOrder(order)}
-                              className="font-mono font-bold text-sm sm:text-base text-slate-900 hover:text-[#EA4C2A] cursor-pointer transition-colors"
+                              className="font-mono font-black text-sm sm:text-base text-black hover:text-[#EA4C2A] cursor-pointer transition-colors"
                               title="Click to view full order slip and receipt"
                             >
                               #{order.order_reference}
                             </span>
                             <span
-                              className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
+                              className="text-[11px] font-black px-2.5 py-0.5 rounded-full border"
                               style={{
-                                backgroundColor: (statusColor[order.order_status] || '#EF4444') + '18',
-                                color: statusColor[order.order_status] || '#EF4444'
+                                backgroundColor: (statusColor[order.order_status] || '#EF4444') + '22',
+                                color: '#000000',
+                                borderColor: statusColor[order.order_status] || '#EF4444'
                               }}
                             >
                               {order.order_status === 'ORDER_PLACED' || order.order_status === 'CONFIRMED' ? 'New Order' :
@@ -4985,17 +5039,17 @@ function AdminPortal() {
 
                             {/* Live Timer Badge */}
                             {isOngoing && (
-                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                                isLate ? 'bg-rose-50 text-rose-600 border border-rose-200 animate-pulse' :
-                                elapsedMins >= 18 ? 'bg-amber-50 text-amber-600 border border-amber-200' :
-                                'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                              <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 border ${
+                                isLate ? 'bg-rose-100 text-rose-900 border-rose-300 animate-pulse' :
+                                elapsedMins >= 18 ? 'bg-amber-100 text-amber-900 border-amber-300' :
+                                'bg-emerald-100 text-emerald-900 border-emerald-300'
                               }`}>
                                 <span>⏱️ {elapsedMins}m ago</span>
                                 <span>{isLate ? '· Running Late' : elapsedMins >= 18 ? '· Hurry' : '· On Track'}</span>
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                          <div className="text-xs text-black mt-0.5 font-bold">
                             Placed at {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {new Date(order.created_at).toLocaleDateString()}
                           </div>
                         </div>
@@ -5005,7 +5059,7 @@ function AdminPortal() {
                         {isLate && (
                           <button
                             onClick={() => handleDispatchDelayApologyPerk(order)}
-                            className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1"
+                            className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 text-xs font-black transition-all cursor-pointer flex items-center gap-1"
                             title="Send ₦500 Apology Voucher"
                           >
                             <span>🎁 Send ₦500 Voucher</span>
@@ -5013,7 +5067,7 @@ function AdminPortal() {
                         )}
                         <button
                           onClick={() => setSlipOrder(order)}
-                          className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 transition-colors cursor-pointer text-xs flex items-center gap-1.5 font-semibold"
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black transition-colors cursor-pointer text-xs flex items-center gap-1.5 font-black shadow-xs"
                           title="Print Kitchen Slip"
                         >
                           <Printer size={13} />
@@ -5025,12 +5079,12 @@ function AdminPortal() {
                     {/* Customer, Location & Items Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
                       {/* Customer Info & Direct Contacts */}
-                      <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70">
-                        <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      <div className="bg-slate-50/90 p-3.5 rounded-xl border border-slate-200">
+                        <div className="text-xs font-black text-black uppercase tracking-wider mb-1.5">
                           Customer & Contact
                         </div>
-                        <div className="font-bold text-sm text-slate-900">{order.customer?.full_name || order.customer_name || 'Customer'}</div>
-                        <div className="text-slate-500 font-mono mt-0.5">{order.customer?.phone || order.customer_phone || 'No phone provided'}</div>
+                        <div className="font-black text-sm text-black">{order.customer?.full_name || order.customer_name || 'Customer'}</div>
+                        <div className="text-black font-black font-mono mt-0.5">{order.customer?.phone || order.customer_phone || 'No phone provided'}</div>
 
                         <div className="flex gap-2 mt-2.5 pt-2 border-t border-slate-200">
                           {(order.customer?.phone || order.customer_phone) && (
@@ -5039,15 +5093,15 @@ function AdminPortal() {
                                 href={`https://wa.me/${String(order.customer?.phone || order.customer_phone).replace(/\D/g, '')}?text=Hello%20${encodeURIComponent(order.customer?.full_name || order.customer_name || 'Customer')},%20this%20is%20FoodMaxx%20Kitchen%20regarding%20order%20${order.order_reference || order.id}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[11px] font-semibold flex items-center gap-1"
+                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-lg text-xs font-black flex items-center gap-1 shadow-xs"
                               >
-                                <MessageSquare size={11} /> WhatsApp
+                                <MessageSquare size={12} /> WhatsApp
                               </a>
                               <a
                                 href={`tel:${order.customer?.phone || order.customer_phone}`}
-                                className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[11px] font-semibold flex items-center gap-1"
+                                className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-lg text-xs font-black flex items-center gap-1 shadow-xs"
                               >
-                                <Phone size={11} /> Call
+                                <Phone size={12} /> Call
                               </a>
                             </>
                           )}
@@ -5055,36 +5109,36 @@ function AdminPortal() {
                       </div>
 
                       {/* Delivery Destination */}
-                      <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70">
-                        <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      <div className="bg-slate-50/90 p-3.5 rounded-xl border border-slate-200">
+                        <div className="text-xs font-black text-black uppercase tracking-wider mb-1.5">
                           Delivery Address ({order.delivery_zone || 'Ibadan'})
                         </div>
-                        <div className="font-semibold text-slate-800 line-clamp-2">{order.delivery_address}</div>
+                        <div className="font-bold text-black line-clamp-2">{order.delivery_address}</div>
                         {order.delivery_landmark && (
-                          <div className="mt-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 inline-block">
+                          <div className="mt-1.5 text-xs font-black text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-300 inline-block">
                             📍 Landmark: {order.delivery_landmark}
                           </div>
                         )}
                         {order.is_gift && (
-                          <div className="mt-1 text-[11px] text-rose-600 font-semibold">
+                          <div className="mt-1 text-xs text-rose-800 font-black">
                             🎁 Gift for: {order.recipient_name} ({order.recipient_phone})
                           </div>
                         )}
                       </div>
 
                       {/* Order Value & Items Summary */}
-                      <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 flex flex-col justify-between">
+                      <div className="bg-slate-50/90 p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between">
                         <div>
-                          <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                          <div className="text-xs font-black text-black uppercase tracking-wider mb-1.5">
                             Ordered Dishes
                           </div>
                           <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
                             {(order.items || []).map((item, idx) => (
-                              <div key={idx} className="flex justify-between text-[11px]">
-                                <span className="text-slate-700 truncate pr-2">
-                                  <strong className="text-[#EA4C2A]">{item.qty || item.quantity || 1}x</strong> {item.name || item.product_name}
+                              <div key={idx} className="flex justify-between text-xs font-bold text-black">
+                                <span className="truncate pr-2">
+                                  <strong className="text-[#EA4C2A] font-black">{item.qty || item.quantity || 1}x</strong> {item.name || item.product_name}
                                 </span>
-                                <span className="font-semibold text-slate-600 shrink-0 font-mono">
+                                <span className="font-black text-black shrink-0 font-mono">
                                   ₦{((item.price || 0) * (item.qty || item.quantity || 1)).toLocaleString()}
                                 </span>
                               </div>
@@ -5093,46 +5147,46 @@ function AdminPortal() {
                         </div>
 
                         <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between">
-                          <span className="text-[10px] text-slate-500 uppercase font-medium">Total ({order.payment_method || 'Online'})</span>
-                          <span className="text-sm font-black text-slate-900">₦{(Number(order.total || order.total_amount || 0)).toLocaleString()}</span>
+                          <span className="text-xs text-black uppercase font-bold">Total ({order.payment_method || 'Online'})</span>
+                          <span className="text-base font-black text-black">₦{(Number(order.total || order.total_amount || 0)).toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Rider & Delivery OTP Row */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-slate-500">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-700">🛵 Courier Rider:</span>
+                        <span className="font-black text-black">🛵 Courier Rider:</span>
                         {order.assigned_rider ? (
-                          <span className="font-bold text-slate-900">
+                          <span className="font-black text-black">
                             {order.assigned_rider.full_name} ({order.assigned_rider.phone})
                           </span>
                         ) : (
-                          <span className="text-slate-400 italic">No rider assigned yet</span>
+                          <span className="text-black font-semibold italic">No rider assigned yet</span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1 rounded-xl border border-slate-200">
-                        <span className="text-[10px] font-medium text-slate-500">Delivery OTP:</span>
-                        <span className="font-mono font-bold text-emerald-600">{order.delivery_otp}</span>
+                      <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-xl border border-slate-300">
+                        <span className="text-xs font-bold text-black">Delivery OTP:</span>
+                        <span className="font-mono font-black text-emerald-700 text-sm">{order.delivery_otp}</span>
                       </div>
                     </div>
 
                     {/* Custom Notification Note to Customer if present */}
                     {(order.custom_notification_message || order.status_notes) && (
-                      <div className="text-[11px] text-[#EA4C2A] bg-orange-50 border border-orange-200 rounded-xl px-3 py-1.5 flex items-center gap-1.5 w-fit">
-                        <span>💬 Customer Notification:</span>
-                        <span className="font-medium text-slate-800">"{order.custom_notification_message || order.status_notes}"</span>
+                      <div className="text-xs text-[#EA4C2A] bg-orange-50 border border-orange-300 rounded-xl px-3 py-1.5 flex items-center gap-1.5 w-fit">
+                        <span className="font-black">💬 Customer Notification:</span>
+                        <span className="font-bold text-black">"{order.custom_notification_message || order.status_notes}"</span>
                       </div>
                     )}
 
                     {/* Action Stepper Buttons */}
-                    <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2">
+                    <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-end gap-2">
                       {/* Change Status & Custom Message Button */}
                       <button
                         type="button"
                         onClick={() => setStatusModalOrder(order)}
-                        className="px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                        className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
                         title="Change order status and send custom notification message"
                       >
                         <span>⚡</span>
@@ -5144,13 +5198,13 @@ function AdminPortal() {
                         <>
                           <button
                             onClick={() => handleAdvanceOrderStatus(order, 'CANCELLED', 'Cancelled by Kitchen')}
-                            className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                            className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-xl text-xs font-black transition-colors cursor-pointer"
                           >
                             Reject Order
                           </button>
                           <button
                             onClick={() => handleAdvanceOrderStatus(order, 'PREPARING', 'Accepted & cooking in kitchen')}
-                            className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-95 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-md shadow-[#EA4C2A]/20 flex items-center gap-1.5"
+                            className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-95 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md shadow-[#EA4C2A]/20 flex items-center gap-1.5"
                           >
                             <span>🍳 Accept & Start Cooking</span>
                           </button>
@@ -5161,7 +5215,7 @@ function AdminPortal() {
                       {order.order_status === 'PREPARING' && (
                         <button
                           onClick={() => handleAdvanceOrderStatus(order, 'READY_FOR_PICKUP', 'Food packaged and ready for dispatch')}
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-md shadow-indigo-600/20 flex items-center gap-1.5"
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md shadow-indigo-600/20 flex items-center gap-1.5"
                         >
                           <span>📦 Packaged & Ready for Rider</span>
                         </button>
@@ -5171,7 +5225,7 @@ function AdminPortal() {
                       {order.order_status === 'READY_FOR_PICKUP' && (
                         <button
                           onClick={() => setAssignRiderOrder(order)}
-                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-md shadow-amber-500/20 flex items-center gap-1.5"
+                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md shadow-amber-500/20 flex items-center gap-1.5"
                         >
                           <span>🛵 Assign to Rider</span>
                         </button>
@@ -5181,7 +5235,7 @@ function AdminPortal() {
                       {order.order_status === 'ON_THE_WAY' && (
                         <button
                           onClick={() => setVerifyOtpOrder(order)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-md shadow-emerald-600/20 flex items-center gap-1.5"
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md shadow-emerald-600/20 flex items-center gap-1.5"
                         >
                           <span>✅ Confirm Delivery Code</span>
                         </button>
@@ -5189,14 +5243,14 @@ function AdminPortal() {
 
                       {/* Status: DELIVERED */}
                       {order.order_status === 'DELIVERED' && (
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1">
+                        <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-300 flex items-center gap-1">
                           <CheckCircle size={14} /> Delivered
                         </span>
                       )}
 
                       {/* Status: CANCELLED */}
                       {order.order_status === 'CANCELLED' && (
-                        <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200 flex items-center gap-1">
+                        <span className="text-xs font-black text-rose-800 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-300 flex items-center gap-1">
                           <XCircle size={14} /> Cancelled
                         </span>
                       )}
@@ -5206,10 +5260,10 @@ function AdminPortal() {
               })}
 
             {orders.length === 0 && (
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center text-slate-400">
-                <Package size={36} className="mx-auto mb-2 text-slate-600" />
-                <div className="font-bold text-sm text-white">No orders found</div>
-                <div className="text-xs text-slate-500 mt-1">Customer orders placed online will appear here live.</div>
+              <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center text-black font-bold">
+                <Package size={36} className="mx-auto mb-2 text-black" />
+                <div className="font-black text-base text-black">No orders found</div>
+                <div className="text-xs text-black font-semibold mt-1">Customer orders placed online will appear here live.</div>
               </div>
             )}
           </div>
@@ -5226,10 +5280,10 @@ function AdminPortal() {
                 <button
                   type="button"
                   onClick={() => setMenuSubTab('dishes')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     menuSubTab === 'dishes'
                       ? 'bg-[#EA4C2A] text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+                      : 'text-black hover:text-[#EA4C2A] hover:bg-white'
                   }`}
                 >
                   🍽️ Dishes ({products.length})
@@ -5237,10 +5291,10 @@ function AdminPortal() {
                 <button
                   type="button"
                   onClick={() => setMenuSubTab('categories')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     menuSubTab === 'categories'
                       ? 'bg-[#EA4C2A] text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+                      : 'text-black hover:text-[#EA4C2A] hover:bg-white'
                   }`}
                 >
                   📂 Category Manager ({categories.length})
@@ -5248,10 +5302,10 @@ function AdminPortal() {
                 <button
                   type="button"
                   onClick={() => setMenuSubTab('sections')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     menuSubTab === 'sections'
                       ? 'bg-[#EA4C2A] text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+                      : 'text-black hover:text-[#EA4C2A] hover:bg-white'
                   }`}
                 >
                   ✨ Section Editor ({homepageSections.length})
@@ -5265,7 +5319,7 @@ function AdminPortal() {
                     setEditingCategory(null);
                     setCategoryModalOpen(true);
                   }}
-                  className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-95 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0"
+                  className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-95 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0"
                 >
                   <Plus size={14} /> Add Category
                 </button>
@@ -5279,20 +5333,20 @@ function AdminPortal() {
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between shadow-xs">
                   <div className="flex flex-wrap gap-2 items-center flex-1">
                     <div className="relative min-w-[200px] flex-1">
-                      <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                      <Search size={14} className="absolute left-3 top-2.5 text-black" />
                       <input
                         type="text"
                         placeholder="Search dishes..."
                         value={productSearch}
                         onChange={e => setProductSearch(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-black font-bold placeholder-slate-500 outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
                     </div>
 
                     <select
                       value={productFilterCat}
                       onChange={e => setProductFilterCat(e.target.value)}
-                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-semibold outline-none focus:border-[#EA4C2A]"
+                      className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-black font-black outline-none focus:border-[#EA4C2A]"
                     >
                       <option value="all">All Categories ({products.length})</option>
                       {categories.map(c => (
@@ -5308,7 +5362,7 @@ function AdminPortal() {
                       setEditingProduct(null);
                       setProductModalOpen(true);
                     }}
-                    className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-95 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0"
+                    className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-95 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0"
                   >
                     <Plus size={15} /> Add New Dish
                   </button>
@@ -5336,7 +5390,7 @@ function AdminPortal() {
                               alt={product.name}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
-                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold">
+                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/75 backdrop-blur-xs text-white text-[10px] font-black">
                               {product.category}
                             </span>
 
@@ -5344,7 +5398,7 @@ function AdminPortal() {
                             <button
                               type="button"
                               onClick={() => toggleProductAvailability(product)}
-                              className={`absolute top-2 right-2 px-2.5 py-0.5 rounded-lg text-[10px] font-semibold cursor-pointer shadow-xs transition-all active:scale-95 ${
+                              className={`absolute top-2 right-2 px-2.5 py-0.5 rounded-lg text-[10px] font-black cursor-pointer shadow-xs transition-all active:scale-95 ${
                                 product.is_available
                                   ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                                   : 'bg-rose-600 text-white hover:bg-rose-700'
@@ -5354,17 +5408,17 @@ function AdminPortal() {
                             </button>
 
                             {product.badge && (
-                              <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-amber-500 text-slate-900 text-[10px] font-semibold uppercase tracking-wider">
+                              <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-amber-500 text-black text-[10px] font-black uppercase tracking-wider">
                                 {product.badge}
                               </span>
                             )}
                           </div>
 
-                          <h3 className="font-bold text-sm text-slate-900 line-clamp-1 mb-1">
+                          <h3 className="font-black text-sm text-black line-clamp-1 mb-1">
                             {product.name}
                           </h3>
                           {product.description && (
-                            <p className="text-xs text-slate-500 line-clamp-2 mb-2">
+                            <p className="text-xs text-black font-medium line-clamp-2 mb-2">
                               {product.description}
                             </p>
                           )}
@@ -5373,7 +5427,7 @@ function AdminPortal() {
                             <span className="font-black text-base text-[#EA4C2A]">
                               ₦{Number(product.price || 0).toLocaleString()}
                             </span>
-                            <div className="flex items-center gap-2 text-slate-500 text-[11px] font-medium">
+                            <div className="flex items-center gap-2 text-black text-[11px] font-black">
                               <span>⏱️ {product.prep_time_min || 20}m</span>
                               <span>📦 {product.stock_quantity || 50} left</span>
                             </div>
@@ -5392,9 +5446,9 @@ function AdminPortal() {
                             if (!pSizes || pSizes.length === 0) return null;
                             return (
                               <div className="mt-2 pt-1.5 border-t border-slate-100 flex flex-wrap items-center gap-1">
-                                <span className="text-[10px] text-slate-500 font-bold tracking-tight">⚖️ Portions:</span>
+                                <span className="text-[10px] text-black font-black tracking-tight">⚖️ Portions:</span>
                                 {pSizes.map((ps, idx) => (
-                                  <span key={idx} className="text-[9.5px] font-bold bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded-md border border-amber-200">
+                                  <span key={idx} className="text-[9.5px] font-black bg-amber-50 text-amber-950 px-1.5 py-0.5 rounded-md border border-amber-300">
                                     {ps.name.replace(/\s*\(.*\)/, '')}: {ps.price_adjustment === 0 ? 'Base' : `+₦${Number(ps.price_adjustment).toLocaleString()}`}
                                   </span>
                                 ))}
@@ -5408,10 +5462,10 @@ function AdminPortal() {
                           <button
                             type="button"
                             onClick={() => toggleProductAvailability(product)}
-                            className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-xl text-xs font-black transition-all cursor-pointer ${
                               product.is_available
-                                ? 'bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-200'
-                                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                ? 'bg-slate-100 hover:bg-rose-50 text-black hover:text-rose-700 border border-slate-300'
+                                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300'
                             }`}
                           >
                             {product.is_available ? 'Mark Sold Out' : 'Mark Available'}
@@ -5423,7 +5477,7 @@ function AdminPortal() {
                                 setEditingProduct(product);
                                 setProductModalOpen(true);
                               }}
-                              className="px-2 py-1 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#EA4C2A] text-[11px] font-bold transition-colors cursor-pointer border border-orange-200 flex items-center gap-1"
+                              className="px-2 py-1 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#EA4C2A] text-[11px] font-black transition-colors cursor-pointer border border-orange-300 flex items-center gap-1"
                               title="Edit Portions & Pricing"
                             >
                               <span>⚖️ Portions</span>
@@ -5433,7 +5487,7 @@ function AdminPortal() {
                                 setEditingProduct(product);
                                 setProductModalOpen(true);
                               }}
-                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer border border-slate-200"
+                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black transition-colors cursor-pointer border border-slate-300"
                               title="Edit Dish"
                             >
                               <Edit size={14} />
@@ -5446,7 +5500,7 @@ function AdminPortal() {
                                   loadSection('products');
                                 }
                               }}
-                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer border border-slate-200"
+                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-black hover:text-rose-700 transition-colors cursor-pointer border border-slate-300"
                               title="Delete Dish"
                             >
                               <Trash2 size={14} />
@@ -5464,10 +5518,10 @@ function AdminPortal() {
               <div className="space-y-4">
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 flex items-center justify-between shadow-xs">
                   <div>
-                    <h2 className="text-sm font-bold text-slate-900">Menu Categories</h2>
-                    <p className="text-xs text-slate-500 mt-0.5">Organize food items into discoverable menu groups.</p>
+                    <h2 className="text-sm font-black text-black">Menu Categories</h2>
+                    <p className="text-xs text-black font-semibold mt-0.5">Organize food items into discoverable menu groups.</p>
                   </div>
-                  <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-xl border border-slate-200">
+                  <span className="text-xs font-black text-black bg-slate-100 px-3 py-1 rounded-xl border border-slate-300">
                     {categories.filter(c => c.is_active !== false).length} Active / {categories.length} Total
                   </span>
                 </div>
@@ -5488,15 +5542,15 @@ function AdminPortal() {
                             {cat.icon || '🍲'}
                           </span>
                           <div className="min-w-0">
-                            <h3 className="font-bold text-xs sm:text-sm text-slate-900 truncate">{cat.name}</h3>
+                            <h3 className="font-black text-xs sm:text-sm text-black truncate">{cat.name}</h3>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[11px] text-slate-500">{dishCount} {dishCount === 1 ? 'dish' : 'dishes'}</span>
-                              <span className="text-[10px] text-slate-300">•</span>
+                              <span className="text-[11px] text-black font-bold">{dishCount} {dishCount === 1 ? 'dish' : 'dishes'}</span>
+                              <span className="text-[10px] text-slate-400 font-bold">•</span>
                               <button
                                 type="button"
                                 onClick={() => handleToggleCategory(cat)}
-                                className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md transition-colors cursor-pointer ${
-                                  isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                className={`text-[10px] font-black px-1.5 py-0.2 rounded-md transition-colors cursor-pointer ${
+                                  isActive ? 'bg-emerald-50 text-emerald-950 border border-emerald-300' : 'bg-rose-50 text-rose-950 border border-rose-300'
                                 }`}
                               >
                                 {isActive ? '🟢 Active' : '🔴 Hidden'}
@@ -5512,7 +5566,7 @@ function AdminPortal() {
                               setEditingCategory(cat);
                               setCategoryModalOpen(true);
                             }}
-                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer border border-slate-200"
+                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black transition-colors cursor-pointer border border-slate-300"
                             title="Edit Category"
                           >
                             <Edit size={14} />
@@ -5520,7 +5574,7 @@ function AdminPortal() {
                           <button
                             type="button"
                             onClick={() => handleDeleteCategory(cat)}
-                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer border border-slate-200"
+                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-black hover:text-rose-700 transition-colors cursor-pointer border border-slate-300"
                             title="Delete Category"
                           >
                             <Trash2 size={14} />
@@ -5539,19 +5593,19 @@ function AdminPortal() {
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-sm font-bold text-slate-900">Homepage Section Editor</h2>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <h2 className="text-sm font-black text-black">Homepage Section Editor</h2>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-950 border border-emerald-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                         Live Firestore Sync
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">Reorder, rename, filter, or toggle curated rows on the customer mobile home screen in real time.</p>
+                    <p className="text-xs text-black font-semibold mt-0.5">Reorder, rename, filter, or toggle curated rows on the customer mobile home screen in real time.</p>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
                       type="button"
                       onClick={handleResetHomepageSections}
-                      className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-black rounded-xl text-xs font-black border border-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer"
                       title="Reset to default sections"
                     >
                       <RotateCw size={13} />
@@ -5560,7 +5614,7 @@ function AdminPortal() {
                     <button
                       type="button"
                       onClick={handleAddCustomSection}
-                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold border border-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-black rounded-xl text-xs font-black border border-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <Plus size={14} />
                       <span>Add Section</span>
@@ -5851,42 +5905,42 @@ function AdminPortal() {
 
             {/* Active Store Codes */}
             <div>
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider px-1 mb-3">
+              <div className="text-xs font-black text-black uppercase tracking-wider px-1 mb-3">
                 Active Codes on Your Store ({promotions.length})
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {promotions.map(p => (
                   <div key={p.id} className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-3 shadow-xs">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono font-bold text-base text-[#EA4C2A] tracking-wider">
+                      <span className="font-mono font-black text-base text-black tracking-wider">
                         {p.code}
                       </span>
-                      <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
-                        p.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                        p.is_active ? 'bg-emerald-50 text-emerald-950 border border-emerald-300' : 'bg-slate-100 text-black border border-slate-300'
                       }`}>
-                        {p.is_active ? 'Active' : 'Turned Off'}
+                        {p.is_active ? '🟢 Active' : '⚪ Turned Off'}
                       </span>
                     </div>
 
                     <div>
-                      <div className="font-bold text-sm text-slate-900">{p.title}</div>
-                      <div className="text-xs text-slate-500 mt-0.5">{p.description}</div>
+                      <div className="font-black text-sm text-black">{p.title}</div>
+                      <div className="text-xs text-black font-semibold mt-0.5">{p.description}</div>
                     </div>
 
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-xs space-y-1.5">
-                      <div className="flex justify-between text-slate-600">
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                      <div className="flex justify-between text-black font-bold">
                         <span>Discount:</span>
-                        <span className="font-bold text-slate-900">
+                        <span className="font-black text-black">
                           {p.discount_type === 'percentage' ? `${p.discount_value}% Off` : `₦${Number(p.discount_value).toLocaleString()} Off`}
                         </span>
                       </div>
-                      <div className="flex justify-between text-slate-600">
+                      <div className="flex justify-between text-black font-bold">
                         <span>Minimum Spend:</span>
-                        <span className="font-bold text-slate-800">₦{Number(p.min_order || 0).toLocaleString()}</span>
+                        <span className="font-black text-black">₦{Number(p.min_order || 0).toLocaleString()}</span>
                       </div>
-                      <div className="flex justify-between text-slate-600">
+                      <div className="flex justify-between text-black font-bold">
                         <span>Times Used:</span>
-                        <span className="font-mono text-slate-800 font-bold">{p.used_count || 0} times</span>
+                        <span className="font-mono text-black font-black">{p.used_count || 0} times</span>
                       </div>
                     </div>
                   </div>
@@ -5904,22 +5958,22 @@ function AdminPortal() {
             {/* Top Bar */}
             <div className="bg-white border border-slate-200/80 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
               <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <h3 className="text-base font-black text-black flex items-center gap-2">
                   <MapPin size={18} className="text-[#EA4C2A]" />
                   <span>Delivery Areas & Fees (Ibadan)</span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-black font-semibold mt-0.5">
                   Set delivery charges and minimum order amounts for areas in Ibadan or add new locations.
                 </p>
               </div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="text-xs font-mono font-semibold text-slate-600 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200 shrink-0">
+                <span className="text-xs font-mono font-black text-black bg-slate-100 px-3 py-2 rounded-xl border border-slate-300 shrink-0">
                   📍 {zones.length} Zones Listed
                 </span>
                 <button
                   type="button"
                   onClick={() => setCreateZoneModalOpen(true)}
-                  className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-95 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer shrink-0"
+                  className="px-4 py-2 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-95 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer shrink-0"
                 >
                   <Plus size={14} />
                   <span>Add Location 📍</span>
@@ -5930,25 +5984,25 @@ function AdminPortal() {
             {/* Rain & Rush Hour Surcharge Banner */}
             <div className={`rounded-2xl p-5 border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs ${
               rainSurgeActive
-                ? 'bg-amber-50/80 border-amber-200'
+                ? 'bg-amber-50 border-amber-300'
                 : 'bg-white border-slate-200/80'
             }`}>
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl shrink-0 ${
-                  rainSurgeActive ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-600'
+                  rainSurgeActive ? 'bg-amber-200 text-amber-900' : 'bg-slate-100 text-black'
                 }`}>
                   🌧️
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-900">Heavy Rain & Rush Hour Extra Fee (+₦200)</span>
+                    <span className="text-xs font-black text-black">Heavy Rain & Rush Hour Extra Fee (+₦200)</span>
                     <span className={`text-[9.5px] font-black uppercase px-2 py-0.5 rounded-full ${
-                      rainSurgeActive ? 'bg-amber-400 text-slate-950 font-bold' : 'bg-slate-100 text-slate-500'
+                      rainSurgeActive ? 'bg-amber-400 text-black font-black' : 'bg-slate-100 text-black font-bold'
                     }`}>
                       {rainSurgeActive ? 'ACTIVE NOW (+₦200)' : 'NORMAL RATES'}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-[11px] text-black font-semibold mt-0.5">
                     Temporarily adds ₦200 extra to each delivery fee so riders stay motivated during heavy rain and Mokola/Challenge rush hour traffic.
                   </p>
                 </div>
@@ -5957,10 +6011,10 @@ function AdminPortal() {
               <button
                 type="button"
                 onClick={toggleRainSurge}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 shadow-xs ${
+                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs ${
                   rainSurgeActive
-                    ? 'bg-amber-500 hover:bg-amber-600 text-slate-950'
-                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700'
+                    ? 'bg-amber-500 hover:bg-amber-600 text-black'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
                 }`}
               >
                 {rainSurgeActive ? 'Turn Off Extra Fee' : '⚡ Turn On +₦200 Extra Fee'}
@@ -5975,30 +6029,30 @@ function AdminPortal() {
                   <div key={z.id} className="bg-white border border-slate-200/80 hover:border-slate-300 rounded-2xl p-5 flex flex-col justify-between transition-all shadow-xs">
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <div className="font-bold text-base text-slate-900">{z.name}</div>
-                        <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
-                          z.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                        <div className="font-black text-base text-black">{z.name}</div>
+                        <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                          z.is_active ? 'bg-emerald-50 text-emerald-950 border border-emerald-300' : 'bg-slate-100 text-black border border-slate-300'
                         }`}>
                           {z.is_active ? 'Active' : 'Paused'}
                         </span>
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-black font-bold">
                         {z.city || 'Ibadan'} · ⏱️ {z.estimated_delivery_time || '25-40 mins'}
                       </div>
 
-                      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 mt-3 space-y-1.5 text-xs">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-600">Delivery Fee:</span>
+                      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 mt-3 space-y-1.5 text-xs">
+                        <div className="flex justify-between items-center text-black font-bold">
+                          <span>Delivery Fee:</span>
                           <div className="text-right">
-                            <span className="font-bold text-[#EA4C2A] text-sm">₦{effectiveFee.toLocaleString()}</span>
+                            <span className="font-black text-[#EA4C2A] text-sm">₦{effectiveFee.toLocaleString()}</span>
                             {rainSurgeActive && (
-                              <span className="text-[10px] text-amber-600 block font-semibold">+₦200 rain surge</span>
+                              <span className="text-[10px] text-amber-700 block font-black">+₦200 rain surge</span>
                             )}
                           </div>
                         </div>
-                        <div className="flex justify-between items-center pt-1.5 border-t border-slate-200">
-                          <span className="text-slate-600">Minimum Order:</span>
-                          <span className="font-bold text-slate-900">₦{Number(z.min_order || 0).toLocaleString()}</span>
+                        <div className="flex justify-between items-center pt-1.5 border-t border-slate-200 text-black font-bold">
+                          <span>Minimum Order:</span>
+                          <span className="font-black text-black">₦{Number(z.min_order || 0).toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
@@ -6007,14 +6061,14 @@ function AdminPortal() {
                       <button
                         type="button"
                         onClick={() => setEditingZone(z)}
-                        className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer text-center"
+                        className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-black rounded-xl text-xs transition-colors cursor-pointer text-center"
                       >
                         Edit Fee & Time
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteZone(z.id, z.name)}
-                        className="p-2 bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 rounded-xl transition-all cursor-pointer"
+                        className="p-2 bg-slate-100 hover:bg-rose-50 text-black hover:text-rose-700 border border-slate-300 rounded-xl transition-all cursor-pointer"
                         title="Delete Location"
                       >
                         <Trash2 size={14} />
@@ -6033,62 +6087,62 @@ function AdminPortal() {
         {activeSection === 'settings' && (
           <div className="max-w-2xl space-y-4">
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-5 shadow-xs">
-              <div className="pb-4 border-b border-slate-100">
-                <h3 className="text-base font-bold text-slate-900">FoodMaxx Configuration</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Manage store details, payout bank accounts, and payment gateways.</p>
+              <div className="pb-4 border-b border-slate-200">
+                <h3 className="text-base font-black text-black">FoodMaxx Configuration</h3>
+                <p className="text-xs text-black font-semibold mt-0.5">Manage store details, payout bank accounts, and payment gateways.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Store Name</label>
+                <label className="block text-xs font-black text-black mb-1">Store Name</label>
                 <input
                   type="text"
                   value={settings.store_name || 'FoodMaxx'}
                   onChange={e => setSettings({ ...settings, store_name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-[#EA4C2A] focus:bg-white font-bold"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-black outline-none focus:border-[#EA4C2A] focus:bg-white"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Line</label>
+                  <label className="block text-xs font-black text-black mb-1">Phone Line</label>
                   <input
                     type="text"
                     value={settings.phone || ''}
                     placeholder="e.g. +234 800 000 0000"
                     onChange={e => setSettings({ ...settings, phone: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 outline-none focus:border-[#EA4C2A] focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">WhatsApp Dispatch Hotline</label>
+                  <label className="block text-xs font-black text-black mb-1">WhatsApp Dispatch Hotline</label>
                   <input
                     type="text"
                     value={settings.whatsapp_dispatch || ''}
                     placeholder="e.g. +234 800 000 0000"
                     onChange={e => setSettings({ ...settings, whatsapp_dispatch: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 outline-none focus:border-[#EA4C2A] focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Kitchen Address (Ibadan)</label>
+                <label className="block text-xs font-black text-black mb-1">Kitchen Address (Ibadan)</label>
                 <input
                   type="text"
                   value={settings.address || ''}
                   placeholder="e.g. 24 Awolowo Avenue, Old Bodija, Ibadan"
                   onChange={e => setSettings({ ...settings, address: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 outline-none focus:border-[#EA4C2A] focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                 />
               </div>
 
               {/* PAYOUT SETTLEMENT BANK ACCOUNT */}
-              <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-3">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🏦</span>
                   <div>
-                    <h4 className="font-bold text-xs text-slate-900">Merchant Payout Bank Account</h4>
-                    <p className="text-[10px] text-slate-500">
+                    <h4 className="font-black text-xs text-black">Merchant Payout Bank Account</h4>
+                    <p className="text-[10px] text-black font-semibold">
                       Bank account where daily revenue and earnings settlements are disbursed
                     </p>
                   </div>
@@ -6096,70 +6150,70 @@ function AdminPortal() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Bank Name</label>
+                    <label className="block text-[11px] font-black text-black mb-1">Bank Name</label>
                     <input
                       type="text"
                       value={settings.payout_bank_name || ''}
                       onChange={e => setSettings({ ...settings, payout_bank_name: e.target.value })}
                       placeholder="e.g. Guaranty Trust Bank"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:border-[#EA4C2A]"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Account Number</label>
+                    <label className="block text-[11px] font-black text-black mb-1">Account Number</label>
                     <input
                       type="text"
                       maxLength={10}
                       value={settings.payout_account_number || ''}
                       onChange={e => setSettings({ ...settings, payout_account_number: e.target.value.replace(/\D/g, '') })}
                       placeholder="10-digit NUBAN"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono outline-none focus:border-[#EA4C2A]"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Account Name</label>
+                    <label className="block text-[11px] font-black text-black mb-1">Account Name</label>
                     <input
                       type="text"
                       value={settings.payout_account_name || ''}
                       onChange={e => setSettings({ ...settings, payout_account_name: e.target.value })}
                       placeholder="e.g. FoodMaxx Kitchen Ltd"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:border-[#EA4C2A]"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Store Announcement Banner</label>
+                <label className="block text-xs font-black text-black mb-1">Store Announcement Banner</label>
                 <textarea
                   rows={2}
                   value={settings.announcement || ''}
                   onChange={e => setSettings({ ...settings, announcement: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 outline-none focus:border-[#EA4C2A] focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                   placeholder="e.g. ⚡ Fresh firewood party jollof & gourmet grills ready for immediate delivery!"
                 />
               </div>
 
               {/* PAYSTACK CONFIG */}
-              <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-3">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">⚡</span>
                     <div>
-                      <h4 className="font-bold text-xs text-slate-900">Paystack Payment Gateway</h4>
-                      <p className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+                      <h4 className="font-black text-xs text-black">Paystack Payment Gateway</h4>
+                      <p className="text-[10px] text-emerald-800 font-bold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse inline-block"></span>
                         Active & Ready
                       </p>
                     </div>
                   </div>
-                  <span className="text-[9.5px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-0.5 rounded-full border border-emerald-200 uppercase">
+                  <span className="text-[9.5px] bg-emerald-50 text-emerald-950 font-black px-2.5 py-0.5 rounded-full border border-emerald-300 uppercase">
                     🟢 Active
                   </span>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                  <label className="block text-[11px] font-black text-black mb-1">
                     Paystack Public Key (pk_live_... or pk_test_...)
                   </label>
                   <input
@@ -6167,12 +6221,12 @@ function AdminPortal() {
                     defaultValue={getStoredPaystackConfig().publicKey || 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a'}
                     id="admin-paystack-public-key"
                     placeholder="e.g. pk_live_xxxx or pk_test_xxxx"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono outline-none focus:border-[#EA4C2A]"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
                   />
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-slate-500">Gateway Status:</span>
+                  <span className="text-[11px] text-black font-bold">Gateway Status:</span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -6182,7 +6236,7 @@ function AdminPortal() {
                         savePaystackConfig({ publicKey: key, isLive: true });
                         toast('Paystack saved as Live Active! 🟢', 'success');
                       }}
-                      className="px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-all shadow-xs"
+                      className="px-3 py-1.5 rounded-xl text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-all shadow-xs"
                     >
                       Save & Activate
                     </button>
@@ -6194,7 +6248,7 @@ function AdminPortal() {
                         savePaystackConfig({ publicKey: key, isLive: false });
                         toast('Paystack set to Test Mode ⚡', 'info');
                       }}
-                      className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-all border border-slate-200"
+                      className="px-3 py-1.5 rounded-xl text-[11px] font-black bg-slate-100 hover:bg-slate-200 text-black cursor-pointer transition-all border border-slate-300"
                     >
                       Test Mode
                     </button>
@@ -6203,13 +6257,13 @@ function AdminPortal() {
               </div>
 
               {/* SECURITY & ADMIN ACCESS PASSWORD */}
-              <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-3">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">🔒</span>
                     <div>
-                      <h4 className="font-bold text-xs text-slate-900">Admin Access Password</h4>
-                      <p className="text-[10px] text-slate-500">
+                      <h4 className="font-black text-xs text-black">Admin Access Password</h4>
+                      <p className="text-[10px] text-black font-semibold">
                         Password required to access this FoodMaxx Admin Suite
                       </p>
                     </div>
@@ -6217,7 +6271,7 @@ function AdminPortal() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                  <label className="block text-[11px] font-black text-black mb-1">
                     Store Manager Password
                   </label>
                   <input
@@ -6225,24 +6279,28 @@ function AdminPortal() {
                     value={settings.admin_password || ''}
                     onChange={e => setSettings({ ...settings, admin_password: e.target.value })}
                     placeholder="Enter new admin password"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono outline-none focus:border-[#EA4C2A]"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">
+                  <p className="text-[10px] text-black font-semibold mt-1">
                     Keep this confidential. This protects your revenue, customer data, and store control.
                   </p>
                 </div>
               </div>
 
-              <div className="pt-3 flex items-center justify-between border-t border-slate-100">
-                <span className="text-xs font-bold text-slate-800">Accept Customer Orders:</span>
+              <div className="pt-3 flex items-center justify-between border-t border-slate-200">
+                <div>
+                  <span className="text-xs font-black text-black block">Accept Customer Orders:</span>
+                  <span className="text-[10px] font-bold text-slate-700">Control store open/close ordering status</span>
+                </div>
                 <button
                   type="button"
                   onClick={toggleKitchenStatus}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
-                    settings.is_open !== false ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-[#EA4C2A] text-white hover:bg-[#D43B1B]'
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs flex items-center gap-2 ${
+                    settings.is_open !== false ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-rose-600 text-white hover:bg-rose-700'
                   }`}
                 >
-                  {settings.is_open !== false ? '🟢 Kitchen Open' : '🔴 Kitchen Paused'}
+                  <span className={`w-2 h-2 rounded-full ${settings.is_open !== false ? 'bg-white animate-pulse' : 'bg-white'}`} />
+                  <span>{settings.is_open !== false ? '🟢 Open for Orders (Click to Close)' : '🔴 Close for Orders (Click to Open)'}</span>
                 </button>
               </div>
 

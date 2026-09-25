@@ -836,21 +836,24 @@ export async function getLiveSettings() {
   let res;
   if (snap.exists()) {
     const data = snap.data();
+    const isStoreOpen = data.is_open !== undefined ? (data.is_open === true || data.is_open === 'true') : (data.isOpen !== false);
     res = {
       store_name: 'FoodMaxx Kitchen & Grills',
-      is_open: data.isOpen !== false,
-      kitchen_status: data.isOpen !== false ? 'open' : 'closed',
       phone: data.supportContact || data.phone || '',
       address: data.address || 'Old Bodija, Ibadan',
       announcement: data.announcement || 'Fresh firewood party jollof & gourmet grills ready for delivery!',
       min_order: data.min_order || 1500,
       default_prep_time: data.cookingBufferMinutes || 20,
-      ...data
+      ...data,
+      is_open: isStoreOpen,
+      isOpen: isStoreOpen,
+      kitchen_status: isStoreOpen ? 'open' : 'closed'
     };
   } else {
     res = {
       store_name: 'FoodMaxx Kitchen & Grills',
       is_open: true,
+      isOpen: true,
       kitchen_status: 'open',
       phone: '',
       address: 'Old Bodija, Ibadan',
@@ -868,16 +871,18 @@ export function subscribeToLiveSettings(callback) {
   return onSnapshot(docRef, (snap) => {
     if (snap.exists()) {
       const data = snap.data();
+      const isStoreOpen = data.is_open !== undefined ? (data.is_open === true || data.is_open === 'true') : (data.isOpen !== false);
       const payload = {
         store_name: 'FoodMaxx Kitchen & Grills',
-        is_open: data.isOpen !== false,
-        kitchen_status: data.isOpen !== false ? 'open' : 'closed',
         phone: data.supportContact || data.phone || '',
         address: data.address || 'Old Bodija, Ibadan',
-        announcement: 'Fresh firewood party jollof & gourmet grills ready for delivery!',
+        announcement: data.announcement || 'Fresh firewood party jollof & gourmet grills ready for delivery!',
         min_order: 1500,
         default_prep_time: data.cookingBufferMinutes || 20,
-        ...data
+        ...data,
+        is_open: isStoreOpen,
+        isOpen: isStoreOpen,
+        kitchen_status: isStoreOpen ? 'open' : 'closed'
       };
       memoryCache.settings = { data: payload, timestamp: Date.now() };
       callback(payload);
@@ -889,12 +894,17 @@ export function subscribeToLiveSettings(callback) {
 
 export async function updateLiveSettings(updates) {
   const docRef = doc(db, COLL_SETTINGS, 'store_config');
+  const targetOpen = updates.is_open !== undefined ? (updates.is_open === true || updates.is_open === 'true') : (updates.isOpen !== undefined ? (updates.isOpen === true || updates.isOpen === 'true') : true);
   const clean = {
     ...updates,
-    isOpen: updates.is_open !== undefined ? updates.is_open : updates.isOpen,
+    isOpen: targetOpen,
+    is_open: targetOpen,
+    kitchen_status: targetOpen ? 'open' : 'closed',
     updated_at: new Date().toISOString()
   };
   await setDoc(docRef, clean, { merge: true });
+  // Invalidate memory cache so immediate reads are fresh!
+  memoryCache.settings = { data: null, timestamp: 0 };
   return getLiveSettings();
 }
 
