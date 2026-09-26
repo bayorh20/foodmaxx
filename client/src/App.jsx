@@ -669,27 +669,29 @@ function CustomerPortal() {
 
   const [appStage, setAppStage] = useState(() => {
     try {
+      // Allow testing splash directly with URL ?splash=1
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('splash') === '1' || params.has('splash')) {
+          return 'splash';
+        }
+      }
+
       const themeChosen = localStorage.getItem('fmx_theme_chosen') === 'true';
-      const onboarded = localStorage.getItem('fmx_onboarded') === 'true';
-      const splashSeen = localStorage.getItem('fmx_splash_seen') === 'true' || sessionStorage.getItem('fmx_splash_seen') === 'true';
 
       // First-time access: Prompt user to choose preferred theme first
       if (!themeChosen) {
         return 'theme_select';
       }
 
-      // Never show splash page on reload if user has already visited or onboarded
-      if (onboarded || splashSeen) {
-        return 'ready';
+      // Play 1.8s splash screen intro animation once per session on cold start
+      const sessionSplashPlayed = sessionStorage.getItem('fmx_session_splash_played') === 'true';
+      if (!sessionSplashPlayed) {
+        try { sessionStorage.setItem('fmx_session_splash_played', 'true'); } catch {}
+        return 'splash';
       }
 
-      // First-time visit: record flag so subsequent reloads skip splash completely
-      try {
-        localStorage.setItem('fmx_splash_seen', 'true');
-        sessionStorage.setItem('fmx_splash_seen', 'true');
-      } catch {}
-
-      return 'splash';
+      return 'ready';
     } catch {
       return 'ready';
     }
@@ -1304,12 +1306,7 @@ function CustomerPortal() {
                 try {
                   localStorage.setItem('fmx_theme_chosen', 'true');
                 } catch {}
-                const onboarded = localStorage.getItem('fmx_onboarded') === 'true';
-                if (onboarded) {
-                  setAppStage('ready');
-                } else {
-                  setAppStage('splash');
-                }
+                setAppStage('splash');
               }}
             />
           )}
@@ -1646,6 +1643,7 @@ function CustomerPortal() {
                   onOpenOrders={() => setActiveTab('orders')}
                   onOpenFavorites={() => setActiveTab('favorites')}
                   onOpenThemeSelection={() => setAppStage('theme_select')}
+                  onOpenSplash={() => setAppStage('splash')}
                   isDark={isDark} toggleDark={toggleDark}
                 />
               )}
@@ -3899,6 +3897,7 @@ function ProfileTab({
   onOpenOrders,
   onOpenFavorites,
   onOpenThemeSelection,
+  onOpenSplash,
   isDark,
   toggleDark
 }) {
@@ -4147,6 +4146,14 @@ function ProfileTab({
               badgeColor: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
               onClick: onOpenThemeSelection,
               color: 'text-rose-500'
+            },
+            {
+              icon: Sparkles,
+              label: 'Replay FoodMaxx Splash Screen',
+              badge: '1.8s Intro',
+              badgeColor: 'bg-red-500/15 text-red-600 dark:text-red-400',
+              onClick: onOpenSplash,
+              color: 'text-red-500'
             },
             {
               icon: Compass,

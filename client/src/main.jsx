@@ -29,23 +29,32 @@ if (typeof window !== 'undefined') {
 // Initialize Speed SDK for Core Web Vitals, 120 FPS rendering, and zero touch delay
 initSpeedSDK();
 
-// FoodMaxx PWA Service Worker Registration
+// FoodMaxx PWA Service Worker Registration with Instant Auto-Refresh
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then((reg) => {
-      // Periodic update checks
+      // Force update check on every load
+      reg.update().catch(() => {});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('FoodMaxx PWA has a new update ready.');
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
             }
           });
         }
       });
     }).catch((err) => {
       console.log('Service Worker setup notice:', err.message);
+    });
+
+    let isReloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!isReloading) {
+        isReloading = true;
+        window.location.reload();
+      }
     });
   });
 }
