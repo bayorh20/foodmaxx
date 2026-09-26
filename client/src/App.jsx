@@ -21,7 +21,7 @@ import {
   CreditCard, Flame, ShieldCheck, Utensils, SlidersHorizontal, UserCheck, Printer,
   Lock, Copy, Smartphone, Building2, Mic, ShoppingBag, ChevronDown, ChevronUp, Monitor, Key,
   FolderPlus, ArrowUp, ArrowDown, Video, FileText, Info, RotateCw,
-  Columns, LayoutList, Grid, Bike, Edit3, Radio, Palette, Camera
+  Columns, LayoutList, Grid, Bike, Edit3, Radio, Palette, Camera, Ticket, HeartHandshake
 } from 'lucide-react';
 
 import NotificationToneModal from './components/NotificationToneModal';
@@ -1479,19 +1479,32 @@ function CustomerPortal() {
                     className="w-10 h-10 rounded-2xl object-cover shadow-sm shrink-0 border border-red-500/15"
                   />
                   <div className="min-w-0">
-                    <p className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 leading-none">
-                      <span>{(() => {
-                        const h = new Date().getHours();
-                        return h < 12 ? 'Good Morning ☀️' : h < 17 ? 'Good Afternoon 🌤️' : 'Good Evening 🌙';
-                      })()}</span>
-                    </p>
-                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-tight mt-0.5 truncate">
-                      {(() => {
-                        const rawName = (user?.full_name || user?.name || '').trim();
-                        const firstName = rawName.split(' ')[0];
-                        return firstName ? `${firstName} 👋` : 'FoodMaxx Lover 👋';
-                      })()}
-                    </h2>
+                    {(() => {
+                      const rawName = (user?.full_name || user?.name || '').trim();
+                      const firstName = rawName.split(' ')[0];
+                      const isGuest = !user || !firstName || firstName.toLowerCase().includes('guest');
+                      const h = new Date().getHours();
+                      const timeOfDay = h < 12 ? 'Good Morning ☀️' : h < 17 ? 'Good Afternoon 🌤️' : 'Good Evening 🌙';
+
+                      if (isGuest) {
+                        return (
+                          <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-tight">
+                            {h < 12 ? 'Good morning 👋' : 'Good evening 👋'}
+                          </h2>
+                        );
+                      }
+
+                      return (
+                        <>
+                          <p className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 leading-none">
+                            <span>{timeOfDay}</span>
+                          </p>
+                          <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-tight mt-0.5 truncate">
+                            {firstName} 👋
+                          </h2>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -1588,6 +1601,7 @@ function CustomerPortal() {
                   onBack={() => setActiveTab('home')}
                   onRefresh={loadOrders}
                   isDark={isDark}
+                  toast={toast}
                 />
               )}
               {activeTab === 'favorites' && (
@@ -1616,7 +1630,10 @@ function CustomerPortal() {
                   onOpenOrders={() => setActiveTab('orders')}
                   onOpenFavorites={() => setActiveTab('favorites')}
                   onOpenSplash={() => setAppStage('splash')}
+                  onOpenSpin={() => setSpinModalOpen(true)}
                   isDark={isDark} toggleDark={toggleDark}
+                  toast={toast}
+                  setActiveTab={setActiveTab}
                 />
               )}
             </motion.div>
@@ -2428,7 +2445,7 @@ function PromoBanner({ onOrderNow, appCopy }) {
   const heroTitle = getCopy(appCopy, 'customer_hero', 'hero_title', 'Fresh Meals, Fast Delivery');
 
   return (
-    <div className="px-4 sm:px-0 mb-6 sm:mb-8 w-full">
+    <div className="px-4 sm:px-0 mb-9 sm:mb-12 w-full">
       <div className="bg-gradient-to-r from-[#FF5525] via-[#FF6036] to-[#EA4C2A] rounded-2xl px-4 py-2.5 sm:px-5 sm:py-3 relative overflow-hidden flex items-center justify-between min-h-[82px] sm:min-h-[92px] shadow-md shadow-orange-500/15">
         <div className="relative z-10 max-w-[70%] sm:max-w-[75%] flex flex-col justify-center">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -3169,15 +3186,15 @@ function HomeTab({
 
       {/* Skeleton loaders while loading */}
       {isLoading ? (
-        <>
+        <div className="pt-2 sm:pt-4">
           <SkeletonSection title="Top picks on FoodMaxx" />
           <SkeletonSection title="Trending Now" />
           <SkeletonSection title="Special Offers" />
           <SkeletonSection title="Quick Bites" />
-        </>
+        </div>
       ) : selectedHomeCat !== 'all' ? (
         /* Filtered View When Category Selected */
-        <div className="px-4 space-y-4">
+        <div className="px-4 space-y-4 pt-2 sm:pt-4">
           <div className="flex items-center justify-between pb-1 border-b border-gray-100 dark:border-white/5">
             <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#EA4C2A]"></span>
@@ -3220,7 +3237,7 @@ function HomeTab({
           </div>
         </div>
       ) : (
-        <>
+        <div className="pt-2 sm:pt-4">
           {processedSections.map((sec, sIdx) => {
             const sectionItems = sec.items || [];
 
@@ -3258,7 +3275,7 @@ function HomeTab({
               />
             );
           })}
-        </>
+        </div>
       )}
     </div>
   );
@@ -3598,7 +3615,7 @@ function MenuTab({
 // ============================================================
 // ORDERS TAB & CARDS (ULTRA-CLEAN, MODERN & MINIMALIST UI/UX)
 // ============================================================
-function OrdersTab({ orders, onOpenTracking, onReview, onExplore, onBack, onRefresh, isDark }) {
+function OrdersTab({ orders, onOpenTracking, onReview, onExplore, onBack, onRefresh, isDark, toast }) {
   const activeOrders = (orders || []).filter(o => !['DELIVERED','CANCELLED'].includes(o.order_status));
   const pastOrders = (orders || []).filter(o => ['DELIVERED','CANCELLED'].includes(o.order_status));
 
@@ -3742,6 +3759,32 @@ function OrdersTab({ orders, onOpenTracking, onReview, onExplore, onBack, onRefr
           ))}
         </div>
       )}
+
+      {/* Subtle Service Apology Voucher Reminder (Comforting & Non-Distracting) */}
+      <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 text-xs transition-colors ${
+        isDark ? 'bg-white/[0.03] border-white/8 text-slate-300' : 'bg-slate-50 border-slate-200/80 text-slate-600'
+      }`}>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-7 h-7 rounded-xl bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
+            <HeartHandshake size={14} />
+          </div>
+          <span className="truncate">
+            Delays on your order? Use apology code <strong className="font-mono text-rose-500 font-bold">SORRY500</strong> for ₦500 off
+          </span>
+        </div>
+        <button
+          onClick={() => {
+            try {
+              if (navigator?.clipboard?.writeText) navigator.clipboard.writeText('SORRY500');
+              localStorage.setItem('fmx_active_promo', 'SORRY500');
+              if (typeof toast === 'function') toast('Apology code "SORRY500" copied! It will auto-apply at checkout. 🎁', 'success');
+            } catch {}
+          }}
+          className="text-rose-500 font-bold text-xs hover:underline shrink-0 cursor-pointer"
+        >
+          Copy
+        </button>
+      </div>
     </div>
   );
 }
@@ -3851,7 +3894,7 @@ function CleanOrderCard({ order, onTrack, onReview, isDark }) {
 }
 
 // ============================================================
-// PROFILE TAB
+// PROFILE TAB (CLEAN, MINIMALIST & FOCUSED ON CORE VALUE)
 // ============================================================
 function ProfileTab({
   user,
@@ -3864,359 +3907,479 @@ function ProfileTab({
   onOpenWallet,
   onOpenSupport,
   onOpenAddresses,
-  onOpenToneStudio,
-  onOpenTransitionStudio,
   onOpenOrders,
   onOpenFavorites,
-  onOpenSplash,
+  onOpenSpin,
   isDark,
-  toggleDark
+  toggleDark,
+  toast,
+  setActiveTab
 }) {
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[65vh] px-6 text-center py-10">
-        <div className="relative mb-5">
-          <img
-            src="/foodmaxx-logo.png"
-            alt="FoodMaxx"
-            className="w-20 h-20 rounded-3xl object-cover shadow-xl border border-black/10 dark:border-white/10 shrink-0"
-          />
-          <span className="absolute -bottom-1 -right-1 bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">
-            🎁 ₦1,000
-          </span>
-        </div>
-        <h3 className="font-bold text-xl text-slate-900 dark:text-white mb-1.5">Sign In to FoodMaxx</h3>
-        <p className="text-gray-500 dark:text-gray-400 text-xs mb-6 max-w-xs leading-relaxed">
-          Log in or create an account in seconds to unlock your <span className="font-bold text-emerald-600 dark:text-emerald-400">₦1,000 Welcome Bonus</span>, live order tracking, and fast checkout.
-        </p>
-        <button
-          onClick={onOpenOnboarding || onLogin}
-          className="w-full max-w-xs bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#EA4C2A]/25 cursor-pointer transition-all"
-        >
-          Sign In / Register
-        </button>
-      </div>
-    );
-  }
+  const [vouchersOpen, setVouchersOpen] = useState(false);
+
+  // Check ₦1,000 giveaway status
+  const isGiveawayClaimed = Boolean(
+    user?.giveaway_claimed ||
+    (user && ((user.orders_count || 0) > 0 || (user.total_orders || 0) > 0)) ||
+    (() => {
+      try {
+        if (typeof window !== 'undefined' && window.localStorage?.getItem('fmx_giveaway_claimed') === 'true') return true;
+        if (user?.phone && window.localStorage?.getItem(`fmx_giveaway_claimed_${user.phone.replace(/\D/g, '')}`) === 'true') return true;
+        return false;
+      } catch {
+        return false;
+      }
+    })()
+  );
 
   const walletBalance = Number(wallet?.balance) || 0;
-  const displayName = user?.full_name || user?.name || (user?.phone ? `Customer ${user.phone}` : 'FoodMaxx Member');
-  const displayEmail = user?.email || 'No email registered';
+  const rawName = (user?.full_name || user?.name || '').trim();
+  const displayName = rawName || (user?.phone ? `Customer ${user.phone}` : 'FoodMaxx Member');
+  const displayEmail = user?.email || '';
   const displayPhone = user?.phone || '';
 
+  // Builtin vouchers list
+  const VOUCHERS = [
+    {
+      code: 'WELCOME1000',
+      title: '₦1,000 Welcome Giveaway',
+      desc: '₦1,000 flat discount on your first meal order.',
+      badge: '₦1,000 OFF',
+      min: 'Min order ₦1,000',
+      isGiveaway: true,
+      claimed: isGiveawayClaimed
+    },
+    {
+      code: 'FOODMAXX10',
+      title: '10% Foodie Discount',
+      desc: '10% off your entire order up to ₦2,000.',
+      badge: '10% OFF',
+      min: 'Min order ₦1,000'
+    },
+    {
+      code: 'FREEDEL',
+      title: 'Zero Delivery Fee',
+      desc: '100% Free delivery straight to your doorstep.',
+      badge: 'FREE DELIVERY',
+      min: 'Min order ₦1,500'
+    },
+    {
+      code: 'FREEFRIES',
+      title: 'Crispy French Fries Perk',
+      desc: 'Complimentary delicious fries added with your meal.',
+      badge: 'FREE ITEM',
+      min: 'Min order ₦1,000'
+    },
+    {
+      code: 'FREEDRINK',
+      title: 'Chilled Refreshing Drink',
+      desc: 'Complimentary cold beverage with your order.',
+      badge: 'FREE DRINK',
+      min: 'Min order ₦1,000'
+    },
+    {
+      code: 'SORRY500',
+      title: 'Service Delay Apology Voucher',
+      desc: '₦500 goodwill compensation for kitchen or rider delays.',
+      badge: '₦500 OFF',
+      min: 'Min order ₦1,000',
+      isApology: true
+    }
+  ];
+
+  const handleCopyVoucher = (code) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(code);
+      }
+      localStorage.setItem('fmx_active_promo', code);
+      if (typeof toast === 'function') {
+        toast(`Promo code "${code}" copied! It will auto-apply at checkout. 🎁`, 'success');
+      }
+    } catch {
+      if (typeof toast === 'function') toast(`Code "${code}" selected!`, 'success');
+    }
+  };
+
   return (
-    <div className="p-4 sm:p-5 space-y-4 pb-28">
-      {/* 1. Modern Identity Profile Card */}
-      <div className={`rounded-3xl p-5 border transition-all ${
-        isDark ? 'bg-[#181B22] border-white/10 shadow-xl' : 'bg-white border-slate-100 shadow-sm'
+    <div className="p-4 sm:p-5 max-w-xl mx-auto w-full space-y-4 pb-28">
+      {/* 1. User Header / Profile Summary */}
+      <div className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+        isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-xs'
       }`}>
-        <div className="flex items-center gap-4">
-          <div className="relative shrink-0">
-            <img
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80';
-              }}
-              src={user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=EA4C2A&color=fff&size=100`}
-              className="w-16 h-16 rounded-2xl object-cover shadow-sm border border-black/10 dark:border-white/10"
-              alt={displayName}
-            />
-            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-[#181B22]" />
+        {user ? (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="relative shrink-0">
+                <img
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80';
+                  }}
+                  src={user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=EA4C2A&color=fff&size=100`}
+                  className="w-13 h-13 rounded-2xl object-cover shadow-xs border border-black/10 dark:border-white/10"
+                  alt={displayName}
+                />
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#181B22]" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white leading-tight truncate">
+                    {displayName}
+                  </h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    Active
+                  </span>
+                </div>
+                {displayEmail && <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{displayEmail}</p>}
+                {displayPhone && <p className="text-[11px] font-mono text-gray-400 dark:text-gray-500 mt-0.5">{displayPhone}</p>}
+              </div>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-base text-slate-900 dark:text-white leading-tight truncate">
-                {displayName}
-              </h3>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
-                VIP
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-11 h-11 rounded-2xl bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center font-bold text-lg shrink-0">
+                👋
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">Guest Foodie</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Sign in to unlock ₦1,000 bonus & track orders</p>
+              </div>
+            </div>
+            <button
+              onClick={onOpenOnboarding || onLogin}
+              className="px-4 py-2 rounded-xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white font-bold text-xs shadow-sm shadow-[#EA4C2A]/20 transition-all cursor-pointer shrink-0"
+            >
+              Sign In
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 2. THE 4 CORE VALUE PILLARS (Wallet, Giveaway, Vouchers, Bonus) */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* A. WALLET */}
+        <div
+          onClick={onOpenWallet}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
+            isDark
+              ? 'bg-[#181B22] border-white/10 hover:border-emerald-500/30'
+              : 'bg-white border-slate-100 shadow-xs hover:border-emerald-200'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <Wallet size={16} />
+            </div>
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+              + Top Up
+            </span>
+          </div>
+          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Chow Wallet</div>
+          <div className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight">
+            {fmt(walletBalance)}
+          </div>
+          <div className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1">Available balance</div>
+        </div>
+
+        {/* B. GIVEAWAY */}
+        <div
+          onClick={() => {
+            if (isGiveawayClaimed) {
+              if (typeof toast === 'function') toast('The ₦1,000 giveaway has already been redeemed for this account.', 'info');
+            } else {
+              handleCopyVoucher('WELCOME1000');
+            }
+          }}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
+            isDark
+              ? 'bg-[#181B22] border-white/10 hover:border-amber-500/30'
+              : 'bg-white border-slate-100 shadow-xs hover:border-amber-200'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <Gift size={16} />
+            </div>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              isGiveawayClaimed
+                ? 'bg-gray-100 dark:bg-white/10 text-gray-500'
+                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+            }`}>
+              {isGiveawayClaimed ? 'Redeemed' : 'Active'}
+            </span>
+          </div>
+          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">₦1,000 Giveaway</div>
+          <div className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight">
+            {isGiveawayClaimed ? 'Claimed ✓' : '₦1,000 Ready'}
+          </div>
+          <div className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1 truncate">
+            {isGiveawayClaimed ? 'Used on previous order' : 'First-time customer gift'}
+          </div>
+        </div>
+
+        {/* C. VOUCHERS */}
+        <div
+          onClick={() => setVouchersOpen(true)}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
+            isDark
+              ? 'bg-[#181B22] border-white/10 hover:border-red-500/30'
+              : 'bg-white border-slate-100 shadow-xs hover:border-red-200'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center shrink-0">
+              <Ticket size={16} />
+            </div>
+            <span className="text-[10px] font-bold text-[#EA4C2A] bg-[#EA4C2A]/10 px-2 py-0.5 rounded-full">
+              View All
+            </span>
+          </div>
+          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Food Vouchers</div>
+          <div className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight">
+            {VOUCHERS.length} Available
+          </div>
+          <div className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1 truncate">
+            Discounts & Free Delivery
+          </div>
+        </div>
+
+        {/* D. BONUS */}
+        <div
+          onClick={() => {
+            if (typeof onOpenSpin === 'function') {
+              onOpenSpin();
+            } else if (typeof toast === 'function') {
+              toast('Spin & Win wheel opening...', 'info');
+            }
+          }}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
+            isDark
+              ? 'bg-[#181B22] border-white/10 hover:border-indigo-500/30'
+              : 'bg-white border-slate-100 shadow-xs hover:border-indigo-200'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+              <Sparkles size={16} />
+            </div>
+            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">
+              Spin Wheel 🎯
+            </span>
+          </div>
+          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Daily Bonus</div>
+          <div className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight">
+            Spin & Win
+          </div>
+          <div className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1 truncate">
+            Win free meals & perks
+          </div>
+        </div>
+      </div>
+
+      {/* 2b. GENTLE SERVICE CARE & APOLOGY VOUCHER (NON-DISTRACTING) */}
+      <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-colors ${
+        isDark ? 'bg-rose-500/10 border-rose-500/20' : 'bg-rose-50/70 border-rose-100'
+      }`}>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
+            <HeartHandshake size={16} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-bold text-slate-900 dark:text-white">Service Apology Voucher</span>
+              <span className="text-[9.5px] font-black uppercase px-1.5 py-0.2 rounded-md bg-rose-500 text-white">
+                ₦500 OFF
               </span>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{displayEmail}</p>
-            {displayPhone && <p className="text-[11px] font-mono text-gray-400 dark:text-gray-500 mt-0.5">{displayPhone}</p>}
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+              Code <span className="font-mono font-bold text-rose-600 dark:text-rose-400">SORRY500</span> · Goodwill compensation
+            </p>
           </div>
         </div>
-
-        {/* Quick Stats Strip */}
-        <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-white/5 text-center">
-          <button
-            onClick={onOpenOrders}
-            className={`p-2.5 rounded-2xl border transition-colors cursor-pointer ${
-              isDark ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
-            }`}
-          >
-            <div className="text-base font-bold text-slate-900 dark:text-white">{orders?.length || 0}</div>
-            <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-0.5">Orders</div>
-          </button>
-          <button
-            onClick={onOpenWallet}
-            className={`p-2.5 rounded-2xl border transition-colors cursor-pointer ${
-              isDark ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
-            }`}
-          >
-            <div className="text-base font-bold text-emerald-600 dark:text-emerald-400">{fmt(walletBalance)}</div>
-            <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-0.5">Wallet</div>
-          </button>
-          <button
-            onClick={onOpenAddresses}
-            className={`p-2.5 rounded-2xl border transition-colors cursor-pointer ${
-              isDark ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
-            }`}
-          >
-            <div className="text-base font-bold text-slate-900 dark:text-white">{savedAddressesCount || 1}</div>
-            <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-0.5">Places</div>
-          </button>
-        </div>
+        <button
+          onClick={() => handleCopyVoucher('SORRY500')}
+          className="px-3 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-bold text-xs shrink-0 cursor-pointer shadow-xs transition-all"
+        >
+          Apply
+        </button>
       </div>
 
-      {/* 2. Digital Chow Wallet Pass Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white p-5 border border-white/10 shadow-xl">
-        <div className="absolute top-0 right-0 w-36 h-36 bg-[#EA4C2A]/20 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center font-bold text-xs shadow-sm">
-              FM
+      {/* 3. CLEAN & SIMPLE ACTION MENU */}
+      <div className={`rounded-2xl border overflow-hidden ${
+        isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-xs'
+      }`}>
+        {[
+          {
+            icon: Package,
+            label: 'My Orders',
+            badge: orders?.length ? `${orders.length}` : null,
+            onClick: onOpenOrders,
+            color: 'text-amber-500'
+          },
+          {
+            icon: MapPin,
+            label: 'Saved Delivery Addresses',
+            badge: savedAddressesCount ? `${savedAddressesCount} Spots` : null,
+            onClick: onOpenAddresses,
+            color: 'text-blue-500'
+          },
+          {
+            icon: Heart,
+            label: 'Favorite Meals',
+            onClick: onOpenFavorites,
+            color: 'text-rose-500'
+          },
+          {
+            icon: MessageSquare,
+            label: 'Help & Live Support',
+            onClick: onOpenSupport,
+            color: 'text-emerald-500'
+          },
+          {
+            icon: isDark ? Sun : Moon,
+            label: isDark ? 'Dark Theme (Tap for Light)' : 'Light Theme (Tap for Dark)',
+            isToggle: true,
+            onClick: toggleDark,
+            color: isDark ? 'text-amber-400' : 'text-indigo-500'
+          }
+        ].map((item, i) => (
+          <button
+            key={i}
+            onClick={item.onClick}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t first:border-t-0 ${
+              isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+              isDark ? 'bg-white/5' : 'bg-slate-100'
+            } ${item.color} shrink-0`}>
+              <item.icon size={16} className="stroke-[2.2]" />
             </div>
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300">FoodMaxx Chow Pass</div>
-              <div className="text-[11px] text-gray-400">Digital Food Wallet</div>
-            </div>
-          </div>
-          <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-            Active
-          </span>
-        </div>
-
-        <div className="mt-4 flex items-end justify-between">
-          <div>
-            <div className="text-[11px] text-gray-400 font-medium">Available Balance</div>
-            <div className="text-2xl font-bold text-white tracking-tight">{fmt(walletBalance)}</div>
-          </div>
-          <button
-            onClick={onOpenWallet}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-400/20 active:scale-95 transition-all cursor-pointer"
-          >
-            Add Money +
+            <span className="font-semibold text-xs flex-1 text-slate-800 dark:text-slate-200">{item.label}</span>
+            {item.isToggle ? (
+              <div className={`w-9 h-5 rounded-full relative p-0.5 transition-colors ${
+                isDark ? 'bg-indigo-600' : 'bg-slate-300'
+              }`}>
+                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                  isDark ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+              </div>
+            ) : (
+              <>
+                {item.badge && (
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                    isDark ? 'bg-white/10 text-gray-300' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+                <ChevronRight size={14} className="text-gray-400 shrink-0" />
+              </>
+            )}
           </button>
-        </div>
-
-        {/* Welcome Bonus Callout Banner */}
-        <div className="mt-3.5 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1.5 text-amber-300 font-semibold text-[11.5px]">
-            <span>🎁</span>
-            <span>₦1,000 Welcome Perk Ready to Use</span>
-          </div>
-          <button
-            onClick={onOpenWallet}
-            className="text-[11px] text-gray-300 hover:text-white underline cursor-pointer"
-          >
-            View History →
-          </button>
-        </div>
+        ))}
       </div>
 
-      {/* 3. Grouped Standard Menus */}
-      <div className="space-y-3">
-        {/* Group A: Dining & Activity */}
-        <div className={`rounded-2xl border overflow-hidden ${
-          isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-sm'
-        }`}>
-          <div className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">
-            Dining & Orders
-          </div>
-          {[
-            {
-              icon: Package,
-              label: 'My Orders & Live Tracking',
-              badge: orders?.length ? `${orders.length}` : null,
-              onClick: onOpenOrders,
-              color: 'text-amber-500'
-            },
-            {
-              icon: Wallet,
-              label: 'FoodMaxx Chow Wallet',
-              badge: fmt(walletBalance),
-              badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-              onClick: onOpenWallet,
-              color: 'text-emerald-500'
-            },
-            {
-              icon: MapPin,
-              label: 'Saved Locations & Landmarks',
-              badge: savedAddressesCount ? `${savedAddressesCount} Spots` : null,
-              onClick: onOpenAddresses,
-              color: 'text-blue-500'
-            },
-            {
-              icon: Heart,
-              label: 'Favorite Dishes',
-              onClick: onOpenFavorites,
-              color: 'text-rose-500'
-            }
-          ].map((item, i) => (
-            <button
-              key={i}
-              onClick={item.onClick}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer border-t first:border-t-0 ${
-                isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-              }`}
-            >
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                isDark ? 'bg-white/5' : 'bg-slate-100'
-              } ${item.color} shrink-0`}>
-                <item.icon size={16} className="stroke-[2.2]" />
-              </div>
-              <span className="font-semibold text-xs flex-1 text-slate-800 dark:text-slate-200">{item.label}</span>
-              {item.badge && (
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                  item.badgeColor || (isDark ? 'bg-white/10 text-gray-300' : 'bg-slate-100 text-slate-600')
-                }`}>
-                  {item.badge}
-                </span>
-              )}
-              <ChevronRight size={14} className="text-gray-400 shrink-0" />
-            </button>
-          ))}
-        </div>
-
-        {/* Group B: App Customization & Experience */}
-        <div className={`rounded-2xl border overflow-hidden ${
-          isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-sm'
-        }`}>
-          <div className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">
-            App Experience
-          </div>
-          {[
-            {
-              icon: SlidersHorizontal,
-              label: 'Screen Transition Studio',
-              badge: '20 Styles',
-              badgeColor: 'bg-[#EA4C2A]/15 text-[#EA4C2A]',
-              onClick: onOpenTransitionStudio,
-              color: 'text-[#EA4C2A]'
-            },
-            {
-              icon: Bell,
-              label: 'Order Alert Tones & Chimes',
-              badge: '20+ Sounds',
-              badgeColor: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
-              onClick: onOpenToneStudio,
-              color: 'text-amber-500'
-            },
-            {
-              icon: isDark ? Sun : Moon,
-              label: isDark ? 'Dark Theme (Tap for Light)' : 'Light Theme (Tap for Dark)',
-              isToggle: true,
-              onClick: toggleDark,
-              color: isDark ? 'text-amber-400' : 'text-indigo-500'
-            },
-
-            {
-              icon: Sparkles,
-              label: 'Replay FoodMaxx Splash Screen',
-              badge: '1.8s Intro',
-              badgeColor: 'bg-red-500/15 text-red-600 dark:text-red-400',
-              onClick: onOpenSplash,
-              color: 'text-red-500'
-            },
-            {
-              icon: Compass,
-              label: 'App Intro & Onboarding Tour',
-              onClick: onOpenOnboarding,
-              color: 'text-purple-500'
-            }
-          ].map((item, i) => (
-            <button
-              key={i}
-              onClick={item.onClick}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer border-t first:border-t-0 ${
-                isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-              }`}
-            >
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                isDark ? 'bg-white/5' : 'bg-slate-100'
-              } ${item.color} shrink-0`}>
-                <item.icon size={16} className="stroke-[2.2]" />
-              </div>
-              <span className="font-semibold text-xs flex-1 text-slate-800 dark:text-slate-200">{item.label}</span>
-              {item.isToggle ? (
-                <div className={`w-10 h-5 rounded-full relative p-0.5 transition-colors ${
-                  isDark ? 'bg-indigo-600' : 'bg-slate-300'
-                }`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                    isDark ? 'translate-x-5' : 'translate-x-0'
-                  }`} />
-                </div>
-              ) : (
-                <>
-                  {item.badge && (
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                      item.badgeColor || (isDark ? 'bg-white/10 text-gray-300' : 'bg-slate-100 text-slate-600')
-                    }`}>
-                      {item.badge}
-                    </span>
-                  )}
-                  <ChevronRight size={14} className="text-gray-400 shrink-0" />
-                </>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Group C: Support & Security */}
-        <div className={`rounded-2xl border overflow-hidden ${
-          isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-sm'
-        }`}>
-          <div className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">
-            Support & Security
-          </div>
-          {[
-            {
-              icon: MessageSquare,
-              label: '24/7 Live Support & FAQs',
-              onClick: onOpenSupport,
-              color: 'text-emerald-500'
-            },
-            {
-              icon: ShieldCheck,
-              label: 'Privacy Policy & Terms',
-              onClick: onOpenSupport,
-              color: 'text-slate-500'
-            }
-          ].map((item, i) => (
-            <button
-              key={i}
-              onClick={item.onClick}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer border-t first:border-t-0 ${
-                isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-              }`}
-            >
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                isDark ? 'bg-white/5' : 'bg-slate-100'
-              } ${item.color} shrink-0`}>
-                <item.icon size={16} className="stroke-[2.2]" />
-              </div>
-              <span className="font-semibold text-xs flex-1 text-slate-800 dark:text-slate-200">{item.label}</span>
-              <ChevronRight size={14} className="text-gray-400 shrink-0" />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 4. Clean Sign Out Button */}
-      <button
-        onClick={onLogout}
-        className="w-full py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 active:scale-[0.98] transition-all cursor-pointer"
-      >
-        <LogOut size={15} />
-        <span>Sign Out of FoodMaxx</span>
-      </button>
+      {/* 4. SIGN OUT BUTTON (If logged in) */}
+      {user && (
+        <button
+          onClick={onLogout}
+          className="w-full py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 active:scale-[0.98] transition-all cursor-pointer"
+        >
+          <LogOut size={15} />
+          <span>Sign Out</span>
+        </button>
+      )}
 
       {/* App Version Info */}
       <div className="text-center pt-2">
-        <p className="text-[10.5px] text-gray-400 font-medium">FoodMaxx Technologies · v2.4.0</p>
-        <p className="text-[9.5px] text-gray-400/80">Crafted with ❤️ for Ibadan Foodies</p>
+        <p className="text-[10px] text-gray-400 font-medium">FoodMaxx Technologies · v2.4.0</p>
       </div>
+
+      {/* 5. INTERACTIVE VOUCHERS MODAL */}
+      <AnimatePresence>
+        {vouchersOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className={`w-full max-w-md rounded-3xl p-5 border shadow-2xl relative max-h-[85vh] flex flex-col ${
+                isDark ? 'bg-[#181B22] border-white/10 text-white' : 'bg-white border-slate-100 text-slate-900'
+              }`}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between pb-3.5 border-b border-gray-100 dark:border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center font-bold">
+                    <Ticket size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold">Available Food Vouchers</h3>
+                    <p className="text-[11px] text-gray-400">Tap copy to apply code at checkout</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setVouchersOpen(false)}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-white cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Vouchers List */}
+              <div className="overflow-y-auto py-3 space-y-2.5 flex-1 pr-1">
+                {VOUCHERS.map((v) => (
+                  <div
+                    key={v.code}
+                    className={`p-3.5 rounded-2xl border transition-all ${
+                      isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-[#EA4C2A] text-white tracking-wider">
+                            {v.badge}
+                          </span>
+                          <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                            {v.code}
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1.5">{v.title}</h4>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">{v.desc}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{v.min}</p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          handleCopyVoucher(v.code);
+                          setVouchersOpen(false);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-gray-100 dark:text-slate-900 text-white font-bold text-xs shrink-0 cursor-pointer shadow-xs active:scale-95 transition-all"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-3 border-t border-gray-100 dark:border-white/10 text-center">
+                <button
+                  onClick={() => setVouchersOpen(false)}
+                  className="w-full py-2.5 rounded-xl bg-gray-100 dark:bg-white/10 text-slate-800 dark:text-gray-200 font-bold text-xs hover:bg-gray-200 cursor-pointer transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -8354,6 +8517,36 @@ function CheckoutModal({ open, onClose, selectedZone, onSuccess, selectedAddress
                     Coupon "{promoCode}" applied
                   </span>
                   <span>−{fmt(discount)}</span>
+                </div>
+              )}
+
+              {/* Quick Available Vouchers (Non-Distracting) */}
+              {discount === 0 && (
+                <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 text-[10.5px]">
+                  <span className="text-gray-400 shrink-0 font-medium">Quick Vouchers:</span>
+                  {[
+                    { code: 'FOODMAXX10', label: '10% OFF' },
+                    { code: 'FREEDEL', label: 'Free Delivery' },
+                    { code: 'SORRY500', label: '₦500 Apology' }
+                  ].map(v => (
+                    <button
+                      key={v.code}
+                      type="button"
+                      onClick={() => {
+                        setPromoCode(v.code);
+                        applyPromo(v.code);
+                      }}
+                      className={`px-2 py-0.5 rounded-lg border font-mono font-bold shrink-0 transition-all active:scale-95 cursor-pointer ${
+                        v.code === 'SORRY500'
+                          ? 'border-rose-400/40 bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                          : isDark
+                            ? 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                            : 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {v.code} ({v.label})
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

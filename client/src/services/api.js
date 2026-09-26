@@ -338,7 +338,10 @@ export const api = {
       'FREEFRIES': { code: 'FREEFRIES', discount_type: 'fixed', discount_value: 1500, max_discount: 1500, min_order: 1000, description: 'Free French Fries voucher' },
       'FREEDRINK': { code: 'FREEDRINK', discount_type: 'fixed', discount_value: 1000, max_discount: 1000, min_order: 1000, description: 'Free Chilled Drink voucher' },
       'FREEDEL': { code: 'FREEDEL', discount_type: 'free_delivery', discount_value: 0, free_delivery: true, min_order: 1500, description: 'Free Delivery voucher' },
-      'FOODMAXX10': { code: 'FOODMAXX10', discount_type: 'percentage', discount_value: 10, max_discount: 2000, min_order: 1000, description: '10% Loyalty discount' }
+      'FOODMAXX10': { code: 'FOODMAXX10', discount_type: 'percentage', discount_value: 10, max_discount: 2000, min_order: 1000, description: '10% Loyalty discount' },
+      'SORRY500': { code: 'SORRY500', discount_type: 'fixed', discount_value: 500, max_discount: 500, min_order: 1000, description: '₦500 Late Delivery Apology Goodwill Voucher' },
+      'SORRY20': { code: 'SORRY20', discount_type: 'percentage', discount_value: 20, max_discount: 2000, min_order: 1000, description: '20% Late Delivery Apology Goodwill Voucher' },
+      'APOLOGY500': { code: 'APOLOGY500', discount_type: 'fixed', discount_value: 500, max_discount: 500, min_order: 1000, description: '₦500 Late Delivery Apology Goodwill Voucher' }
     };
 
     let matched = null;
@@ -351,6 +354,18 @@ export const api = {
 
     if (!matched && BUILTIN_PROMOS[codeClean]) {
       matched = BUILTIN_PROMOS[codeClean];
+    }
+
+    // Dynamic pattern matching for admin-dispatched apology codes (e.g., SORRY-XXXX, APOLOGY-XXXX, LATE-XXXX)
+    if (!matched && (codeClean.startsWith('SORRY') || codeClean.startsWith('APOL') || codeClean.startsWith('LATE'))) {
+      matched = {
+        code: codeClean,
+        discount_type: 'fixed',
+        discount_value: 500,
+        max_discount: 1000,
+        min_order: 1000,
+        description: 'FoodMaxx Late Delivery Apology Goodwill Voucher'
+      };
     }
 
     if (!matched) {
