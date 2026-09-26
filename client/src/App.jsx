@@ -29,7 +29,6 @@ import OptimizedProductImage, { getOptimizedImageUrl, preloadImage, prefetchCata
 const AdminPortal = lazy(() => import('./components/AdminPortal'));
 import SplashScreen from './components/SplashScreen';
 import OnboardingFlow from './components/OnboardingFlow';
-import ThemeSelectionScreen from './components/ThemeSelectionScreen';
 import TransitionStudioModal, { getTransitionVariants } from './components/TransitionStudioModal';
 import SpinAndWinModal from './components/SpinAndWinModal';
 import {
@@ -677,13 +676,6 @@ function CustomerPortal() {
         }
       }
 
-      const themeChosen = localStorage.getItem('fmx_theme_chosen') === 'true';
-
-      // First-time access: Prompt user to choose preferred theme first
-      if (!themeChosen) {
-        return 'theme_select';
-      }
-
       // Play 1.8s splash screen intro animation once per session on cold start
       const sessionSplashPlayed = sessionStorage.getItem('fmx_session_splash_played') === 'true';
       if (!sessionSplashPlayed) {
@@ -1299,17 +1291,6 @@ function CustomerPortal() {
 
         {/* FIRST-TIME THEME SELECTION, SPLASH SCREEN & ONBOARDING */}
         <AnimatePresence mode="wait">
-          {appStage === 'theme_select' && (
-            <ThemeSelectionScreen
-              onSelectTheme={(selectedTheme) => {
-                setTheme(selectedTheme);
-                try {
-                  localStorage.setItem('fmx_theme_chosen', 'true');
-                } catch {}
-                setAppStage('splash');
-              }}
-            />
-          )}
           {appStage === 'splash' && (
             <SplashScreen 
               onFinish={() => {
@@ -1490,6 +1471,7 @@ function CustomerPortal() {
               {/* Top Row: Brand Logo + Greeting with Name (Left) & Actions (Right) */}
               <div className="flex items-center justify-between gap-3">
                 {/* Brand Logo + Greeting with Customer Name */}
+                {/* Brand Logo + Greeting with First Name Directly Underneath */}
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <img
                     src="/foodmaxx-logo.png"
@@ -1497,33 +1479,24 @@ function CustomerPortal() {
                     className="w-10 h-10 rounded-2xl object-cover shadow-sm shrink-0 border border-red-500/15"
                   />
                   <div className="min-w-0">
-                    <p className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 leading-tight">
+                    <p className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 leading-none">
                       <span>{(() => {
                         const h = new Date().getHours();
-                        const timeOfDay = h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
-                        const emoji = h < 12 ? '☀️' : h < 17 ? '🌤️' : '🌙';
-                        const rawName = (user?.full_name || user?.name || '').trim();
-                        return rawName ? `${timeOfDay}, ${rawName} ${emoji}` : `${timeOfDay} ${emoji}`;
+                        return h < 12 ? 'Good Morning ☀️' : h < 17 ? 'Good Afternoon 🌤️' : 'Good Evening 🌙';
                       })()}</span>
                     </p>
+                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-tight mt-0.5 truncate">
+                      {(() => {
+                        const rawName = (user?.full_name || user?.name || '').trim();
+                        const firstName = rawName.split(' ')[0];
+                        return firstName ? `${firstName} 👋` : 'FoodMaxx Lover 👋';
+                      })()}
+                    </h2>
                   </div>
                 </div>
 
-                {/* Right Action Icons (Theme, Shopping Cart) */}
+                {/* Right Action Icons (Shopping Cart) */}
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Day/Night switch */}
-                  <button
-                    onClick={toggleDark}
-                    className="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200/70 dark:hover:bg-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 active:scale-95 transition-all cursor-pointer border border-slate-200/60 dark:border-white/5"
-                    title="Toggle Theme"
-                  >
-                    {isDark ? (
-                      <Sun size={17} className="text-amber-400 fill-amber-400/20" />
-                    ) : (
-                      <Moon size={17} className="text-slate-700 fill-slate-700/10" />
-                    )}
-                  </button>
-
                   {/* Shopping Cart Button */}
                   <button
                     onClick={() => {
@@ -1543,9 +1516,9 @@ function CustomerPortal() {
                 </div>
               </div>
 
-              {/* Row 2: Headline - "What do you crave for today?" (Full width, completely visible with no truncation) */}
+              {/* Row 2: Headline - "What do you crave for today?" (Reduced font size) */}
               <div className="pt-0.5">
-                <h1 className="text-lg sm:text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
+                <h1 className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 tracking-tight leading-tight">
                   What do you crave for today?
                 </h1>
               </div>
@@ -1642,7 +1615,6 @@ function CustomerPortal() {
                   onOpenTransitionStudio={() => setTransitionModalOpen(true)}
                   onOpenOrders={() => setActiveTab('orders')}
                   onOpenFavorites={() => setActiveTab('favorites')}
-                  onOpenThemeSelection={() => setAppStage('theme_select')}
                   onOpenSplash={() => setAppStage('splash')}
                   isDark={isDark} toggleDark={toggleDark}
                 />
@@ -3896,7 +3868,6 @@ function ProfileTab({
   onOpenTransitionStudio,
   onOpenOrders,
   onOpenFavorites,
-  onOpenThemeSelection,
   onOpenSplash,
   isDark,
   toggleDark
@@ -4139,14 +4110,7 @@ function ProfileTab({
               onClick: toggleDark,
               color: isDark ? 'text-amber-400' : 'text-indigo-500'
             },
-            {
-              icon: Palette,
-              label: 'Choose Preferred Theme Screen',
-              badge: 'Setup',
-              badgeColor: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
-              onClick: onOpenThemeSelection,
-              color: 'text-rose-500'
-            },
+
             {
               icon: Sparkles,
               label: 'Replay FoodMaxx Splash Screen',
