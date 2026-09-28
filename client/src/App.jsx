@@ -737,10 +737,10 @@ function CustomerPortal() {
   const [selectedZone, setSelectedZone] = useState(() => getStoredZones()[0] || null);
   const [locationsModalOpen, setLocationsModalOpen] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState([
-    { id: 'addr_1', label: 'Home', address: '123 Maple Street, Springfield', landmark: 'Near UI Main Gate', zone_id: 'zone_bodija', zone_name: 'Bodija, Ibadan', icon: '🏠' },
-    { id: 'addr_2', label: 'Work', address: 'Heritage Mall, 3rd Floor', landmark: 'Opposite Cocoa House', zone_id: 'zone_dugbe', zone_name: 'Dugbe, Ibadan', icon: '💼' },
-    { id: 'addr_3', label: 'Campus', address: 'Faculty of Technology, UI', landmark: 'Beside Queen Idia Hall Link', zone_id: 'zone_agbowo', zone_name: 'Agbowo, Ibadan', icon: '🎓' },
-    { id: 'addr_4', label: 'Partner', address: 'Plot 12, Oluyole Extension', landmark: 'Near Domino\'s Pizza', zone_id: 'zone_oluyole', zone_name: 'Oluyole, Ibadan', icon: '❤️' }
+    { id: 'addr_1', label: 'Home', address: 'Block B, Flat 4, Awolowo Avenue, Old Bodija', landmark: 'Opposite Zenith Bank', zone_id: 'zone_bodija', zone_name: 'Old Bodija, Ibadan', icon: '🏠' },
+    { id: 'addr_2', label: 'Work', address: 'Heritage Mall, 3rd Floor, Commercial Wing', landmark: 'Beside Cocoa House', zone_id: 'zone_dugbe', zone_name: 'Dugbe, Ibadan', icon: '💼' },
+    { id: 'addr_3', label: 'Campus', address: 'Postgraduate Hall, University of Ibadan (UI)', landmark: 'Opposite Trenchard Hall, Agbowo Gate', zone_id: 'zone_uicampus', zone_name: 'UI Campus, Ibadan', icon: '🎓' },
+    { id: 'addr_4', label: 'Partner', address: 'Plot 12, Ring Road Extension, Near Palms Mall', landmark: 'Beside Mobil Station', zone_id: 'zone_ringroad', zone_name: 'Ring Road, Ibadan', icon: '❤️' }
   ]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [orderMode, setOrderMode] = useState('delivery'); // 'delivery' or 'pickup'
@@ -1175,13 +1175,16 @@ function CustomerPortal() {
     }
   }
 
-  async function openTrackingOrder(order) {
-    try {
-      setReturnTabAfterTracking(activeTab);
-      const res = await api.getOrder(order.id);
-      setTrackingOrder(res.data || order);
-    } catch (e) {
-      setTrackingOrder(order);
+  function openTrackingOrder(order) {
+    if (!order) return;
+    setReturnTabAfterTracking(activeTab);
+    // Instant zero-latency open with current order data
+    setTrackingOrder(order);
+    // Background refresh without blocking modal opening
+    if (order.id) {
+      api.getOrder(order.id).then(res => {
+        if (res?.data) setTrackingOrder(res.data);
+      }).catch(() => {});
     }
   }
 
@@ -1508,22 +1511,25 @@ function CustomerPortal() {
                   </div>
                 </div>
 
-                {/* Right Action Icons (Shopping Cart) */}
+                {/* Right Action Icons (Modern Light/Dark Mode Toggle) */}
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Shopping Cart Button */}
                   <button
                     onClick={() => {
-                      if (typeof triggerHaptic === 'function') triggerHaptic('light');
-                      setCartOpen(true);
+                      if (typeof triggerHaptic === 'function') triggerHaptic('selection');
+                      toggleDark();
                     }}
-                    className="relative w-9 h-9 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm shadow-red-500/20 hover:bg-[#d93f1d]"
-                    title="Shopping Cart"
+                    className={`relative w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 active:scale-90 cursor-pointer shadow-xs group ${
+                      isDark
+                        ? 'bg-[#181B22] border border-white/10 text-amber-400 hover:bg-white/10 hover:border-amber-400/40 shadow-amber-500/5'
+                        : 'bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-100 hover:text-indigo-600 hover:border-indigo-200 shadow-slate-200/50'
+                    }`}
+                    title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                    aria-label="Toggle Theme"
                   >
-                    <ShoppingBag size={17} />
-                    {itemCount > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-white text-[#EA4C2A] text-[9.5px] font-black rounded-full flex items-center justify-center border border-[#EA4C2A] shadow-xs">
-                        {itemCount}
-                      </span>
+                    {isDark ? (
+                      <Sun size={18} className="transition-transform duration-500 group-hover:rotate-90 stroke-[2.2]" />
+                    ) : (
+                      <Moon size={18} className="transition-transform duration-500 group-hover:-rotate-12 stroke-[2.2]" />
                     )}
                   </button>
                 </div>
@@ -6742,10 +6748,46 @@ function FoodDetailModal({ restaurant, item, onClose }) {
 function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
   const { cart, removeItem, updateQty, subtotal, clearCart, addItem } = useCart();
   const { isDark } = useTheme();
+  const { user } = useAuth();
   const toast = useToast();
   const [deliveryNote, setDeliveryNote] = useState('');
   const [showAddonPopout, setShowAddonPopout] = useState(false);
   const [addonsList, setAddonsList] = useState(DEFAULT_ADDONS);
+
+  // Check if ₦1,000 giveaway has already been claimed on this device/account
+  const isGiveawayClaimed = Boolean(
+    user?.giveaway_claimed ||
+    (user && ((user.orders_count || 0) > 0 || (user.total_orders || 0) > 0)) ||
+    (() => {
+      try {
+        if (localStorage.getItem('fmx_giveaway_claimed') === 'true') return true;
+        const lp = localStorage.getItem('fmx_last_phone') || user?.phone;
+        if (lp && localStorage.getItem(`fmx_giveaway_claimed_${lp.replace(/\D/g, '')}`) === 'true') return true;
+        return false;
+      } catch {
+        return false;
+      }
+    })()
+  );
+
+  // 1. Welcome ₦1,000 Giveaway state in Cart (enabled by default for first-timers)
+  const [applyWelcomeDiscount, setApplyWelcomeDiscount] = useState(() => {
+    try {
+      if (isGiveawayClaimed) return false;
+      return localStorage.getItem('fmx_cart_use_giveaway') !== 'false';
+    } catch {
+      return !isGiveawayClaimed;
+    }
+  });
+
+  // 2. Delay Apology Discount (SORRY500) state in Cart
+  const [applyApologyDiscount, setApplyApologyDiscount] = useState(() => {
+    try {
+      return localStorage.getItem('fmx_active_promo') === 'SORRY500';
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     let unsub = null;
@@ -6764,12 +6806,56 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
     };
   }, []);
 
+  // Discount deductions on Cart Subtotal
+  const welcomeDiscountVal = (!isGiveawayClaimed && applyWelcomeDiscount) ? Math.min(1000, subtotal) : 0;
+  const remainingSubtotal = Math.max(0, subtotal - welcomeDiscountVal);
+  const apologyDiscountVal = applyApologyDiscount ? Math.min(500, remainingSubtotal > 0 ? remainingSubtotal : subtotal) : 0;
+  const totalDiscount = welcomeDiscountVal + apologyDiscountVal;
+
   const standardDeliveryFee = selectedZone?.delivery_fee || 500;
   const isFreeDelivery = subtotal >= 10000;
   const effectiveDeliveryFee = isFreeDelivery ? 0 : standardDeliveryFee;
   const serviceFee = 250;
-  const total = subtotal + effectiveDeliveryFee + serviceFee;
+  const total = Math.max(0, subtotal + effectiveDeliveryFee + serviceFee - totalDiscount);
   const totalItemsCount = cart.items.reduce((s, i) => s + i.qty, 0);
+
+  const handleToggleWelcome = () => {
+    if (isGiveawayClaimed) {
+      toast('The ₦1,000 welcome discount has already been redeemed for this account.', 'info');
+      return;
+    }
+    const next = !applyWelcomeDiscount;
+    setApplyWelcomeDiscount(next);
+    try {
+      localStorage.setItem('fmx_cart_use_giveaway', next ? 'true' : 'false');
+    } catch {}
+    if (typeof triggerHaptic === 'function') triggerHaptic('selection');
+    if (next) {
+      toast(`₦1,000 Welcome discount applied! 🎉 Saved ${fmt(Math.min(1000, subtotal))}`, 'success');
+    } else {
+      toast('Welcome discount removed from cart', 'info');
+    }
+  };
+
+  const handleToggleApology = () => {
+    const next = !applyApologyDiscount;
+    setApplyApologyDiscount(next);
+    try {
+      if (next) {
+        localStorage.setItem('fmx_active_promo', 'SORRY500');
+      } else {
+        if (localStorage.getItem('fmx_active_promo') === 'SORRY500') {
+          localStorage.removeItem('fmx_active_promo');
+        }
+      }
+    } catch {}
+    if (typeof triggerHaptic === 'function') triggerHaptic('selection');
+    if (next) {
+      toast('Delay apology voucher applied! ₦500 deducted. 🤝', 'success');
+    } else {
+      toast('Apology voucher removed from cart', 'info');
+    }
+  };
 
   if (!open) return null;
 
@@ -6961,32 +7047,138 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
               />
             </div>
 
-            {/* Welcome Wallet Perk Banner in Cart */}
-            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-emerald-500/15 border border-amber-500/30 dark:border-amber-400/20 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-[#EA4C2A] text-white flex items-center justify-center text-sm shrink-0 shadow-xs">
-                  🎁
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-extrabold text-xs text-amber-600 dark:text-amber-400">
-                      ₦1,000 Welcome Wallet Perk
-                    </span>
-                    <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                      Active
-                    </span>
+            {/* OFFERS & DISCOUNTS SECTION IN CART (CLEAN, NEAT & INTERACTIVE) */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                  Offers & Discounts
+                </span>
+                {totalDiscount > 0 && (
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                    Saving {fmt(totalDiscount)}
+                  </span>
+                )}
+              </div>
+
+              {/* 1. PREMIUM ₦1,000 WELCOME DISCOUNT CARD */}
+              <div className={`p-3.5 sm:p-4 rounded-2xl border transition-all relative overflow-hidden select-none ${
+                isGiveawayClaimed
+                  ? isDark ? 'bg-white/[0.02] border-white/5 opacity-60' : 'bg-slate-50 border-slate-200/60 opacity-70'
+                  : applyWelcomeDiscount
+                  ? isDark
+                    ? 'bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-[#EA4C2A]/15 border-amber-500/35 shadow-md shadow-amber-500/5'
+                    : 'bg-gradient-to-r from-amber-50/90 via-orange-50/80 to-amber-50/90 border-amber-300 shadow-sm'
+                  : isDark
+                  ? 'bg-[#181B22] border-white/10 hover:border-white/20'
+                  : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
+              }`}>
+                {!isGiveawayClaimed && applyWelcomeDiscount && (
+                  <div className="absolute -right-6 -bottom-6 w-28 h-28 bg-amber-500/20 rounded-full blur-xl pointer-events-none" />
+                )}
+
+                <div className="flex items-start justify-between gap-3 relative z-10">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center text-lg shrink-0 shadow-xs ${
+                      isGiveawayClaimed
+                        ? 'bg-gray-200 dark:bg-white/10 text-gray-400'
+                        : 'bg-gradient-to-br from-amber-400 to-[#EA4C2A] text-white shadow-amber-500/25'
+                    }`}>
+                      🎁
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight">
+                          ₦1,000 Welcome Discount
+                        </h4>
+                        <span className={`text-[9.5px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          isGiveawayClaimed
+                            ? 'bg-gray-100 dark:bg-white/10 text-gray-400'
+                            : applyWelcomeDiscount
+                            ? 'bg-emerald-500 text-white shadow-xs'
+                            : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                        }`}>
+                          {isGiveawayClaimed ? 'Claimed' : applyWelcomeDiscount ? '−₦1,000 Applied' : 'Available'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                        {isGiveawayClaimed
+                          ? 'Welcome discount has already been used on your first order.'
+                          : 'First-time customer gift. Flat ₦1,000 deduction on your meal subtotal.'}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                    Ready to apply at checkout for instant savings!
-                  </p>
+
+                  {!isGiveawayClaimed && (
+                    <button
+                      type="button"
+                      onClick={handleToggleWelcome}
+                      className={`px-3 py-1.5 rounded-xl font-bold text-xs shrink-0 cursor-pointer transition-all active:scale-95 shadow-xs ${
+                        applyWelcomeDiscount
+                          ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                          : 'bg-[#EA4C2A] hover:bg-[#D43D1D] text-white'
+                      }`}
+                    >
+                      {applyWelcomeDiscount ? 'Applied ✓' : 'Apply'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. DELAY APOLOGY DISCOUNT NOTICE & VOUCHER CARD */}
+              <div className={`p-3.5 sm:p-4 rounded-2xl border transition-all relative overflow-hidden select-none ${
+                applyApologyDiscount
+                  ? isDark
+                    ? 'bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-red-500/15 border-rose-500/35 shadow-md shadow-rose-500/5'
+                    : 'bg-gradient-to-r from-rose-50/90 via-pink-50/80 to-rose-50/90 border-rose-300 shadow-sm'
+                  : isDark
+                  ? 'bg-[#181B22] border-white/10 hover:border-white/20'
+                  : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
+              }`}>
+                <div className="flex items-start justify-between gap-3 relative z-10">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
+                      <HeartHandshake size={20} className="stroke-[2.2]" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight">
+                          Delivery Delay Apology
+                        </h4>
+                        <span className={`text-[9.5px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          applyApologyDiscount
+                            ? 'bg-rose-500 text-white shadow-xs'
+                            : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                        }`}>
+                          {applyApologyDiscount ? '−₦500 Applied' : 'Code: SORRY500'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                        Experienced an unexpected kitchen or rider delay? Use this goodwill voucher for ₦500 off.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleApology}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs shrink-0 cursor-pointer transition-all active:scale-95 shadow-xs ${
+                      applyApologyDiscount
+                        ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                        : isDark
+                        ? 'bg-white/10 hover:bg-white/15 text-slate-200 border border-white/15'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200'
+                    }`}
+                  >
+                    {applyApologyDiscount ? 'Applied ✓' : 'Apply'}
+                  </button>
                 </div>
               </div>
             </div>
 
             {/* Clean Bill Summary */}
-            <div className={`p-4 rounded-2xl border space-y-2 ${isDark ? 'bg-[#181B22] border-white/5' : 'bg-white border-slate-100 shadow-sm'}`}>
+            <div className={`p-4 rounded-2xl border space-y-2.5 ${isDark ? 'bg-[#181B22] border-white/5' : 'bg-white border-slate-100 shadow-sm'}`}>
               <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>Subtotal</span>
+                <span>Items Subtotal</span>
                 <span className="font-semibold text-slate-900 dark:text-white">{fmt(subtotal)}</span>
               </div>
               <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
@@ -6999,8 +7191,46 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
                 <span>Service Fee</span>
                 <span className="font-semibold text-slate-900 dark:text-white">{fmt(serviceFee)}</span>
               </div>
+
+              {/* Welcome Discount Deduction Line */}
+              {!isGiveawayClaimed && applyWelcomeDiscount && welcomeDiscountVal > 0 && (
+                <div className="flex justify-between items-center text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">
+                  <span className="flex items-center gap-1.5">
+                    <Gift size={13} />
+                    <span>Welcome Gift (₦1,000)</span>
+                  </span>
+                  <span>−{fmt(welcomeDiscountVal)}</span>
+                </div>
+              )}
+
+              {/* Apology Voucher Deduction Line */}
+              {applyApologyDiscount && apologyDiscountVal > 0 && (
+                <div className="flex justify-between items-center text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-xl border border-rose-500/20">
+                  <span className="flex items-center gap-1.5">
+                    <HeartHandshake size={13} />
+                    <span>Delay Apology (SORRY500)</span>
+                  </span>
+                  <span>−{fmt(apologyDiscountVal)}</span>
+                </div>
+              )}
+
+              {/* Total Savings Summary Callout */}
+              {totalDiscount > 0 && (
+                <div className="flex justify-between items-center text-[11px] font-bold text-emerald-600 dark:text-emerald-400 pt-0.5">
+                  <span>Total Cart Savings</span>
+                  <span>−{fmt(totalDiscount)}</span>
+                </div>
+              )}
+
               <div className="border-t border-slate-100 dark:border-white/10 pt-2.5 flex justify-between items-center font-bold text-sm">
-                <span className="text-slate-900 dark:text-white">Total</span>
+                <div>
+                  <span className="text-slate-900 dark:text-white block leading-tight">Total to Pay</span>
+                  {totalDiscount > 0 && (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                      You save {fmt(totalDiscount)}
+                    </span>
+                  )}
+                </div>
                 <span className="text-base text-[#EA4C2A]">{fmt(total)}</span>
               </div>
             </div>
@@ -9086,7 +9316,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
   const totalAmount = order.total || order.total_amount || 0;
 
   // Resolve full delivery address safely
-  const fullAddress = order.delivery_address || order.address || (order.delivery_zone ? `${order.delivery_zone}, Ibadan` : 'Bodija, Ibadan');
+  const fullAddress = order.delivery_address || order.address || (order.delivery_zone ? `${order.delivery_zone}, Ibadan` : 'Awolowo Avenue, Old Bodija, Ibadan');
   const landmark = order.delivery_landmark || order.landmark || '';
 
   // Order items resolution
@@ -9497,8 +9727,8 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
     order.deliveryAddress ||
     order.address ||
     order.recipient_address ||
-    (order.delivery_zone ? `${order.delivery_zone}, Ibadan` : 'Bodija / University of Ibadan, Oyo State');
-  const destinationZone = order.delivery_zone || order.zone || 'Bodija / UI Zone';
+    (order.delivery_zone ? `${order.delivery_zone}, Ibadan` : 'Awolowo Avenue, Old Bodija, Ibadan');
+  const destinationZone = order.delivery_zone || order.zone || 'Old Bodija / UI Axis';
   const destinationLandmark = order.delivery_landmark || order.landmark || order.delivery_note || '';
   const destinationInstructions = order.delivery_instructions || order.instructions || '';
 
