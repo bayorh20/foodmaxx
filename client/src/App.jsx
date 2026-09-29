@@ -3099,38 +3099,6 @@ function HomeTab({
       {/* 1. Promo Banner */}
       <PromoBanner onOrderNow={onGoToMenu} appCopy={appCopy} />
 
-      {/* 1b. Group Order Home Option Banner */}
-      <div className="px-4 sm:px-0 mb-4 w-full">
-        <div 
-          onClick={() => {
-            if (typeof triggerHaptic === 'function') triggerHaptic('selection');
-            if (onStartGroupOrder) onStartGroupOrder();
-          }}
-          className="bg-white dark:bg-[#1A1D24] border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 flex items-center justify-between shadow-xs hover:border-[#EA4C2A]/50 transition-all cursor-pointer group active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
-            <div className="w-10 h-10 rounded-xl bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center shrink-0">
-              <Users size={20} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-slate-900 dark:text-white">Group Order</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">Fast & Easy</span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                Order lunch with friends or colleagues & pay separately
-              </p>
-            </div>
-          </div>
-          <button 
-            type="button"
-            className="px-3.5 py-1.5 bg-[#EA4C2A] hover:bg-[#d43d1c] text-white text-xs font-bold rounded-xl shrink-0 transition-transform active:scale-95 shadow-xs cursor-pointer"
-          >
-            Start Group
-          </button>
-        </div>
-      </div>
-
       {/* 2. Category Chips hidden per user preference */}
 
       {/* Skeleton loaders while loading */}
