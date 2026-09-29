@@ -10,7 +10,8 @@ import {
   Sparkles,
   Utensils,
   RefreshCw,
-  Navigation
+  Navigation,
+  AlertCircle
 } from 'lucide-react';
 import { getRealCurrentPosition } from '../services/realLocation';
 
@@ -48,6 +49,7 @@ export default function OnboardingFlow({
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [detectingGps, setDetectingGps] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Auto clean phone number for Nigerian local/international format
@@ -55,6 +57,22 @@ export default function OnboardingFlow({
     const numeric = val.replace(/[^\d+]/g, '');
     setPhone(numeric.slice(0, 14));
     if (errorMsg) setErrorMsg('');
+  };
+
+  // Real GPS location detection for Step 3
+  const handleDetectGps = async () => {
+    setDetectingGps(true);
+    setErrorMsg('');
+    try {
+      const loc = await getRealCurrentPosition();
+      if (loc?.address) {
+        setAddress(loc.address);
+      }
+    } catch (err) {
+      setErrorMsg(err?.message || 'Could not detect GPS location. Please enter manually.');
+    } finally {
+      setDetectingGps(false);
+    }
   };
 
   // Validate Step 2 (Customer Details)
@@ -124,7 +142,6 @@ export default function OnboardingFlow({
         onComplete();
       }
     } catch (err) {
-      // Even if silent network registration has a hiccups, ensure customer can access home
       if (typeof onComplete === 'function') {
         onComplete();
       }
@@ -134,10 +151,10 @@ export default function OnboardingFlow({
   };
 
   return (
-    <div className="relative w-full h-full min-h-[100dvh] bg-[#0E1117] text-white flex flex-col justify-between overflow-x-hidden font-sans select-none">
+    <div className="relative w-full h-full min-h-[100dvh] bg-[#F8FAFC] text-slate-900 flex flex-col justify-between overflow-x-hidden font-sans select-none">
       
       {/* Top Bar: Progress Indicator & Optional Back Button */}
-      <div className="pt-6 px-6 flex items-center justify-between z-10">
+      <div className="pt-6 px-6 flex items-center justify-between z-10 max-w-md mx-auto w-full">
         {step > 1 ? (
           <button
             type="button"
@@ -145,7 +162,7 @@ export default function OnboardingFlow({
               setErrorMsg('');
               setStep(prev => prev - 1);
             }}
-            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white transition-all cursor-pointer"
+            className="w-10 h-10 rounded-full bg-white hover:bg-slate-100 active:scale-95 flex items-center justify-center text-slate-700 border border-slate-200 shadow-xs transition-all cursor-pointer"
             aria-label="Go Back"
           >
             <ChevronLeft size={20} />
@@ -163,8 +180,8 @@ export default function OnboardingFlow({
                 s === step
                   ? 'w-7 bg-[#EA4C2A]'
                   : s < step
-                  ? 'w-2 bg-[#EA4C2A]/70'
-                  : 'w-2 bg-white/20'
+                  ? 'w-2.5 bg-[#EA4C2A]/70'
+                  : 'w-2 bg-slate-200'
               }`}
             />
           ))}
@@ -180,7 +197,7 @@ export default function OnboardingFlow({
               } catch {}
               if (typeof onComplete === 'function') onComplete();
             }}
-            className="text-xs font-semibold text-white/50 hover:text-white transition-colors cursor-pointer px-2 py-1"
+            className="text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer px-2 py-1"
           >
             Skip
           </button>
@@ -206,28 +223,28 @@ export default function OnboardingFlow({
               className="flex flex-col items-center text-center space-y-6"
             >
               {/* Appetizing Food Visual matching FoodMaxx branding */}
-              <div className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-slate-900 flex items-center justify-center">
+              <div className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-3xl overflow-hidden shadow-xl border border-slate-200/90 bg-white flex items-center justify-center">
                 <img
                   src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=700&auto=format&fit=crop&q=80"
                   alt="FoodMaxx Fresh Gourmet Meal"
                   className="w-full h-full object-cover"
                   loading="eager"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                 
                 {/* Floating Brand Badge */}
-                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-2 py-2 px-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/15">
+                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-2 py-2 px-3 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-md">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#EA4C2A] animate-pulse" />
-                  <span className="text-xs font-bold tracking-wide text-white">Sizzling & Hot in Ibadan</span>
+                  <span className="text-xs font-extrabold tracking-wide text-slate-900">Sizzling & Hot in Ibadan</span>
                 </div>
               </div>
 
               {/* Copy */}
-              <div className="space-y-3 pt-2">
-                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+              <div className="space-y-2 pt-2">
+                <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
                   FoodMaxx
                 </h1>
-                <p className="text-base sm:text-lg text-slate-300 font-medium max-w-xs mx-auto leading-relaxed">
+                <p className="text-base sm:text-lg text-slate-600 font-medium max-w-xs mx-auto leading-relaxed">
                   Get your favourite meals, delivered fresh and fast.
                 </p>
               </div>
@@ -237,7 +254,7 @@ export default function OnboardingFlow({
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="w-full py-4 px-6 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white font-bold text-base shadow-lg shadow-[#EA4C2A]/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer"
+                  className="w-full py-4 px-6 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white font-black text-base shadow-lg shadow-[#EA4C2A]/25 flex items-center justify-center gap-2.5 transition-all cursor-pointer"
                 >
                   <span>Get Started</span>
                   <ArrowRight size={18} className="stroke-[2.5]" />
@@ -259,11 +276,11 @@ export default function OnboardingFlow({
               className="space-y-6"
             >
               {/* Header */}
-              <div className="space-y-2">
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <div className="space-y-1.5">
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                   Let’s get you started
                 </h2>
-                <p className="text-sm sm:text-base text-slate-400 font-medium">
+                <p className="text-sm sm:text-base text-slate-600 font-medium">
                   Tell us a few details so we can serve you better.
                 </p>
               </div>
@@ -272,10 +289,10 @@ export default function OnboardingFlow({
               <form onSubmit={handleProceedToLocation} className="space-y-4 pt-1">
                 {/* Full Name */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                     Your Name
                   </label>
-                  <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 focus-within:border-[#EA4C2A] focus-within:bg-white/10 transition-all">
+                  <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white border border-slate-300 shadow-2xs focus-within:border-[#EA4C2A] focus-within:ring-2 focus-within:ring-[#EA4C2A]/20 transition-all">
                     <User size={18} className="text-[#EA4C2A] shrink-0" />
                     <input
                       type="text"
@@ -286,7 +303,7 @@ export default function OnboardingFlow({
                         setFullName(e.target.value);
                         if (errorMsg) setErrorMsg('');
                       }}
-                      className="w-full text-sm sm:text-base font-medium text-white placeholder:text-slate-500 bg-transparent outline-none"
+                      className="w-full text-sm sm:text-base font-semibold text-slate-900 placeholder:text-slate-400 bg-transparent outline-none"
                       autoFocus
                     />
                   </div>
@@ -294,10 +311,10 @@ export default function OnboardingFlow({
 
                 {/* Phone Number */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                     Phone Number
                   </label>
-                  <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 focus-within:border-[#EA4C2A] focus-within:bg-white/10 transition-all">
+                  <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white border border-slate-300 shadow-2xs focus-within:border-[#EA4C2A] focus-within:ring-2 focus-within:ring-[#EA4C2A]/20 transition-all">
                     <Phone size={18} className="text-[#EA4C2A] shrink-0" />
                     <input
                       type="tel"
@@ -306,10 +323,10 @@ export default function OnboardingFlow({
                       placeholder="080XXXXXXXX"
                       value={phone}
                       onChange={(e) => handlePhoneChange(e.target.value)}
-                      className="w-full text-sm sm:text-base font-medium font-mono text-white placeholder:text-slate-500 bg-transparent outline-none"
+                      className="w-full text-sm sm:text-base font-semibold font-mono text-slate-900 placeholder:text-slate-400 bg-transparent outline-none"
                     />
                     {phone.replace(/\D/g, '').length >= 11 && (
-                      <Check size={16} className="text-emerald-400 shrink-0 stroke-[3]" />
+                      <Check size={16} className="text-emerald-600 shrink-0 stroke-[3]" />
                     )}
                   </div>
                   <p className="text-[11px] text-slate-500 font-medium">
@@ -319,8 +336,9 @@ export default function OnboardingFlow({
 
                 {/* Error Banner */}
                 {errorMsg && (
-                  <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-300">
-                    {errorMsg}
+                  <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-600 flex items-center gap-2">
+                    <AlertCircle size={15} className="shrink-0" />
+                    <span>{errorMsg}</span>
                   </div>
                 )}
 
@@ -328,7 +346,7 @@ export default function OnboardingFlow({
                 <div className="pt-4">
                   <button
                     type="submit"
-                    className="w-full py-4 px-6 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white font-bold text-base shadow-lg shadow-[#EA4C2A]/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="w-full py-4 px-6 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white font-black text-base shadow-lg shadow-[#EA4C2A]/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <span>Continue</span>
                     <ArrowRight size={18} className="stroke-[2.5]" />
@@ -351,11 +369,11 @@ export default function OnboardingFlow({
               className="space-y-6"
             >
               {/* Header */}
-              <div className="space-y-2">
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <div className="space-y-1.5">
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                   Where should we deliver your meals
                 </h2>
-                <p className="text-sm sm:text-base text-slate-400 font-medium">
+                <p className="text-sm sm:text-base text-slate-600 font-medium">
                   Add your delivery address so we know where to bring your food.
                 </p>
               </div>
@@ -363,21 +381,41 @@ export default function OnboardingFlow({
               {/* Form Field */}
               <form onSubmit={handleCompleteOnboarding} className="space-y-4 pt-1">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Delivery Address
-                  </label>
-                  <div className="flex items-start gap-3 p-4 rounded-2xl bg-white/5 border border-white/10 focus-within:border-[#EA4C2A] focus-within:bg-white/10 transition-all">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Delivery Address
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleDetectGps}
+                      disabled={detectingGps}
+                      className="text-xs font-bold text-[#EA4C2A] hover:text-[#D43D1D] flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-orange-50 hover:bg-orange-100 border border-orange-200/80 transition-all cursor-pointer disabled:opacity-60"
+                    >
+                      {detectingGps ? (
+                        <>
+                          <RefreshCw size={12} className="animate-spin" />
+                          <span>Detecting GPS...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Navigation size={12} />
+                          <span>Use Current Location</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="flex items-start gap-3 p-4 rounded-2xl bg-white border border-slate-300 shadow-2xs focus-within:border-[#EA4C2A] focus-within:ring-2 focus-within:ring-[#EA4C2A]/20 transition-all">
                     <MapPin size={20} className="text-[#EA4C2A] shrink-0 mt-0.5" />
                     <textarea
                       rows={3}
                       required
-                      placeholder="Enter your street address, apartment, or landmark"
+                      placeholder="Enter street address, building or landmark in Ibadan"
                       value={address}
                       onChange={(e) => {
                         setAddress(e.target.value);
                         if (errorMsg) setErrorMsg('');
                       }}
-                      className="w-full text-sm sm:text-base font-medium text-white placeholder:text-slate-500 bg-transparent outline-none resize-none leading-relaxed"
+                      className="w-full text-sm sm:text-base font-semibold text-slate-900 placeholder:text-slate-400 bg-transparent outline-none resize-none leading-relaxed"
                       autoFocus
                     />
                   </div>
@@ -385,7 +423,7 @@ export default function OnboardingFlow({
 
                 {/* Popular Ibadan Areas Quick Chips */}
                 <div className="space-y-2 pt-1">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                     Quick Area Selection:
                   </span>
                   <div className="flex flex-wrap gap-2">
@@ -403,7 +441,7 @@ export default function OnboardingFlow({
                           setAddress(prev => prev ? `${prev}, ${area}` : area);
                           if (errorMsg) setErrorMsg('');
                         }}
-                        className="text-xs px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 active:scale-95 text-slate-200 border border-white/10 transition-all cursor-pointer"
+                        className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white hover:bg-slate-100 active:scale-95 text-slate-700 border border-slate-300 shadow-2xs transition-all cursor-pointer"
                       >
                         + {area}
                       </button>
@@ -413,8 +451,9 @@ export default function OnboardingFlow({
 
                 {/* Error Banner */}
                 {errorMsg && (
-                  <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-300">
-                    {errorMsg}
+                  <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-600 flex items-center gap-2">
+                    <AlertCircle size={15} className="shrink-0" />
+                    <span>{errorMsg}</span>
                   </div>
                 )}
 
@@ -423,7 +462,7 @@ export default function OnboardingFlow({
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-4 px-6 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white font-bold text-base shadow-lg shadow-[#EA4C2A]/30 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
+                    className="w-full py-4 px-6 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white font-black text-base shadow-lg shadow-[#EA4C2A]/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
                   >
                     {isSubmitting ? (
                       <span className="inline-flex items-center gap-2">
@@ -446,7 +485,7 @@ export default function OnboardingFlow({
       </div>
 
       {/* Subtle Footer */}
-      <div className="pb-6 text-center text-xs text-white/30 font-medium">
+      <div className="pb-6 text-center text-xs text-slate-400 font-semibold tracking-wide">
         FoodMaxx Fresh Delivery · Ibadan
       </div>
 

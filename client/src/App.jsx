@@ -825,7 +825,7 @@ function CustomerPortal() {
       localStorage.removeItem('fmx_active_order');
     } catch {}
 
-    // When logging out (user becomes null), wipe delivery details and saved addresses completely
+    // When logging out or guest mode (user is null), wipe delivery details and saved addresses completely
     if (!user) {
       setSelectedAddress(null);
       setSavedAddresses([]);
@@ -837,7 +837,7 @@ function CustomerPortal() {
         localStorage.removeItem('fmx_guest_name');
       } catch {}
     }
-  }, [user?.id, user?.phone, user?.email]);
+  }, [user]);
   const [liveStatusBanner, setLiveStatusBanner] = useState(null);
   const prevOrderStatusesRef = useRef(new globalThis.Map());
 
@@ -7884,45 +7884,46 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyInput, setKeyInput] = useState('');
 
-  // Direct delivery address state (empty by default when logged out)
+  // Direct delivery address state (strictly empty when logged out)
   const [deliveryAddress, setDeliveryAddress] = useState(() => {
+    if (!user) return '';
     try {
-      if (user) {
-        return user.address || selectedAddress?.address || localStorage.getItem('fmx_last_delivery_address') || '';
-      }
-      return selectedAddress?.address || '';
+      return user.address || selectedAddress?.address || localStorage.getItem('fmx_last_delivery_address') || '';
     } catch {
       return '';
     }
   });
 
-  // Contact details (empty by default when logged out)
+  // Contact details (strictly empty when logged out)
   const [contactName, setContactName] = useState(() => {
+    if (!user) return '';
     try {
-      if (user) {
-        return user.full_name || localStorage.getItem('fmx_last_name') || '';
-      }
-      return '';
+      return user.full_name || localStorage.getItem('fmx_last_name') || '';
     } catch {
       return '';
     }
   });
   const [contactPhone, setContactPhone] = useState(() => {
+    if (!user) return '';
     try {
-      if (user) {
-        return user.phone || localStorage.getItem('fmx_last_phone') || '';
-      }
-      return '';
+      return user.phone || localStorage.getItem('fmx_last_phone') || '';
     } catch {
       return '';
     }
   });
-  const [contactEmail, setContactEmail] = useState(user?.email || '');
+  const [contactEmail, setContactEmail] = useState(() => (!user ? '' : (user?.email || '')));
   const [isEditingContact, setIsEditingContact] = useState(false);
 
   // Sync contact & address when user changes (handles login AND logout)
   useEffect(() => {
-    if (user) {
+    if (!user) {
+      // User logged out: completely reset delivery details and contact info
+      setContactName('');
+      setContactPhone('');
+      setContactEmail('');
+      setDeliveryAddress('');
+      setLandmark('');
+    } else {
       setContactName(user.full_name || '');
       setContactPhone(user.phone || '');
       setContactEmail(user.email || '');
@@ -7931,24 +7932,17 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
       } else if (selectedAddress?.address) {
         setDeliveryAddress(selectedAddress.address);
       }
-    } else {
-      // User logged out: completely reset delivery details and contact info
-      setContactName('');
-      setContactPhone('');
-      setContactEmail('');
-      setDeliveryAddress('');
-      setLandmark('');
     }
   }, [user]);
 
-  // Sync when selectedAddress changes
+  // Sync when selectedAddress changes only if user is logged in
   useEffect(() => {
-    if (selectedAddress?.address) {
-      setDeliveryAddress(selectedAddress.address);
-      if (selectedAddress.landmark) setLandmark(selectedAddress.landmark);
-    } else if (!user) {
+    if (!user) {
       setDeliveryAddress('');
       setLandmark('');
+    } else if (selectedAddress?.address) {
+      setDeliveryAddress(selectedAddress.address);
+      if (selectedAddress.landmark) setLandmark(selectedAddress.landmark);
     }
   }, [selectedAddress, user]);
 
@@ -10471,14 +10465,13 @@ function LoginModal({ open, onClose, onSwitchRegister }) {
 }
 
 function RegisterModal({ open, onClose, onSwitchLogin }) {
-  const { isDark } = useTheme?.() || {};
   return (
     <AuthModal
       open={open}
       onClose={onClose}
       initialMode="register"
       onSuccess={onClose}
-      isDark={isDark}
+      isDark={false}
     />
   );
 }
