@@ -1231,13 +1231,21 @@ export async function createLiveGroupOrder(groupData) {
   const docRef = doc(db, COLL_GROUP_ORDERS, code);
   const data = {
     code,
-    status: 'OPEN',
-    organizer_id: groupData.organizer_id || 'organizer_anon',
-    organizer_name: groupData.organizer_name || 'Organizer',
-    delivery_address: groupData.delivery_address || '',
-    delivery_zone: groupData.delivery_zone || 'Bodija',
-    members: groupData.members || [],
-    created_at: new Date().toISOString(),
+    name: groupData.name || '',
+    status: groupData.status || 'OPEN',
+    creator_name: groupData.creator_name || groupData.organizer_name || '',
+    creator_participant_id: groupData.creator_participant_id || groupData.organizer_id || '',
+    organizer_id: groupData.organizer_id || groupData.creator_participant_id || '',
+    organizer_name: groupData.organizer_name || groupData.creator_name || '',
+    delivery_location: groupData.delivery_location || groupData.delivery_address || '',
+    delivery_address: groupData.delivery_address || groupData.delivery_location || '',
+    delivery_zone: groupData.delivery_zone || '',
+    delivery_window: groupData.delivery_window || '',
+    total_amount: Number(groupData.total_amount) || 0,
+    cutoff_time: groupData.cutoff_time || new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    participants: groupData.participants || groupData.members || [],
+    members: groupData.members || groupData.participants || [],
+    created_at: groupData.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString()
   };
   await setDoc(docRef, data, { merge: true });

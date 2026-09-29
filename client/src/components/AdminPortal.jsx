@@ -2454,7 +2454,7 @@ function AdminVerifyOtpModal({ open, onClose, order, onVerified }) {
 function AdminKitchenSlipModal({ open, onClose, order, settings }) {
   if (!open || !order) return null;
   const storePhone = settings?.phone || '';
-  const storeAddress = settings?.address || 'Old Bodija, Ibadan';
+  const storeAddress = settings?.address || '';
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -2468,7 +2468,7 @@ function AdminKitchenSlipModal({ open, onClose, order, settings }) {
 
         <div className="text-center border-b-2 border-dashed border-slate-400 pb-4 mb-4">
           <div className="flex items-center justify-center gap-2 mb-1"><img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-6 h-6 rounded-lg object-cover" /><span className="text-base font-black tracking-tighter text-black">FOODMAXX</span></div>
-          <div className="text-xs text-black font-bold">{storeAddress}</div>
+          {storeAddress && <div className="text-xs text-black font-bold">{storeAddress}</div>}
           {storePhone && <div className="text-xs text-black font-bold">Tel: {storePhone}</div>}
           <div className="mt-2 text-xs font-black bg-slate-100 border border-slate-300 py-1 rounded-md text-black">KITCHEN PREP TICKET</div>
         </div>
@@ -2492,7 +2492,7 @@ function AdminKitchenSlipModal({ open, onClose, order, settings }) {
           </div>
           <div className="flex justify-between">
             <span className="font-black text-black">Zone / Area:</span>
-            <span className="font-black text-black">{order.delivery_zone || 'Bodija'}</span>
+            <span className="font-black text-black">{order.delivery_zone || order.delivery_address || '—'}</span>
           </div>
           {order.delivery_landmark && (
             <div className="text-xs text-black bg-amber-100 border border-amber-300 p-2 rounded-md font-black mt-1">
@@ -3039,7 +3039,7 @@ function AdminPortal() {
       new Date(o.created_at).toLocaleString(),
       o.customer?.full_name || 'Guest',
       o.customer?.phone || '',
-      o.delivery_zone || 'Bodija',
+      o.delivery_zone || o.delivery_address || '—',
       o.delivery_address || '',
       (o.items || []).map(i => `${i.qty}x ${i.name || i.title}`).join('; '),
       o.subtotal || 0,
@@ -3758,8 +3758,8 @@ function AdminPortal() {
           </style>
         </head>
         <body>
-          <div class="center bold" style="font-size: 16px;">${settings.store_name || 'FOODMAXX KITCHEN & GRILLS'}</div>
-          <div class="center">${settings.address || '24 Awolowo Ave, Old Bodija, Ibadan'}</div>
+          <div class="center bold" style="font-size: 16px;">${settings.store_name || 'FOODMAXX'}</div>
+          ${settings.address ? `<div class="center">${settings.address}</div>` : ''}
           <div class="center">Tel: ${settings.phone || '08023456789'}</div>
           <div class="center" style="font-size: 12px; margin-top: 4px;">${settings.receipt_header_note || 'FOODMAXX IBD - FRESH & HOT'}</div>
           <div class="line"></div>
@@ -5370,7 +5370,7 @@ function AdminPortal() {
                       {/* Delivery Destination */}
                       <div className="bg-slate-50/90 p-3.5 rounded-xl border border-slate-200">
                         <div className="text-xs font-black text-black uppercase tracking-wider mb-1.5">
-                          Delivery Address ({order.delivery_zone || 'Ibadan'})
+                          Delivery Address {order.delivery_zone ? `(${order.delivery_zone})` : ''}
                         </div>
                         <div className="font-bold text-black line-clamp-2">{order.delivery_address}</div>
                         {order.delivery_landmark && (
@@ -6514,10 +6514,11 @@ function AdminPortal() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="sm:col-span-2">
-                      <label className="block text-sm font-black text-black mb-1.5">Kitchen Physical Address (Ibadan)</label>
+                      <label className="block text-sm font-black text-black mb-1.5">Kitchen Physical Address</label>
                       <input
                         type="text"
-                        value={settings.address || '24 Awolowo Avenue, Old Bodija, Ibadan, Oyo State'}
+                        value={settings.address || ''}
+                        placeholder="Enter kitchen physical address"
                         onChange={e => setSettings({ ...settings, address: e.target.value })}
                         className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
@@ -6526,7 +6527,8 @@ function AdminPortal() {
                       <label className="block text-sm font-black text-black mb-1.5">City & State</label>
                       <input
                         type="text"
-                        value={settings.city || 'Ibadan, Oyo State'}
+                        value={settings.city || ''}
+                        placeholder="e.g. Ibadan, Oyo State"
                         onChange={e => setSettings({ ...settings, city: e.target.value })}
                         className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
@@ -7083,8 +7085,8 @@ function AdminPortal() {
 
                   {activeGroupOrders.length === 0 ? (
                     <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-                      <p className="text-xs font-bold text-slate-500">No active group order rooms right now.</p>
-                      <p className="text-[11px] text-slate-400 mt-1">When customers tap "Order with friends", rooms will appear here live.</p>
+                      <p className="text-xs font-bold text-slate-500">No group orders yet</p>
+                      <p className="text-[11px] text-slate-400 mt-1">When customers create group orders, they will appear here live.</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -7229,7 +7231,7 @@ function AdminPortal() {
                               {isExpanded && (
                                 <div className="mt-3 space-y-2 pt-2 border-t border-dashed border-slate-200">
                                   {participantsList.length === 0 ? (
-                                    <p className="text-xs text-slate-400">No participants yet.</p>
+                                    <p className="text-xs text-slate-400">Waiting for participants to join...</p>
                                   ) : (
                                     participantsList.map((p, idx) => {
                                       const isPPaid = p.payment_status === 'PAID';
@@ -7250,7 +7252,7 @@ function AdminPortal() {
                                             <p className="text-slate-600 mt-1 font-medium">
                                               {itemsList.length > 0
                                                 ? itemsList.map(i => `${i.name}${i.qty > 1 ? ` x${i.qty}` : ''}`).join(', ')
-                                                : 'No meals added yet'}
+                                                : 'No items selected yet'}
                                             </p>
                                           </div>
                                           <div className="text-right shrink-0">

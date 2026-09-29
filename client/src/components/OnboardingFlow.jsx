@@ -8,8 +8,11 @@ import {
   MapPin, 
   Check, 
   Sparkles,
-  Utensils
+  Utensils,
+  RefreshCw,
+  Navigation
 } from 'lucide-react';
+import { getRealCurrentPosition } from '../services/realLocation';
 
 export default function OnboardingFlow({ 
   onComplete, 

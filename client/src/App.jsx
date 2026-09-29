@@ -33,6 +33,7 @@ import OnboardingFlow from './components/OnboardingFlow';
 import TransitionStudioModal, { getTransitionVariants } from './components/TransitionStudioModal';
 import GroupOrderSheet from './components/GroupOrderSheet';
 import AuthModal from './components/AuthModal';
+import { getRealCurrentPosition } from './services/realLocation';
 import { getHappyAvatar } from './utils/avatarUtils';
 import {
   NOTIFICATION_TONES,
@@ -753,12 +754,16 @@ function CustomerPortal() {
   const [zones, setZones] = useState(() => getStoredZones());
   const [selectedZone, setSelectedZone] = useState(() => getStoredZones()[0] || null);
   const [locationsModalOpen, setLocationsModalOpen] = useState(false);
-  const [savedAddresses, setSavedAddresses] = useState([
-    { id: 'addr_1', label: 'Home', address: 'Block B, Flat 4, Awolowo Avenue, Old Bodija', landmark: 'Opposite Zenith Bank', zone_id: 'zone_bodija', zone_name: 'Old Bodija, Ibadan', icon: '🏠' },
-    { id: 'addr_2', label: 'Work', address: 'Heritage Mall, 3rd Floor, Commercial Wing', landmark: 'Beside Cocoa House', zone_id: 'zone_dugbe', zone_name: 'Dugbe, Ibadan', icon: '💼' },
-    { id: 'addr_3', label: 'Campus', address: 'Postgraduate Hall, University of Ibadan (UI)', landmark: 'Opposite Trenchard Hall, Agbowo Gate', zone_id: 'zone_uicampus', zone_name: 'UI Campus, Ibadan', icon: '🎓' },
-    { id: 'addr_4', label: 'Partner', address: 'Plot 12, Ring Road Extension, Near Palms Mall', landmark: 'Beside Mobil Station', zone_id: 'zone_ringroad', zone_name: 'Ring Road, Ibadan', icon: '❤️' }
-  ]);
+  const [savedAddresses, setSavedAddresses] = useState(() => {
+    try {
+      const saved = localStorage.getItem('fmx_saved_addresses');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [orderMode, setOrderMode] = useState('delivery'); // 'delivery' or 'pickup'
   const [restaurants, setRestaurants] = useState([]);
@@ -810,7 +815,7 @@ function CustomerPortal() {
     trackingOrderRef.current = trackingOrder;
   }, [trackingOrder]);
 
-  // Purge prior user's tracking and orders immediately when switching or logging in/out
+  // Purge prior user's tracking, orders, and delivery details immediately when switching or logging in/out
   useEffect(() => {
     setOrders([]);
     setTrackingOrder(null);
@@ -819,6 +824,19 @@ function CustomerPortal() {
       localStorage.removeItem('fmx_last_order_id');
       localStorage.removeItem('fmx_active_order');
     } catch {}
+
+    // When logging out (user becomes null), wipe delivery details and saved addresses completely
+    if (!user) {
+      setSelectedAddress(null);
+      setSavedAddresses([]);
+      try {
+        localStorage.removeItem('fmx_saved_addresses');
+        localStorage.removeItem('fmx_last_delivery_address');
+        localStorage.removeItem('fmx_last_name');
+        localStorage.removeItem('fmx_last_phone');
+        localStorage.removeItem('fmx_guest_name');
+      } catch {}
+    }
   }, [user?.id, user?.phone, user?.email]);
   const [liveStatusBanner, setLiveStatusBanner] = useState(null);
   const prevOrderStatusesRef = useRef(new globalThis.Map());
@@ -1077,16 +1095,22 @@ function CustomerPortal() {
       }
     });
 
-    // Clear tracking and orders immediately when user logs out
+    // Clear tracking, orders, and delivery details immediately when user logs out
     const handleAuthLogout = (e) => {
       if (e.detail?.action === 'logout') {
         setOrders([]);
         setTrackingOrder(null);
         setTrackingModalOpen(false);
         setLiveStatusBanner(null);
+        setSelectedAddress(null);
+        setSavedAddresses([]);
       }
     };
     window.addEventListener('fmx_auth_change', handleAuthLogout);
+    window.addEventListener('fmx_address_clear', () => {
+      setSelectedAddress(null);
+      setSavedAddresses([]);
+    });
     window.addEventListener('fmx_tracking_clear', () => {
       setOrders([]);
       setTrackingOrder(null);
@@ -1292,11 +1316,19 @@ function CustomerPortal() {
         await api.addSavedAddress(newAddr);
       }
     } catch (e) {}
-    setSavedAddresses(prev => [newAddr, ...prev]);
+    setSavedAddresses(prev => {
+      const updated = [newAddr, ...prev.filter(a => a.id !== newAddr.id)];
+      try { localStorage.setItem('fmx_saved_addresses', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
   }
 
   function handleDeleteAddress(addrId) {
-    setSavedAddresses(prev => prev.filter(a => a.id !== addrId));
+    setSavedAddresses(prev => {
+      const updated = prev.filter(a => a.id !== addrId);
+      try { localStorage.setItem('fmx_saved_addresses', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
     if (selectedAddress?.id === addrId) {
       setSelectedAddress(null);
     }
@@ -1710,7 +1742,13 @@ function CustomerPortal() {
                   savedAddressesCount={savedAddresses ? savedAddresses.length : 0}
                   onLogin={() => setAppStage('onboarding')}
                   onOpenOnboarding={() => setAppStage('onboarding')}
-                  onLogout={() => { logout(); setActiveTab('home'); toast('Logged out successfully', 'info'); }}
+                  onLogout={() => {
+                    logout();
+                    setSelectedAddress(null);
+                    setSavedAddresses([]);
+                    setActiveTab('home');
+                    toast('Logged out successfully', 'info');
+                  }}
                   onOpenWallet={() => setWalletOpen(true)}
                   onOpenSupport={() => setSupportOpen(true)}
                   onOpenAddresses={() => setLocationsModalOpen(true)}
@@ -4322,7 +4360,25 @@ function SavedLocationsModal({
   const [selectedZoneId, setSelectedZoneId] = useState(zones[0]?.id || '');
   const [zoneSearch, setZoneSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [detectingGps, setDetectingGps] = useState(false);
   const toast = useToast();
+
+  async function handleGpsDetect() {
+    setDetectingGps(true);
+    try {
+      const loc = await getRealCurrentPosition();
+      if (loc?.address) {
+        setStreet(loc.address);
+        setShowAddForm(true);
+        toast('📍 Real GPS location detected!', 'success');
+        playNativeSound('pop');
+      }
+    } catch (err) {
+      toast(err.message || 'Could not detect GPS location', 'warning');
+    } finally {
+      setDetectingGps(false);
+    }
+  }
 
   if (!open) return null;
 
@@ -4434,19 +4490,39 @@ function SavedLocationsModal({
         <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
           {activeTab === 'saved' ? (
             <>
-              {/* Add New Address Button */}
-              <button
-                type="button"
-                onClick={() => setShowAddForm(p => !p)}
-                className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border font-bold text-xs transition-all cursor-pointer ${
-                  showAddForm
-                    ? (isDark ? 'bg-white/10 border-white/20 text-white' : 'bg-slate-100 border-slate-200 text-slate-800')
-                    : 'bg-[#EA4C2A]/10 border-[#EA4C2A]/30 text-[#EA4C2A] hover:bg-[#EA4C2A]/20'
-                }`}
-              >
-                {showAddForm ? <X size={15} /> : <Plus size={15} className="stroke-[3]" />}
-                <span>{showAddForm ? 'Cancel Adding' : '+ Add New Address with Landmark'}</span>
-              </button>
+              {/* Action Buttons: GPS + Add New */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleGpsDetect}
+                  disabled={detectingGps}
+                  className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold text-xs hover:bg-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {detectingGps ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>Detecting Real GPS...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Navigation size={14} />
+                      <span>Use Current Location</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(p => !p)}
+                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border font-bold text-xs transition-all cursor-pointer ${
+                    showAddForm
+                      ? (isDark ? 'bg-white/10 border-white/20 text-white' : 'bg-slate-100 border-slate-200 text-slate-800')
+                      : 'bg-[#EA4C2A]/10 border-[#EA4C2A]/30 text-[#EA4C2A] hover:bg-[#EA4C2A]/20'
+                  }`}
+                >
+                  {showAddForm ? <X size={15} /> : <Plus size={15} className="stroke-[3]" />}
+                  <span>{showAddForm ? 'Cancel' : '+ Add Address with Landmark'}</span>
+                </button>
+              </div>
 
               {/* Add Form Drawer */}
               {showAddForm && (
@@ -4482,7 +4558,7 @@ function SavedLocationsModal({
                     <label className="text-[10.5px] font-semibold text-gray-400 block mb-1">Street Address</label>
                     <input
                       type="text"
-                      placeholder="e.g. 14 Agbowo Rd / UI Second Gate"
+                      placeholder="Enter street name, house or flat number"
                       value={street}
                       onChange={e => setStreet(e.target.value)}
                       className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium ${
@@ -4497,7 +4573,7 @@ function SavedLocationsModal({
                     <label className="text-[10.5px] font-bold text-[#EA4C2A] block mb-1">📍 Landmark (Crucial for Rider!)</label>
                     <input
                       type="text"
-                      placeholder="e.g. Opposite Zenith Bank ATM, Green gate"
+                      placeholder="e.g. Near main junction, gate color, building name"
                       value={landmark}
                       onChange={e => setLandmark(e.target.value)}
                       className={`w-full text-xs p-2.5 rounded-xl border outline-none font-medium ${
@@ -7808,41 +7884,92 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyInput, setKeyInput] = useState('');
 
-  // Direct delivery address state
+  // Direct delivery address state (empty by default when logged out)
   const [deliveryAddress, setDeliveryAddress] = useState(() => {
     try {
-      return localStorage.getItem('fmx_last_delivery_address') || user?.address || selectedAddress?.address || '';
+      if (user) {
+        return user.address || selectedAddress?.address || localStorage.getItem('fmx_last_delivery_address') || '';
+      }
+      return selectedAddress?.address || '';
     } catch {
       return '';
     }
   });
 
-  // Contact details
+  // Contact details (empty by default when logged out)
   const [contactName, setContactName] = useState(() => {
     try {
-      return localStorage.getItem('fmx_last_name') || user?.full_name || '';
+      if (user) {
+        return user.full_name || localStorage.getItem('fmx_last_name') || '';
+      }
+      return '';
     } catch {
-      return user?.full_name || '';
+      return '';
     }
   });
   const [contactPhone, setContactPhone] = useState(() => {
     try {
-      return localStorage.getItem('fmx_last_phone') || user?.phone || '';
+      if (user) {
+        return user.phone || localStorage.getItem('fmx_last_phone') || '';
+      }
+      return '';
     } catch {
-      return user?.phone || '';
+      return '';
     }
   });
   const [contactEmail, setContactEmail] = useState(user?.email || '');
   const [isEditingContact, setIsEditingContact] = useState(false);
 
+  // Sync contact & address when user changes (handles login AND logout)
   useEffect(() => {
     if (user) {
-      if (user.full_name && !contactName) setContactName(user.full_name);
-      if (user.phone && !contactPhone) setContactPhone(user.phone);
-      if (user.email && !contactEmail) setContactEmail(user.email);
-      if (user.address && !deliveryAddress) setDeliveryAddress(user.address);
+      setContactName(user.full_name || '');
+      setContactPhone(user.phone || '');
+      setContactEmail(user.email || '');
+      if (user.address) {
+        setDeliveryAddress(user.address);
+      } else if (selectedAddress?.address) {
+        setDeliveryAddress(selectedAddress.address);
+      }
+    } else {
+      // User logged out: completely reset delivery details and contact info
+      setContactName('');
+      setContactPhone('');
+      setContactEmail('');
+      setDeliveryAddress('');
+      setLandmark('');
     }
   }, [user]);
+
+  // Sync when selectedAddress changes
+  useEffect(() => {
+    if (selectedAddress?.address) {
+      setDeliveryAddress(selectedAddress.address);
+      if (selectedAddress.landmark) setLandmark(selectedAddress.landmark);
+    } else if (!user) {
+      setDeliveryAddress('');
+      setLandmark('');
+    }
+  }, [selectedAddress, user]);
+
+  // Event listener for global logout / address clear
+  useEffect(() => {
+    const handleAuthEvent = (e) => {
+      if (e.detail?.action === 'logout') {
+        setContactName('');
+        setContactPhone('');
+        setContactEmail('');
+        setDeliveryAddress('');
+        setLandmark('');
+      }
+    };
+    window.addEventListener('fmx_auth_change', handleAuthEvent);
+    window.addEventListener('fmx_address_clear', handleAuthEvent);
+    return () => {
+      window.removeEventListener('fmx_auth_change', handleAuthEvent);
+      window.removeEventListener('fmx_address_clear', handleAuthEvent);
+    };
+  }, []);
 
   // Instant silent registration on first input of Name
   const triggerAutoSilentRegister = useCallback(async (nameVal, phoneVal) => {
@@ -8031,7 +8158,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
         discount: Number(discount) || 0,
         total: Number(total) || 0,
         total_amount: Number(total) || 0,
-        delivery_zone: orderData.delivery_zone || selectedZone?.name || 'Bodija',
+        delivery_zone: orderData.delivery_zone || selectedZone?.name || 'Standard Delivery',
         status: 'CONFIRMED',
         created_at: new Date().toISOString()
       };
@@ -8215,12 +8342,10 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
         customer_email: emailToUse || activeUser?.email,
         cart_items: cartItems,
         delivery_address: cleanDeliveryAddress,
-        delivery_zone: selectedZone?.name || 'Bodija & Ibadan Axis',
+        delivery_zone: selectedZone?.name || 'Standard Delivery',
         delivery_instructions: [instructions, landmark].filter(Boolean).join(' · ') || '',
         payment_method: total === 0 ? (firstTimeGiveawayDeduction > 0 ? 'giveaway' : 'wallet') : paymentMethod,
         promo_code: promoCode || '',
-        delivery_lat: 7.435,
-        delivery_lng: 3.905,
         is_gift: Boolean(isGift),
         recipient_name: isGift ? (recipientName.trim() || '') : '',
         recipient_phone: isGift ? ((recipientPhone || '').replace(/\D/g, '').slice(0, 11)) : '',
@@ -8537,7 +8662,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
                     {deliveryAddress || 'Enter delivery address'}
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                    {contactName || 'Customer'} · {contactPhone || 'No phone set'}
+                    {contactName || (user ? 'Customer' : 'Guest')} · {contactPhone || 'No phone set'}
                   </p>
                 </div>
               </div>
@@ -8546,7 +8671,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
                 onClick={() => setIsEditingContact(prev => !prev)}
                 className="text-xs font-bold text-[#EA4C2A] hover:underline px-2.5 py-1.5 rounded-lg border border-[#EA4C2A]/20 hover:bg-[#EA4C2A]/10 transition-colors shrink-0 cursor-pointer"
               >
-                {isEditingContact ? 'Done' : 'Change'}
+                {isEditingContact ? 'Done' : (deliveryAddress ? 'Change' : 'Add')}
               </button>
             </div>
 
@@ -8587,7 +8712,29 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Delivery Address</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase">Delivery Address</label>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          toast('Detecting GPS location...', 'info');
+                          const loc = await getRealCurrentPosition();
+                          if (loc?.address) {
+                            setDeliveryAddress(loc.address);
+                            try { localStorage.setItem('fmx_last_delivery_address', loc.address); } catch {}
+                            toast('📍 Real GPS location detected!', 'success');
+                          }
+                        } catch (err) {
+                          toast(err.message || 'Could not detect location', 'warning');
+                        }
+                      }}
+                      className="text-[10px] font-bold text-[#EA4C2A] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <MapPin size={10} />
+                      <span>Use Current Location</span>
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={deliveryAddress}
@@ -8595,7 +8742,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
                       setDeliveryAddress(e.target.value);
                       try { localStorage.setItem('fmx_last_delivery_address', e.target.value.trim()); } catch {}
                     }}
-                    placeholder="Street, house & area in Ibadan"
+                    placeholder="Enter street, house number and area"
                     className={`w-full p-2.5 rounded-xl border text-xs outline-none ${
                       isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
                     }`}
@@ -11249,6 +11396,12 @@ function AuthProvider({ children }) {
       localStorage.removeItem('fmx_active_order');
       localStorage.removeItem('fmx_cart_use_giveaway');
       localStorage.removeItem('fmx_active_promo');
+      localStorage.removeItem('fmx_saved_addresses');
+      localStorage.removeItem('fmx_last_delivery_address');
+      localStorage.removeItem('fmx_last_name');
+      localStorage.removeItem('fmx_last_phone');
+      localStorage.removeItem('fmx_guest_name');
+      localStorage.removeItem('fmx_active_group_code');
     } catch {}
     setToken(null);
     setUser(null);
@@ -11258,6 +11411,7 @@ function AuthProvider({ children }) {
       window.dispatchEvent(new CustomEvent('fmx_auth_change', { detail: { action: 'logout' } }));
       window.dispatchEvent(new CustomEvent('fmx_cart_clear'));
       window.dispatchEvent(new CustomEvent('fmx_tracking_clear'));
+      window.dispatchEvent(new CustomEvent('fmx_address_clear'));
     } catch {}
   }
 
