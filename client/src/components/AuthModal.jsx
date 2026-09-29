@@ -160,13 +160,6 @@ export default function AuthModal({
     }
   };
 
-  // Quick Demo account fill for testing
-  const handleFillDemo = () => {
-    triggerHaptic('selection');
-    setLoginEmail('customer@foodmaxx.ng');
-    setLoginPassword('foodmaxx123');
-    setErrorMsg('');
-  };
 
   // Shuffle smiling avatar
   const handleShuffleAvatar = () => {
@@ -265,7 +258,7 @@ export default function AuthModal({
         </div>
 
         {/* Scrollable Form Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <div className={`flex-1 overflow-y-auto px-6 py-5 space-y-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
           {/* Error Banner */}
           {errorMsg && (
             <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2 animate-in fade-in duration-150">
@@ -280,7 +273,7 @@ export default function AuthModal({
           {mode === 'login' && (
             <form onSubmit={handleLoginSubmit} className="space-y-4" onKeyDown={handleKeyDown}>
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Email Address
                 </label>
                 <div className="relative">
@@ -292,14 +285,14 @@ export default function AuthModal({
                     placeholder="e.g. adekunle@gmail.com"
                     value={loginEmail}
                     onChange={e => setLoginEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-xs sm:text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A] transition-colors"
+                    className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     Password
                   </label>
                   <button
@@ -322,7 +315,7 @@ export default function AuthModal({
                     placeholder="Enter your password"
                     value={loginPassword}
                     onChange={e => setLoginPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-xs sm:text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A] transition-colors"
+                    className={`w-full pl-10 pr-10 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                   <button
                     type="button"
@@ -374,16 +367,6 @@ export default function AuthModal({
                 )}
               </button>
 
-              {/* Demo Quick Fill Button */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={handleFillDemo}
-                  className="w-full py-2.5 px-3 rounded-xl border border-dashed border-slate-300 dark:border-white/15 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>⚡ Quick Demo Customer Fill</span>
-                </button>
-              </div>
 
               {/* Switch to Register */}
               <p className="text-center text-xs text-slate-500 dark:text-slate-400 pt-2">
@@ -408,9 +391,9 @@ export default function AuthModal({
           {mode === 'register' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-4" onKeyDown={handleKeyDown}>
               {/* Customer Avatar & Gender Picker */}
-              <div className="p-3.5 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-2">
+              <div className={`p-3.5 rounded-2xl border space-y-2 ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200/80'}`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-900 dark:text-white">
+                  <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     Choose Your Happy Avatar
                   </span>
                   <button
@@ -435,7 +418,7 @@ export default function AuthModal({
                       type="button"
                       onClick={handleShuffleAvatar}
                       title="Click to randomize"
-                      className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white dark:bg-[#1E222D] text-[#EA4C2A] border border-[#EA4C2A]/30 flex items-center justify-center shadow-xs active:rotate-180 transition-transform cursor-pointer"
+                      className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full text-[#EA4C2A] border border-[#EA4C2A]/30 flex items-center justify-center shadow-xs active:rotate-180 transition-transform cursor-pointer ${isDark ? 'bg-[#1E222D]' : 'bg-white'}`}
                     >
                       <RefreshCw size={10} />
                     </button>
@@ -455,7 +438,7 @@ export default function AuthModal({
                         className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
                           regGender === 'female'
                             ? 'bg-[#EC4899] text-white shadow-xs'
-                            : 'bg-white dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10'
+                            : `${isDark ? 'bg-white/10 text-slate-300 border-white/10' : 'bg-white text-slate-700 border-slate-200'} border`
                         }`}
                       >
                         👩 Female
@@ -469,7 +452,7 @@ export default function AuthModal({
                         className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
                           regGender === 'male'
                             ? 'bg-[#0AA5FF] text-white shadow-xs'
-                            : 'bg-white dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10'
+                            : `${isDark ? 'bg-white/10 text-slate-300 border-white/10' : 'bg-white text-slate-700 border-slate-200'} border`
                         }`}
                       >
                         👨 Male
@@ -483,7 +466,7 @@ export default function AuthModal({
                         className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
                           regGender === 'auto'
                             ? 'bg-[#EA4C2A] text-white shadow-xs'
-                            : 'bg-white dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10'
+                            : `${isDark ? 'bg-white/10 text-slate-300 border-white/10' : 'bg-white text-slate-700 border-slate-200'} border`
                         }`}
                       >
                         🎲 Surprise
@@ -495,7 +478,7 @@ export default function AuthModal({
 
               {/* Full Name */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Full Name
                 </label>
                 <div className="relative">
@@ -512,14 +495,14 @@ export default function AuthModal({
                         setRegAvatarUrl(getHappyAvatar(val, 'auto'));
                       }
                     }}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-xs sm:text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A] transition-colors"
+                    className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Email Address
                 </label>
                 <div className="relative">
@@ -530,18 +513,18 @@ export default function AuthModal({
                     placeholder="e.g. bukola@gmail.com"
                     value={regEmail}
                     onChange={e => setRegEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-xs sm:text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A] transition-colors"
+                    className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
               </div>
 
               {/* Phone (Nigerian Prefix) */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Phone Number (For Delivery SMS & WhatsApp)
                 </label>
                 <div className="relative flex">
-                  <div className="flex items-center gap-1 px-3 py-3 bg-slate-100 dark:bg-white/10 border border-r-0 border-slate-200 dark:border-white/10 rounded-l-2xl text-xs font-black text-slate-700 dark:text-slate-300 shrink-0">
+                  <div className={`flex items-center gap-1 px-3 py-3 border border-r-0 rounded-l-2xl text-xs font-black shrink-0 ${isDark ? 'bg-white/10 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
                     <span>🇳🇬</span>
                     <span>+234</span>
                   </div>
@@ -550,14 +533,14 @@ export default function AuthModal({
                     placeholder="816 600 4281"
                     value={regPhone}
                     onChange={e => setRegPhone(e.target.value)}
-                    className="w-full px-3 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-r-2xl text-xs sm:text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A] transition-colors"
+                    className={`w-full px-3 py-3 border rounded-r-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
               </div>
 
               {/* Password */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Create Password
                 </label>
                 <div className="relative">
@@ -568,7 +551,7 @@ export default function AuthModal({
                     placeholder="Min. 6 characters"
                     value={regPassword}
                     onChange={e => setRegPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-xs sm:text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A] transition-colors"
+                    className={`w-full pl-10 pr-10 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                   <button
                     type="button"

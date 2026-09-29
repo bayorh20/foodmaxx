@@ -4180,7 +4180,7 @@ function AdminPortal() {
 
   const todayRevenue = overview?.revenueToday != null 
     ? overview.revenueToday 
-    : orders.reduce((acc, o) => acc + (o.payment_status === 'paid' ? Number(o.total_amount || o.total || 0) : 0), 0) || 5230;
+    : orders.reduce((acc, o) => acc + (o.payment_status === 'paid' ? Number(o.total_amount || o.total || 0) : 0), 0);
 
   return (
     <div 
@@ -4531,11 +4531,10 @@ function AdminPortal() {
                 <div>
                   <p className="text-sm font-black text-black mb-1">Total Orders</p>
                   <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
-                    {orders.length || overview?.totalOrders || 24}
+                    {orders.length || overview?.totalOrders || 0}
                   </h3>
-                  <p className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1 mt-1">
-                    <span>↑ 20%</span>
-                    <span className="text-black font-bold">vs. yesterday</span>
+                  <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1">
+                    <span className="text-black font-bold">All time orders</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#EF4444] text-white flex items-center justify-center shadow-md shadow-rose-500/25 shrink-0">
@@ -4546,13 +4545,12 @@ function AdminPortal() {
               {/* Card 2: Total Revenue */}
               <div className="bg-[#F0FDF4] border border-emerald-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-black text-black mb-1">Total Revenue</p>
+                  <p className="text-sm font-black text-black mb-1">Today's Revenue</p>
                   <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
                     ₦{Number(todayRevenue).toLocaleString()}
                   </h3>
-                  <p className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1 mt-1">
-                    <span>↑ 18%</span>
-                    <span className="text-black font-bold">vs. yesterday</span>
+                  <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1">
+                    <span className="text-black font-bold">Paid orders today</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#10B981] text-white flex items-center justify-center shadow-md shadow-emerald-500/25 shrink-0 font-black text-2xl">
@@ -4563,13 +4561,12 @@ function AdminPortal() {
               {/* Card 3: New Customers */}
               <div className="bg-[#EFF6FF] border border-blue-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-black text-black mb-1">New Customers</p>
+                  <p className="text-sm font-black text-black mb-1">Total Customers</p>
                   <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
-                    {customers.length || overview?.totalCustomers || 12}
+                    {customers.length || overview?.totalCustomers || 0}
                   </h3>
-                  <p className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1 mt-1">
-                    <span>↑ 33%</span>
-                    <span className="text-black font-bold">vs. yesterday</span>
+                  <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1">
+                    <span className="text-black font-bold">Registered accounts</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#3B82F6] text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
@@ -4577,16 +4574,15 @@ function AdminPortal() {
                 </div>
               </div>
 
-              {/* Card 4: Average Rating */}
+              {/* Card 4: Active Riders */}
               <div className="bg-[#FFFBEB] border border-amber-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-black text-black mb-1">Average Rating</p>
+                  <p className="text-sm font-black text-black mb-1">Active Riders</p>
                   <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
-                    4.8
+                    {riders.filter(r => r.status === 'active' || r.is_active).length || 0}
                   </h3>
-                  <p className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1 mt-1">
-                    <span>↑ 0.2</span>
-                    <span className="text-black font-bold">vs. last week</span>
+                  <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1">
+                    <span className="text-black font-bold">Online now</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#F59E0B] text-white flex items-center justify-center shadow-md shadow-amber-500/25 shrink-0">
@@ -4743,7 +4739,7 @@ function AdminPortal() {
                                 ₦{Number(dish.price || 0).toLocaleString()}
                               </td>
                               <td className="py-3.5 text-black font-black text-sm font-mono">
-                                {dish.orders_count || (18 - idx * 2)}
+                                {dish.orders_count ?? 0}
                               </td>
                               <td className="py-3.5">
                                 <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-[#DCFCE7] text-[#15803D] border border-emerald-300">
@@ -4783,74 +4779,58 @@ function AdminPortal() {
 
               {/* Right Column (4 cols): Today's Sales + Quick Actions */}
               <div className="lg:col-span-4 space-y-6">
-                {/* Today's Sales Card with SVG Area Curve Chart */}
+                {/* Today's Sales Card */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="text-lg sm:text-xl font-black text-black">Today's Sales</h2>
-                    <div className="flex items-center gap-1 px-3 py-1 bg-slate-100 border border-slate-300 rounded-lg text-xs font-black text-black">
-                      <span>Today</span>
-                      <ChevronDown size={14} className="text-black" />
-                    </div>
                   </div>
 
                   <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight mt-3">
                     ₦{Number(todayRevenue).toLocaleString()}
                   </h3>
-                  <p className="text-xs sm:text-sm font-black text-emerald-800 flex items-center gap-1 mt-1 mb-6">
-                    <span>↑ 18%</span>
-                    <span className="text-black font-bold">vs. yesterday</span>
+                  <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1 mb-6">
+                    <span className="text-black font-bold">Revenue from paid orders</span>
                   </p>
 
-                  {/* Smooth Area Line Chart matching reference image */}
-                  <div className="relative w-full h-44">
-                    <svg viewBox="0 0 320 140" className="w-full h-full overflow-visible">
-                      <defs>
-                        <linearGradient id="salesGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stopColor="#10B981" stopOpacity="0.25" />
-                          <stop offset="100%" stopColor="#10B981" stopOpacity="0.0" />
-                        </linearGradient>
-                      </defs>
-                      {/* Grid Lines */}
-                      <line x1="30" y1="15" x2="310" y2="15" stroke="#E2E8F0" strokeWidth="1" />
-                      <line x1="30" y1="50" x2="310" y2="50" stroke="#E2E8F0" strokeWidth="1" />
-                      <line x1="30" y1="85" x2="310" y2="85" stroke="#E2E8F0" strokeWidth="1" />
-                      <line x1="30" y1="120" x2="310" y2="120" stroke="#CBD5E1" strokeWidth="1.5" />
-
-                      {/* Y Axis Labels */}
-                      <text x="5" y="18" fill="#000000" fontSize="11" fontWeight="bold" fontFamily="sans-serif">1,500</text>
-                      <text x="5" y="53" fill="#000000" fontSize="11" fontWeight="bold" fontFamily="sans-serif">1,000</text>
-                      <text x="12" y="88" fill="#000000" fontSize="11" fontWeight="bold" fontFamily="sans-serif">500</text>
-                      <text x="20" y="122" fill="#000000" fontSize="11" fontWeight="bold" fontFamily="sans-serif">0</text>
-
-                      {/* Area fill */}
-                      <path
-                        d="M 35 115 Q 70 95 105 85 T 175 60 T 245 25 T 310 40 L 310 120 L 35 120 Z"
-                        fill="url(#salesGrad)"
-                      />
-                      {/* Curve Stroke */}
-                      <path
-                        d="M 35 115 Q 70 95 105 85 T 175 60 T 245 25 T 310 40"
-                        fill="none"
-                        stroke="#10B981"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                      />
-                      {/* Data points */}
-                      <circle cx="35" cy="115" r="4" fill="#10B981" stroke="#000000" strokeWidth="1.5" />
-                      <circle cx="105" cy="85" r="4" fill="#10B981" stroke="#000000" strokeWidth="1.5" />
-                      <circle cx="175" cy="60" r="4" fill="#10B981" stroke="#000000" strokeWidth="1.5" />
-                      <circle cx="245" cy="25" r="4" fill="#10B981" stroke="#000000" strokeWidth="1.5" />
-                      <circle cx="310" cy="40" r="4" fill="#10B981" stroke="#000000" strokeWidth="1.5" />
-                    </svg>
-                    {/* Time labels below */}
-                    <div className="flex justify-between text-xs text-black font-black pl-6 pt-1">
-                      <span>6 AM</span>
-                      <span>10 AM</span>
-                      <span>2 PM</span>
-                      <span>6 PM</span>
-                      <span>10 PM</span>
-                    </div>
-                  </div>
+                  {/* Real hourly bar chart from today's orders */}
+                  {(() => {
+                    const today = new Date();
+                    const todayStr = today.toISOString().slice(0, 10);
+                    const hourBuckets = Array(24).fill(0);
+                    orders.forEach(o => {
+                      if (o.payment_status !== 'paid') return;
+                      const ts = o.created_at?.toDate ? o.created_at.toDate() : new Date(o.created_at || o.timestamp || 0);
+                      if (ts.toISOString().slice(0, 10) !== todayStr) return;
+                      const hr = ts.getHours();
+                      hourBuckets[hr] += Number(o.total_amount || o.total || 0);
+                    });
+                    const displayHours = [6, 9, 12, 15, 18, 21];
+                    const displayBuckets = displayHours.map(h => hourBuckets[h] || 0);
+                    const maxVal = Math.max(...displayBuckets, 1);
+                    return (
+                      <div className="relative w-full h-44">
+                        <div className="flex items-end gap-2 h-36 px-1">
+                          {displayBuckets.map((val, i) => (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                              <div
+                                className="w-full rounded-t-lg bg-emerald-500 transition-all"
+                                style={{ height: `${Math.max(4, (val / maxVal) * 120)}px` }}
+                                title={`₦${val.toLocaleString()}`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-between text-xs text-black font-black pt-2">
+                          {displayHours.map(h => (
+                            <span key={h}>{h < 12 ? `${h}AM` : h === 12 ? '12PM' : `${h - 12}PM`}</span>
+                          ))}
+                        </div>
+                        {displayBuckets.every(v => v === 0) && (
+                          <p className="absolute inset-0 flex items-center justify-center text-xs text-slate-400 font-bold">No paid orders today yet</p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Quick Actions Card (2x2 Grid matching reference image) */}
@@ -5066,14 +5046,7 @@ function AdminPortal() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {(customers.length > 0 ? customers : orders.map(o => ({
-                      id: o.customer_phone || o.customer?.phone || o.id,
-                      full_name: o.customer?.full_name || 'Customer',
-                      phone: o.customer_phone || o.customer?.phone || '+234 800 000 0000',
-                      email: o.customer?.email || 'customer@foodmaxx.ng',
-                      orders_count: 1,
-                      total_spent: o.total_amount || 0
-                    }))).slice(0, 15).map((cust, idx) => (
+                    {customers.length > 0 ? customers.slice(0, 15).map((cust, idx) => (
                       <tr key={cust.id || idx} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-3.5 pl-1">
                           <div className="flex items-center gap-2.5">
@@ -5090,10 +5063,10 @@ function AdminPortal() {
                           {cust.phone || '—'}
                         </td>
                         <td className="py-3.5 font-black text-black">
-                          {cust.orders_count || 1} orders
+                          {cust.orders_count ?? 0} orders
                         </td>
                         <td className="py-3.5 font-black text-black font-mono text-sm">
-                          ₦{Number(cust.total_spent || 3500).toLocaleString()}
+                          ₦{Number(cust.total_spent || 0).toLocaleString()}
                         </td>
                         <td className="py-3.5 pr-1 text-right">
                           {cust.phone && (
@@ -5108,7 +5081,13 @@ function AdminPortal() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                    )) : (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-slate-400 font-bold text-sm">
+                          No registered customers yet. Customers appear here after they sign up.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -5129,9 +5108,6 @@ function AdminPortal() {
                     <h2 className="font-black text-base text-black">Orders in the Last 7 Days</h2>
                     <p className="text-xs text-black font-semibold mt-0.5">Total customer orders fulfilled each day across Ibadan</p>
                   </div>
-                  <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-300">
-                    +18% this week
-                  </span>
                 </div>
 
                 <div className="flex items-end gap-3 sm:gap-4 h-44 pt-4 border-b border-slate-200 pb-2">
@@ -8183,26 +8159,6 @@ function AdminPortal() {
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Test mock order
-                        const mockOrder = {
-                          id: 'order_test_' + Date.now(),
-                          order_reference: 'FMX-TEST' + Math.floor(100 + Math.random() * 900),
-                          customer_name: 'Test Customer (Demo)',
-                          customer_phone: settings.whatsapp_dispatch || settings.phone || '+2348023456789',
-                          created_at: new Date(Date.now() - 48 * 60000).toISOString(),
-                          delivery_zone: 'Bodija, Ibadan',
-                          total_amount: 4500
-                        };
-                        handleDispatchLateApology(mockOrder);
-                      }}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0"
-                    >
-                      <Sparkles size={14} className="text-amber-500" />
-                      <span>Test Apology (Simulate Order)</span>
-                    </button>
                   </div>
 
                   {delayedOrders.length === 0 ? (
@@ -8210,7 +8166,7 @@ function AdminPortal() {
                       <div className="text-3xl">🎉</div>
                       <div className="text-base font-black text-emerald-950">All Deliveries Running Smoothly!</div>
                       <p className="text-xs font-bold text-emerald-900 max-w-md mx-auto">
-                        There are currently no active orders exceeding your {settings.late_delivery_threshold_mins || 35}-minute target. You can simulate an apology test with the button above.
+                        There are currently no active orders exceeding your {settings.late_delivery_threshold_mins || 35}-minute target.
                       </p>
                     </div>
                   ) : (
