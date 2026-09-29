@@ -41,7 +41,6 @@ export function getStoredPaystackConfig() {
   if (typeof window === 'undefined') {
     return {
       publicKey: DEFAULT_PAYSTACK_KEY,
-      secretKey: '',
       isLive: DEFAULT_PAYSTACK_KEY.startsWith('pk_live_'),
       currency: 'NGN'
     };
@@ -57,7 +56,6 @@ export function getStoredPaystackConfig() {
       }
       return {
         publicKey: activeKey,
-        secretKey: parsed.secretKey || 'sk_test_5f0249d6c974334aa4e01ea641f6af994d21e7e6',
         isLive: parsed.isLive !== undefined ? parsed.isLive : activeKey.startsWith('pk_live_'),
         currency: parsed.currency || 'NGN'
       };
@@ -66,7 +64,6 @@ export function getStoredPaystackConfig() {
 
   return {
     publicKey: DEFAULT_PAYSTACK_KEY,
-    secretKey: '',
     isLive: DEFAULT_PAYSTACK_KEY.startsWith('pk_live_'),
     currency: 'NGN'
   };

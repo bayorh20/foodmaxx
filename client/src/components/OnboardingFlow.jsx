@@ -1,446 +1,452 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowRight, 
-  MapPin, 
-  Bell, 
+  ChevronLeft, 
   User, 
   Phone, 
-  Sparkles, 
-  ShieldCheck, 
-  CheckCircle2, 
-  Compass,
-  UtensilsCrossed,
-  Bike,
-  Wallet
+  MapPin, 
+  Check, 
+  Sparkles,
+  Utensils
 } from 'lucide-react';
-
-const ONBOARDING_SLIDES = [
-  {
-    badge: 'CHEF CRAFTED',
-    title: 'Gourmet Chow, Sizzling Hot',
-    description: 'Juicy handcrafted burgers, smoky charcoal suya, authentic party Jollof, and signature pasta bowls made fresh to order.',
-    icon: UtensilsCrossed,
-    image: '/foodmaxx-logo.png',
-    accentColor: '#EA4C2A',
-    bgGradient: 'from-orange-500/15 via-red-500/5 to-transparent'
-  },
-  {
-    badge: 'REAL-TIME DISPATCH',
-    title: 'Track Your Courier Live',
-    description: 'Watch your dedicated FoodMaxx rider zoom across the city on a live interactive map with accurate ETA and secure PIN handover.',
-    icon: Bike,
-    image: '/delivery-rider.png',
-    accentColor: '#FF6B4A',
-    bgGradient: 'from-amber-500/15 via-orange-500/5 to-transparent'
-  },
-  {
-    badge: 'EFFORTLESS CHECKOUT',
-    title: 'Instant 1-Tap Wallet',
-    description: 'Enjoy seamless payments with your FoodMaxx digital wallet, fast direct bank transfer, or card. Zero delays, zero friction.',
-    icon: Wallet,
-    image: '/nav-cart.png',
-    accentColor: '#10B981',
-    bgGradient: 'from-emerald-500/15 via-teal-500/5 to-transparent'
-  }
-];
 
 export default function OnboardingFlow({ 
   onComplete, 
   onRegister, 
   onGuest 
 }) {
-  // Stages: 'carousel' -> 'permissions' -> 'register'
-  const [stage, setStage] = useState('carousel');
-  const [slideIdx, setSlideIdx] = useState(0);
+  // 3-Step Flow: 1 (Welcome) -> 2 (Details) -> 3 (Delivery Location)
+  const [step, setStep] = useState(1);
 
-  // Form states
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
+  // Form state pre-filled from existing storage if available
+  const [fullName, setFullName] = useState(() => {
+    try {
+      return localStorage.getItem('fmx_last_name') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const [phone, setPhone] = useState(() => {
+    try {
+      return localStorage.getItem('fmx_last_phone') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const [address, setAddress] = useState(() => {
+    try {
+      return localStorage.getItem('fmx_last_delivery_address') || '';
+    } catch {
+      return '';
+    }
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Permission states
-  const [locationGranted, setLocationGranted] = useState(false);
-  const [notifsGranted, setNotifsGranted] = useState(false);
-  const [isRequestingPerms, setIsRequestingPerms] = useState(false);
-
-  // Carousel navigation
-  const nextSlide = () => {
-    if (slideIdx < ONBOARDING_SLIDES.length - 1) {
-      setSlideIdx(slideIdx + 1);
-    } else {
-      setStage('permissions');
-    }
+  // Auto clean phone number for Nigerian local/international format
+  const handlePhoneChange = (val) => {
+    const numeric = val.replace(/[^\d+]/g, '');
+    setPhone(numeric.slice(0, 14));
+    if (errorMsg) setErrorMsg('');
   };
 
-  const skipToPermissions = () => {
-    setStage('permissions');
-  };
-
-  // Request native permissions
-  const handleRequestPermissions = async () => {
-    setIsRequestingPerms(true);
-    
-    // 1. Request location
-    try {
-      if ('geolocation' in navigator) {
-        await new Promise((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              setLocationGranted(true);
-              try {
-                localStorage.setItem('fmx_user_lat', String(pos.coords.latitude));
-                localStorage.setItem('fmx_user_lng', String(pos.coords.longitude));
-              } catch {}
-              resolve(true);
-            },
-            () => resolve(false),
-            { timeout: 4000, enableHighAccuracy: true }
-          );
-        });
-      }
-    } catch (e) {}
-
-    // 2. Request notifications
-    try {
-      if ('Notification' in window) {
-        const perm = await Notification.requestPermission();
-        if (perm === 'granted') setNotifsGranted(true);
-      }
-    } catch (e) {}
-
-    setIsRequestingPerms(false);
-    // Advance to Silent Registration
-    setStage('register');
-  };
-
-  // Handle silent registration
-  const handleSilentRegister = async (e) => {
+  // Validate Step 2 (Customer Details)
+  const handleProceedToLocation = (e) => {
     if (e) e.preventDefault();
     setErrorMsg('');
 
-    const cleanName = fullName.trim();
+    const trimmedName = fullName.trim();
     const cleanPhone = phone.trim();
 
-    if (!cleanName) {
+    if (!trimmedName || trimmedName.length < 2) {
       setErrorMsg('Please enter your full name');
       return;
     }
-    if (!cleanPhone || cleanPhone.length < 8) {
-      setErrorMsg('Please enter a valid phone number');
+
+    const digitsOnly = cleanPhone.replace(/\D/g, '');
+    if (!cleanPhone || digitsOnly.length < 10) {
+      setErrorMsg('Please enter a valid phone number (e.g. 080XXXXXXXX)');
+      return;
+    }
+
+    try {
+      localStorage.setItem('fmx_last_name', trimmedName);
+      localStorage.setItem('fmx_last_phone', cleanPhone);
+    } catch {}
+
+    setStep(3);
+  };
+
+  // Finalize Step 3 (Delivery Location) & Enter App
+  const handleCompleteOnboarding = async (e) => {
+    if (e) e.preventDefault();
+    setErrorMsg('');
+
+    const trimmedAddress = address.trim();
+    if (!trimmedAddress || trimmedAddress.length < 3) {
+      setErrorMsg('Please enter your delivery street address or landmark');
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const cleanName = fullName.trim();
+      const cleanPhone = phone.trim();
+
+      // Persist across app so user never has to re-type
+      try {
+        localStorage.setItem('fmx_last_name', cleanName);
+        localStorage.setItem('fmx_last_phone', cleanPhone);
+        localStorage.setItem('fmx_last_delivery_address', trimmedAddress);
+        localStorage.setItem('fmx_onboarded', 'true');
+        localStorage.setItem('fmx_splash_seen', 'true');
+        sessionStorage.setItem('fmx_splash_seen', 'true');
+      } catch {}
+
+      // Trigger registration/profile update
       if (typeof onRegister === 'function') {
         await onRegister({
           full_name: cleanName,
-          phone: cleanPhone.startsWith('0') ? cleanPhone : `0${cleanPhone}`
+          phone: cleanPhone,
+          address: trimmedAddress
         });
       }
-      try { localStorage.setItem('fmx_onboarded', 'true'); } catch {}
-      if (typeof onComplete === 'function') onComplete();
+
+      // Transition immediately to Home screen
+      if (typeof onComplete === 'function') {
+        onComplete();
+      }
     } catch (err) {
-      setErrorMsg(err?.message || 'Registration failed. Please try again.');
+      // Even if silent network registration has a hiccups, ensure customer can access home
+      if (typeof onComplete === 'function') {
+        onComplete();
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Guest flow
-  const handleBrowseGuest = () => {
-    try { localStorage.setItem('fmx_onboarded', 'true'); } catch {}
-    if (typeof onGuest === 'function') onGuest();
-    else if (typeof onComplete === 'function') onComplete();
-  };
-
   return (
-    <div className="fixed inset-0 z-[180] flex flex-col justify-between bg-[#0F1015] text-white select-none overflow-hidden">
-      {/* Dynamic ambient backdrop */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-md h-[400px] bg-gradient-to-b from-[#EA4C2A]/15 via-[#EA4C2A]/5 to-transparent blur-3xl pointer-events-none" />
+    <div className="relative w-full h-full min-h-[100dvh] bg-[#0E1117] text-white flex flex-col justify-between overflow-x-hidden font-sans select-none">
+      
+      {/* Top Bar: Progress Indicator & Optional Back Button */}
+      <div className="pt-6 px-6 flex items-center justify-between z-10">
+        {step > 1 ? (
+          <button
+            type="button"
+            onClick={() => {
+              setErrorMsg('');
+              setStep(prev => prev - 1);
+            }}
+            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white transition-all cursor-pointer"
+            aria-label="Go Back"
+          >
+            <ChevronLeft size={20} />
+          </button>
+        ) : (
+          <div className="w-10 h-10" />
+        )}
 
-      {/* STAGE 1: ONBOARDING CAROUSEL */}
-      {stage === 'carousel' && (
-        <div className="relative flex-1 flex flex-col justify-between p-6 max-w-md mx-auto w-full">
-          {/* Top Bar: Brand Pill + Skip Button */}
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2">
-              <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-7 h-7 rounded-xl object-cover shadow-sm shadow-[#EA4C2A]/30" />
-              <span className="font-extrabold text-sm tracking-tight text-white">Food<span className="text-[#EA4C2A]">Maxx</span></span>
-            </div>
-            <button
-              onClick={skipToPermissions}
-              className="text-xs font-semibold text-slate-400 hover:text-white px-3 py-1.5 rounded-full bg-white/5 border border-white/10 active:scale-95 transition-all cursor-pointer"
+        {/* Minimal Progress Pills */}
+        <div className="flex items-center gap-2">
+          {[1, 2, 3].map((s) => (
+            <div
+              key={s}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                s === step
+                  ? 'w-7 bg-[#EA4C2A]'
+                  : s < step
+                  ? 'w-2 bg-[#EA4C2A]/70'
+                  : 'w-2 bg-white/20'
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Skip button for Step 1 only */}
+        {step === 1 ? (
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                localStorage.setItem('fmx_onboarded', 'true');
+              } catch {}
+              if (typeof onComplete === 'function') onComplete();
+            }}
+            className="text-xs font-semibold text-white/50 hover:text-white transition-colors cursor-pointer px-2 py-1"
+          >
+            Skip
+          </button>
+        ) : (
+          <div className="w-10 h-10" />
+        )}
+      </div>
+
+      {/* Main Content Carousel/Steps */}
+      <div className="flex-1 flex flex-col justify-center px-6 py-4 max-w-md mx-auto w-full">
+        <AnimatePresence mode="wait">
+          
+          {/* ======================================================== */}
+          {/* SCREEN 1: WELCOME SCREEN                                 */}
+          {/* ======================================================== */}
+          {step === 1 && (
+            <motion.div
+              key="step-welcome"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className="flex flex-col items-center text-center space-y-6"
             >
-              Skip
-            </button>
-          </div>
+              {/* Appetizing Food Visual matching FoodMaxx branding */}
+              <div className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-slate-900 flex items-center justify-center">
+                <img
+                  src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=700&auto=format&fit=crop&q=80"
+                  alt="FoodMaxx Fresh Gourmet Meal"
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                
+                {/* Floating Brand Badge */}
+                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-2 py-2 px-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/15">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#EA4C2A] animate-pulse" />
+                  <span className="text-xs font-bold tracking-wide text-white">Sizzling & Hot in Ibadan</span>
+                </div>
+              </div>
 
-          {/* Slide Content with AnimatePresence */}
-          <div className="my-auto py-6">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={slideIdx}
-                initial={{ opacity: 0, x: 40, scale: 0.95 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: -40, scale: 0.95 }}
-                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                className="flex flex-col items-center text-center"
-              >
-                {/* Hero Illustration Card */}
-                <div className="relative w-44 h-44 sm:w-48 sm:h-48 mb-8 flex items-center justify-center">
-                  <div className="absolute inset-0 rounded-full bg-radial from-[#EA4C2A]/20 to-transparent blur-xl" />
-                  <div className="relative w-36 h-36 sm:w-40 sm:h-40 rounded-3xl bg-gradient-to-tr from-[#181B24] to-[#222736] border border-white/10 shadow-2xl flex items-center justify-center p-5">
-                    <img 
-                      src={ONBOARDING_SLIDES[slideIdx].image} 
-                      alt="FoodMaxx Preview" 
-                      className="w-full h-full object-contain drop-shadow-xl"
+              {/* Copy */}
+              <div className="space-y-3 pt-2">
+                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+                  FoodMaxx
+                </h1>
+                <p className="text-base sm:text-lg text-slate-300 font-medium max-w-xs mx-auto leading-relaxed">
+                  Get your favourite meals, delivered fresh and fast.
+                </p>
+              </div>
+
+              {/* Action Button */}
+              <div className="w-full pt-4">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="w-full py-4 px-6 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white font-bold text-base shadow-lg shadow-[#EA4C2A]/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer"
+                >
+                  <span>Get Started</span>
+                  <ArrowRight size={18} className="stroke-[2.5]" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ======================================================== */}
+          {/* SCREEN 2: CUSTOMER DETAILS                               */}
+          {/* ======================================================== */}
+          {step === 2 && (
+            <motion.div
+              key="step-details"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className="space-y-6"
+            >
+              {/* Header */}
+              <div className="space-y-2">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  Let’s get you started
+                </h2>
+                <p className="text-sm sm:text-base text-slate-400 font-medium">
+                  Tell us a few details so we can serve you better.
+                </p>
+              </div>
+
+              {/* Form Fields */}
+              <form onSubmit={handleProceedToLocation} className="space-y-4 pt-1">
+                {/* Full Name */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Your Name
+                  </label>
+                  <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 focus-within:border-[#EA4C2A] focus-within:bg-white/10 transition-all">
+                    <User size={18} className="text-[#EA4C2A] shrink-0" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter your full name"
+                      value={fullName}
+                      onChange={(e) => {
+                        setFullName(e.target.value);
+                        if (errorMsg) setErrorMsg('');
+                      }}
+                      className="w-full text-sm sm:text-base font-medium text-white placeholder:text-slate-500 bg-transparent outline-none"
+                      autoFocus
                     />
                   </div>
-                  {/* Floating badge */}
-                  <div className="absolute -bottom-2 px-3 py-1 rounded-full bg-[#EA4C2A] text-white text-[10px] font-black tracking-wider uppercase shadow-lg shadow-[#EA4C2A]/35 border border-white/20">
-                    {ONBOARDING_SLIDES[slideIdx].badge}
+                </div>
+
+                {/* Phone Number */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Phone Number
+                  </label>
+                  <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 focus-within:border-[#EA4C2A] focus-within:bg-white/10 transition-all">
+                    <Phone size={18} className="text-[#EA4C2A] shrink-0" />
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      required
+                      placeholder="080XXXXXXXX"
+                      value={phone}
+                      onChange={(e) => handlePhoneChange(e.target.value)}
+                      className="w-full text-sm sm:text-base font-medium font-mono text-white placeholder:text-slate-500 bg-transparent outline-none"
+                    />
+                    {phone.replace(/\D/g, '').length >= 11 && (
+                      <Check size={16} className="text-emerald-400 shrink-0 stroke-[3]" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    We use your phone number to update you on your food dispatch.
+                  </p>
+                </div>
+
+                {/* Error Banner */}
+                {errorMsg && (
+                  <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-300">
+                    {errorMsg}
+                  </div>
+                )}
+
+                {/* Continue Button */}
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    className="w-full py-4 px-6 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white font-bold text-base shadow-lg shadow-[#EA4C2A]/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <span>Continue</span>
+                    <ArrowRight size={18} className="stroke-[2.5]" />
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
+
+          {/* ======================================================== */}
+          {/* SCREEN 3: DELIVERY LOCATION                              */}
+          {/* ======================================================== */}
+          {step === 3 && (
+            <motion.div
+              key="step-location"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className="space-y-6"
+            >
+              {/* Header */}
+              <div className="space-y-2">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  Where should we deliver your meals
+                </h2>
+                <p className="text-sm sm:text-base text-slate-400 font-medium">
+                  Add your delivery address so we know where to bring your food.
+                </p>
+              </div>
+
+              {/* Form Field */}
+              <form onSubmit={handleCompleteOnboarding} className="space-y-4 pt-1">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Delivery Address
+                  </label>
+                  <div className="flex items-start gap-3 p-4 rounded-2xl bg-white/5 border border-white/10 focus-within:border-[#EA4C2A] focus-within:bg-white/10 transition-all">
+                    <MapPin size={20} className="text-[#EA4C2A] shrink-0 mt-0.5" />
+                    <textarea
+                      rows={3}
+                      required
+                      placeholder="Enter your street address, apartment, or landmark"
+                      value={address}
+                      onChange={(e) => {
+                        setAddress(e.target.value);
+                        if (errorMsg) setErrorMsg('');
+                      }}
+                      className="w-full text-sm sm:text-base font-medium text-white placeholder:text-slate-500 bg-transparent outline-none resize-none leading-relaxed"
+                      autoFocus
+                    />
                   </div>
                 </div>
 
-                {/* Typography */}
-                <h2 className="text-2xl sm:text-[26px] font-black tracking-tight text-white leading-tight max-w-[320px]">
-                  {ONBOARDING_SLIDES[slideIdx].title}
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-400 mt-2.5 leading-relaxed max-w-[310px]">
-                  {ONBOARDING_SLIDES[slideIdx].description}
-                </p>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* Bottom Bar: Dot Indicators + Next Button */}
-          <div className="flex items-center justify-between pb-6 pt-2">
-            {/* Dots */}
-            <div className="flex items-center gap-1.5">
-              {ONBOARDING_SLIDES.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setSlideIdx(i)}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    slideIdx === i 
-                      ? 'w-7 bg-[#EA4C2A] shadow-xs shadow-[#EA4C2A]/50' 
-                      : 'w-2 bg-white/20 hover:bg-white/40'
-                  }`}
-                  aria-label={`Slide ${i + 1}`}
-                />
-              ))}
-            </div>
-
-            {/* Next / Start Button */}
-            <motion.button
-              whileTap={{ scale: 0.94 }}
-              onClick={nextSlide}
-              className="px-6 py-3 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] text-white font-bold text-sm shadow-lg shadow-[#EA4C2A]/30 flex items-center gap-2 cursor-pointer transition-all"
-            >
-              <span>{slideIdx === ONBOARDING_SLIDES.length - 1 ? 'Get Started' : 'Next'}</span>
-              <ArrowRight size={16} />
-            </motion.button>
-          </div>
-        </div>
-      )}
-
-      {/* STAGE 2: PERMISSION PRIMER */}
-      {stage === 'permissions' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="relative flex-1 flex flex-col justify-between p-6 max-w-md mx-auto w-full"
-        >
-          {/* Top Header */}
-          <div className="pt-3 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-[#EA4C2A]/15 border border-[#EA4C2A]/30 flex items-center justify-center mx-auto mb-3 text-[#EA4C2A]">
-              <ShieldCheck size={26} />
-            </div>
-            <h2 className="text-2xl font-black text-white tracking-tight">Enable Quick Permissions</h2>
-            <p className="text-xs text-slate-400 mt-1.5 max-w-[280px] mx-auto">
-              FoodMaxx needs two simple permissions to guarantee rapid cooking and hot doorstep delivery.
-            </p>
-          </div>
-
-          {/* Cards */}
-          <div className="space-y-3.5 my-auto py-4">
-            {/* Location Card */}
-            <div className="p-4 rounded-2xl bg-[#161822] border border-white/10 flex items-start gap-3.5 shadow-lg shadow-black/20">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 mt-0.5">
-                <MapPin size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-sm text-white">Doorstep Location</h4>
-                  {locationGranted && <CheckCircle2 size={16} className="text-emerald-400" />}
+                {/* Popular Ibadan Areas Quick Chips */}
+                <div className="space-y-2 pt-1">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Quick Area Selection:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      'Bodija, Ibadan',
+                      'UI Campus, Agbowo',
+                      'Agodi GRA, Ibadan',
+                      'Samonda, Ibadan',
+                      'Ring Road / Challenge'
+                    ].map((area) => (
+                      <button
+                        key={area}
+                        type="button"
+                        onClick={() => {
+                          setAddress(prev => prev ? `${prev}, ${area}` : area);
+                          if (errorMsg) setErrorMsg('');
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 active:scale-95 text-slate-200 border border-white/10 transition-all cursor-pointer"
+                      >
+                        + {area}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Pinpoint your delivery address automatically, show nearby kitchen specials, and estimate precise delivery times.
-                </p>
-              </div>
-            </div>
 
-            {/* Notification Card */}
-            <div className="p-4 rounded-2xl bg-[#161822] border border-white/10 flex items-start gap-3.5 shadow-lg shadow-black/20">
-              <div className="w-10 h-10 rounded-xl bg-[#EA4C2A]/15 border border-[#EA4C2A]/30 flex items-center justify-center text-[#EA4C2A] shrink-0 mt-0.5">
-                <Bell size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-sm text-white">Live Cooking & Arrival Alerts</h4>
-                  {notifsGranted && <CheckCircle2 size={16} className="text-emerald-400" />}
+                {/* Error Banner */}
+                {errorMsg && (
+                  <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-300">
+                    {errorMsg}
+                  </div>
+                )}
+
+                {/* Save & Continue Button */}
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-4 px-6 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white font-bold text-base shadow-lg shadow-[#EA4C2A]/30 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
+                  >
+                    {isSubmitting ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Saving Details...
+                      </span>
+                    ) : (
+                      <>
+                        <span>Save & Continue</span>
+                        <ArrowRight size={18} className="stroke-[2.5]" />
+                      </>
+                    )}
+                  </button>
                 </div>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Get notified the instant your meal starts grilling and when your courier pulls up outside with your PIN.
-                </p>
-              </div>
-            </div>
-          </div>
+              </form>
+            </motion.div>
+          )}
 
-          {/* Bottom Actions */}
-          <div className="flex flex-col gap-2.5 pb-6">
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={handleRequestPermissions}
-              disabled={isRequestingPerms}
-              className="w-full py-3.5 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] text-white font-bold text-sm shadow-xl shadow-[#EA4C2A]/30 flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-75"
-            >
-              {isRequestingPerms ? (
-                <span>Configuring permissions...</span>
-              ) : (
-                <>
-                  <span>Allow & Continue</span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </motion.button>
-            <button
-              onClick={() => setStage('register')}
-              className="text-xs font-semibold text-slate-400 hover:text-white py-2 text-center transition-colors cursor-pointer"
-            >
-              Maybe Later
-            </button>
-          </div>
-        </motion.div>
-      )}
+        </AnimatePresence>
+      </div>
 
-      {/* STAGE 3: SILENT REGISTRATION (JUST NAME & PHONE NUMBER) */}
-      {stage === 'register' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="relative flex-1 flex flex-col justify-between p-6 max-w-md mx-auto w-full"
-        >
-          {/* Header */}
-          <div className="pt-3 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-[#EA4C2A] flex items-center justify-center mx-auto mb-3 shadow-lg shadow-[#EA4C2A]/30 text-white">
-              <Sparkles size={24} />
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Start Ordering Chow!
-            </h2>
-            <p className="text-xs text-slate-400 mt-1.5 max-w-[280px] mx-auto">
-              No passwords or long forms. Just your name and phone number to start ordering.
-            </p>
-          </div>
+      {/* Subtle Footer */}
+      <div className="pb-6 text-center text-xs text-white/30 font-medium">
+        FoodMaxx Fresh Delivery · Ibadan
+      </div>
 
-          {/* Form */}
-          <form onSubmit={handleSilentRegister} className="my-auto py-4 space-y-3.5">
-            {/* Welcome Perk Banner */}
-            <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/5 border border-emerald-500/30 flex items-center gap-2.5">
-              <span className="text-lg">🎁</span>
-              <div className="text-xs">
-                <span className="font-extrabold text-emerald-400">₦1,000 Welcome Wallet Perk</span>
-                <p className="text-[11px] text-slate-300">Added to your FoodMaxx wallet on registration!</p>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {errorMsg && (
-              <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold text-center">
-                {errorMsg}
-              </div>
-            )}
-
-            {/* Full Name Input */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1.5 ml-1">
-                Your Full Name
-              </label>
-              <div className="relative flex items-center">
-                <div className="absolute left-3.5 text-slate-400 pointer-events-none">
-                  <User size={18} />
-                </div>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Adura Akintunde"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-[#161822] border border-white/10 text-white placeholder-slate-500 text-sm font-medium focus:outline-none focus:border-[#EA4C2A] focus:ring-1 focus:ring-[#EA4C2A] transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Phone Number Input with +234 Flag */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1.5 ml-1">
-                Phone Number
-              </label>
-              <div className="relative flex items-center">
-                <div className="absolute left-3.5 flex items-center gap-1.5 text-xs font-bold text-slate-300 pr-2 border-r border-white/15">
-                  <span className="text-sm">🇳🇬</span>
-                  <span>+234</span>
-                </div>
-                <input
-                  type="tel"
-                  required
-                  placeholder="801 234 5678"
-                  value={phone}
-                  onChange={(e) => {
-                    const clean = e.target.value.replace(/[^\d]/g, '');
-                    setPhone(clean);
-                  }}
-                  className="w-full pl-24 pr-4 py-3.5 rounded-2xl bg-[#161822] border border-white/10 text-white placeholder-slate-500 text-sm font-medium focus:outline-none focus:border-[#EA4C2A] focus:ring-1 focus:ring-[#EA4C2A] transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full mt-2 py-3.5 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] text-white font-black text-sm shadow-xl shadow-[#EA4C2A]/35 flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-75"
-            >
-              {isSubmitting ? (
-                <span>Registering & Preparing Table...</span>
-              ) : (
-                <>
-                  <span>Start Eating</span>
-                  <ArrowRight size={17} />
-                </>
-              )}
-            </motion.button>
-          </form>
-
-          {/* Guest Browsing Option */}
-          <div className="pt-2 pb-6 text-center">
-            <button
-              onClick={handleBrowseGuest}
-              className="text-xs font-semibold text-slate-400 hover:text-white py-2 flex items-center justify-center gap-1.5 mx-auto transition-colors cursor-pointer"
-            >
-              <Compass size={14} />
-              <span>Browse Menu as Guest</span>
-            </button>
-          </div>
-        </motion.div>
-      )}
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { FOODMAXX_MENU_ITEMS } from './mockData.js';
+import { DEFAULT_STORE_DETAILS, getStoreDetails } from '../config/storeDetails.js';
 
 // LIVE FIREBASE FIRESTORE DATABASE CONFIGURATION (Standard Native Instance: projects/foodmaxxapp/databases/(default))
 const firebaseConfig = {
@@ -421,7 +422,8 @@ function normalizeOrder(docId, data) {
 export function subscribeToCustomerLiveOrders(customerFilter, callback) {
   const userId = typeof customerFilter === 'string' ? customerFilter : (customerFilter?.id || customerFilter?.email || '');
   if (!userId) {
-    return subscribeToLiveOrders(callback, 20);
+    if (typeof callback === 'function') callback([]);
+    return () => {};
   }
   const q = query(
     collection(db, COLL_ORDERS),
@@ -442,7 +444,7 @@ export function subscribeToCustomerLiveOrders(customerFilter, callback) {
       const orders = [];
       snapshot.forEach(doc => {
         const ord = normalizeOrder(doc.id, doc.data());
-        if (!userId || ord.customer_id === userId || ord.customer?.id === userId || ord.customer_email === userId) {
+        if (ord.customer_id === userId || ord.customer?.id === userId || ord.customer_email === userId) {
           orders.push(ord);
         }
       });
@@ -833,33 +835,26 @@ export async function getLiveSettings() {
   }
   const docRef = doc(db, COLL_SETTINGS, 'store_config');
   const snap = await getDoc(docRef);
+  const baseDefaults = getStoreDetails();
   let res;
   if (snap.exists()) {
     const data = snap.data();
     const isStoreOpen = data.is_open !== undefined ? (data.is_open === true || data.is_open === 'true') : (data.isOpen !== false);
     res = {
-      store_name: 'FoodMaxx Kitchen & Grills',
-      phone: data.supportContact || data.phone || '',
-      address: data.address || 'Old Bodija, Ibadan',
-      announcement: data.announcement || 'Fresh firewood party jollof & gourmet grills ready for delivery!',
-      min_order: data.min_order || 1500,
-      default_prep_time: data.cookingBufferMinutes || 20,
+      ...baseDefaults,
       ...data,
+      phone: data.supportContact || data.phone || baseDefaults.phone,
+      address: data.address || baseDefaults.address,
       is_open: isStoreOpen,
       isOpen: isStoreOpen,
       kitchen_status: isStoreOpen ? 'open' : 'closed'
     };
   } else {
     res = {
-      store_name: 'FoodMaxx Kitchen & Grills',
+      ...baseDefaults,
       is_open: true,
       isOpen: true,
-      kitchen_status: 'open',
-      phone: '',
-      address: 'Old Bodija, Ibadan',
-      announcement: 'Fresh firewood party jollof & gourmet grills ready for delivery!',
-      min_order: 1500,
-      default_prep_time: 20
+      kitchen_status: 'open'
     };
   }
   memoryCache.settings = { data: res, timestamp: now };
@@ -871,15 +866,13 @@ export function subscribeToLiveSettings(callback) {
   return onSnapshot(docRef, (snap) => {
     if (snap.exists()) {
       const data = snap.data();
+      const baseDefaults = getStoreDetails();
       const isStoreOpen = data.is_open !== undefined ? (data.is_open === true || data.is_open === 'true') : (data.isOpen !== false);
       const payload = {
-        store_name: 'FoodMaxx Kitchen & Grills',
-        phone: data.supportContact || data.phone || '',
-        address: data.address || 'Old Bodija, Ibadan',
-        announcement: data.announcement || 'Fresh firewood party jollof & gourmet grills ready for delivery!',
-        min_order: 1500,
-        default_prep_time: data.cookingBufferMinutes || 20,
+        ...baseDefaults,
         ...data,
+        phone: data.supportContact || data.phone || baseDefaults.phone,
+        address: data.address || baseDefaults.address,
         is_open: isStoreOpen,
         isOpen: isStoreOpen,
         kitchen_status: isStoreOpen ? 'open' : 'closed'
@@ -1096,6 +1089,18 @@ export async function getLiveUser(userId) {
   return null;
 }
 
+export function subscribeToLiveUser(userId, callback) {
+  if (!userId) return () => {};
+  const docRef = doc(db, COLL_USERS, userId);
+  return onSnapshot(docRef, (snap) => {
+    if (snap.exists() && typeof callback === 'function') {
+      callback({ id: snap.id, ...snap.data() });
+    }
+  }, (err) => {
+    console.warn('Live user onSnapshot error:', err.message);
+  });
+}
+
 export async function updateLiveUser(userId, updates) {
   const docRef = doc(db, COLL_USERS, userId);
   await setDoc(docRef, { ...updates, updated_at: new Date().toISOString() }, { merge: true });
@@ -1215,3 +1220,388 @@ export async function createLiveReview(reviewData) {
   await setDoc(docRef, data, { merge: true });
   return data;
 }
+
+// -------------------------------------------------------------
+// LIVE REAL-TIME GROUP ORDERS API
+// -------------------------------------------------------------
+const COLL_GROUP_ORDERS = 'group_orders';
+
+export async function createLiveGroupOrder(groupData) {
+  const code = (groupData.code || `FMX-${Math.floor(1000 + Math.random() * 9000)}`).toUpperCase();
+  const docRef = doc(db, COLL_GROUP_ORDERS, code);
+  const data = {
+    code,
+    status: 'OPEN',
+    organizer_id: groupData.organizer_id || 'organizer_anon',
+    organizer_name: groupData.organizer_name || 'Organizer',
+    delivery_address: groupData.delivery_address || '',
+    delivery_zone: groupData.delivery_zone || 'Bodija',
+    members: groupData.members || [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  await setDoc(docRef, data, { merge: true });
+  return data;
+}
+
+export async function getLiveGroupOrder(code) {
+  if (!code) return null;
+  try {
+    const docRef = doc(db, COLL_GROUP_ORDERS, code.toUpperCase());
+    const snap = await getDoc(docRef);
+    return snap.exists() ? snap.data() : null;
+  } catch (e) {
+    console.warn('Failed to fetch live group order:', e);
+    return null;
+  }
+}
+
+export function subscribeToLiveGroupOrder(code, callback) {
+  if (!code) return () => {};
+  try {
+    const docRef = doc(db, COLL_GROUP_ORDERS, code.toUpperCase());
+    return onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        callback(snap.data());
+      } else {
+        callback(null);
+      }
+    }, (err) => {
+      console.warn('Group order real-time subscription notice:', err.message);
+    });
+  } catch (e) {
+    console.warn('Error setting up group order listener:', e);
+    return () => {};
+  }
+}
+
+export async function updateLiveGroupOrderMembers(code, members) {
+  if (!code) return null;
+  try {
+    const docRef = doc(db, COLL_GROUP_ORDERS, code.toUpperCase());
+    await setDoc(docRef, {
+      members,
+      updated_at: new Date().toISOString()
+    }, { merge: true });
+    return true;
+  } catch (e) {
+    console.error('Failed to update group members:', e);
+    return false;
+  }
+}
+
+export async function updateLiveGroupOrder(code, data) {
+  if (!code) return null;
+  try {
+    const docRef = doc(db, COLL_GROUP_ORDERS, code.toUpperCase());
+    await setDoc(docRef, {
+      ...data,
+      updated_at: new Date().toISOString()
+    }, { merge: true });
+    return true;
+  } catch (e) {
+    console.error('Failed to update group order:', e);
+    return false;
+  }
+}
+
+export async function setLiveGroupOrderStatus(code, status, extra = {}) {
+  if (!code) return null;
+  try {
+    const docRef = doc(db, COLL_GROUP_ORDERS, code.toUpperCase());
+    await setDoc(docRef, {
+      status,
+      ...extra,
+      updated_at: new Date().toISOString()
+    }, { merge: true });
+    return true;
+  } catch (e) {
+    console.error('Failed to set group order status:', e);
+    return false;
+  }
+}
+
+export async function getAllLiveGroupOrders() {
+  try {
+    const snap = await getDocs(collection(db, COLL_GROUP_ORDERS));
+    const list = [];
+    snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+    list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    return list;
+  } catch (e) {
+    console.warn('Failed to fetch all live group orders:', e);
+    return [];
+  }
+}
+
+export function subscribeToAllLiveGroupOrders(callback) {
+  try {
+    const q = query(collection(db, COLL_GROUP_ORDERS));
+    return onSnapshot(q, (snap) => {
+      const list = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+      list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      callback(list);
+    }, (err) => {
+      console.warn('Live group orders subscription warning:', err);
+    });
+  } catch (e) {
+    console.warn('Failed to subscribe to group orders:', e);
+    return () => {};
+  }
+}
+
+export async function addParticipantToGroupOrder(code, participant) {
+  if (!code || !participant) return false;
+  try {
+    const docRef = doc(db, COLL_GROUP_ORDERS, code.toUpperCase());
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return false;
+    const current = snap.data();
+    const existingParticipants = Array.isArray(current.participants) ? current.participants : [];
+    
+    // Check if participant already exists by phone or ID
+    const exists = existingParticipants.find(p => 
+      p.participant_id === participant.participant_id || 
+      (participant.phone && p.phone === participant.phone)
+    );
+    
+    let updated;
+    if (exists) {
+      updated = existingParticipants.map(p => 
+        (p.participant_id === participant.participant_id || (participant.phone && p.phone === participant.phone))
+          ? { ...p, ...participant }
+          : p
+      );
+    } else {
+      updated = [...existingParticipants, participant];
+    }
+    
+    await setDoc(docRef, {
+      participants: updated,
+      updated_at: new Date().toISOString()
+    }, { merge: true });
+    return true;
+  } catch (e) {
+    console.error('Failed to add participant to group:', e);
+    return false;
+  }
+}
+
+export async function recordParticipantPayment(code, participantId, paymentData = {}) {
+  if (!code || !participantId) return false;
+  try {
+    const docRef = doc(db, COLL_GROUP_ORDERS, code.toUpperCase());
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return false;
+    const current = snap.data();
+    const existingParticipants = Array.isArray(current.participants) ? current.participants : [];
+    
+    const updated = existingParticipants.map(p => {
+      if (p.participant_id === participantId || p.id === participantId) {
+        return {
+          ...p,
+          items: paymentData.items || p.items || [],
+          total: paymentData.total !== undefined ? paymentData.total : p.total,
+          payment_status: 'PAID',
+          paid: true,
+          paystack_ref: paymentData.paystack_ref || paymentData.reference || `PSTK_${Date.now()}`,
+          paid_at: new Date().toISOString()
+        };
+      }
+      return p;
+    });
+
+    const totalPaidAmount = updated
+      .filter(p => p.payment_status === 'PAID')
+      .reduce((sum, p) => sum + (Number(p.total) || 0), 0);
+
+    await setDoc(docRef, {
+      participants: updated,
+      total_amount: totalPaidAmount,
+      updated_at: new Date().toISOString()
+    }, { merge: true });
+    return true;
+  } catch (e) {
+    console.error('Failed to record participant payment:', e);
+    return false;
+  }
+}
+
+// -------------------------------------------------------------
+// LIVE SUBSCRIPTIONS API
+// -------------------------------------------------------------
+const COLL_SUBSCRIPTIONS = 'subscriptions';
+
+export async function getLiveSubscriptions() {
+  try {
+    const snap = await getDocs(collection(db, COLL_SUBSCRIPTIONS));
+    const list = [];
+    snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+    list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    return list;
+  } catch (e) {
+    console.warn('Failed to fetch subscriptions:', e);
+    return [];
+  }
+}
+
+export function subscribeToLiveSubscriptions(callback) {
+  try {
+    const q = query(collection(db, COLL_SUBSCRIPTIONS));
+    return onSnapshot(q, (snap) => {
+      const list = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+      list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      callback(list);
+    }, err => console.warn('Subscriptions listener warning:', err));
+  } catch (e) {
+    return () => {};
+  }
+}
+
+export async function createLiveSubscription(subData) {
+  try {
+    const id = subData.id || `SUB-${Date.now().toString().slice(-6)}`;
+    const docRef = doc(db, COLL_SUBSCRIPTIONS, id);
+    const cleaned = cleanFirestoreObject({
+      ...subData,
+      id,
+      status: subData.status || 'ACTIVE',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    await setDoc(docRef, cleaned, { merge: true });
+    return cleaned;
+  } catch (e) {
+    console.error('Failed to create subscription:', e);
+    return null;
+  }
+}
+
+export async function updateLiveSubscription(id, data) {
+  if (!id) return false;
+  try {
+    const docRef = doc(db, COLL_SUBSCRIPTIONS, id);
+    await setDoc(docRef, {
+      ...cleanFirestoreObject(data),
+      updated_at: new Date().toISOString()
+    }, { merge: true });
+    return true;
+  } catch (e) {
+    console.error('Failed to update subscription:', e);
+    return false;
+  }
+}
+
+// -------------------------------------------------------------
+// LIVE INVENTORY AUDIT & STOCK TRANSACTIONS API
+// -------------------------------------------------------------
+const COLL_INVENTORY_TRANSACTIONS = 'inventory_transactions';
+
+export async function adjustLiveStockWithAudit(itemId, deltaQty, reason = 'Restock', performedBy = 'Admin') {
+  if (!itemId || !deltaQty) return false;
+  try {
+    const productRef = doc(db, COLL_PRODUCTS, itemId);
+    const snap = await getDoc(productRef);
+    if (!snap.exists()) return false;
+    
+    const prod = snap.data();
+    const currentStock = Number(prod.stock_quantity ?? prod.stockQuantity ?? 50);
+    const newStock = Math.max(0, currentStock + deltaQty);
+    
+    // Update product stock in Firestore
+    await setDoc(productRef, {
+      stock_quantity: newStock,
+      is_available: newStock > 0,
+      updated_at: new Date().toISOString()
+    }, { merge: true });
+
+    // Record audit trail
+    const txId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const txRef = doc(db, COLL_INVENTORY_TRANSACTIONS, txId);
+    await setDoc(txRef, {
+      id: txId,
+      product_id: itemId,
+      product_name: prod.name || 'Dish',
+      previous_stock: currentStock,
+      change_quantity: deltaQty,
+      new_stock: newStock,
+      reason,
+      performed_by: performedBy,
+      timestamp: new Date().toISOString()
+    });
+    return newStock;
+  } catch (e) {
+    console.error('Failed to adjust stock with audit:', e);
+    return false;
+  }
+}
+
+// -------------------------------------------------------------
+// LIVE PRODUCTION BATCHES API (Kitchen Batching)
+// -------------------------------------------------------------
+const COLL_PRODUCTION_BATCHES = 'production_batches';
+
+export async function getLiveProductionBatches() {
+  try {
+    const snap = await getDocs(collection(db, COLL_PRODUCTION_BATCHES));
+    const list = [];
+    snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+    list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    return list;
+  } catch (e) {
+    console.warn('Failed to fetch production batches:', e);
+    return [];
+  }
+}
+
+export function subscribeToLiveProductionBatches(callback) {
+  try {
+    const q = query(collection(db, COLL_PRODUCTION_BATCHES));
+    return onSnapshot(q, snap => {
+      const list = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+      list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      callback(list);
+    }, err => console.warn('Batches listener warning:', err));
+  } catch (e) {
+    return () => {};
+  }
+}
+
+export async function createLiveProductionBatch(batchData) {
+  try {
+    const id = batchData.id || `BATCH-${Date.now().toString().slice(-6)}`;
+    const docRef = doc(db, COLL_PRODUCTION_BATCHES, id);
+    const cleaned = cleanFirestoreObject({
+      ...batchData,
+      id,
+      status: batchData.status || 'SCHEDULED', // SCHEDULED | IN_PREP | READY | COMPLETED
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    await setDoc(docRef, cleaned, { merge: true });
+    return cleaned;
+  } catch (e) {
+    console.error('Failed to create production batch:', e);
+    return null;
+  }
+}
+
+export async function updateLiveProductionBatchStatus(batchId, status) {
+  if (!batchId) return false;
+  try {
+    const docRef = doc(db, COLL_PRODUCTION_BATCHES, batchId);
+    await setDoc(docRef, {
+      status,
+      updated_at: new Date().toISOString()
+    }, { merge: true });
+    return true;
+  } catch (e) {
+    console.error('Failed to update batch status:', e);
+    return false;
+  }
+}
+
+

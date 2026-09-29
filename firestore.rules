@@ -135,6 +135,50 @@ service cloud.firestore {
       allow delete: if true;
     }
 
+    // 12. Group Orders (Real-time collaborative group ordering)
+    match /group_orders/{groupId} {
+      allow read, write: if true;
+      allow delete: if true;
+    }
+
+    // 13. Subscriptions (Meal plans & recurring subscriptions)
+    match /subscriptions/{subscriptionId} {
+      allow read, write: if true;
+      allow delete: if true;
+    }
+
+    // 14. Inventory (Stock levels & ingredients)
+    match /inventory/{itemId} {
+      allow read, write: if true;
+      allow delete: if true;
+    }
+
+    // 15. Inventory Transactions (Stock movements & audit trail)
+    match /inventory_transactions/{txId} {
+      allow read, write: if true;
+    }
+
+    // 16. Production Batches (Kitchen meal batch management)
+    match /production_batches/{batchId} {
+      allow read, write: if true;
+    }
+
+    // 17. Referrals (Customer referral links & attribution)
+    match /referrals/{refId} {
+      allow read, write: if true;
+    }
+
+    // 18. Audit Logs (System & security activity trail)
+    match /audit_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    // 19. Notifications (User in-app notifications)
+    match /notifications/{notifId} {
+      allow read, write: if true;
+      allow delete: if true;
+    }
+
     // Default deny all other unspecified paths
     match /{document=**} {
       allow read, write: if false;

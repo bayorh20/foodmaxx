@@ -7,17 +7,17 @@ export const DEFAULT_APP_CONTENT = {
     hero_badge: {
       label: 'Hero Badge Tag',
       desc: 'Top pill badge on customer home screen',
-      value: 'FoodMaxx Kitchen & Grills · Ibadan'
+      value: 'FoodMaxx Food Delivery · Ibadan'
     },
     hero_title: {
       label: 'Main Headline',
       desc: 'Primary headline on the hero banner',
-      value: 'Gourmet Party Jollof & Grills Delivered Fast'
+      value: 'Your Favourite Food Delivery Plug!'
     },
     hero_subtitle: {
       label: 'Hero Subtitle',
       desc: 'Supporting description under the main headline',
-      value: 'Authentic smoky firewood jollof, tender asun, peppered turkey & gourmet treats delivered piping hot across Ibadan.'
+      value: 'We Serve Joy on a Platter! Fresh and hot meals ready for immediate delivery across Ibadan.'
     },
     search_placeholder: {
       label: 'Search Input Placeholder',

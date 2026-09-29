@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../config/database');
 
@@ -99,7 +99,7 @@ router.get('/:code', (req, res) => {
 router.post('/:code/join', (req, res) => {
   try {
     const code = req.params.code.toUpperCase();
-    const { name } = req.body;
+    const { name, phone } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: 'Your name is required to join' });
     }
@@ -108,16 +108,20 @@ router.post('/:code/join', (req, res) => {
     if (!group) {
       return res.status(404).json({ success: false, message: 'Group order not found' });
     }
-    if (group.status !== 'active') {
+    if (group.status !== 'active' && group.status !== 'OPEN') {
       return res.status(400).json({ success: false, message: 'This group order is already locked or completed' });
     }
 
     const participantId = `part_${uuidv4().slice(0, 8)}`;
     const newParticipant = {
       id: participantId,
+      participant_id: participantId,
       name: name.trim(),
+      phone: (phone || '').trim(),
       is_host: false,
-      items: []
+      payment_status: 'PENDING',
+      items: [],
+      total: 0
     };
 
     const updatedParticipants = [...(group.participants || []), newParticipant];
@@ -258,4 +262,75 @@ router.post('/:code/checkout', (req, res) => {
   }
 });
 
+// POST /api/group-orders/:code/pay - Individual participant payment via Paystack
+router.post('/:code/pay', (req, res) => {
+  try {
+    const code = req.params.code.toUpperCase();
+    const { participant_id, items, total, paystack_ref } = req.body;
+
+    const group = db.findOne('group_orders', g => g.code === code);
+    if (!group) return res.status(404).json({ success: false, message: 'Group order not found' });
+
+    const participants = (group.participants || []).map(p => {
+      if (p.id === participant_id || p.participant_id === participant_id) {
+        return {
+          ...p,
+          items: items || p.items || [],
+          total: total !== undefined ? total : p.total,
+          payment_status: 'PAID',
+          paid: true,
+          paystack_ref: paystack_ref || `PSTK_${Date.now()}`,
+          paid_at: new Date().toISOString()
+        };
+      }
+      return p;
+    });
+
+    const totalAmount = participants
+      .filter(p => p.payment_status === 'PAID')
+      .reduce((sum, p) => sum + (Number(p.total) || 0), 0);
+
+    const updated = db.update('group_orders', group.id, {
+      participants,
+      total_amount: totalAmount,
+      updated_at: new Date().toISOString()
+    });
+
+    if (global.broadcast) {
+      global.broadcast({ type: 'GROUP_ORDER_PARTICIPANT_PAID', code, data: updated, participant_id });
+    }
+
+    res.json({ success: true, data: updated, message: 'Payment recorded successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to record participant payment' });
+  }
+});
+
+// POST /api/group-orders/:code/status - Admin status transitions
+router.post('/:code/status', (req, res) => {
+  try {
+    const code = req.params.code.toUpperCase();
+    const { status, preparation_status, assigned_rider } = req.body;
+
+    const group = db.findOne('group_orders', g => g.code === code);
+    if (!group) return res.status(404).json({ success: false, message: 'Group order not found' });
+
+    const updateFields = { updated_at: new Date().toISOString() };
+    if (status) updateFields.status = status;
+    if (preparation_status) updateFields.preparation_status = preparation_status;
+    if (assigned_rider !== undefined) updateFields.assigned_rider = assigned_rider;
+
+    const updated = db.update('group_orders', group.id, updateFields);
+
+    if (global.broadcast) {
+      global.broadcast({ type: 'GROUP_ORDER_STATUS_CHANGED', code, data: updated });
+    }
+
+    res.json({ success: true, data: updated, message: 'Group order status updated' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to update group order status' });
+  }
+});
+
 module.exports = router;
+

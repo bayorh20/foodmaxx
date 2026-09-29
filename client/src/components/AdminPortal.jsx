@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, deleteDoc } from 'firebase/firestore';
 import {
   ShoppingCart, Search, Home, Compass, ClipboardList, User, Star,
   MapPin, Clock, ChevronRight, ChevronLeft, Plus, Minus, X, Check,
@@ -22,7 +22,9 @@ import { db } from '../services/firebaseDb';
 import { triggerHaptic, playOrderNotificationSound, playNativeSound, playToneById, NOTIFICATION_TONES } from '../services/nativeMobile';
 import { getStoredPaystackConfig, savePaystackConfig } from '../services/paystack';
 import { getAppContent, saveAppContent, resetAppContent, fetchLiveAppContent, subscribeLiveAppContent, getCopy, DEFAULT_APP_CONTENT } from '../services/appContent';
+import { getStoreDetails, updateStoreDetails, DEFAULT_STORE_DETAILS } from '../config/storeDetails';
 import NotificationToneModal from './NotificationToneModal';
+import { HAPPY_FEMALE_AVATARS, HAPPY_MALE_AVATARS } from '../utils/avatarUtils';
 import { useAuth, useToast, useWS, useTheme, fmt, statusLabel, statusColor, getStatusEmoji, getStatusNotificationInfo, compressImageFile, getItemSizeAndExtras } from '../App';
 
 // ============================================================
@@ -2815,71 +2817,31 @@ function AdminPortal() {
   const [ticketSearch, setTicketSearch] = useState('');
   const [ticketDraftReply, setTicketDraftReply] = useState('');
   const [settings, setSettings] = useState(() => {
-    try {
-      const cached = localStorage.getItem('fmx_store_settings');
-      if (cached) return JSON.parse(cached);
-    } catch {}
-    return {
-      store_name: 'FoodMaxx Kitchen & Grills',
-      tagline: 'Fastest Fresh Food Delivery in Ibadan',
-      phone: '+234 802 345 6789',
-      whatsapp_dispatch: '+234 812 345 6789',
-      address: '24 Awolowo Avenue, Old Bodija, Ibadan, Oyo State',
-      city: 'Ibadan',
-      opening_time: '08:00',
-      closing_time: '23:00',
-      prep_time_minutes: 20,
-      announcement: '⚡ Fresh firewood party jollof & gourmet grills ready for immediate delivery!',
-      is_open: true,
-      isOpen: true,
-      kitchen_status: 'open',
-      min_order_amount: 1500,
-      packaging_fee: 300,
-      service_fee: 150,
-      free_delivery_threshold: 15000,
-      auto_confirm_paid_orders: true,
-      allow_preorders: true,
-      max_active_orders: 40,
-      payout_bank_name: 'Guaranty Trust Bank (GTBank)',
-      payout_account_number: '0123456789',
-      payout_account_name: 'FoodMaxx Kitchen Ltd',
-      paystack_public_key: 'pk_live_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a',
-      paystack_is_live: true,
-      enable_paystack: true,
-      enable_bank_transfer: true,
-      enable_cash_on_delivery: true,
-      sound_alert_enabled: true,
-      kitchen_chime_volume: 85,
-      notification_tone_id: 'chime_standard',
-      whatsapp_notify_customer: true,
-      whatsapp_order_placed_msg: 'Hello {customer_name}! Your FoodMaxx order #{order_ref} for {amount} has been received and confirmed. Chef is prepping now! 🍳',
-      whatsapp_dispatched_msg: 'Hi {customer_name}! Rider {rider_name} ({rider_phone}) is on the way with your hot FoodMaxx meal! Delivery PIN: {delivery_pin}. 🛵',
-      whatsapp_delivered_msg: 'Order #{order_ref} delivered! Bon appétit from FoodMaxx Ibadan. Rate your experience: https://foodmaxxapp.web.app 🍔',
-      thermal_printer_enabled: true,
-      thermal_paper_size: '58mm',
-      auto_print_on_confirm: false,
-      receipt_header_note: 'FOODMAXX IBD - FRESH & HOT',
-      receipt_footer_note: 'Thank you for dining with FoodMaxx! For catering: 08023456789',
-      admin_password: 'admin',
-      kitchen_staff_pin: '1234',
-      require_delivery_otp: true,
-      late_delivery_enabled: true,
-      late_delivery_threshold_mins: 35,
-      late_compensation_type: 'discount_code',
-      late_discount_percent: 20,
-      late_discount_amount: 500,
-      late_promo_code_prefix: 'SORRY',
-      late_apology_tone: 'warm',
-      late_whatsapp_template: 'Dear {customer_name}, we sincerely apologize that your FoodMaxx order #{order_ref} is experiencing an unexpected delay ({delay_minutes} mins). Chef is speeding up your hot meal right now! 🙏 To make it up to you, please enjoy {compensation_val} on your next order with coupon code *{coupon_code}*. Plus, we have included {free_item} on the house! Thank you for dining with FoodMaxx Ibadan. 🍲',
-      late_include_free_item: true,
-      late_free_item_name: 'Complimentary Chilled Soft Drink / Extra Dodo',
-      late_auto_generate_coupon: true
-    };
+    return getStoreDetails();
   });
   const [settingsSubTab, setSettingsSubTab] = useState('profile');
   const [savingSettings, setSavingSettings] = useState(false);
   const [testingToneId, setTestingToneId] = useState(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [activeGroupOrders, setActiveGroupOrders] = useState([]);
+  const [expandedGroupId, setExpandedGroupId] = useState(null);
+
+  // Real-time listener for active Group Orders
+  useEffect(() => {
+    if (settingsSubTab === 'group_orders' && db) {
+      try {
+        const q = query(collection(db, 'group_orders'));
+        const unsub = onSnapshot(q, (snap) => {
+          const list = [];
+          snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+          setActiveGroupOrders(list);
+        }, err => console.warn('Group orders admin listener:', err));
+        return () => unsub();
+      } catch (e) {
+        console.warn('Could not listen to group orders:', e);
+      }
+    }
+  }, [settingsSubTab]);
 
   // Late Delivery Apology History
   const [apologyHistory, setApologyHistory] = useState(() => {
@@ -3851,8 +3813,7 @@ function AdminPortal() {
         setSettings(merged);
       }
       try {
-        localStorage.setItem('fmx_store_settings', JSON.stringify(merged));
-        window.dispatchEvent(new CustomEvent('fmx_store_settings_updated', { detail: merged }));
+        updateStoreDetails(merged);
       } catch (e) {}
       playNativeSound('success');
       toast('All store settings saved and synced across FoodMaxx! 🏬✅', 'success');
@@ -6448,6 +6409,7 @@ function AdminPortal() {
                 {[
                   { id: 'profile', label: 'Store Profile & Hours', icon: Store },
                   { id: 'ordering', label: 'Ordering & Fees', icon: SlidersHorizontal },
+                  { id: 'group_orders', label: 'Group Orders', icon: Users },
                   { id: 'payments', label: 'Payouts & Payments', icon: CreditCard },
                   { id: 'apology', label: 'Late Delivery Apology', icon: HeartHandshake, badge: delayedOrdersCount > 0 ? `${delayedOrdersCount} Overdue` : null },
                   { id: 'alerts', label: 'Audio Chimes & WhatsApp', icon: Bell },
@@ -6765,7 +6727,578 @@ function AdminPortal() {
                         <span className="text-xs font-bold text-black">orders</span>
                       </div>
                     </div>
+
+                    {/* GROUP ORDERING CONTROLS */}
+                    <div className="pt-6 border-t border-slate-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h4 className="text-base font-black text-black flex items-center gap-2">
+                            <Users size={18} className="text-[#EA4C2A]" />
+                            <span>Group Ordering & "Order with Friends" Controls</span>
+                          </h4>
+                          <p className="text-xs font-bold text-slate-600 mt-0.5">
+                            Manage campus and office group deliveries, guest access, limits, and packaging labels.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-black">{settings.enable_group_ordering !== false ? '🟢 Active' : '🔴 Paused'}</span>
+                          <input
+                            type="checkbox"
+                            checked={settings.enable_group_ordering !== false}
+                            onChange={e => setSettings({ ...settings, enable_group_ordering: e.target.checked })}
+                            className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                          <label className="block text-xs font-black text-black mb-1">Group Min Spend (₦)</label>
+                          <input
+                            type="number"
+                            min={1000}
+                            step={500}
+                            value={settings.group_order_min_spend ?? 3000}
+                            onChange={e => setSettings({ ...settings, group_order_min_spend: Number(e.target.value) })}
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                          />
+                          <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Min total group cart to place order.</span>
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                          <label className="block text-xs font-black text-black mb-1">Max People per Group</label>
+                          <input
+                            type="number"
+                            min={2}
+                            max={50}
+                            value={settings.group_order_max_members ?? 15}
+                            onChange={e => setSettings({ ...settings, group_order_max_members: Number(e.target.value) })}
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                          />
+                          <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Maximum members in one order session.</span>
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                          <label className="block text-xs font-black text-black mb-1">Group Special Discount (%)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={30}
+                            value={settings.group_order_discount_percent ?? 0}
+                            onChange={e => setSettings({ ...settings, group_order_discount_percent: Number(e.target.value) })}
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                          />
+                          <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Automatic discount for groups (0% to disable).</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 space-y-2">
+                        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-black text-black">Individual Meal Name Labeling</p>
+                            <p className="text-[11px] text-slate-500">Instruct kitchen printer and chef to label each pack with member's name.</p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={settings.group_order_label_bags !== false}
+                            onChange={e => setSettings({ ...settings, group_order_label_bags: e.target.checked })}
+                            className="w-4 h-4 accent-[#EA4C2A] cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-black text-black">Allow Guests to Join via Link</p>
+                            <p className="text-[11px] text-slate-500">Friends can add meals without needing to create an account first.</p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={settings.group_order_allow_guest_join !== false}
+                            onChange={e => setSettings({ ...settings, group_order_allow_guest_join: e.target.checked })}
+                            className="w-4 h-4 accent-[#EA4C2A] cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ======================================================== */}
+            {/* SUBTAB: GROUP ORDERS SETTINGS & LIVE ROOMS MONITOR       */}
+            {/* ======================================================== */}
+            {settingsSubTab === 'group_orders' && (
+              <div className="space-y-6">
+                {/* 1. MASTER STATUS & PAUSE CONTROLS */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-5 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Users size={22} className="text-[#EA4C2A]" />
+                        <h3 className="text-lg font-black text-black">Group Ordering & "Order with Friends" Master Switch</h3>
+                      </div>
+                      <p className="text-xs font-bold text-slate-600 mt-1">
+                        Control collaborative real-time ordering across campuses, offices, hostels, and student rooms.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 p-2.5 rounded-2xl shrink-0">
+                      <div className="text-right">
+                        <span className={`text-xs font-black block ${settings.enable_group_ordering !== false ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {settings.enable_group_ordering !== false ? '🟢 Active & Accepting Orders' : '🔴 Temporarily Paused'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-semibold">Storefront feature status</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={settings.enable_group_ordering !== false}
+                        onChange={e => setSettings({ ...settings, enable_group_ordering: e.target.checked })}
+                        className="w-6 h-6 accent-[#EA4C2A] cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pause Custom Message */}
+                  <div>
+                    <label className="block text-xs font-black text-black mb-1.5">
+                      Storefront Customer Pause Banner Notice
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Notice: Group ordering is currently paused by store manager during peak rush hours."
+                      value={settings.group_order_pause_message ?? 'Group ordering is temporarily paused by the manager during peak rush hours.'}
+                      onChange={e => setSettings({ ...settings, group_order_pause_message: e.target.value })}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                    />
+                    <span className="text-[11px] text-slate-500 font-semibold mt-1 block">
+                      Displayed to customers on top of the sheet when group ordering is turned off.
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. ORDER CONSTRAINTS, CAPACITY & MINIMUMS */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-5 shadow-xs">
+                  <div>
+                    <h3 className="text-base font-black text-black flex items-center gap-2">
+                      <SlidersHorizontal size={18} className="text-[#EA4C2A]" />
+                      <span>Capacity & Spending Thresholds</span>
+                    </h3>
+                    <p className="text-xs font-bold text-slate-600 mt-0.5">
+                      Set minimum spend, maximum member count, and free delivery incentives.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <label className="block text-xs font-black text-black mb-1">Group Min Spend (₦)</label>
+                      <input
+                        type="number"
+                        min={1000}
+                        step={500}
+                        value={settings.group_order_min_spend ?? 3000}
+                        onChange={e => setSettings({ ...settings, group_order_min_spend: Number(e.target.value) })}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                      />
+                      <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Minimum combined cart total to checkout.</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <label className="block text-xs font-black text-black mb-1">Max People per Group</label>
+                      <input
+                        type="number"
+                        min={2}
+                        max={50}
+                        value={settings.group_order_max_members ?? 15}
+                        onChange={e => setSettings({ ...settings, group_order_max_members: Number(e.target.value) })}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                      />
+                      <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Maximum friends in one room session.</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <label className="block text-xs font-black text-black mb-1">Max Items per Member</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={settings.group_order_max_items_per_member ?? 10}
+                        onChange={e => setSettings({ ...settings, group_order_max_items_per_member: Number(e.target.value) })}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                      />
+                      <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Limits kitchen congestion per person.</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <label className="block text-xs font-black text-black mb-1">Free Group Delivery Above (₦)</label>
+                      <input
+                        type="number"
+                        min={5000}
+                        step={1000}
+                        value={settings.group_order_free_delivery_threshold ?? 15000}
+                        onChange={e => setSettings({ ...settings, group_order_free_delivery_threshold: Number(e.target.value) })}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                      />
+                      <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Free delivery bonus when group spends above this.</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. GROUP DISCOUNT & INCENTIVES */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-4 shadow-xs">
+                  <div>
+                    <h3 className="text-base font-black text-black flex items-center gap-2">
+                      <Percent size={18} className="text-[#EA4C2A]" />
+                      <span>Group Discount Incentives</span>
+                    </h3>
+                    <p className="text-xs font-bold text-slate-600 mt-0.5">
+                      Encourage friends and colleagues to pool orders together with volume discounts.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <label className="block text-xs font-black text-black mb-1">Group Discount (%)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={35}
+                        value={settings.group_order_discount_percent ?? 0}
+                        onChange={e => setSettings({ ...settings, group_order_discount_percent: Number(e.target.value) })}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                      />
+                      <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Automatic discount on meal subtotal (0% to disable).</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <label className="block text-xs font-black text-black mb-1">Min People to Unlock Discount</label>
+                      <input
+                        type="number"
+                        min={2}
+                        max={20}
+                        value={settings.group_order_discount_min_people ?? 3}
+                        onChange={e => setSettings({ ...settings, group_order_discount_min_people: Number(e.target.value) })}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                      />
+                      <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Discount triggers when this many friends join.</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. KITCHEN PACKAGING & GUEST ACCESS */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-4 shadow-xs">
+                  <div>
+                    <h3 className="text-base font-black text-black flex items-center gap-2">
+                      <Package size={18} className="text-[#EA4C2A]" />
+                      <span>Kitchen Packaging & Guest Access Policies</span>
+                    </h3>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-black text-black">Individual Meal Name Labeling</p>
+                        <p className="text-[11px] text-slate-500">Instruct chef and kitchen packing line to label every container with the member's name.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={settings.group_order_label_bags !== false}
+                        onChange={e => setSettings({ ...settings, group_order_label_bags: e.target.checked })}
+                        className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-black text-black">Allow Anonymous Friends to Join via Deep Link</p>
+                        <p className="text-[11px] text-slate-500">Invited friends can add meals immediately with just their name (no mandatory account creation).</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={settings.group_order_allow_guest_join !== false}
+                        onChange={e => setSettings({ ...settings, group_order_allow_guest_join: e.target.checked })}
+                        className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-black text-black">Enable Random Happy Avatars for Customers</p>
+                        <p className="text-[11px] text-slate-500">Assigns delightful smiling male and female customer avatars to every group member.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={settings.group_order_enable_happy_avatars !== false}
+                        onChange={e => setSettings({ ...settings, group_order_enable_happy_avatars: e.target.checked })}
+                        className="w-5 h-5 accent-[#EA4C2A] cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. HAPPY CUSTOMER AVATARS SHOWCASE */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-4 shadow-xs">
+                  <div>
+                    <h3 className="text-base font-black text-black flex items-center gap-2">
+                      <Sparkles size={18} className="text-[#EA4C2A]" />
+                      <span>Happy Customer Avatars Palette</span>
+                    </h3>
+                    <p className="text-xs font-bold text-slate-600 mt-0.5">
+                      Curated friendly smiling avatars automatically provided for female and male customers across group orders and profiles.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-[#EC4899] block mb-2">
+                        👩 Happy Female Customer Avatars
+                      </span>
+                      <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                        {HAPPY_FEMALE_AVATARS.map(av => (
+                          <div key={av.id} className="flex flex-col items-center gap-1 shrink-0">
+                            <img
+                              src={av.url}
+                              alt={av.name}
+                              className="w-12 h-12 rounded-2xl object-cover border-2 border-[#EC4899] shadow-sm"
+                            />
+                            <span className="text-[10px] font-bold text-slate-600 max-w-[60px] truncate text-center">
+                              {av.name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-[#0AA5FF] block mb-2">
+                        👨 Happy Male Customer Avatars
+                      </span>
+                      <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                        {HAPPY_MALE_AVATARS.map(av => (
+                          <div key={av.id} className="flex flex-col items-center gap-1 shrink-0">
+                            <img
+                              src={av.url}
+                              alt={av.name}
+                              className="w-12 h-12 rounded-2xl object-cover border-2 border-[#0AA5FF] shadow-sm"
+                            />
+                            <span className="text-[10px] font-bold text-slate-600 max-w-[60px] truncate text-center">
+                              {av.name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. REAL-TIME ACTIVE GROUP ORDERS MONITOR */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-4 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-black text-black flex items-center gap-2">
+                        <Activity size={18} className="text-emerald-500" />
+                        <span>Live Active Group Order Rooms ({activeGroupOrders.length})</span>
+                      </h3>
+                      <p className="text-xs font-bold text-slate-600 mt-0.5">
+                        Real-time collaborative order sessions currently active in Firestore.
+                      </p>
+                    </div>
+                  </div>
+
+                  {activeGroupOrders.length === 0 ? (
+                    <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300">
+                      <p className="text-xs font-bold text-slate-500">No active group order rooms right now.</p>
+                      <p className="text-[11px] text-slate-400 mt-1">When customers tap "Order with friends", rooms will appear here live.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {activeGroupOrders.map(group => {
+                        const participantsList = Array.isArray(group.participants) ? group.participants : (Array.isArray(group.members) ? group.members : []);
+                        const paidOrders = participantsList.filter(p => p.payment_status === 'PAID');
+                        const pendingOrders = participantsList.filter(p => p.payment_status !== 'PAID');
+                        const totalVal = Number(group.total_amount || paidOrders.reduce((sum, p) => sum + (Number(p.total) || 0), 0));
+                        const isExpanded = expandedGroupId === group.id;
+                        const currentStatus = group.preparation_status || group.status || 'OPEN';
+
+                        const handleStatusChange = async (nextStatus) => {
+                          try {
+                            await api.setLiveGroupOrderStatus(group.code || group.id, nextStatus, {
+                              preparation_status: nextStatus
+                            });
+                            toast(`Group Order status updated to ${nextStatus}`, 'success');
+                          } catch (e) {
+                            toast('Failed to update status', 'error');
+                          }
+                        };
+
+                        const handleAssignRider = async (riderName) => {
+                          try {
+                            await api.updateLiveGroupOrder(group.code || group.id, {
+                              assigned_rider: riderName
+                            });
+                            toast(`Assigned rider ${riderName} to group order`, 'success');
+                          } catch (e) {
+                            toast('Failed to assign rider', 'error');
+                          }
+                        };
+
+                        return (
+                          <div key={group.id} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 shadow-xs">
+                            {/* Top Details & Metrics */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-black text-base text-black">
+                                    {group.name || group.id}
+                                  </h4>
+                                  <span className="px-2 py-0.5 rounded-lg bg-[#EA4C2A] text-white text-[11px] font-mono font-bold">
+                                    {group.code || group.id}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600 font-semibold mt-1">
+                                  👑 Creator: <strong className="text-black">{group.creator_name || group.organizer_name || 'Host'}</strong> ({group.creator_phone || 'No phone'})
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                                  currentStatus === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' :
+                                  currentStatus === 'DELIVERING' ? 'bg-blue-100 text-blue-800' :
+                                  currentStatus === 'READY' ? 'bg-purple-100 text-purple-800' :
+                                  currentStatus === 'PREPARING' ? 'bg-amber-100 text-amber-800' :
+                                  'bg-slate-200 text-slate-800'
+                                }`}>
+                                  {currentStatus}
+                                </span>
+                                <span className="font-mono text-base font-black text-slate-900">
+                                  ₦{totalVal.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Summary Badges: Participants, Paid, Pending, Location, Window */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-bold">
+                              <div className="p-2.5 bg-white rounded-xl border border-slate-200">
+                                <span className="text-[10px] text-slate-400 block font-normal">Participants</span>
+                                <span className="text-slate-900 text-sm font-black">{participantsList.length} people</span>
+                              </div>
+                              <div className="p-2.5 bg-white rounded-xl border border-slate-200">
+                                <span className="text-[10px] text-slate-400 block font-normal">Paid Orders</span>
+                                <span className="text-emerald-700 text-sm font-black">✅ {paidOrders.length} Paid</span>
+                              </div>
+                              <div className="p-2.5 bg-white rounded-xl border border-slate-200">
+                                <span className="text-[10px] text-slate-400 block font-normal">Pending Orders</span>
+                                <span className="text-amber-700 text-sm font-black">⏳ {pendingOrders.length} Pending</span>
+                              </div>
+                              <div className="p-2.5 bg-white rounded-xl border border-slate-200">
+                                <span className="text-[10px] text-slate-400 block font-normal">Delivery Window</span>
+                                <span className="text-slate-900 text-xs font-black truncate block">{group.delivery_window || 'Standard Window'}</span>
+                              </div>
+                            </div>
+
+                            <div className="text-xs text-slate-700 font-medium">
+                              📍 <strong>Delivery Location:</strong> {group.delivery_location || group.delivery_address || 'Address pending'}
+                            </div>
+
+                            {/* Status Workflow Buttons (Preparing → Ready → Out for Delivery → Delivered) */}
+                            <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-bold text-slate-500 mr-1">Status:</span>
+                                {['PREPARING', 'READY', 'DELIVERING', 'DELIVERED'].map((st) => (
+                                  <button
+                                    key={st}
+                                    type="button"
+                                    onClick={() => handleStatusChange(st)}
+                                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                                      currentStatus === st
+                                        ? 'bg-[#EA4C2A] text-white shadow-xs'
+                                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {st === 'PREPARING' ? 'Preparing' :
+                                     st === 'READY' ? 'Ready' :
+                                     st === 'DELIVERING' ? 'Out for Delivery' : 'Delivered'}
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* Rider Assignment */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-500">Rider:</span>
+                                <select
+                                  value={group.assigned_rider || ''}
+                                  onChange={(e) => handleAssignRider(e.target.value)}
+                                  className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 outline-none"
+                                >
+                                  <option value="">Unassigned</option>
+                                  {(riders || []).map(r => (
+                                    <option key={r.id || r.name} value={r.name || r.id}>
+                                      {r.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Accordion Toggle: Inspect Individual Orders */}
+                            <div className="pt-2 border-t border-slate-200">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedGroupId(isExpanded ? null : group.id)}
+                                className="text-xs font-bold text-[#EA4C2A] hover:underline flex items-center gap-1 cursor-pointer"
+                              >
+                                <span>{isExpanded ? 'Hide Individual Orders ▲' : `View All Individual Orders (${participantsList.length}) ▼`}</span>
+                              </button>
+
+                              {isExpanded && (
+                                <div className="mt-3 space-y-2 pt-2 border-t border-dashed border-slate-200">
+                                  {participantsList.length === 0 ? (
+                                    <p className="text-xs text-slate-400">No participants yet.</p>
+                                  ) : (
+                                    participantsList.map((p, idx) => {
+                                      const isPPaid = p.payment_status === 'PAID';
+                                      const itemsList = Array.isArray(p.items) ? p.items : [];
+
+                                      return (
+                                        <div key={p.participant_id || idx} className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between gap-3 text-xs">
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2">
+                                              <strong className="text-slate-900 font-black">{p.name}</strong>
+                                              <span className="text-slate-400 text-[11px]">({p.phone || 'No phone'})</span>
+                                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                isPPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                              }`}>
+                                                {isPPaid ? '✅ Paid' : '⏳ Pending'}
+                                              </span>
+                                            </div>
+                                            <p className="text-slate-600 mt-1 font-medium">
+                                              {itemsList.length > 0
+                                                ? itemsList.map(i => `${i.name}${i.qty > 1 ? ` x${i.qty}` : ''}`).join(', ')
+                                                : 'No meals added yet'}
+                                            </p>
+                                          </div>
+                                          <div className="text-right shrink-0">
+                                            <span className="font-mono font-black text-slate-900 block">
+                                              ₦{Number(p.total || 0).toLocaleString()}
+                                            </span>
+                                            {p.paystack_ref && (
+                                              <span className="text-[9px] text-slate-400 font-mono block">
+                                                Ref: {p.paystack_ref.slice(0, 14)}...
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

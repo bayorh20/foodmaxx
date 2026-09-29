@@ -34,6 +34,7 @@ import {
   toggleLiveRiderStatus,
   getLiveCustomers,
   getLiveUser,
+  subscribeToLiveUser,
   updateLiveUser,
   addLiveAddress,
   deleteLiveAddress,
@@ -59,8 +60,28 @@ import {
   getLiveHomepageSections,
   subscribeToLiveHomepageSections,
   updateLiveHomepageSections,
-  DEFAULT_HOMEPAGE_SECTIONS
+  DEFAULT_HOMEPAGE_SECTIONS,
+  createLiveGroupOrder,
+  getLiveGroupOrder,
+  subscribeToLiveGroupOrder,
+  updateLiveGroupOrder,
+  updateLiveGroupOrderMembers,
+  setLiveGroupOrderStatus,
+  getAllLiveGroupOrders,
+  subscribeToAllLiveGroupOrders,
+  addParticipantToGroupOrder,
+  recordParticipantPayment,
+  getLiveSubscriptions,
+  subscribeToLiveSubscriptions,
+  createLiveSubscription,
+  updateLiveSubscription,
+  adjustLiveStockWithAudit,
+  getLiveProductionBatches,
+  subscribeToLiveProductionBatches,
+  createLiveProductionBatch,
+  updateLiveProductionBatchStatus
 } from './firebaseDb.js';
+import { DEFAULT_STORE_DETAILS, getStoreDetails } from '../config/storeDetails.js';
 
 const memoryStore = {};
 export const safeStorage = {
@@ -132,6 +153,25 @@ export const api = {
   getHomepageSections: getLiveHomepageSections,
   updateHomepageSections: updateLiveHomepageSections,
   DEFAULT_HOMEPAGE_SECTIONS,
+  createLiveGroupOrder,
+  getLiveGroupOrder,
+  subscribeToLiveGroupOrder,
+  updateLiveGroupOrder,
+  updateLiveGroupOrderMembers,
+  setLiveGroupOrderStatus,
+  getAllLiveGroupOrders,
+  subscribeToAllLiveGroupOrders,
+  addParticipantToGroupOrder,
+  recordParticipantPayment,
+  getLiveSubscriptions,
+  subscribeToLiveSubscriptions,
+  createLiveSubscription,
+  updateLiveSubscription,
+  adjustLiveStockWithAudit,
+  getLiveProductionBatches,
+  subscribeToLiveProductionBatches,
+  createLiveProductionBatch,
+  updateLiveProductionBatchStatus,
   db,
 
   // Auth & Profile (Live Users collection in Firestore)
@@ -165,6 +205,8 @@ export const api = {
       full_name: data?.full_name || 'Customer',
       email: emailLower,
       phone: data?.phone || '',
+      avatar_url: data?.avatar_url || '',
+      gender: data?.gender || '',
       role: 'customer'
     };
     const token = 'fmx_token_' + Date.now();
@@ -216,14 +258,14 @@ export const api = {
     ]);
     const flagship = {
       id: 'rest_foodmaxx',
-      name: settings.store_name || 'FoodMaxx Kitchen & Grills',
+      name: settings.store_name || DEFAULT_STORE_DETAILS.store_name,
       rating: 4.9,
       review_count: 1420,
       delivery_time_min: 25,
-      min_order: settings.min_order || 1500,
+      min_order: settings.min_order || DEFAULT_STORE_DETAILS.min_order_amount,
       is_open: settings.is_open !== false,
-      address: settings.address || '24 Awolowo Avenue, Old Bodija, Ibadan',
-      phone: settings.phone || '',
+      address: settings.address || DEFAULT_STORE_DETAILS.address,
+      phone: settings.phone || DEFAULT_STORE_DETAILS.phone,
       image_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
       menu: products,
       menuItems: products,
@@ -260,6 +302,26 @@ export const api = {
   getOrders: async () => {
     const data = await getLiveOrders();
     return { success: true, data };
+  },
+
+  getCustomerOrders: async (currentUser) => {
+    if (!currentUser) return { success: true, data: [] };
+    const all = await getLiveOrders(100);
+    const uId = String(currentUser.id || '').trim();
+    const uPhone = String(currentUser.phone || '').trim();
+    const uEmail = String(currentUser.email || '').trim().toLowerCase();
+
+    const filtered = all.filter(o => {
+      const cId = String(o.customer_id || o.customer?.id || '').trim();
+      const cPhone = String(o.customer_phone || o.customer?.phone || '').trim();
+      const cEmail = String(o.customer_email || o.customer?.email || '').trim().toLowerCase();
+
+      return (uId && cId === uId) ||
+             (uPhone && cPhone && cPhone === uPhone) ||
+             (uEmail && cEmail && cEmail === uEmail);
+    });
+
+    return { success: true, data: filtered };
   },
 
   getOrder: async (id) => {
@@ -432,6 +494,15 @@ export const api = {
   deleteSavedAddress: async (id, userId = 'usr_customer_default') => {
     const addresses = await deleteLiveAddress(userId, id);
     return { success: true, data: addresses };
+  },
+
+  subscribeToLiveUser: (userId, callback) => {
+    return subscribeToLiveUser(userId, callback);
+  },
+
+  updateUser: async (userId, data) => {
+    const updated = await updateLiveUser(userId, data);
+    return { success: true, data: updated };
   },
 
   // -------------------------------------------------------------
