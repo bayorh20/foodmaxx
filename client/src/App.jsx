@@ -1933,7 +1933,7 @@ function CustomerPortal() {
         onClose={() => setGroupOrderSheetOpen(false)}
         cart={cart}
         user={user}
-        deliveryAddress={selectedAddress?.address || 'University of Ibadan, Main Gate'}
+        deliveryAddress={selectedAddress?.address || ''}
         deliveryFee={selectedZone?.delivery_fee || 500}
         isDark={isDark}
         onCompleteGroupOrder={(groupData) => {

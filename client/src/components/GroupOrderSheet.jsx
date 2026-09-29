@@ -1,322 +1,272 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, ChevronLeft, Users, Share2, Plus, Minus, MapPin,
-  Check, Copy, ShoppingBag, ArrowRight, Search, Clock,
-  CheckCircle2, AlertCircle, Sparkles, Phone, Utensils,
-  RefreshCw, CheckCircle, ExternalLink, Calendar, Lock
+  X, Users, Share2, Copy, Check, MapPin, ArrowRight,
+  RefreshCw, CheckCircle2, ShoppingBag, Plus, Minus, Clock,
+  ChevronLeft, Sparkles, AlertCircle
 } from 'lucide-react';
 import { triggerHaptic, playNativeSound } from '../services/nativeMobile';
 import { getStoredProducts, api } from '../services/api';
-import { get3DCartoonAvatar } from '../utils/avatarUtils';
 import { launchRealPaystack } from '../services/paystack';
 
-// Helper to generate a short, clean 5-character group code (e.g. 8XK29)
+// Generate a clean 5-character group code (e.g. 8XK29)
 function generateGroupCode() {
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
   let result = '';
-  for (let i = 0; i < 5; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
+  for (let i = 0; i < 5; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
   return result;
 }
+
+const DELIVERY_WINDOWS = [
+  '12:00 PM – 1:00 PM',
+  '1:00 PM – 2:00 PM',
+  '2:00 PM – 3:00 PM',
+  'ASAP (Next 45 mins)'
+];
 
 export default function GroupOrderSheet({
   open,
   onClose,
-  cart,
   user,
-  deliveryAddress = "",
-  deliveryFee = 500,
+  deliveryAddress = '',
   isDark = false,
-  onBrowseMenu
 }) {
-  // Current active mode: 'create' | 'share' | 'join' | 'order' | 'status'
+  // Modes: 'create' | 'share' | 'join' | 'order' | 'done'
   const [mode, setMode] = useState('create');
 
-  // Form states for Step 1 (Create Group) - completely user driven, zero demo/mock values
-  const [groupName, setGroupName] = useState('');
-  const [deliveryLocation, setDeliveryLocation] = useState(() => deliveryAddress || user?.address || '');
-  const [deliveryWindow, setDeliveryWindow] = useState('');
-  const [creatorName, setCreatorName] = useState(() => user?.full_name?.trim() || '');
-  const [creatorPhone, setCreatorPhone] = useState(() => user?.phone?.trim() || '');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Create form states
+  const [groupName, setGroupName]         = useState('');
+  const [location, setLocation]           = useState(() => deliveryAddress || user?.address || '');
+  const [deliveryWindow, setDeliveryWindow] = useState('12:00 PM – 1:00 PM');
+  const [customWindow, setCustomWindow]   = useState('');
+  const [hostName, setHostName]           = useState(() => user?.full_name?.trim() || '');
+  const [isCreating, setIsCreating]       = useState(false);
 
-  // Active Group Details & Code
-  const [groupCode, setGroupCode] = useState(() => {
-    try {
-      const urlGroup = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('group') : null;
-      if (urlGroup) return urlGroup.trim().toUpperCase();
-      return localStorage.getItem('fmx_active_group_code') || '';
-    } catch {
-      return '';
-    }
-  });
+  // Active group data & sync
+  const [groupCode, setGroupCode]         = useState('');
+  const [activeGroup, setActiveGroup]     = useState(null);
 
-  const [activeGroup, setActiveGroup] = useState(null);
+  // Join form states (for invited friends)
+  const [myName, setMyName]               = useState(() => user?.full_name?.trim() || '');
+  const [myPhone, setMyPhone]             = useState(() => user?.phone?.trim() || '');
+  const [isJoining, setIsJoining]         = useState(false);
+  const [participantId, setParticipantId] = useState('');
 
-  // Guest Join State (Step 3: Join Without Account)
-  const [guestName, setGuestName] = useState(() => {
-    try {
-      return localStorage.getItem('fmx_guest_name') || user?.full_name || '';
-    } catch {
-      return '';
-    }
-  });
-  const [guestPhone, setGuestPhone] = useState(() => {
-    try {
-      return localStorage.getItem('fmx_guest_phone') || user?.phone || '';
-    } catch {
-      return '';
-    }
-  });
-  const [isJoining, setIsJoining] = useState(false);
-  const [currentParticipantId, setCurrentParticipantId] = useState(() => {
-    try {
-      return localStorage.getItem('fmx_participant_id') || '';
-    } catch {
-      return '';
-    }
-  });
+  // Ordering & Pay
+  const [dishes, setDishes]               = useState([]);
+  const [cart, setCart]                   = useState([]);
+  const [searchQuery, setSearchQuery]     = useState('');
+  const [copiedLink, setCopiedLink]       = useState(false);
+  const [isPaying, setIsPaying]           = useState(false);
+  const [errorMessage, setErrorMessage]   = useState('');
 
-  // Food Ordering Catalog & Personal Cart State (Step 4)
-  const [catalogDishes, setCatalogDishes] = useState([]);
-  const [menuSearch, setMenuSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [personalCart, setPersonalCart] = useState([]); // [{ id, name, price, qty, image }]
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [isPaying, setIsPaying] = useState(false);
-  const [paymentSuccessNotice, setPaymentSuccessNotice] = useState(false);
+  // Effective delivery window value
+  const activeWindow = customWindow.trim() || deliveryWindow;
 
-  // Load Dishes for In-Sheet Ordering
+  // Load menu items
   useEffect(() => {
     let mounted = true;
-    const stored = getStoredProducts ? getStoredProducts() : [];
-    if (stored && stored.length > 0 && mounted) {
-      setCatalogDishes(stored.filter(p => p.is_available !== false));
+    const stored = getStoredProducts?.() || [];
+    if (stored.length > 0 && mounted) {
+      setDishes(stored.filter(p => p.is_available !== false));
     }
-    if (api?.getProducts) {
-      api.getProducts().then(res => {
-        if (mounted && Array.isArray(res?.data)) {
-          setCatalogDishes(res.data.filter(p => p.is_available !== false));
-        }
-      }).catch(() => {});
-    }
+    api?.getProducts?.().then(res => {
+      if (mounted && Array.isArray(res?.data)) {
+        setDishes(res.data.filter(p => p.is_available !== false));
+      }
+    }).catch(() => {});
     return () => { mounted = false; };
   }, []);
 
-  // Listen to active group code in URL query (?group=8XK29)
+  // Initialize mode based on URL or saved group
   useEffect(() => {
     if (!open) return;
+    setErrorMessage('');
     try {
-      const urlGroup = new URLSearchParams(window.location.search).get('group');
-      if (urlGroup) {
-        const clean = urlGroup.trim().toUpperCase();
-        setGroupCode(clean);
-        localStorage.setItem('fmx_active_group_code', clean);
-      }
-    } catch {}
-  }, [open]);
+      const urlCode = new URLSearchParams(window.location.search).get('group');
+      const savedCode = localStorage.getItem('fmx_active_group_code');
+      const code = (urlCode || savedCode || '').trim().toUpperCase();
 
-  // Real-time Firestore subscription to active group
-  useEffect(() => {
-    if (!groupCode) return;
-    const unsubscribe = api.subscribeToLiveGroupOrder(groupCode, (data) => {
-      if (data) {
-        setActiveGroup(data);
-        // If current participant already paid, show status screen
-        const existingParticipant = (data.participants || []).find(
-          p => p.participant_id === currentParticipantId || (guestPhone && p.phone === guestPhone)
-        );
-        if (existingParticipant?.payment_status === 'PAID') {
-          if (mode === 'order' || mode === 'join') {
-            setMode('status');
-          }
+      if (code) {
+        setGroupCode(code);
+        const savedPid = localStorage.getItem(`fmx_pid_${code}`);
+        if (savedPid) {
+          setParticipantId(savedPid);
+          const savedName = localStorage.getItem('fmx_guest_name') || user?.full_name || '';
+          if (savedName) setMyName(savedName);
+          setMode('order');
+        } else {
+          setMode('join');
         }
-      }
-    });
-    return () => {
-      if (typeof unsubscribe === 'function') unsubscribe();
-    };
-  }, [groupCode, currentParticipantId, guestPhone, mode]);
-
-  // Initialize or decide default mode when opened
-  useEffect(() => {
-    if (!open) return;
-    const urlGroup = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('group') : null;
-    const savedGroup = localStorage.getItem('fmx_active_group_code');
-    const targetCode = urlGroup || savedGroup || groupCode;
-
-    if (targetCode) {
-      setGroupCode(targetCode.toUpperCase());
-      // Check if user already joined this group
-      const savedPid = localStorage.getItem(`fmx_pid_${targetCode.toUpperCase()}`);
-      if (savedPid) {
-        setCurrentParticipantId(savedPid);
-        setMode('status');
       } else {
-        setMode('join');
+        setMode('create');
       }
-    } else {
+    } catch {
       setMode('create');
     }
-  }, [open]);
+  }, [open, user]);
 
-  // Base shareable URL
-  const shareUrl = useMemo(() => {
-    if (typeof window === 'undefined') return '';
-    const base = window.location.origin;
-    return `${base}/?group=${groupCode || ''}`;
+  // Real-time Firestore sync
+  useEffect(() => {
+    if (!groupCode) return;
+    const unsub = api.subscribeToLiveGroupOrder?.(groupCode, (data) => {
+      if (data) {
+        setActiveGroup(data);
+      }
+    });
+    return () => { if (typeof unsub === 'function') unsub(); };
   }, [groupCode]);
 
-  // Calculate personal total
-  const personalTotal = useMemo(() => {
-    return personalCart.reduce((sum, item) => sum + (Number(item.price || 0) * (item.qty || 1)), 0);
-  }, [personalCart]);
+  // Share URL format: foodmaxx.app/?group=8XK29
+  const shareUrl = useMemo(() => {
+    if (typeof window === 'undefined' || !groupCode) return '';
+    return `${window.location.origin}/?group=${groupCode}`;
+  }, [groupCode]);
 
-  // Categories list
-  const categories = useMemo(() => {
-    const set = new Set();
-    catalogDishes.forEach(d => {
-      if (d.category) set.add(d.category);
-    });
-    return ['all', ...Array.from(set)];
-  }, [catalogDishes]);
+  // Personal cart total
+  const cartTotal = useMemo(() =>
+    cart.reduce((s, i) => s + (Number(i.price || 0) * (i.qty || 1)), 0), [cart]);
 
-  // Filtered dishes
-  const filteredDishes = useMemo(() => {
-    return catalogDishes.filter(d => {
-      const matchCat = selectedCategory === 'all' || (d.category || '').toLowerCase() === selectedCategory.toLowerCase();
-      const matchSearch = !menuSearch || (d.name || '').toLowerCase().includes(menuSearch.toLowerCase()) ||
-        (d.description || '').toLowerCase().includes(menuSearch.toLowerCase());
-      return matchCat && matchSearch;
-    });
-  }, [catalogDishes, selectedCategory, menuSearch]);
+  const totalItemsCount = useMemo(() =>
+    cart.reduce((s, i) => s + (i.qty || 1), 0), [cart]);
 
-  // Handler: Step 1 -> Create Group
-  const handleCreateGroup = async (e) => {
+  // Filtered dishes for menu
+  const visibleDishes = useMemo(() => {
+    if (!searchQuery.trim()) return dishes;
+    const q = searchQuery.toLowerCase();
+    return dishes.filter(d =>
+      (d.name || '').toLowerCase().includes(q) ||
+      (d.description || '').toLowerCase().includes(q) ||
+      (d.category || '').toLowerCase().includes(q)
+    );
+  }, [dishes, searchQuery]);
+
+  // ──────────────────────────────────────────
+  // Handlers
+  // ──────────────────────────────────────────
+
+  // STEP 1: CREATE GROUP
+  const handleCreate = async (e) => {
     if (e) e.preventDefault();
-    if (!groupName.trim() || !deliveryLocation.trim() || !deliveryWindow.trim() || !creatorName.trim()) return;
+    if (!groupName.trim() || !location.trim() || !hostName.trim()) return;
 
-    setIsSubmitting(true);
+    setIsCreating(true);
+    setErrorMessage('');
     triggerHaptic('selection');
 
     try {
       const code = generateGroupCode();
-      const hostPid = 'part_' + Math.random().toString(36).slice(2, 8);
-      const hostAvatar = get3DCartoonAvatar(creatorName || 'Host');
+      const pid  = 'host_' + Math.random().toString(36).slice(2, 8);
 
-      // 45-minute countdown cutoff
-      const cutoffTime = new Date(Date.now() + 45 * 60 * 1000).toISOString();
-
-      const newGroupData = {
+      const payload = {
         code,
         name: groupName.trim(),
-        delivery_location: deliveryLocation.trim(),
-        delivery_window: deliveryWindow.trim(),
-        creator_name: creatorName.trim() || 'Host',
-        creator_phone: creatorPhone.trim() || '',
-        creator_participant_id: hostPid,
-        cutoff_time: cutoffTime,
-        status: 'OPEN', // OPEN | CLOSED | PREPARING | READY | DELIVERING | DELIVERED
+        delivery_location: location.trim(),
+        delivery_window: activeWindow.trim() || '12:00 PM – 1:00 PM',
+        creator_name: hostName.trim(),
+        creator_participant_id: pid,
+        status: 'OPEN',
         total_amount: 0,
-        participants: [
-          {
-            participant_id: hostPid,
-            name: (creatorName.trim() || 'Host') + ' (Host)',
-            phone: creatorPhone.trim() || '',
-            avatar_url: hostAvatar,
-            items: [],
-            total: 0,
-            payment_status: 'PENDING',
-            is_host: true
-          }
-        ]
+        created_at: new Date().toISOString(),
+        cutoff_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        participants: [{
+          participant_id: pid,
+          name: hostName.trim() + ' (Host)',
+          phone: user?.phone || '',
+          items: [],
+          total: 0,
+          payment_status: 'PENDING',
+          is_host: true,
+          joined_at: new Date().toISOString()
+        }]
       };
 
-      await api.createLiveGroupOrder(newGroupData);
+      await api.createLiveGroupOrder(payload);
+
       setGroupCode(code);
-      setActiveGroup(newGroupData);
-      setCurrentParticipantId(hostPid);
+      setActiveGroup(payload);
+      setParticipantId(pid);
+      setMyName(hostName.trim());
+
       localStorage.setItem('fmx_active_group_code', code);
-      localStorage.setItem(`fmx_pid_${code}`, hostPid);
-      localStorage.setItem('fmx_guest_name', creatorName.trim());
+      localStorage.setItem(`fmx_pid_${code}`, pid);
+      localStorage.setItem('fmx_guest_name', hostName.trim());
 
       setMode('share');
       playNativeSound('success');
     } catch (err) {
-      console.error('Failed to create group order:', err);
+      console.error('Create group order failed:', err);
+      setErrorMessage('Could not create group. Please check your connection.');
     } finally {
-      setIsSubmitting(false);
+      setIsCreating(false);
     }
   };
 
-  // Handler: Share via WhatsApp
-  const handleShareWhatsApp = () => {
-    triggerHaptic('selection');
-    const text = `Hey! Join our group lunch order for "${activeGroup?.name || groupName}" on FoodMaxx.\n\n📍 Delivery: ${activeGroup?.delivery_location || deliveryLocation}\n⏰ Time: ${activeGroup?.delivery_window || deliveryWindow}\n\nAdd your meal and pay for yourself here: ${shareUrl}`;
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(whatsappUrl, '_blank');
-  };
-
-  // Handler: Copy Link
+  // STEP 2: SHARE LINKS
   const handleCopyLink = () => {
     triggerHaptic('light');
     try {
       navigator.clipboard.writeText(shareUrl);
       setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2500);
+      setTimeout(() => setCopiedLink(false), 2200);
       playNativeSound('pop');
     } catch {
       setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2500);
+      setTimeout(() => setCopiedLink(false), 2200);
     }
   };
 
-  // Handler: Step 3 -> Join Group Without Account
-  const handleJoinGroup = async (e) => {
+  const handleWhatsApp = () => {
+    triggerHaptic('selection');
+    const title = activeGroup?.name || groupName || 'Group Lunch';
+    const loc = activeGroup?.delivery_location || location || 'Our Location';
+    const win = activeGroup?.delivery_window || activeWindow || 'Lunch';
+    const text = `Hey! Join our group order "${title}" on FoodMaxx.\n\n📍 Delivery: ${loc}\n⏰ Time: ${win}\n\nAdd your meal and pay your share here:\n${shareUrl}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  // STEP 3: JOIN GROUP (FOR INVITED FRIENDS)
+  const handleJoin = async (e) => {
     if (e) e.preventDefault();
-    if (!guestName.trim()) return;
+    if (!myName.trim()) return;
 
     setIsJoining(true);
+    setErrorMessage('');
     triggerHaptic('selection');
 
     try {
       const pid = 'part_' + Math.random().toString(36).slice(2, 8);
-      const avatarUrl = get3DCartoonAvatar(guestName.trim());
-
-      const newParticipant = {
+      const participant = {
         participant_id: pid,
-        name: guestName.trim(),
-        phone: guestPhone.trim(),
-        avatar_url: avatarUrl,
+        name: myName.trim(),
+        phone: myPhone.trim(),
         items: [],
         total: 0,
         payment_status: 'PENDING',
         joined_at: new Date().toISOString()
       };
 
-      await api.addParticipantToGroupOrder(groupCode, newParticipant);
+      await api.addParticipantToGroupOrder(groupCode, participant);
 
-      setCurrentParticipantId(pid);
-      localStorage.setItem('fmx_guest_name', guestName.trim());
-      localStorage.setItem('fmx_guest_phone', guestPhone.trim());
+      setParticipantId(pid);
       localStorage.setItem(`fmx_pid_${groupCode}`, pid);
       localStorage.setItem('fmx_active_group_code', groupCode);
+      localStorage.setItem('fmx_guest_name', myName.trim());
 
       setMode('order');
       playNativeSound('pop');
     } catch (err) {
-      console.error('Failed to join group:', err);
+      console.error('Join group error:', err);
+      setErrorMessage('Could not join this group. Please try again.');
     } finally {
       setIsJoining(false);
     }
   };
 
-  // Personal cart controls
-  const handleAddDish = (dish) => {
+  // CART OPERATIONS
+  const addToCart = (dish) => {
     triggerHaptic('light');
-    setPersonalCart(prev => {
+    setCart(prev => {
       const exists = prev.find(i => i.id === dish.id);
       if (exists) {
         return prev.map(i => i.id === dish.id ? { ...i, qty: i.qty + 1 } : i);
@@ -332,60 +282,53 @@ export default function GroupOrderSheet({
     playNativeSound('pop');
   };
 
-  const handleUpdateQty = (id, delta) => {
+  const updateQty = (id, delta) => {
     triggerHaptic('light');
-    setPersonalCart(prev => {
-      return prev.map(item => {
-        if (item.id === id) {
-          const next = item.qty + delta;
-          return next > 0 ? { ...item, qty: next } : null;
+    setCart(prev =>
+      prev.map(i => {
+        if (i.id === id) {
+          const next = i.qty + delta;
+          return next > 0 ? { ...i, qty: next } : null;
         }
-        return item;
-      }).filter(Boolean);
-    });
+        return i;
+      }).filter(Boolean)
+    );
   };
 
-  // Handler: Step 5 -> Individual Payment via Paystack
-  const handlePaystackPayment = () => {
-    if (personalTotal <= 0) return;
+  // STEP 4: PAY INDIVIDUAL SHARE VIA PAYSTACK
+  const handlePay = () => {
+    if (cartTotal <= 0) return;
     setIsPaying(true);
     triggerHaptic('selection');
 
-    const customerEmail = user?.email || (guestPhone ? `${guestPhone.replace(/\D/g, '')}@foodmaxx.ng` : 'guest@foodmaxx.ng');
-    const customerDisplayName = guestName || user?.full_name || 'Customer';
+    const customerEmail = user?.email || (myPhone ? `${myPhone.replace(/\D/g, '')}@foodmaxx.ng` : 'guest@foodmaxx.ng');
+    const customerDisplayName = myName || user?.full_name || 'Customer';
 
     launchRealPaystack({
       email: customerEmail,
-      amount: personalTotal,
+      amount: cartTotal,
       customerName: customerDisplayName,
-      phone: guestPhone || user?.phone || '',
+      phone: myPhone || user?.phone || '',
       metadata: {
         group_order_id: groupCode,
-        participant_id: currentParticipantId,
+        participant_id: participantId,
         participant_name: customerDisplayName,
-        items: personalCart
+        items: cart
       },
       onSuccess: async (tx) => {
         setIsPaying(false);
         triggerHaptic('success');
         playNativeSound('success');
-
         try {
-          // Record participant's paid status & meals directly in Firestore
-          await api.recordParticipantPayment(groupCode, currentParticipantId, {
-            items: personalCart,
-            total: personalTotal,
+          await api.recordParticipantPayment(groupCode, participantId, {
+            items: cart,
+            total: cartTotal,
             paystack_ref: tx.reference || `REF_${Date.now()}`
           });
-        } catch (e) {
-          console.error('Error saving participant payment:', e);
+        } catch (err) {
+          console.error('Error saving payment record:', err);
         }
-
-        setPaymentSuccessNotice(true);
-        setTimeout(() => {
-          setPaymentSuccessNotice(false);
-          setMode('status');
-        }, 2200);
+        setMode('done');
       },
       onCancel: () => {
         setIsPaying(false);
@@ -397,31 +340,16 @@ export default function GroupOrderSheet({
     });
   };
 
-  // Cutoff countdown helper
-  const [timeLeftStr, setTimeLeftStr] = useState('32 mins');
-  const [isClosed, setIsClosed] = useState(false);
-
-  useEffect(() => {
-    if (!activeGroup?.cutoff_time) return;
-    const updateCountdown = () => {
-      const now = Date.now();
-      const cutoff = new Date(activeGroup.cutoff_time).getTime();
-      const diff = cutoff - now;
-      if (diff <= 0 || activeGroup.status === 'CLOSED') {
-        setTimeLeftStr('Closed');
-        setIsClosed(true);
-      } else {
-        const mins = Math.floor(diff / (1000 * 60));
-        setTimeLeftStr(`${mins} mins`);
-        setIsClosed(false);
-      }
-    };
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 30000);
-    return () => clearInterval(interval);
-  }, [activeGroup]);
-
   if (!open) return null;
+
+  // Theming classes
+  const sheetBg    = isDark ? 'bg-[#12141C] text-white' : 'bg-white text-slate-900';
+  const cardBg     = isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200/80';
+  const inputStyle = isDark
+    ? 'bg-[#1A1D28] border-white/10 text-white placeholder:text-slate-500 focus:border-[#EA4C2A]'
+    : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[#EA4C2A] focus:bg-white';
+  const borderCol  = isDark ? 'border-white/10' : 'border-slate-100';
+  const textMuted  = isDark ? 'text-slate-400' : 'text-slate-500';
 
   return (
     <AnimatePresence>
@@ -435,136 +363,158 @@ export default function GroupOrderSheet({
           className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
         />
 
-        {/* Modal Container */}
+        {/* Bottom Sheet Modal */}
         <motion.div
-          initial={{ y: '100%', opacity: 0.5 }}
+          initial={{ y: '100%', opacity: 0.8 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-          className="relative w-full max-w-lg bg-white dark:bg-[#161822] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden z-10 border border-slate-100 dark:border-white/10"
+          transition={{ type: 'spring', damping: 32, stiffness: 380 }}
+          className={`relative w-full max-w-lg ${sheetBg} rounded-t-[32px] sm:rounded-[32px] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden z-10 border border-slate-200/50 dark:border-white/10`}
         >
-          {/* TOP NAV BAR */}
-          <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-slate-100 dark:border-white/5 shrink-0 bg-white dark:bg-[#161822]">
+          {/* Mobile Drag Indicator */}
+          <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
+            <div className={`w-12 h-1.5 rounded-full ${isDark ? 'bg-white/20' : 'bg-slate-200'}`} />
+          </div>
+
+          {/* Clean Top Bar */}
+          <div className={`flex items-center justify-between px-5 pt-3 pb-3 border-b ${borderCol} shrink-0`}>
             <div className="flex items-center gap-2">
-              {mode !== 'create' && mode !== 'status' && (
+              {mode !== 'create' && mode !== 'done' && (
                 <button
                   type="button"
                   onClick={() => {
                     if (mode === 'share') setMode('create');
-                    else if (mode === 'order') setMode('status');
+                    else if (mode === 'order') setMode('share');
                     else if (mode === 'join') setMode('create');
                   }}
-                  className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                  className={`p-1.5 rounded-full transition-colors ${isDark ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
                 >
-                  <ChevronLeft size={20} />
+                  <ChevronLeft size={18} />
                 </button>
               )}
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#EA4C2A] animate-pulse" />
-                <h3 className="font-black text-sm text-slate-900 dark:text-white tracking-tight">
+                <h3 className="font-black text-sm tracking-tight">
                   {mode === 'create' && 'Create Group Order'}
-                  {mode === 'share' && 'Group Created'}
-                  {mode === 'join' && 'Join Group Order'}
-                  {mode === 'order' && (activeGroup?.name || 'Your Meal')}
-                  {mode === 'status' && (activeGroup?.name || 'Group Order Status')}
+                  {mode === 'share'  && 'Group Created'}
+                  {mode === 'join'   && 'Join Group Order'}
+                  {mode === 'order'  && (activeGroup?.name || 'Pick Your Meal')}
+                  {mode === 'done'   && 'Order Confirmed'}
                 </h3>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {mode === 'order' && (
                 <button
                   type="button"
-                  onClick={() => setMode('status')}
-                  className="text-xs font-bold text-[#EA4C2A] hover:underline"
+                  onClick={() => setMode('share')}
+                  className="px-2.5 py-1 text-xs font-bold text-[#EA4C2A] hover:bg-[#EA4C2A]/10 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
                 >
-                  View Group
+                  <Share2 size={13} />
+                  <span>Share</span>
                 </button>
               )}
               <button
                 type="button"
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 text-slate-500 hover:text-slate-800 dark:text-slate-300 flex items-center justify-center transition-colors"
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${isDark ? 'bg-white/10 text-slate-300 hover:bg-white/20' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
           </div>
 
-          {/* ======================================================== */}
-          {/* BODY: STEP 1 - CREATE GROUP */}
-          {/* ======================================================== */}
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="px-5 py-2.5 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
+              <AlertCircle size={14} className="shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* ───────────────────────────────────────────────────────── */}
+          {/* STEP 1: CREATE GROUP                                      */}
+          {/* ───────────────────────────────────────────────────────── */}
           {mode === 'create' && (
-            <div className="p-6 overflow-y-auto space-y-5">
-              <div className="space-y-1">
-                <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                  Start a Group Lunch 🍱
+            <div className="overflow-y-auto p-5 sm:p-6 space-y-4">
+              <div>
+                <h2 className="text-xl font-black tracking-tight">
+                  Start a Group Order 🍱
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Everyone chooses what they want and pays individually. One delivery to the same spot!
+                <p className={`text-xs mt-1 ${textMuted}`}>
+                  Share a link with friends. Everyone picks their meal & pays individually. One delivery!
                 </p>
               </div>
 
-              <form onSubmit={handleCreateGroup} className="space-y-4">
+              <form onSubmit={handleCreate} className="space-y-3.5">
+                {/* Your Name */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     Your Name (Host)
                   </label>
                   <input
                     type="text"
                     required
-                    value={creatorName}
-                    onChange={(e) => setCreatorName(e.target.value)}
+                    autoFocus
+                    value={hostName}
+                    onChange={e => setHostName(e.target.value)}
                     placeholder="Enter your name"
-                    className="w-full bg-slate-50 dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A] focus:bg-white transition-all"
+                    className={`w-full border rounded-2xl px-4 py-3 text-sm font-semibold outline-none transition-all ${inputStyle}`}
                   />
                 </div>
 
+                {/* Group Name */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     Group Name
                   </label>
                   <input
                     type="text"
                     required
                     value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    placeholder="e.g. Office Lunch, Tech Team, Birthday Meal"
-                    className="w-full bg-slate-50 dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A] focus:bg-white transition-all"
+                    onChange={e => setGroupName(e.target.value)}
+                    placeholder="e.g. UI Queen's Hall Lunch"
+                    className={`w-full border rounded-2xl px-4 py-3 text-sm font-semibold outline-none transition-all ${inputStyle}`}
                   />
                 </div>
 
+                {/* Delivery Location */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Delivery Location / Address
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Delivery Location
                   </label>
                   <div className="relative">
-                    <MapPin size={16} className="absolute left-4 top-3.5 text-slate-400" />
+                    <MapPin size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
                     <input
                       type="text"
                       required
-                      value={deliveryLocation}
-                      onChange={(e) => setDeliveryLocation(e.target.value)}
-                      placeholder="Enter street, office, or building address"
-                      className="w-full bg-slate-50 dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 rounded-2xl pl-11 pr-4 py-3 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A] focus:bg-white transition-all"
+                      value={location}
+                      onChange={e => setLocation(e.target.value)}
+                      placeholder="e.g. Queen's Hall, UI Campus"
+                      className={`w-full border rounded-2xl pl-10 pr-4 py-3 text-sm font-semibold outline-none transition-all ${inputStyle}`}
                     />
                   </div>
                 </div>
 
+                {/* Delivery Window */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     Delivery Window
                   </label>
                   <div className="grid grid-cols-2 gap-2 mb-2">
-                    {['12:00 PM – 1:00 PM', '1:00 PM – 2:00 PM', '2:00 PM – 3:00 PM', 'ASAP (Next 45m)'].map(w => (
+                    {DELIVERY_WINDOWS.map(w => (
                       <button
                         key={w}
                         type="button"
-                        onClick={() => setDeliveryWindow(w)}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
-                          deliveryWindow === w
-                            ? 'bg-[#EA4C2A]/10 border-[#EA4C2A] text-[#EA4C2A]'
-                            : 'bg-slate-50 dark:bg-[#1E222D] border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400'
+                        onClick={() => {
+                          setDeliveryWindow(w);
+                          setCustomWindow('');
+                        }}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                          deliveryWindow === w && !customWindow
+                            ? 'bg-[#EA4C2A] text-white border-[#EA4C2A] shadow-xs'
+                            : `${isDark ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`
                         }`}
                       >
                         {w}
@@ -573,21 +523,25 @@ export default function GroupOrderSheet({
                   </div>
                   <input
                     type="text"
-                    value={deliveryWindow}
-                    onChange={(e) => setDeliveryWindow(e.target.value)}
-                    placeholder="Or type custom delivery time (e.g. 1:30 PM - 2:30 PM)"
-                    className="w-full bg-slate-50 dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-[#EA4C2A]"
+                    value={customWindow}
+                    onChange={e => setCustomWindow(e.target.value)}
+                    placeholder="Or type custom time (e.g. 12:30 PM – 1:30 PM)"
+                    className={`w-full border rounded-xl px-3.5 py-2 text-xs font-medium outline-none transition-all ${inputStyle}`}
                   />
                 </div>
 
+                {/* Primary Button */}
                 <div className="pt-2">
                   <button
                     type="submit"
-                    disabled={isSubmitting || !groupName.trim() || !deliveryLocation.trim() || !deliveryWindow.trim() || !creatorName.trim()}
-                    className="w-full py-3.5 px-4 bg-[#EA4C2A] hover:bg-[#d43d1c] active:scale-98 text-white rounded-2xl font-black text-sm shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                    disabled={isCreating || !hostName.trim() || !groupName.trim() || !location.trim()}
+                    className="w-full py-4 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-[0.99] disabled:opacity-50 text-white font-black text-sm rounded-2xl shadow-xl shadow-[#EA4C2A]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    {isSubmitting ? (
-                      <RefreshCw size={18} className="animate-spin" />
+                    {isCreating ? (
+                      <>
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>Creating Group...</span>
+                      </>
                     ) : (
                       <>
                         <span>Create Group</span>
@@ -600,468 +554,378 @@ export default function GroupOrderSheet({
             </div>
           )}
 
-          {/* ======================================================== */}
-          {/* BODY: STEP 2 - GROUP CREATED / SHARE SCREEN */}
-          {/* ======================================================== */}
+          {/* ───────────────────────────────────────────────────────── */}
+          {/* STEP 2: GROUP CREATED / SHARE                             */}
+          {/* ───────────────────────────────────────────────────────── */}
           {mode === 'share' && (
-            <div className="p-6 overflow-y-auto space-y-6 text-center">
-              <div className="space-y-1">
-                <span className="text-4xl block mb-2">🎉</span>
-                <h2 className="text-xl font-black text-slate-900 dark:text-white">
+            <div className="overflow-y-auto p-5 sm:p-6 space-y-4">
+              <div className="text-center pt-1 pb-1">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center mx-auto mb-2.5 text-2xl shadow-xs">
+                  🎉
+                </div>
+                <h2 className="text-xl font-black tracking-tight">
                   Your group is ready!
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                <p className={`text-xs mt-1 ${textMuted} max-w-sm mx-auto`}>
                   Share this link with your friends. Everyone can add their own meal and pay separately.
                 </p>
               </div>
 
-              {/* Group Summary Box */}
-              <div className="bg-slate-50 dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 rounded-2xl p-4 text-left space-y-2">
-                <h3 className="font-black text-base text-slate-900 dark:text-white">
-                  {activeGroup?.name || groupName}
-                </h3>
-                <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1 font-medium">
-                  <p className="flex items-center gap-1.5">
-                    <MapPin size={14} className="text-[#EA4C2A]" />
-                    <span>Delivery: {activeGroup?.delivery_location || deliveryLocation}</span>
-                  </p>
-                  <p className="flex items-center gap-1.5">
-                    <Clock size={14} className="text-[#EA4C2A]" />
-                    <span>{activeGroup?.delivery_window || deliveryWindow}</span>
-                  </p>
+              {/* Group summary card */}
+              <div className={`p-4 rounded-2xl border ${cardBg} space-y-2.5`}>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-white/10">
+                  <span className={`text-xs font-bold ${textMuted}`}>Group</span>
+                  <span className="text-sm font-black">{activeGroup?.name || groupName}</span>
                 </div>
-
-                <div className="pt-2 border-t border-slate-200 dark:border-white/5">
-                  <span className="text-[11px] font-bold text-slate-400 block mb-1">Group Link</span>
-                  <div className="flex items-center justify-between bg-white dark:bg-[#161822] border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 dark:text-slate-200">
-                    <span className="truncate mr-2 font-bold text-[#EA4C2A]">{shareUrl}</span>
-                    <button
-                      type="button"
-                      onClick={handleCopyLink}
-                      className="text-slate-500 hover:text-slate-900 dark:hover:text-white shrink-0"
-                    >
-                      {copiedLink ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
-                    </button>
-                  </div>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-white/10">
+                  <span className={`text-xs font-bold ${textMuted}`}>Delivery Location</span>
+                  <span className="text-xs font-bold max-w-[190px] text-right truncate">
+                    {activeGroup?.delivery_location || location}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-bold ${textMuted}`}>Delivery Window</span>
+                  <span className="text-xs font-black text-[#EA4C2A]">
+                    {activeGroup?.delivery_window || activeWindow}
+                  </span>
                 </div>
               </div>
 
-              {/* Share Buttons */}
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={handleShareWhatsApp}
-                  className="w-full py-3.5 px-4 bg-[#25D366] hover:bg-[#1ebd5a] active:scale-98 text-white rounded-2xl font-black text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
-                >
-                  <Share2 size={18} />
-                  <span>Share on WhatsApp</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 active:scale-98 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                >
-                  {copiedLink ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
-                  <span>{copiedLink ? 'Link Copied to Clipboard!' : 'Copy Link'}</span>
-                </button>
+              {/* Short Link & Copy Button */}
+              <div className="space-y-1.5">
+                <label className={`block text-xs font-bold ${textMuted}`}>Group Link</label>
+                <div className={`flex items-center gap-2 p-2 pl-3.5 rounded-2xl border ${cardBg}`}>
+                  <span className="flex-1 font-mono text-xs font-bold truncate text-[#EA4C2A]">
+                    {shareUrl || `foodmaxx.app/g/${groupCode}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                      copiedLink
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-[#EA4C2A] text-white hover:bg-[#D43B1B]'
+                    }`}
+                  >
+                    {copiedLink ? (
+                      <>
+                        <Check size={14} />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setMode('order')}
-                  className="text-xs font-bold text-[#EA4C2A] hover:underline"
-                >
-                  Continue to Order Food →
-                </button>
-              </div>
+              {/* Share via WhatsApp */}
+              <button
+                type="button"
+                onClick={handleWhatsApp}
+                className="w-full py-3.5 bg-[#25D366] hover:bg-[#20bd5a] text-white font-black text-sm rounded-2xl shadow-lg shadow-green-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.99]"
+              >
+                <Share2 size={16} />
+                <span>Share via WhatsApp</span>
+              </button>
+
+              {/* Secondary: Join & Add My Meal */}
+              <button
+                type="button"
+                onClick={() => setMode('order')}
+                className={`w-full py-3 text-xs font-black rounded-2xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  isDark
+                    ? 'border-white/10 hover:bg-white/5 text-slate-300'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                }`}
+              >
+                <span>Join & Add My Meal</span>
+                <ArrowRight size={14} />
+              </button>
             </div>
           )}
 
-          {/* ======================================================== */}
-          {/* BODY: STEP 3 - JOIN GROUP WITHOUT ACCOUNT */}
-          {/* ======================================================== */}
+          {/* ───────────────────────────────────────────────────────── */}
+          {/* STEP 3: JOIN GROUP (FOR FRIENDS OPENING LINK)             */}
+          {/* ───────────────────────────────────────────────────────── */}
           {mode === 'join' && (
-            <div className="p-6 overflow-y-auto space-y-5">
-              <div className="bg-slate-50 dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-[#EA4C2A]/10 text-[#EA4C2A] text-[10px] font-black uppercase tracking-wider">
-                  Group Order
-                </span>
-                <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                  {activeGroup?.name || "Group Order"}
-                </h2>
-                <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
-                  <p className="flex items-center gap-1.5">
-                    <MapPin size={14} className="text-slate-400" />
-                    <span>{activeGroup?.delivery_location || "Delivery location pending"}</span>
-                  </p>
-                  <p className="flex items-center gap-1.5">
-                    <Clock size={14} className="text-slate-400" />
-                    <span>{activeGroup?.delivery_window || "Standard delivery"}</span>
-                  </p>
-                  <p className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
-                    <Users size={14} className="text-[#EA4C2A]" />
-                    <span>{activeGroup?.participants?.length || 1} {activeGroup?.participants?.length === 1 ? 'person has joined' : 'people have joined'}</span>
-                  </p>
+            <div className="overflow-y-auto p-5 sm:p-6 space-y-4">
+              {/* Group overview header */}
+              <div className={`p-4 rounded-2xl border ${cardBg} space-y-2`}>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-black text-[#EA4C2A] uppercase tracking-wider">Joining Group Order</span>
+                </div>
+                <h3 className="text-lg font-black tracking-tight">
+                  {activeGroup?.name || 'FoodMaxx Lunch'}
+                </h3>
+                <div className="space-y-1 pt-1 text-xs">
+                  <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                    <MapPin size={13} className="text-[#EA4C2A] shrink-0" />
+                    <span className="font-semibold">{activeGroup?.delivery_location || 'Pending location'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                    <Clock size={13} className="text-[#EA4C2A] shrink-0" />
+                    <span className="font-semibold">{activeGroup?.delivery_window || '12:00 PM – 1:00 PM'}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-3 pt-1">
-                <h3 className="font-black text-sm text-slate-900 dark:text-white">
-                  Your Details
-                </h3>
-
-                <form onSubmit={handleJoinGroup} className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-                      Your Name
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={guestName}
-                      onChange={(e) => setGuestName(e.target.value)}
-                      placeholder="Enter your name"
-                      className="w-full bg-slate-50 dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-                      Phone Number (For delivery updates)
-                    </label>
-                    <div className="relative">
-                      <Phone size={15} className="absolute left-3.5 top-3 text-slate-400" />
-                      <input
-                        type="tel"
-                        required
-                        value={guestPhone}
-                        onChange={(e) => setGuestPhone(e.target.value)}
-                        placeholder="Enter phone number (e.g. 080...)"
-                        className="w-full bg-slate-50 dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A]"
-                      />
-                    </div>
-                  </div>
-
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    ✨ No password. No account creation needed. You will pay for your own meal at checkout.
-                  </p>
-
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      disabled={isJoining || !guestName.trim()}
-                      className="w-full py-3.5 px-4 bg-[#EA4C2A] hover:bg-[#d43d1c] active:scale-98 text-white rounded-2xl font-black text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      {isJoining ? (
-                        <RefreshCw size={18} className="animate-spin" />
-                      ) : (
-                        <>
-                          <span>Join & Order Food</span>
-                          <ArrowRight size={16} />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* BODY: STEP 4 - ADD FOOD (PERSONAL PLATE) */}
-          {/* ======================================================== */}
-          {mode === 'order' && (
-            <div className="flex-1 flex flex-col min-h-0">
-              {/* Group Banner Top Info */}
-              <div className="bg-orange-50 dark:bg-orange-950/20 px-4 py-2 flex items-center justify-between border-b border-orange-100 dark:border-orange-900/30 shrink-0">
-                <span className="text-xs font-bold text-orange-900 dark:text-orange-300 truncate">
-                  Ordering for: <strong>{activeGroup?.name || "Group Lunch"}</strong>
-                </span>
-                <span className="text-[11px] font-black text-orange-700 dark:text-orange-400 shrink-0">
-                  {timeLeftStr} left
-                </span>
+              <div>
+                <h4 className="text-sm font-black tracking-tight">
+                  Who's ordering?
+                </h4>
+                <p className={`text-xs mt-0.5 ${textMuted}`}>
+                  No account or password needed. Just enter your name to add your food and pay.
+                </p>
               </div>
 
-              {/* Menu Search & Category Filter */}
-              <div className="p-3 border-b border-slate-100 dark:border-white/5 space-y-2 shrink-0">
-                <div className="relative">
-                  <Search size={15} className="absolute left-3.5 top-2.5 text-slate-400" />
+              <form onSubmit={handleJoin} className="space-y-3.5">
+                <div>
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Your Name
+                  </label>
                   <input
                     type="text"
-                    value={menuSearch}
-                    onChange={(e) => setMenuSearch(e.target.value)}
-                    placeholder="Search jollof, rice, shawarma..."
-                    className="w-full bg-slate-50 dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A]"
+                    required
+                    autoFocus
+                    value={myName}
+                    onChange={e => setMyName(e.target.value)}
+                    placeholder="Enter your name (e.g. Adeola)"
+                    className={`w-full border rounded-2xl px-4 py-3 text-sm font-semibold outline-none transition-all ${inputStyle}`}
                   />
                 </div>
 
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                  {categories.map(cat => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold capitalize whitespace-nowrap transition-all ${
-                        selectedCategory === cat
-                          ? 'bg-[#EA4C2A] text-white'
-                          : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      {cat === 'all' ? 'All Meals' : cat}
-                    </button>
-                  ))}
+                <div>
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Phone Number <span className={`text-[10px] font-normal ${textMuted}`}>(Optional, for delivery updates)</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={myPhone}
+                    onChange={e => setMyPhone(e.target.value)}
+                    placeholder="0816 600 4281"
+                    className={`w-full border rounded-2xl px-4 py-3 text-sm font-semibold outline-none transition-all ${inputStyle}`}
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isJoining || !myName.trim()}
+                    className="w-full py-4 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-[0.99] disabled:opacity-50 text-white font-black text-sm rounded-2xl shadow-xl shadow-[#EA4C2A]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isJoining ? (
+                      <>
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>Joining...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Start Ordering</span>
+                        <ArrowRight size={16} />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* ───────────────────────────────────────────────────────── */}
+          {/* STEP 4: ORDER & PAY SEPARATELY                            */}
+          {/* ───────────────────────────────────────────────────────── */}
+          {mode === 'order' && (
+            <div className="flex flex-col flex-1 min-h-0">
+              {/* Order Context Strip */}
+              <div className={`px-5 py-2.5 border-b ${borderCol} flex items-center justify-between shrink-0 text-xs`}>
+                <div className="flex items-center gap-1.5 truncate">
+                  <Users size={13} className="text-[#EA4C2A] shrink-0" />
+                  <span className="font-bold truncate">{activeGroup?.name || 'Group Order'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-500 shrink-0">
+                  <MapPin size={12} className="text-slate-400" />
+                  <span className="truncate max-w-[150px] font-semibold">{activeGroup?.delivery_location || location}</span>
                 </div>
               </div>
 
-              {/* Dish List */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-2.5 min-h-[160px]">
-                {filteredDishes.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400 text-xs">
-                    No dishes found matching your search.
+              {/* Menu Search Box */}
+              <div className="px-5 pt-3 pb-2 shrink-0">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search meals, rice, drinks..."
+                  className={`w-full border rounded-xl px-3.5 py-2 text-xs font-semibold outline-none transition-all ${inputStyle}`}
+                />
+              </div>
+
+              {/* Menu Catalog List */}
+              <div className="flex-1 overflow-y-auto px-5 py-2 space-y-2.5">
+                {visibleDishes.length === 0 && (
+                  <div className={`py-12 text-center text-xs font-bold ${textMuted}`}>
+                    No meals found. Try searching something else.
                   </div>
-                ) : (
-                  filteredDishes.map(dish => {
-                    const cartItem = personalCart.find(i => i.id === dish.id);
-                    const qty = cartItem ? cartItem.qty : 0;
+                )}
 
-                    return (
-                      <div
-                        key={dish.id}
-                        className="p-3 rounded-2xl border border-slate-100 dark:border-white/5 bg-white dark:bg-[#1E222D] flex items-center justify-between gap-3 shadow-2xs"
-                      >
+                {visibleDishes.map(dish => {
+                  const inCart = cart.find(i => i.id === dish.id);
+                  return (
+                    <div
+                      key={dish.id}
+                      className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${cardBg}`}
+                    >
+                      {dish.image_url || dish.image ? (
                         <img
-                          src={dish.image_url || dish.image || '/food-placeholder.png'}
+                          src={dish.image_url || dish.image}
                           alt={dish.name}
-                          className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-100"
-                          onError={(e) => { e.target.src = '/food-placeholder.png'; }}
+                          className="w-14 h-14 rounded-xl object-cover shrink-0"
+                          onError={e => { e.target.style.display = 'none'; }}
                         />
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-bold text-xs text-slate-900 dark:text-white truncate">
-                            {dish.name}
-                          </h4>
-                          <span className="text-xs font-black text-[#EA4C2A] block mt-0.5">
-                            ₦{Number(dish.price || 0).toLocaleString()}
-                          </span>
+                      ) : (
+                        <div className={`w-14 h-14 rounded-xl shrink-0 flex items-center justify-center text-2xl ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
+                          🍱
                         </div>
+                      )}
 
-                        {qty === 0 ? (
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black truncate">{dish.name}</p>
+                        {dish.description && (
+                          <p className={`text-[11px] mt-0.5 line-clamp-1 ${textMuted}`}>
+                            {dish.description}
+                          </p>
+                        )}
+                        <p className="text-xs font-black text-[#EA4C2A] mt-1 font-mono">
+                          ₦{Number(dish.price || 0).toLocaleString()}
+                        </p>
+                      </div>
+
+                      {inCart ? (
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             type="button"
-                            onClick={() => handleAddDish(dish)}
-                            className="px-3 py-1.5 bg-[#EA4C2A] hover:bg-[#d43d1c] active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-xs"
+                            onClick={() => updateQty(dish.id, -1)}
+                            className="w-7 h-7 rounded-full bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
                           >
-                            + Add
+                            <Minus size={13} />
                           </button>
-                        ) : (
-                          <div className="flex items-center gap-2 bg-slate-100 dark:bg-white/10 px-2 py-1 rounded-xl">
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateQty(dish.id, -1)}
-                              className="text-slate-600 dark:text-slate-300 hover:text-black"
-                            >
-                              <Minus size={14} />
-                            </button>
-                            <span className="text-xs font-black text-slate-900 dark:text-white min-w-[14px] text-center">
-                              {qty}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateQty(dish.id, 1)}
-                              className="text-slate-600 dark:text-slate-300 hover:text-black"
-                            >
-                              <Plus size={14} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Personal Cart & Pay Bottom Drawer */}
-              <div className="p-4 bg-slate-50 dark:bg-[#1A1D24] border-t border-slate-200 dark:border-white/10 shrink-0 space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-500">Your Order ({personalCart.reduce((a, b) => a + b.qty, 0)} items)</span>
-                  <span className="font-black text-sm text-slate-900 dark:text-white">
-                    Subtotal: ₦{personalTotal.toLocaleString()}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] text-slate-500 pb-1">
-                  <span>Group Delivery Fee</span>
-                  <span className="text-emerald-600 font-bold">₦0 (Included in Group)</span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handlePaystackPayment}
-                  disabled={personalTotal <= 0 || isPaying}
-                  className="w-full py-3.5 px-4 bg-[#EA4C2A] hover:bg-[#d43d1c] active:scale-98 text-white rounded-2xl font-black text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {isPaying ? (
-                    <RefreshCw size={18} className="animate-spin" />
-                  ) : (
-                    <>
-                      <span>Pay ₦{personalTotal.toLocaleString()}</span>
-                      <ArrowRight size={16} />
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* BODY: STEP 6 - GROUP ORDER STATUS SCREEN */}
-          {/* ======================================================== */}
-          {mode === 'status' && (
-            <div className="p-5 overflow-y-auto space-y-5">
-              {/* Header Box */}
-              <div className="bg-slate-50 dark:bg-[#1E222D] border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-black text-base text-slate-900 dark:text-white">
-                    {activeGroup?.name || "Group Order"}
-                  </h3>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                    isClosed || activeGroup?.status === 'CLOSED'
-                      ? 'bg-rose-100 text-rose-700'
-                      : 'bg-emerald-100 text-emerald-700'
-                  }`}>
-                    {isClosed || activeGroup?.status === 'CLOSED' ? 'Closed' : 'Open'}
-                  </span>
-                </div>
-
-                <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1">
-                  <p className="flex items-center gap-1.5">
-                    <MapPin size={14} className="text-[#EA4C2A]" />
-                    <span>{activeGroup?.delivery_location || deliveryLocation || "Delivery address pending"}</span>
-                  </p>
-                  <p className="flex items-center gap-1.5">
-                    <Clock size={14} className="text-[#EA4C2A]" />
-                    <span>{activeGroup?.delivery_window || deliveryWindow || "Standard delivery"}</span>
-                  </p>
-                </div>
-
-                <div className="pt-1.5 border-t border-slate-200 dark:border-white/5 flex items-center justify-between text-xs font-bold text-slate-500">
-                  <span>Cutoff Status:</span>
-                  <span className="text-[#EA4C2A] font-black">
-                    {isClosed ? 'Group Order Closed' : `Group closes in ${timeLeftStr}`}
-                  </span>
-                </div>
-              </div>
-
-              {/* Participants List */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-                  <span>Participants ({activeGroup?.participants?.length || 0})</span>
-                  <span>
-                    Group Total: ₦{Number(activeGroup?.total_amount || 0).toLocaleString()}
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  {(activeGroup?.participants || []).map((part, idx) => {
-                    const isPaid = part.payment_status === 'PAID';
-                    const itemsSummary = (part.items || []).map(i => `${i.name}${i.qty > 1 ? ` x${i.qty}` : ''}`).join(', ') || 'Selecting meal...';
-
-                    return (
-                      <div
-                        key={part.participant_id || idx}
-                        className="p-3 rounded-2xl bg-white dark:bg-[#1E222D] border border-slate-100 dark:border-white/5 flex items-center justify-between gap-3 shadow-2xs"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <img
-                            src={part.avatar_url || get3DCartoonAvatar(part.name)}
-                            alt={part.name}
-                            className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-200 bg-amber-50"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-black text-xs text-slate-900 dark:text-white truncate">
-                                {part.name}
-                              </span>
-                              {isPaid ? (
-                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                                  <CheckCircle size={11} /> Paid
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                                  <Clock size={11} /> Pending
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                              {itemsSummary}
-                            </p>
-                          </div>
+                          <span className="w-5 text-center text-xs font-black font-mono">
+                            {inCart.qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateQty(dish.id, 1)}
+                            className="w-7 h-7 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+                          >
+                            <Plus size={13} />
+                          </button>
                         </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => addToCart(dish)}
+                          className="w-8 h-8 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center shrink-0 active:scale-90 transition-transform cursor-pointer shadow-md shadow-[#EA4C2A]/25"
+                        >
+                          <Plus size={15} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
 
-                        <span className="font-mono text-xs font-black text-slate-900 dark:text-white shrink-0">
-                          ₦{Number(part.total || 0).toLocaleString()}
-                        </span>
-                      </div>
-                    );
-                  })}
+              {/* Sticky Pay Bar */}
+              {cart.length > 0 && (
+                <div className={`px-5 py-4 border-t ${borderCol} shrink-0 bg-white/95 dark:bg-[#12141C]/95 backdrop-blur-md`}>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        Paying for <span className="text-[#EA4C2A] font-black">{myName || 'Your'}</span>'s meal
+                      </p>
+                      <p className={`text-[10px] ${textMuted}`}>
+                        {totalItemsCount} {totalItemsCount === 1 ? 'item' : 'items'} in your share
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-base font-black text-slate-900 dark:text-white font-mono">
+                        ₦{cartTotal.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handlePay}
+                    disabled={isPaying}
+                    className="w-full py-4 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-[0.99] disabled:opacity-60 text-white font-black text-sm rounded-2xl shadow-xl shadow-[#EA4C2A]/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    {isPaying ? (
+                      <>
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>Opening Paystack...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag size={16} />
+                        <span>Pay ₦{cartTotal.toLocaleString()} with Paystack</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-              </div>
-
-              {/* Bottom Delivery Badge */}
-              <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 flex items-center gap-2.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                <span className="text-base">🚴</span>
-                <span>One delivery to {activeGroup?.delivery_location || deliveryLocation || 'designated group location'}</span>
-              </div>
-
-              {/* Actions */}
-              <div className="space-y-2 pt-1">
-                {!isClosed && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleShareWhatsApp}
-                      className="w-full py-3 px-4 bg-[#25D366] hover:bg-[#1ebd5a] active:scale-98 text-white rounded-2xl font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                    >
-                      <Share2 size={16} />
-                      <span>Invite More Friends on WhatsApp</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setMode('order')}
-                      className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 active:scale-98 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                    >
-                      <Utensils size={15} />
-                      <span>{personalCart.length > 0 ? 'Edit Your Meal' : 'Add Your Meal'}</span>
-                    </button>
-                  </>
-                )}
-              </div>
+              )}
             </div>
           )}
 
-          {/* Payment Success Overlay */}
-          <AnimatePresence>
-            {paymentSuccessNotice && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="absolute inset-0 bg-white/95 dark:bg-[#161822]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 space-y-2"
-              >
-                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-1">
-                  <CheckCircle size={36} />
-                </div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                  Payment Successful ✓
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Your order has been added to the group.
+          {/* ───────────────────────────────────────────────────────── */}
+          {/* STEP 5: ORDER CONFIRMED                                   */}
+          {/* ───────────────────────────────────────────────────────── */}
+          {mode === 'done' && (
+            <div className="overflow-y-auto p-6 flex flex-col items-center justify-center text-center space-y-4 py-10">
+              <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 size={36} />
+              </div>
+
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">
+                  Order Confirmed! 🎉
+                </h2>
+                <p className={`text-xs mt-1.5 ${textMuted} max-w-xs mx-auto`}>
+                  You're all set for the group delivery. Your meal will be delivered together to:
                 </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#EA4C2A]/10 text-[#EA4C2A] text-xs font-bold">
+                  <MapPin size={12} />
+                  <span>{activeGroup?.delivery_location || location}</span>
+                </div>
+              </div>
+
+              {/* Items Summary */}
+              <div className={`w-full p-4 rounded-2xl border ${cardBg} text-left space-y-2`}>
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-200/50 dark:border-white/10">
+                  Paid for {myName}
+                </div>
+                {cart.map(i => (
+                  <div key={i.id} className="flex justify-between text-xs">
+                    <span className="font-semibold">{i.name} × {i.qty}</span>
+                    <span className="font-mono font-bold">₦{(Number(i.price) * i.qty).toLocaleString()}</span>
+                  </div>
+                ))}
+                <div className={`flex justify-between text-sm pt-2 border-t ${borderCol}`}>
+                  <span className="font-black">Total Paid</span>
+                  <span className="font-black text-[#EA4C2A] font-mono">₦{cartTotal.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-black text-sm rounded-2xl cursor-pointer transition-all active:scale-[0.99]"
+              >
+                Done
+              </button>
+            </div>
+          )}
         </motion.div>
       </div>
     </AnimatePresence>
