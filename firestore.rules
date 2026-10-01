@@ -179,6 +179,27 @@ service cloud.firestore {
       allow delete: if true;
     }
 
+    // 20. Daily App Visits & Analytics Tracking
+    match /daily_visits/{dateId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
+    }
+
+    // 21. WhatsApp Dispatch Logs & Notification Audits
+    match /whatsapp_logs/{logId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
+    }
+
+    // 22. SMS Notification Logs & Delivery Audits
+    match /sms_logs/{logId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
+    }
+
     // Default deny all other unspecified paths
     match /{document=**} {
       allow read, write: if false;

@@ -39,6 +39,10 @@ import {
   getLiveUser,
   subscribeToLiveUser,
   updateLiveUser,
+  deleteLiveUser,
+  recordLiveAppVisit,
+  getLiveDailyVisits,
+  subscribeToLiveDailyVisits,
   addLiveAddress,
   deleteLiveAddress,
   getLiveSettings,
@@ -82,9 +86,45 @@ import {
   getLiveProductionBatches,
   subscribeToLiveProductionBatches,
   createLiveProductionBatch,
-  updateLiveProductionBatchStatus
+  updateLiveProductionBatchStatus,
+  getLiveOrderMessages,
+  sendLiveOrderMessage
 } from './firebaseDb.js';
 import { DEFAULT_STORE_DETAILS, getStoreDetails } from '../config/storeDetails.js';
+import {
+  openWhatsAppOrderStatus,
+  buildWhatsAppStatusMessage,
+  getWhatsAppShareUrl,
+  sendWhatsAppNotificationApi,
+  logWhatsAppDispatch,
+  normalizeWhatsAppPhone
+} from './whatsappNotificationService.js';
+import {
+  dispatchWebNotification,
+  requestNotificationPermission,
+  getNotificationPermission,
+  notifyOrderStatusChange,
+  getStoredInAppNotifications,
+  addInAppNotification,
+  markInAppNotificationAsRead,
+  markAllInAppNotificationsAsRead,
+  getUnreadInAppNotificationsCount,
+  isNotificationSupported,
+  syncNotificationPermission,
+  isPermissionBlocked,
+  flashTabTitle
+} from './webNotificationService.js';
+import {
+  getSmsConfig,
+  saveSmsConfig,
+  formatSmsPhone,
+  buildOrderStatusSms,
+  sendOrderStatusSms,
+  openNativeSms,
+  logSmsDispatch,
+  testSmsConnection,
+  DEFAULT_SMS_CONFIG
+} from './smsNotificationSdk.js';
 
 const memoryStore = {};
 export const safeStorage = {
@@ -191,6 +231,22 @@ export const api = {
       existingUser = await getLiveUser(userId);
     } catch (e) {}
 
+    // SECURITY FIX: Validate password against stored hash/value.
+    // If an account exists and has a stored password, verify it.
+    // If no account exists yet, the login fails (must register first).
+    if (!existingUser && !isAdmin) {
+      return { success: false, message: 'Account not found. Please register first.' };
+    }
+
+    // Check password if one is stored on the account
+    if (existingUser?.password_hash || existingUser?.password) {
+      const storedPw = existingUser.password_hash || existingUser.password || '';
+      // Simple comparison (app uses plain-text storage in custom auth)
+      if (storedPw && storedPw !== password) {
+        return { success: false, message: 'Incorrect password. Please try again.' };
+      }
+    }
+
     const nowIso = new Date().toISOString();
     const user = {
       id: userId,
@@ -208,7 +264,8 @@ export const api = {
     try {
       localStorage.setItem('fmx_token', token);
       localStorage.setItem('fmx_user', JSON.stringify(user));
-      await updateLiveUser(user.id, user);
+      // Update last_login timestamp, but do NOT overwrite role/password fields
+      await updateLiveUser(user.id, { ...user, last_login: nowIso });
     } catch (e) {}
     return { success: true, token, user };
   },
@@ -243,7 +300,12 @@ export const api = {
     try {
       localStorage.setItem('fmx_token', token);
       localStorage.setItem('fmx_user', JSON.stringify(user));
-      await updateLiveUser(user.id, user);
+      // Store password for login validation (existing custom auth system — no Firebase Auth)
+      await updateLiveUser(user.id, {
+        ...user,
+        password: data?.password || existingUser?.password || '',
+        registered_at: user.registered_at
+      });
     } catch (e) {}
     return { success: true, token, user };
   },
@@ -346,24 +408,42 @@ export const api = {
     const order = await getLiveOrderById(id);
     if (!order) return { success: false, message: 'Order not found' };
 
-    // Strict account isolation: verify ownership if a user is provided
-    if (requestingUser) {
-      const uId = String(requestingUser.id || '').trim();
-      const uEmail = String(requestingUser.email || '').trim().toLowerCase();
-      const uPhone = String(requestingUser.phone || '').trim();
-      const isAdmin = requestingUser.role === 'super_admin' || requestingUser.role === 'admin' || requestingUser.role === 'manager';
+    // Strict account isolation: resolve user from param or active localStorage session
+    let effectiveUser = requestingUser;
+    if (!effectiveUser) {
+      try {
+        const stored = localStorage.getItem('fmx_user');
+        if (stored) effectiveUser = JSON.parse(stored);
+      } catch {}
+    }
 
-      const oCustId = String(order.customer_id || order.customer?.id || '').trim();
-      const oCustEmail = String(order.customer_email || order.customer?.email || '').trim().toLowerCase();
-      const oCustPhone = String(order.customer_phone || order.customer?.phone || '').trim();
+    const uId = String(effectiveUser?.id || '').trim();
+    const uEmail = String(effectiveUser?.email || '').trim().toLowerCase();
+    const uPhone = String(effectiveUser?.phone || '').trim();
+    const isAdmin = effectiveUser?.role === 'super_admin' || effectiveUser?.role === 'admin' || effectiveUser?.role === 'manager';
 
-      const isOwner = (uId && oCustId === uId) ||
-                      (uEmail && oCustEmail && oCustEmail === uEmail) ||
-                      (uPhone && oCustPhone && oCustPhone === uPhone);
+    const oCustId = String(order.customer_id || order.customer?.id || '').trim();
+    const oCustEmail = String(order.customer_email || order.customer?.email || '').trim().toLowerCase();
+    const oCustPhone = String(order.customer_phone || order.customer?.phone || '').trim();
 
-      if (!isAdmin && !isOwner) {
-        return { success: false, message: 'Access denied: You do not have permission to view this order.' };
+    // Check if order was placed in this device's current session
+    let isDeviceSessionOwner = false;
+    try {
+      const lastSessionOrderId = localStorage.getItem('fmx_last_order_id');
+      const uOrderKey = uId ? localStorage.getItem(`fmx_last_order_${uId}`) : null;
+      if (lastSessionOrderId === order.id || lastSessionOrderId === order.order_reference ||
+          uOrderKey === order.id || uOrderKey === order.order_reference) {
+        isDeviceSessionOwner = true;
       }
+    } catch {}
+
+    const isOwner = (uId && oCustId === uId) ||
+                    (uEmail && oCustEmail && oCustEmail === uEmail) ||
+                    (uPhone && oCustPhone && oCustPhone === uPhone) ||
+                    isDeviceSessionOwner;
+
+    if (!isAdmin && !isOwner) {
+      return { success: false, message: 'Access denied: You do not have permission to view this order.' };
     }
 
     return { success: true, data: order };
@@ -411,19 +491,47 @@ export const api = {
   },
 
   // Wallet (Firestore collection: wallets)
-  getWallet: async (userId = 'usr_customer_default') => {
-    const data = await getLiveWallet(userId);
+  // SECURITY FIX: always resolve wallet by the *authenticated* user's ID.
+  // The caller may pass an explicit userId (admin use), but customer calls
+  // must pass their own ID — never fall back to a shared 'usr_customer_default'.
+  getWallet: async (userId) => {
+    // Resolve to authenticated user when no explicit ID given
+    let resolvedId = userId;
+    if (!resolvedId) {
+      try {
+        const stored = localStorage.getItem('fmx_user');
+        resolvedId = stored ? JSON.parse(stored)?.id : null;
+      } catch {}
+    }
+    if (!resolvedId) return { success: false, message: 'Not authenticated', data: null };
+    const data = await getLiveWallet(resolvedId);
     return { success: true, data };
   },
 
-  topUpWallet: async (amount, userId = 'usr_customer_default', reference = null) => {
+  topUpWallet: async (amount, userId, reference = null) => {
+    let resolvedId = userId;
+    if (!resolvedId) {
+      try {
+        const stored = localStorage.getItem('fmx_user');
+        resolvedId = stored ? JSON.parse(stored)?.id : null;
+      } catch {}
+    }
+    if (!resolvedId) throw new Error('Not authenticated');
     const ref = reference || ('TOPUP-' + Date.now());
-    const data = await topUpLiveWallet(userId, amount, ref);
+    const data = await topUpLiveWallet(resolvedId, amount, ref);
     return { success: true, message: 'Wallet topped up successfully! 💳', data };
   },
 
-  deductWallet: async (amount, userId = 'usr_customer_default', description = 'Order Payment', reference = '') => {
-    const data = await deductLiveWallet(userId, amount, description, reference);
+  deductWallet: async (amount, userId, description = 'Order Payment', reference = '') => {
+    let resolvedId = userId;
+    if (!resolvedId) {
+      try {
+        const stored = localStorage.getItem('fmx_user');
+        resolvedId = stored ? JSON.parse(stored)?.id : null;
+      } catch {}
+    }
+    if (!resolvedId) throw new Error('Not authenticated');
+    const data = await deductLiveWallet(resolvedId, amount, description, reference);
     return { success: true, message: 'Wallet deducted successfully', data };
   },
 
@@ -514,7 +622,7 @@ export const api = {
   // Support Tickets (Firestore collection: support_tickets)
   createSupportTicket: async (data) => {
     const created = await createLiveSupportTicket(data);
-    return { success: true, data: created };
+    return { success: true, message: 'Support ticket submitted successfully! Our team will contact you shortly.', data: created };
   },
 
   getSupportTickets: async () => {
@@ -522,19 +630,283 @@ export const api = {
     return { success: true, data };
   },
 
+  // Customer Reviews & Feedback (Firestore collection: reviews)
+  submitReview: async (orderId, reviewData) => {
+    const payload = typeof orderId === 'object' && !reviewData ? orderId : {
+      order_id: typeof orderId === 'string' ? orderId : undefined,
+      ...reviewData
+    };
+    const created = await createLiveReview(payload);
+    return { success: true, message: 'Review submitted successfully! Thank you 🙏', data: created };
+  },
+
+  createReview: async (reviewData) => {
+    const created = await createLiveReview(reviewData);
+    return { success: true, message: 'Review submitted successfully! Thank you 🙏', data: created };
+  },
+
+  // Customer In-App & Web Push Notifications
+  getNotificationPermission: () => getNotificationPermission(),
+  requestNotificationPermission: () => requestNotificationPermission(),
+  syncNotificationPermission: () => syncNotificationPermission(),
+  getStoredInAppNotifications: (userId = null) => getStoredInAppNotifications(userId),
+  getNotifications: async (userId = null) => ({ success: true, data: getStoredInAppNotifications(userId) }),
+  notifyOrderStatusChange: (order, newStatus, details = {}) => notifyOrderStatusChange(order, newStatus, details),
+
+  // Live Order Chat & In-App Messaging
+  getOrderMessages: async (orderId) => {
+    const data = await getLiveOrderMessages(orderId);
+    return { success: true, data };
+  },
+
+  sendOrderMessage: async (orderId, text, sender = 'customer') => {
+    const msg = await sendLiveOrderMessage(orderId, text, sender);
+    return { success: true, data: msg };
+  },
+
+  // Collaborative Group Orders
+  joinGroupOrder: async (code, data = {}) => {
+    const pid = 'part_' + Math.random().toString(36).slice(2, 8);
+    const participant = {
+      id: pid,
+      participant_id: pid,
+      name: data.name || 'Friend',
+      phone: data.phone || '',
+      items: [],
+      total: 0,
+      payment_status: 'PENDING',
+      joined_at: new Date().toISOString()
+    };
+    await addParticipantToGroupOrder(code, participant);
+    const updatedGroup = await getLiveGroupOrder(code);
+    return { success: true, participant_id: pid, data: updatedGroup };
+  },
+
+  addGroupOrderItem: async (code, { participant_id, item }) => {
+    const group = await getLiveGroupOrder(code);
+    if (!group) throw new Error('Group not found');
+    const participants = group.participants || group.members || [];
+    const updatedParticipants = participants.map(p => {
+      if (p.participant_id === participant_id || p.id === participant_id) {
+        const items = Array.isArray(p.items) ? [...p.items] : [];
+        const existingIdx = items.findIndex(i => i.id === item.id);
+        if (existingIdx >= 0) {
+          items[existingIdx] = {
+            ...items[existingIdx],
+            qty: (items[existingIdx].qty || 1) + (item.qty || 1)
+          };
+        } else {
+          items.push({
+            id: item.id || 'itm_' + Date.now(),
+            name: item.name,
+            price: Number(item.price) || 0,
+            qty: Number(item.qty) || 1,
+            image_url: item.image_url || item.image || ''
+          });
+        }
+        const total = items.reduce((sum, i) => sum + (Number(i.price || 0) * (i.qty || 1)), 0);
+        return { ...p, items, total };
+      }
+      return p;
+    });
+    const totalAmount = updatedParticipants.reduce((sum, p) => sum + (Number(p.total) || 0), 0);
+    await updateLiveGroupOrder(code, {
+      participants: updatedParticipants,
+      members: updatedParticipants,
+      total_amount: totalAmount
+    });
+    const updated = await getLiveGroupOrder(code);
+    return { success: true, data: updated };
+  },
+
+  removeGroupOrderItem: async (code, groupItemId) => {
+    const group = await getLiveGroupOrder(code);
+    if (!group) throw new Error('Group not found');
+    const participants = group.participants || group.members || [];
+    const updatedParticipants = participants.map(p => {
+      const items = (p.items || []).filter(i => i.id !== groupItemId);
+      const total = items.reduce((sum, i) => sum + (Number(i.price || 0) * (i.qty || 1)), 0);
+      return { ...p, items, total };
+    });
+    const totalAmount = updatedParticipants.reduce((sum, p) => sum + (Number(p.total) || 0), 0);
+    await updateLiveGroupOrder(code, {
+      participants: updatedParticipants,
+      members: updatedParticipants,
+      total_amount: totalAmount
+    });
+    const updated = await getLiveGroupOrder(code);
+    return { success: true, data: updated };
+  },
+
+  // Restaurant & Menu Management
+  getRestaurantMenu: async (restaurantId) => {
+    const data = await getLiveProducts();
+    return { success: true, data };
+  },
+
+  updateRestaurant: async (restaurantId, data) => {
+    const updated = await updateLiveSettings(data);
+    return { success: true, data: updated };
+  },
+
+  addMenuItem: async (restaurantId, data) => {
+    const created = await createLiveProduct(data);
+    try { window.dispatchEvent(new CustomEvent('fmx_products_updated')); } catch (e) {}
+    return { success: true, data: created };
+  },
+
+  updateMenuItem: async (restaurantId, itemId, data) => {
+    const updated = await updateLiveProduct(itemId, data);
+    try { window.dispatchEvent(new CustomEvent('fmx_products_updated')); } catch (e) {}
+    return { success: true, data: updated };
+  },
+
+  updateProduct: async (id, data) => {
+    const updated = await updateLiveProduct(id, data);
+    try { window.dispatchEvent(new CustomEvent('fmx_products_updated')); } catch (e) {}
+    return { success: true, data: updated };
+  },
+
+  savePromotion: async (data) => {
+    const created = await createLivePromotion(data);
+    return { success: true, data: created };
+  },
+
+  // Rider Fleet & Delivery Operations
+  getRiderMe: async () => {
+    try {
+      const stored = localStorage.getItem('fmx_rider');
+      if (stored) return { success: true, data: JSON.parse(stored) };
+    } catch {}
+    const riders = await getLiveRiders();
+    const active = riders[0] || {
+      id: 'r_default',
+      name: 'Tunde Bakare',
+      phone: '08012345678',
+      status: 'available',
+      is_online: true,
+      vehicle_type: 'Motorcycle',
+      plate_number: 'IBD-452-AG',
+      rating: 4.9
+    };
+    return { success: true, data: active };
+  },
+
+  getRiderEarnings: async () => {
+    const orders = await getLiveOrders();
+    const delivered = orders.filter(o => o.status === 'DELIVERED');
+    const totalDeliveries = delivered.length;
+    const today = new Date().toISOString().split('T')[0];
+    const todayDeliveries = delivered.filter(o => (o.created_at || '').startsWith(today)).length;
+    const basePayout = 750;
+    return {
+      success: true,
+      data: {
+        total_deliveries: totalDeliveries,
+        today_deliveries: todayDeliveries,
+        total_earnings: totalDeliveries * basePayout,
+        today_earnings: todayDeliveries * basePayout,
+        rating: 4.9
+      }
+    };
+  },
+
+  getRiderActiveOrder: async () => {
+    const orders = await getLiveOrders();
+    const active = orders.find(o => ['RIDER_ASSIGNED', 'PICKED_UP', 'ON_THE_WAY', 'ARRIVED'].includes(o.status));
+    return { success: true, data: active || null };
+  },
+
+  toggleRiderStatus: async () => {
+    let currentRider = null;
+    try {
+      const stored = localStorage.getItem('fmx_rider');
+      if (stored) currentRider = JSON.parse(stored);
+    } catch {}
+    if (!currentRider) {
+      const riders = await getLiveRiders();
+      currentRider = riders[0] || { id: 'r_default', name: 'Rider', is_online: true };
+    }
+    const updated = {
+      ...currentRider,
+      is_online: !currentRider.is_online,
+      status: !currentRider.is_online ? 'available' : 'offline'
+    };
+    try {
+      localStorage.setItem('fmx_rider', JSON.stringify(updated));
+      await updateLiveRider(updated.id, { is_online: updated.is_online, status: updated.status });
+    } catch {}
+    return { success: true, data: updated };
+  },
+
+  acceptDelivery: async (orderId) => {
+    let currentRider = null;
+    try {
+      const stored = localStorage.getItem('fmx_rider');
+      if (stored) currentRider = JSON.parse(stored);
+    } catch {}
+    if (!currentRider) {
+      const riders = await getLiveRiders();
+      currentRider = riders[0] || { id: 'r_default', name: 'Rider' };
+    }
+    const updated = await assignLiveRider(orderId, currentRider, 'RIDER_ASSIGNED');
+    return { success: true, data: { order: updated } };
+  },
+
+  declineDelivery: async (orderId) => {
+    return { success: true, message: 'Delivery offer declined' };
+  },
+
+  confirmPickup: async (orderId) => {
+    const updated = await updateLiveOrderStatus(orderId, 'ON_THE_WAY', 'Rider has picked up food and is on the way');
+    return { success: true, data: updated };
+  },
+
+  verifyOTP: async (orderId, otp) => {
+    return await verifyLiveOrderOtp(orderId, otp);
+  },
+
+  verifyOrderPIN: async (orderId, otp) => {
+    return await verifyLiveOrderOtp(orderId, otp);
+  },
+
   // Customer Saved Addresses (Firestore collection: users)
-  getSavedAddresses: async (userId = 'usr_customer_default') => {
-    const user = await getLiveUser(userId);
+  getSavedAddresses: async (userId = null) => {
+    let effectiveId = userId;
+    if (!effectiveId && typeof window !== 'undefined') {
+      try {
+        const s = localStorage.getItem('fmx_user');
+        if (s) effectiveId = JSON.parse(s)?.id;
+      } catch {}
+    }
+    if (!effectiveId || effectiveId === 'usr_customer_default') return { success: true, data: [] };
+    const user = await getLiveUser(effectiveId);
     return { success: true, data: user?.savedAddresses || [] };
   },
 
-  addSavedAddress: async (data, userId = 'usr_customer_default') => {
-    const addresses = await addLiveAddress(userId, data);
+  addSavedAddress: async (data, userId = null) => {
+    let effectiveId = userId;
+    if (!effectiveId && typeof window !== 'undefined') {
+      try {
+        const s = localStorage.getItem('fmx_user');
+        if (s) effectiveId = JSON.parse(s)?.id;
+      } catch {}
+    }
+    if (!effectiveId || effectiveId === 'usr_customer_default') return { success: false, message: 'User not authenticated' };
+    const addresses = await addLiveAddress(effectiveId, data);
     return { success: true, data: addresses };
   },
 
-  deleteSavedAddress: async (id, userId = 'usr_customer_default') => {
-    const addresses = await deleteLiveAddress(userId, id);
+  deleteSavedAddress: async (id, userId = null) => {
+    let effectiveId = userId;
+    if (!effectiveId && typeof window !== 'undefined') {
+      try {
+        const s = localStorage.getItem('fmx_user');
+        if (s) effectiveId = JSON.parse(s)?.id;
+      } catch {}
+    }
+    if (!effectiveId || effectiveId === 'usr_customer_default') return { success: false, message: 'User not authenticated' };
+    const addresses = await deleteLiveAddress(effectiveId, id);
     return { success: true, data: addresses };
   },
 
@@ -687,6 +1059,11 @@ export const api = {
     return { success: true, data: updated };
   },
 
+  deleteAdminCustomer: async (id, phone = '', email = '') => {
+    const res = await deleteLiveUser(id, phone, email);
+    return { success: true, data: res };
+  },
+
   getAdminPromotions: async () => {
     const data = await getLivePromotions();
     return { success: true, data };
@@ -810,7 +1187,7 @@ export const api = {
       const stored = localStorage.getItem('fmx_paystack_config');
       if (stored) return { data: JSON.parse(stored) };
     } catch (e) {}
-    const envKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) || 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a';
+    const envKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) || 'pk_test_0d51ae7f44721724cc8375bb68e04b306ef70928';
     return { data: { public_key: envKey, is_live: envKey.startsWith('pk_live_') } };
   },
 
@@ -824,7 +1201,99 @@ export const api = {
 
   verifyPaystackPayment: async ({ reference, amount }) => {
     return { data: { status: 'success', reference, amount, verified_at: new Date().toISOString() } };
-  }
+  },
+
+  // Live Daily App Visits & Analytics Tracking
+  recordAppVisit: async (params = {}) => {
+    return recordLiveAppVisit(params);
+  },
+
+  getDailyVisits: async (days = 14) => {
+    const data = await getLiveDailyVisits(days);
+    return { success: true, data };
+  },
+
+  subscribeDailyVisits: (callback, days = 14) => {
+    return subscribeToLiveDailyVisits(callback, days);
+  },
+
+  // -------------------------------------------------------------
+  // WHATSAPP ORDER STATUS NOTIFICATION API
+  // -------------------------------------------------------------
+  sendWhatsAppStatusNotification: async (order, status, notes = '', customPhone = '') => {
+    return sendWhatsAppNotificationApi({
+      orderId: order?.id,
+      orderRef: order?.order_reference,
+      phone: customPhone || order?.customer_phone || order?.customer?.phone || order?.phone,
+      status,
+      customerName: order?.customer_name || order?.customer?.full_name,
+      riderName: order?.rider_name || order?.rider?.name,
+      riderPhone: order?.rider_phone || order?.rider?.phone,
+      otp: order?.delivery_otp || order?.otp,
+      totalAmount: order?.total_amount || order?.total,
+      deliveryAddress: order?.delivery_address || order?.delivery_zone,
+      notes
+    });
+  },
+  openWhatsAppOrderStatus: (order, status, notes = '', customPhone = '') => {
+    return openWhatsAppOrderStatus(order, status, notes, customPhone);
+  },
+  buildWhatsAppStatusMessage: (order, status, notes = '') => {
+    return buildWhatsAppStatusMessage(order, status, notes);
+  },
+  getWhatsAppShareUrl: (phone, message) => {
+    return getWhatsAppShareUrl(phone, message);
+  },
+  logWhatsAppDispatch: (order, status, phone, message) => {
+    return logWhatsAppDispatch(order, status, phone, message);
+  },
+  normalizeWhatsAppPhone: (phone) => {
+    return normalizeWhatsAppPhone(phone);
+  },
+
+  // -------------------------------------------------------------
+  // WEB NOTIFICATION SYSTEM API
+  // -------------------------------------------------------------
+  dispatchWebNotification,
+  requestNotificationPermission,
+  getNotificationPermission,
+  notifyOrderStatusChange,
+  getStoredInAppNotifications,
+  addInAppNotification,
+  markInAppNotificationAsRead,
+  markAllInAppNotificationsAsRead,
+  clearAllInAppNotifications,
+  getUnreadInAppNotificationsCount,
+  isNotificationSupported,
+  syncNotificationPermission,
+  isPermissionBlocked,
+  flashTabTitle,
+
+  // -------------------------------------------------------------
+  // SMS NOTIFICATION SDK API
+  // -------------------------------------------------------------
+  sendOrderStatusSms: async (order, status, options = {}) => {
+    return sendOrderStatusSms(order, status, options);
+  },
+  openNativeSms: (phone, message) => {
+    return openNativeSms(phone, message);
+  },
+  buildOrderStatusSms: (order, status, notes = '') => {
+    return buildOrderStatusSms(order, status, notes);
+  },
+  formatSmsPhone: (phone, includePlus = false) => {
+    return formatSmsPhone(phone, includePlus);
+  },
+  getSmsConfig: () => {
+    return getSmsConfig();
+  },
+  saveSmsConfig: (config) => {
+    return saveSmsConfig(config);
+  },
+  testSmsConnection: (provider, apiKey, senderId, phone, twilioConfig) => {
+    return testSmsConnection(provider, apiKey, senderId, phone, twilioConfig);
+  },
+  DEFAULT_SMS_CONFIG
 };
 
 // WebSocket client (kept for backwards compatibility & instant local client chimes)

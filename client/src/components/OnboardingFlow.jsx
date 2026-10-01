@@ -11,16 +11,18 @@ import {
   Utensils,
   RefreshCw,
   Navigation,
-  AlertCircle
+  AlertCircle,
+  Bell
 } from 'lucide-react';
 import { getRealCurrentPosition } from '../services/realLocation';
+import { requestNotificationPermission } from '../services/webNotificationService';
 
 export default function OnboardingFlow({ 
   onComplete, 
   onRegister, 
   onGuest 
 }) {
-  // 3-Step Flow: 1 (Welcome) -> 2 (Details) -> 3 (Delivery Location)
+  // 4-Step Flow: 1 (Welcome) -> 2 (Details) -> 3 (Delivery Location) -> 4 (Notifications)
   const [step, setStep] = useState(1);
 
   // Form state pre-filled from existing storage if available
@@ -102,8 +104,8 @@ export default function OnboardingFlow({
     setStep(3);
   };
 
-  // Finalize Step 3 (Delivery Location) & Enter App
-  const handleCompleteOnboarding = async (e) => {
+  // Finalize Step 3 (Delivery Location) & Advance to Step 4 (Notifications)
+  const handleProceedToNotifications = async (e) => {
     if (e) e.preventDefault();
     setErrorMsg('');
 
@@ -137,14 +139,9 @@ export default function OnboardingFlow({
         });
       }
 
-      // Transition immediately to Home screen
-      if (typeof onComplete === 'function') {
-        onComplete();
-      }
-    } catch (err) {
-      if (typeof onComplete === 'function') {
-        onComplete();
-      }
+      setStep(4);
+    } catch {
+      setStep(4);
     } finally {
       setIsSubmitting(false);
     }
@@ -172,8 +169,8 @@ export default function OnboardingFlow({
         )}
 
         {/* Minimal Progress Pills */}
-        <div className="flex items-center gap-2">
-          {[1, 2, 3].map((s) => (
+        <div className="flex items-center gap-1.5">
+          {[1, 2, 3, 4].map((s) => (
             <div
               key={s}
               className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -379,7 +376,7 @@ export default function OnboardingFlow({
               </div>
 
               {/* Form Field */}
-              <form onSubmit={handleCompleteOnboarding} className="space-y-4 pt-1">
+              <form onSubmit={handleProceedToNotifications} className="space-y-4 pt-1">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -478,6 +475,83 @@ export default function OnboardingFlow({
                   </button>
                 </div>
               </form>
+            </motion.div>
+          )}
+
+          {/* ======================================================== */}
+          {/* SCREEN 4: WEB NOTIFICATION PERMISSION REQUEST            */}
+          {/* ======================================================== */}
+          {step === 4 && (
+            <motion.div
+              key="step-notifications"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className="flex flex-col items-center text-center space-y-6"
+            >
+              {/* Animated Bell with Warm Glowing Aura */}
+              <div className="relative">
+                <div className="w-24 h-24 rounded-3xl bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center shadow-lg shadow-[#EA4C2A]/15 border border-[#EA4C2A]/20">
+                  <Bell size={42} className="stroke-[2.2] animate-bounce" />
+                </div>
+                <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-xs text-white font-bold">
+                  ✓
+                </span>
+              </div>
+
+              {/* Title & Description */}
+              <div className="space-y-2">
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  Stay Updated on Your Food
+                </h2>
+                <p className="text-sm sm:text-base text-slate-600 font-medium max-w-xs mx-auto leading-relaxed">
+                  Turn on browser notifications for live tracking as your chef cooks and your rider delivers.
+                </p>
+              </div>
+
+              {/* 3 Quick Perks */}
+              <div className="w-full space-y-2.5 text-left bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                <div className="flex items-center gap-3 text-xs font-semibold text-slate-700">
+                  <span className="text-base">🍳</span>
+                  <span>Kitchen prep & cooking status updates</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs font-semibold text-slate-700">
+                  <span className="text-base">🛵</span>
+                  <span>Live rider dispatch & arrival alerts with PIN</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs font-semibold text-slate-700">
+                  <span className="text-base">🎁</span>
+                  <span>Exclusive flash foodie discounts & giveaways</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="w-full space-y-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await requestNotificationPermission();
+                    } catch {}
+                    if (typeof onComplete === 'function') onComplete();
+                  }}
+                  className="w-full py-4 px-6 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white font-black text-base shadow-lg shadow-[#EA4C2A]/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Bell size={18} />
+                  <span>Enable Notifications</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof onComplete === 'function') onComplete();
+                  }}
+                  className="w-full py-2.5 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  Skip for Now
+                </button>
+              </div>
             </motion.div>
           )}
 

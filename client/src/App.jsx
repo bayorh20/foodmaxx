@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 
 import NotificationToneModal from './components/NotificationToneModal';
+import NotificationCenterModal from './components/NotificationCenterModal';
 import { getStoreDetails, updateStoreDetails, DEFAULT_STORE_DETAILS } from './config/storeDetails';
 import OptimizedProductImage, { getOptimizedImageUrl, preloadImage, prefetchCatalogImages } from './components/OptimizedProductImage';
 const AdminPortal = lazy(() => import('./components/AdminPortal'));
@@ -33,8 +34,15 @@ import OnboardingFlow from './components/OnboardingFlow';
 import TransitionStudioModal, { getTransitionVariants } from './components/TransitionStudioModal';
 import GroupOrderSheet from './components/GroupOrderSheet';
 import AuthModal from './components/AuthModal';
+import AvatarPickerModal from './components/AvatarPickerModal';
 import { getRealCurrentPosition } from './services/realLocation';
 import { getHappyAvatar } from './utils/avatarUtils';
+import { 
+  requestNotificationPermission, 
+  getNotificationPermission, 
+  isPermissionBlocked, 
+  dispatchWebNotification 
+} from './services/webNotificationService';
 import {
   NOTIFICATION_TONES,
   getSelectedToneId,
@@ -675,6 +683,77 @@ function PortalSwitcher({ activePortal, setActivePortal }) {
 
 
 // ============================================================
+// ISOLATED 3D CART DROP OVERLAY (Zero root re-renders)
+// ============================================================
+function FlyingCartDropOverlay() {
+  const [flyingDrops, setFlyingDrops] = useState([]);
+
+  useEffect(() => {
+    const handleCartDrop = (e) => {
+      const { startX, startY, image, name } = e.detail || {};
+      const cartElem = document.getElementById('bottom-nav-cart-btn');
+      const dockElem = document.getElementById('bottom-nav-dock');
+      const targetElem = cartElem || dockElem;
+      const targetRect = targetElem ? targetElem.getBoundingClientRect() : null;
+      const targetX = targetRect ? targetRect.left + targetRect.width / 2 : window.innerWidth / 2;
+      const targetY = targetRect ? targetRect.top + targetRect.height / 2 : window.innerHeight - 36;
+      const dropId = `drop_${Date.now()}_${Math.random()}`;
+      setFlyingDrops(prev => [...prev, { id: dropId, startX, startY, targetX, targetY, image, name }]);
+    };
+    window.addEventListener('fmx_3d_cart_drop', handleCartDrop);
+    return () => window.removeEventListener('fmx_3d_cart_drop', handleCartDrop);
+  }, []);
+
+  if (flyingDrops.length === 0) return null;
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[999] overflow-hidden" style={{ perspective: 1000 }}>
+      <AnimatePresence>
+        {flyingDrops.map(drop => (
+          <motion.div
+            key={drop.id}
+            initial={{
+              x: drop.startX - 22,
+              y: drop.startY - 22,
+              scale: 1,
+              rotateX: 0,
+              rotateY: 0,
+              rotateZ: 0,
+              opacity: 1
+            }}
+            animate={{
+              x: [drop.startX - 22, drop.startX + (drop.targetX - drop.startX) * 0.45, drop.targetX - 18],
+              y: [drop.startY - 22, Math.min(drop.startY, drop.targetY) - 75, drop.targetY - 18],
+              scale: [1, 1.25, 0.45],
+              rotateX: [0, 45, 180],
+              rotateZ: [0, -35, 45],
+              opacity: [1, 1, 0.2]
+            }}
+            exit={{ opacity: 0 }}
+            transition={{
+              duration: 0.65,
+              ease: [0.22, 1, 0.36, 1],
+              times: [0, 0.5, 1]
+            }}
+            onAnimationComplete={() => {
+              setFlyingDrops(prev => prev.filter(d => d.id !== drop.id));
+            }}
+            className="absolute w-11 h-11 rounded-2xl bg-white dark:bg-[#1E2028] shadow-2xl border-2 border-slate-900/10 dark:border-white/20 p-1 flex items-center justify-center overflow-hidden"
+            style={{ transformStyle: 'preserve-3d' }}
+          >
+            {drop.image ? (
+              <img src={drop.image} alt={drop.name} className="w-full h-full object-cover rounded-xl" />
+            ) : (
+              <span className="text-lg">🍲</span>
+            )}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ============================================================
 // CUSTOMER PORTAL
 // ============================================================
 function CustomerPortal() {
@@ -737,9 +816,9 @@ function CustomerPortal() {
   const [favorites, setFavorites] = useState(() => {
     try {
       const s = localStorage.getItem('fmx_favs');
-      return s ? JSON.parse(s) : ['curated_pasta', 'pick_truffle_pasta'];
+      return s ? JSON.parse(s) : ['fmx_cheeseburger', 'fmx_smoky_jollof'];
     } catch {
-      return ['curated_pasta', 'pick_truffle_pasta'];
+      return ['fmx_cheeseburger', 'fmx_smoky_jollof'];
     }
   });
 
@@ -777,6 +856,27 @@ function CustomerPortal() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [placedOrderSuccess, setPlacedOrderSuccess] = useState(null);
 
+  // Web Notification Permission Prompt on App Open
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(() => {
+    try {
+      if (typeof window === 'undefined' || !('Notification' in window)) return false;
+      if (sessionStorage.getItem('fmx_notif_prompt_dismissed') === 'true') return false;
+      return Notification.permission === 'default';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleEnableNotificationPermission = async () => {
+    try {
+      const perm = await requestNotificationPermission();
+      if (perm === 'granted') {
+        toast('Live order alerts enabled! 🔔', 'success');
+      }
+    } catch {}
+    setShowNotificationPrompt(false);
+  };
+
   useEffect(() => {
     const handleOpenCart = () => setCartOpen(true);
     window.addEventListener('fmx:open-cart', handleOpenCart);
@@ -808,6 +908,13 @@ function CustomerPortal() {
     } catch {}
   }, []);
 
+  // Handle custom open group order event
+  useEffect(() => {
+    const handleOpenGroup = () => setGroupOrderSheetOpen(true);
+    window.addEventListener('fmx_open_group_order', handleOpenGroup);
+    return () => window.removeEventListener('fmx_open_group_order', handleOpenGroup);
+  }, []);
+
   // Handle order tracking deep link (?track=ORD-XXXX or ?order=ORD-XXXX) with strict authorization
   useEffect(() => {
     try {
@@ -834,11 +941,15 @@ function CustomerPortal() {
     trackingOrderRef.current = trackingOrder;
   }, [trackingOrder]);
 
-  // Purge prior user's tracking, orders, and delivery details immediately when switching or logging in/out
+  // Purge prior user's tracking, orders, delivery details, wallet, and notifications immediately when switching or logging in/out
   useEffect(() => {
     setOrders([]);
     setTrackingOrder(null);
+    setPlacedOrderSuccess(null); // SECURITY FIX: clear active order success screen on user switch
     setLiveStatusBanner(null);
+    setWallet(null); // SECURITY FIX: wipe wallet so no cross-user balance leakage
+    setNotifications([]); // SECURITY FIX: wipe notifications on user switch
+    prevOrderStatusesRef.current = new globalThis.Map(); // Reset status tracker
     try {
       localStorage.removeItem('fmx_last_order_id');
       localStorage.removeItem('fmx_active_order');
@@ -856,7 +967,7 @@ function CustomerPortal() {
         localStorage.removeItem('fmx_guest_name');
       } catch {}
     }
-  }, [user]);
+  }, [user?.id]); // Depend on user.id specifically so switching accounts triggers the effect
   const [liveStatusBanner, setLiveStatusBanner] = useState(null);
   const prevOrderStatusesRef = useRef(new globalThis.Map());
 
@@ -879,30 +990,27 @@ function CustomerPortal() {
     }
   });
   const [transitionModalOpen, setTransitionModalOpen] = useState(false);
-  const [flyingDrops, setFlyingDrops] = useState([]);
-
-  // 3D Cart Drop animation listener
-  useEffect(() => {
-    const handleCartDrop = (e) => {
-      const { startX, startY, image, name } = e.detail || {};
-      const cartElem = document.getElementById('bottom-nav-cart-btn');
-      const dockElem = document.getElementById('bottom-nav-dock');
-      const targetElem = cartElem || dockElem;
-      const targetRect = targetElem ? targetElem.getBoundingClientRect() : null;
-      const targetX = targetRect ? targetRect.left + targetRect.width / 2 : window.innerWidth / 2;
-      const targetY = targetRect ? targetRect.top + targetRect.height / 2 : window.innerHeight - 36;
-      const dropId = `drop_${Date.now()}_${Math.random()}`;
-      setFlyingDrops(prev => [...prev, { id: dropId, startX, startY, targetX, targetY, image, name }]);
-    };
-    window.addEventListener('fmx_3d_cart_drop', handleCartDrop);
-    return () => window.removeEventListener('fmx_3d_cart_drop', handleCartDrop);
-  }, []);
 
   const contentScrollRef = useRef(null);
   const [walletOpen, setWalletOpen] = useState(false);
   const [wallet, setWallet] = useState(null);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      return api.getStoredInAppNotifications ? api.getStoredInAppNotifications() : [];
+    } catch { return []; }
+  });
   const [notifsOpen, setNotifsOpen] = useState(false);
+  const unreadNotifsCount = useMemo(() => {
+    return (notifications || []).filter(n => !n.read && !n.is_read).length;
+  }, [notifications]);
+
+  useEffect(() => {
+    const handleNotifsUpdate = (e) => {
+      if (Array.isArray(e.detail)) setNotifications(e.detail);
+    };
+    window.addEventListener('fmx_inapp_notifications_updated', handleNotifsUpdate);
+    return () => window.removeEventListener('fmx_inapp_notifications_updated', handleNotifsUpdate);
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [reviewModal, setReviewModal] = useState(null);
@@ -963,11 +1071,15 @@ function CustomerPortal() {
     }
   };
 
+  const pullDistanceRef = useRef(0);
   const handleTouchMove = (e) => {
     if (!isPullingRef.current || isRefreshing) return;
     const container = contentScrollRef.current;
     if (!container || container.scrollTop > 2) {
-      if (pullDistance > 0) setPullDistance(0);
+      if (pullDistanceRef.current > 0) {
+        pullDistanceRef.current = 0;
+        setPullDistance(0);
+      }
       isPullingRef.current = false;
       return;
     }
@@ -975,12 +1087,16 @@ function CustomerPortal() {
     const diff = currentY - touchStartY.current;
     if (diff > 0) {
       // Damped pull distance (max ~80px)
-      const damped = Math.min(80, Math.pow(diff, 0.82));
-      setPullDistance(damped);
-      if (damped > 55 && pullDistance <= 55) {
-        triggerHaptic('light');
+      const damped = Math.round(Math.min(80, Math.pow(diff, 0.82)));
+      if (Math.abs(damped - pullDistanceRef.current) >= 3) {
+        pullDistanceRef.current = damped;
+        setPullDistance(damped);
+        if (damped > 55 && pullDistance <= 55) {
+          triggerHaptic('light');
+        }
       }
-    } else {
+    } else if (pullDistanceRef.current !== 0) {
+      pullDistanceRef.current = 0;
       setPullDistance(0);
     }
   };
@@ -1026,6 +1142,24 @@ function CustomerPortal() {
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // Live Daily App Visit Tracking
+  useEffect(() => {
+    if (!api.recordAppVisit) return;
+    try {
+      let visitorId = localStorage.getItem('fmx_visitor_id');
+      if (!visitorId) {
+        visitorId = 'vis_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        localStorage.setItem('fmx_visitor_id', visitorId);
+      }
+      api.recordAppVisit({
+        visitorId,
+        userId: user?.id || null,
+        role: user?.role || 'guest',
+        path: window.location.pathname || '/'
+      });
+    } catch (e) {}
+  }, [user?.id]);
 
   // Firestore real-time products subscription
   useEffect(() => {
@@ -1087,14 +1221,9 @@ function CustomerPortal() {
             ...notifInfo
           });
 
-          // Also trigger browser push notification if permitted
-          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-            try {
-              new Notification(notifInfo.title, {
-                body: notifInfo.desc,
-                icon: '/foodmaxx-logo.png'
-              });
-            } catch (e) {}
+          // Full Web-Based Notification System (Service Worker Web Push + Sound + In-App History)
+          if (api.notifyOrderStatusChange) {
+            api.notifyOrderStatusChange(ord, ord.order_status, notifInfo);
           }
         }
         prevOrderStatusesRef.current.set(ord.id, ord.order_status);
@@ -1122,9 +1251,12 @@ function CustomerPortal() {
       if (e.detail?.action === 'logout') {
         setOrders([]);
         setTrackingOrder(null);
+        setPlacedOrderSuccess(null);
         setLiveStatusBanner(null);
         setSelectedAddress(null);
         setSavedAddresses([]);
+        setWallet(null);
+        setNotifications([]);
       }
     };
     window.addEventListener('fmx_auth_change', handleAuthLogout);
@@ -1135,6 +1267,7 @@ function CustomerPortal() {
     window.addEventListener('fmx_tracking_clear', () => {
       setOrders([]);
       setTrackingOrder(null);
+      setPlacedOrderSuccess(null);
       setLiveStatusBanner(null);
     });
 
@@ -1151,15 +1284,33 @@ function CustomerPortal() {
     const unsub = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const liveData = { id: docSnap.id, ...docSnap.data() };
-        if (user) {
-          const ownerId = liveData.customer_id || liveData.customer?.id;
-          const ownerEmail = liveData.customer_email || liveData.customer?.email;
-          const isAdmin = user.role === 'super_admin' || user.role === 'admin';
-          if (!isAdmin && ownerId && ownerId !== user.id && (!user.email || ownerEmail !== user.email)) {
-            console.warn('Unauthorized live tracking attempt blocked.');
-            setTrackingOrder(null);
-            return;
+        const ownerId = String(liveData.customer_id || liveData.customer?.id || '').trim();
+        const ownerEmail = String(liveData.customer_email || liveData.customer?.email || '').trim().toLowerCase();
+        const ownerPhone = String(liveData.customer_phone || liveData.customer?.phone || '').trim();
+        const currentUserId = String(user?.id || '').trim();
+        const currentUserEmail = String(user?.email || '').trim().toLowerCase();
+        const currentUserPhone = String(user?.phone || '').trim();
+        const isAdmin = user?.role === 'super_admin' || user?.role === 'admin';
+
+        let isDeviceSessionOwner = false;
+        try {
+          const lastOrder = localStorage.getItem('fmx_last_order_id');
+          const userOrder = currentUserId ? localStorage.getItem(`fmx_last_order_${currentUserId}`) : null;
+          if (lastOrder === liveData.id || lastOrder === liveData.order_reference ||
+              userOrder === liveData.id || userOrder === liveData.order_reference) {
+            isDeviceSessionOwner = true;
           }
+        } catch {}
+
+        const isAuthorized = isAdmin || isDeviceSessionOwner ||
+          (currentUserId && ownerId && currentUserId === ownerId) ||
+          (currentUserEmail && ownerEmail && currentUserEmail === ownerEmail) ||
+          (currentUserPhone && ownerPhone && currentUserPhone === ownerPhone);
+
+        if (!isAuthorized) {
+          console.warn('Unauthorized live tracking attempt blocked.');
+          setTrackingOrder(null);
+          return;
         }
         setTrackingOrder(prev => prev ? { ...prev, ...liveData } : liveData);
       }
@@ -1205,8 +1356,8 @@ function CustomerPortal() {
     const handleOrdersUpdated = () => {
       loadOrders();
       if (trackingOrder) {
-        api.getOrder(trackingOrder.id).then(r => {
-          if (r?.data) setTrackingOrder(r.data);
+        api.getOrder(trackingOrder.id, user).then(r => {
+          if (r?.success && r?.data) setTrackingOrder(r.data);
         }).catch(() => {});
       }
     };
@@ -1262,8 +1413,9 @@ function CustomerPortal() {
   }
 
   async function loadWallet() {
+    if (!user?.id) return;
     try {
-      const res = await api.getWallet();
+      const res = await api.getWallet(user.id);
       setWallet(res.data);
     } catch (e) {}
   }
@@ -1275,17 +1427,9 @@ function CustomerPortal() {
     } catch (e) {}
   }
 
-  async function handleSearch(q) {
+  const handleSearch = useCallback((q) => {
     setSearchQuery(q);
-    if (!q) {
-      loadInitialData();
-      return;
-    }
-    try {
-      const res = await api.getRestaurants({ search: q });
-      setRestaurants(res.data || []);
-    } catch (e) {}
-  }
+  }, []);
 
   async function openRestaurant(r) {
     setLoading(true);
@@ -1334,8 +1478,9 @@ function CustomerPortal() {
   }
 
   async function handleTopUp(amount) {
+    if (!user?.id) { toast('Please log in to top up your wallet', 'error'); return; }
     try {
-      const res = await api.topUpWallet(amount);
+      const res = await api.topUpWallet(amount, user.id);
       toast(res.message, 'success');
       loadWallet();
     } catch (e) {
@@ -1345,19 +1490,29 @@ function CustomerPortal() {
 
   async function handleReviewSubmit(data) {
     try {
-      await api.submitReview(reviewModal.id, data);
+      await api.submitReview(reviewModal.id, {
+        ...data,
+        customer_id: user?.id || reviewModal?.customer_id || '',
+        customer_name: user?.name || user?.full_name || reviewModal?.customer_name || 'Customer',
+        customer_phone: user?.phone || reviewModal?.customer_phone || '',
+        restaurant_id: reviewModal?.restaurant_id || reviewModal?.vendor_id || '',
+        restaurant_name: reviewModal?.restaurant_name || reviewModal?.vendor_name || 'FoodMaxx Kitchen',
+        order_reference: reviewModal?.order_reference || reviewModal?.id || ''
+      });
+      // Optimistically mark order as reviewed in local state
+      setOrders(prev => prev.map(o => o.id === reviewModal.id ? { ...o, reviewed: true } : o));
       toast('Review submitted! Thank you 🙏', 'success');
       setReviewModal(null);
       loadOrders();
     } catch (e) {
-      toast(e.message, 'error');
+      toast(e.message || 'Failed to submit review', 'error');
     }
   }
 
   async function handleAddNewAddress(newAddr) {
     try {
-      if (user) {
-        await api.addSavedAddress(newAddr);
+      if (user?.id) {
+        await api.addSavedAddress(newAddr, user.id);
       }
     } catch (e) {}
     setSavedAddresses(prev => {
@@ -1368,6 +1523,9 @@ function CustomerPortal() {
   }
 
   function handleDeleteAddress(addrId) {
+    if (user?.id) {
+      api.deleteSavedAddress(addrId, user.id).catch(() => {});
+    }
     setSavedAddresses(prev => {
       const updated = prev.filter(a => a.id !== addrId);
       try { localStorage.setItem('fmx_saved_addresses', JSON.stringify(updated)); } catch {}
@@ -1617,8 +1775,47 @@ function CustomerPortal() {
             </motion.div>
           </div>
 
+          {/* Simple & Clean Web Notification Permission Prompt on App Open */}
+          {showNotificationPrompt && appStage === 'ready' && (
+            <div className="px-4 sm:px-6 pt-2 pb-1 max-w-2xl mx-auto w-full">
+              <div className={`p-3 sm:p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs shadow-sm transition-all ${
+                isDark 
+                  ? 'bg-[#1C1F28] border-orange-500/25 text-white' 
+                  : 'bg-orange-50/90 border-orange-200 text-slate-900'
+              }`}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-[#EA4C2A]/15 text-[#EA4C2A] flex items-center justify-center shrink-0">
+                    <Bell size={16} className="animate-pulse" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-extrabold text-xs">Enable Live Order Updates</div>
+                    <div className="text-[11px] opacity-75 truncate">Get instant alerts when your food is cooking & on the way</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={handleEnableNotificationPermission}
+                    className="px-3 py-1.5 rounded-xl bg-[#EA4C2A] hover:bg-[#d83f1d] active:scale-95 text-white font-bold text-xs shadow-xs cursor-pointer"
+                  >
+                    Enable
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowNotificationPrompt(false);
+                      try { sessionStorage.setItem('fmx_notif_prompt_dismissed', 'true'); } catch {}
+                    }}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center opacity-60 hover:opacity-100 cursor-pointer"
+                    title="Dismiss"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* DYNAMIC SCREEN TRANSITIONS (20 STYLES AVAILABLE) */}
-          <AnimatePresence mode="sync" custom={tabDirection}>
+          <AnimatePresence mode="wait" custom={tabDirection}>
             <motion.div
               key={activeTab}
               custom={tabDirection}
@@ -1669,8 +1866,30 @@ function CustomerPortal() {
                   </div>
                 </div>
 
-                {/* Right Action Icons (Modern Light/Dark Mode Toggle) */}
+                {/* Right Action Icons (Notifications & Light/Dark Mode Toggle) */}
                 <div className="flex items-center gap-2 shrink-0">
+                  {/* Notification Center Bell */}
+                  <button
+                    onClick={() => {
+                      if (typeof triggerHaptic === 'function') triggerHaptic('selection');
+                      setNotifsOpen(true);
+                    }}
+                    className={`relative w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 active:scale-90 cursor-pointer shadow-xs group ${
+                      isDark
+                        ? 'bg-[#181B22] border border-white/10 text-slate-300 hover:text-white hover:bg-white/10'
+                        : 'bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-100 hover:text-slate-900 shadow-slate-200/50'
+                    }`}
+                    title="Notifications"
+                    aria-label="Open Notifications"
+                  >
+                    <Bell size={18} className="stroke-[2.2]" />
+                    {unreadNotifsCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-[#EA4C2A] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-[#181B22] shadow-xs">
+                        {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+                      </span>
+                    )}
+                  </button>
+
                   <button
                     onClick={() => {
                       if (typeof triggerHaptic === 'function') triggerHaptic('selection');
@@ -1777,6 +1996,7 @@ function CustomerPortal() {
                   onQuickAdd={handleQuickAdd}
                   onExplore={() => setActiveTab('home')}
                   isDark={isDark}
+                  menuItems={menuItems}
                 />
               )}
               {activeTab === 'profile' && (
@@ -2049,6 +2269,8 @@ function CustomerPortal() {
             key="food-detail-modal"
             restaurant={selectedItem.restaurant}
             item={selectedItem.item}
+            isFavorite={favorites?.includes(selectedItem.item?.id)}
+            onToggleFavorite={() => toggleFavorite(selectedItem.item?.id)}
             onClose={() => setSelectedItem(null)}
           />
         )}
@@ -2128,8 +2350,13 @@ function CustomerPortal() {
           appCopy={appCopy}
           onClose={handleCloseTracking}
           onRefresh={async () => {
-            const res = await api.getOrder(trackingOrder.id);
-            setTrackingOrder(res.data);
+            const res = await api.getOrder(trackingOrder.id, user);
+            if (res?.success && res?.data) {
+              setTrackingOrder(res.data);
+            } else if (!res?.success) {
+              toast(res?.message || 'Access denied', 'error');
+              setTrackingOrder(null);
+            }
           }}
         />
       )}
@@ -2178,31 +2405,34 @@ function CustomerPortal() {
         />
       )}
 
-      {/* NOTIFICATIONS DRAWER */}
-      <Modal open={notifsOpen} onClose={() => setNotifsOpen(false)} title="Notifications">
-        <div className="p-4 space-y-3">
-          {notifications.length === 0 && (
-            <div className="text-center py-8 text-gray-400">
-              <Bell size={36} className="mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No notifications yet</p>
-            </div>
-          )}
-          {notifications.map(n => (
-            <div key={n.id} className={`flex gap-3 p-3 rounded-xl ${n.is_read ? 'bg-gray-50 dark:bg-white/5 border border-transparent dark:border-white/5' : 'bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/40'}`}>
-              <div className="w-8 h-8 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center shrink-0">
-                <Bell size={14} className="text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <div className="font-semibold text-sm text-slate-900 dark:text-white">{n.title}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">{n.message}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Modal>
+      {/* NOTIFICATIONS CENTER MODAL */}
+      <NotificationCenterModal
+        open={notifsOpen}
+        onClose={() => setNotifsOpen(false)}
+        notifications={notifications}
+        onSelectOrder={(refOrId) => {
+          const ord = orders.find(o => o.id === refOrId || o.order_reference === refOrId);
+          if (ord) {
+            setTrackingOrder(ord);
+          } else {
+            api.getOrder(refOrId, user).then(r => {
+              if (r?.success && r?.data) {
+                setTrackingOrder(r.data);
+              } else {
+                toast(r?.message || 'Access denied: Unable to view order tracking.', 'error');
+              }
+            });
+          }
+        }}
+        onRefresh={() => {
+          if (api.getStoredInAppNotifications) {
+            setNotifications(api.getStoredInAppNotifications(user?.id));
+          }
+        }}
+      />
 
       {/* SUPPORT MODAL */}
-      <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
+      <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} user={user} />
 
       {/* LOGIN MODAL */}
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} onSwitchRegister={() => { setLoginOpen(false); setRegisterOpen(true); }} />
@@ -2210,50 +2440,8 @@ function CustomerPortal() {
       {/* REGISTER MODAL */}
       <RegisterModal open={registerOpen} onClose={() => setRegisterOpen(false)} onSwitchLogin={() => { setRegisterOpen(false); setLoginOpen(true); }} />
 
-      {/* 3D DROP ADDED TO CART FLYING TOKEN OVERLAY */}
-      <div className="fixed inset-0 pointer-events-none z-[999] overflow-hidden" style={{ perspective: 1000 }}>
-        <AnimatePresence>
-          {flyingDrops.map(drop => (
-            <motion.div
-              key={drop.id}
-              initial={{
-                x: drop.startX - 22,
-                y: drop.startY - 22,
-                scale: 1,
-                rotateX: 0,
-                rotateY: 0,
-                rotateZ: 0,
-                opacity: 1
-              }}
-              animate={{
-                x: [drop.startX - 22, drop.startX + (drop.targetX - drop.startX) * 0.45, drop.targetX - 18],
-                y: [drop.startY - 22, Math.min(drop.startY, drop.targetY) - 75, drop.targetY - 18],
-                scale: [1, 1.25, 0.45],
-                rotateX: [0, 45, 180],
-                rotateZ: [0, -35, 45],
-                opacity: [1, 1, 0.2]
-              }}
-              exit={{ opacity: 0 }}
-              transition={{
-                duration: 0.65,
-                ease: [0.22, 1, 0.36, 1],
-                times: [0, 0.5, 1]
-              }}
-              onAnimationComplete={() => {
-                setFlyingDrops(prev => prev.filter(d => d.id !== drop.id));
-              }}
-              className="absolute w-11 h-11 rounded-2xl bg-white dark:bg-[#1E2028] shadow-2xl border-2 border-slate-900/10 dark:border-white/20 p-1 flex items-center justify-center overflow-hidden"
-              style={{ transformStyle: 'preserve-3d' }}
-            >
-              {drop.image ? (
-                <img src={drop.image} alt={drop.name} className="w-full h-full object-cover rounded-xl" />
-              ) : (
-                <span className="text-lg">🍲</span>
-              )}
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+      {/* ISOLATED 3D DROP ADDED TO CART FLYING TOKEN OVERLAY */}
+      <FlyingCartDropOverlay />
 
       {/* LOUD NOTIFICATION TONES STUDIO MODAL */}
       <NotificationToneModal
@@ -2646,7 +2834,7 @@ const TopPickCard = React.memo(function TopPickCard({ item, inCartQty = 0, onSel
     }
   };
 
-  const displayPrice = item.price ? `N${Number(item.price).toLocaleString()}` : 'N2,500';
+  const displayPrice = fmt(item.price || 2500);
   const rawImage = item?.image_url || item?.image || item?.img || item?.photo_url || item?.picture || item?.thumbnail;
   const itemImage = (rawImage && typeof rawImage === 'string' && rawImage.trim().length > 0)
     ? rawImage.trim()
@@ -2792,144 +2980,109 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
 // ============================================================
 // FAVORITES TAB (BOOKMARKED CRAVINGS)
 // ============================================================
-function FavoritesTab({ favorites, onToggleFavorite, onSelectItem, onQuickAdd, onExplore, isDark }) {
-  const allDishes = [
-    {
-      id: 'curated_pasta',
-      name: 'Pasta Bowl',
-      subtitle: 'Creamy, cheesy, perfectly crafted.',
-      price: 12.90,
-      rating: 4.8,
-      reviews: '1.2k',
-      time: '25–35 min',
-      img: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 'curated_parfait',
-      name: 'Berry Bliss Parfait',
-      subtitle: 'Layers of goodness with greek yogurt and fresh berries.',
-      price: 8.50,
-      rating: 4.7,
-      reviews: '980',
-      time: '20–30 min',
-      img: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 'curated_icecream',
-      name: 'Artisan Ice Cream Trio',
-      subtitle: 'Scoops of pure happiness in Belgian chocolate and vanilla.',
-      price: 6.90,
-      rating: 4.9,
-      reviews: '850',
-      time: '10–15 min',
-      img: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=600&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 'curated_shawarma',
-      name: 'Toasted Chicken Shawarma',
-      subtitle: 'Bold taste anytime with spiced chicken and garlic sauce.',
-      price: 9.50,
-      rating: 4.8,
-      reviews: '1.5k',
-      time: '15–20 min',
-      img: 'https://images.unsplash.com/photo-1561651823-34feb02250e4?w=600&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 'pick_truffle_pasta',
-      name: 'Truffle Alfredo Pasta Bowl',
-      subtitle: 'Creamy sauce, mushrooms, parmesan, and herbs.',
-      price: 12.90,
-      rating: 4.8,
-      reviews: '1.2k',
-      time: '25–35 min',
-      img: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 'pick_smoky_jollof',
-      name: 'Smoky Firewood Jollof & Asun',
-      subtitle: 'Authentic party jollof with spicy peppered goat meat.',
-      price: 11.50,
-      rating: 4.9,
-      reviews: '2.1k',
-      time: '20–25 min',
-      img: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80'
-    }
-  ];
+function FavoritesTab({ favorites = [], onToggleFavorite, onSelectItem, onQuickAdd, onExplore, isDark, menuItems = [] }) {
+  const { cart } = useCart();
+  const cartQtyMap = useMemo(() => {
+    const map = {};
+    (cart?.items || []).forEach(ci => {
+      if (ci.id) map[String(ci.id)] = (map[String(ci.id)] || 0) + ci.qty;
+      if (ci.name) map[ci.name.trim().toLowerCase()] = (map[ci.name.trim().toLowerCase()] || 0) + ci.qty;
+    });
+    return map;
+  }, [cart?.items]);
 
-  const favItems = allDishes.filter(d => (favorites || []).includes(d.id));
+  const favItems = useMemo(() => {
+    return (menuItems || []).filter(d => (favorites || []).includes(d.id));
+  }, [menuItems, favorites]);
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 max-w-xl mx-auto pb-28">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-bold text-lg text-slate-900 dark:text-white">Your Favorites ❤️</h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400">All your saved craved dishes in one place</p>
+          <h2 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+            <span>Your Favorites</span>
+            <span className="text-rose-500">❤️</span>
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">All your bookmarked cravings in one place</p>
         </div>
-        <span className="text-xs font-bold text-[#EA4C2A] bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-full">
+        <span className="text-xs font-bold text-[#EA4C2A] bg-orange-500/10 px-2.5 py-1 rounded-full">
           {favItems.length} saved
         </span>
       </div>
 
       {favItems.length === 0 ? (
-        <div className="py-14 px-4 text-center rounded-3xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
-          <div className="w-14 h-14 rounded-full bg-red-50 dark:bg-red-950/50 text-[#EA4C2A] flex items-center justify-center mx-auto mb-3 text-2xl">
+        <div className="py-14 px-4 text-center rounded-3xl bg-gray-50 dark:bg-[#161822] border border-gray-100 dark:border-white/5">
+          <div className="w-14 h-14 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto mb-3 text-2xl">
             🤍
           </div>
           <h3 className="font-bold text-sm text-slate-900 dark:text-white mb-1">No favorites saved yet</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs mx-auto mb-4">
-            Tap the heart icon on any Pasta Bowl, Parfait, Shawarma or Jollof to bookmark it!
+            Tap the heart icon on any Burger, Jollof, Shawarma, Pasta or Parfait to save it here!
           </p>
           <button
             onClick={onExplore}
-            className="bg-[#EA4C2A] hover:bg-[#D43D1D] text-white px-5 py-2 rounded-full text-xs font-bold shadow-md cursor-pointer"
+            className="bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md cursor-pointer transition-all"
           >
-            Explore Today's Picks
+            Explore Today's Menu
           </button>
         </div>
       ) : (
         <div className="space-y-3">
-          {favItems.map(item => (
-            <div
-              key={item.id}
-              onClick={() => onSelectItem(item)}
-              className="bg-white dark:bg-[#161822] rounded-3xl p-3 border border-slate-200/90 dark:border-white/10 flex gap-3.5 items-center justify-between cursor-pointer"
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <img onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }}                   src={item.img}
-                  alt={item.name}
-                  className="w-16 h-16 rounded-2xl object-cover shrink-0"
-                  loading="lazy"
-                  decoding="async"
-                />
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                    {item.name}
-                  </h4>
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">
-                    {item.subtitle}
-                  </p>
-                  <div className="font-bold text-xs text-[#EA4C2A] mt-1">
-                    {fmt(item.price)}
+          {favItems.map(item => {
+            const rawImage = item?.image_url || item?.image || item?.img;
+            const itemImage = (rawImage && typeof rawImage === 'string' && rawImage.trim().length > 0)
+              ? rawImage.trim()
+              : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
+            const itemQty = cartQtyMap[String(item.id)] || (item.name ? cartQtyMap[item.name.trim().toLowerCase()] : 0) || 0;
+
+            return (
+              <div
+                key={item.id}
+                onClick={() => onSelectItem(item)}
+                className="bg-white dark:bg-[#161822] rounded-2xl p-3 border border-slate-200/90 dark:border-white/10 flex gap-3.5 items-center justify-between cursor-pointer select-none transition-all active:scale-[0.99] shadow-xs"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <img
+                    src={itemImage}
+                    alt={item.name}
+                    className="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100 dark:bg-slate-800"
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
+                    }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                      {item.name}
+                    </h4>
+                    <p className="text-[10.5px] text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">
+                      {item.description || item.category || 'FoodMaxx Specialty'}
+                    </p>
+                    <div className="font-black text-xs sm:text-sm text-[#EA4C2A] mt-1 tracking-tight">
+                      {fmt(item.price)}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <ProductQuantityStepper item={item} onQuickAdd={onQuickAdd} isDark={isDark} size="sm" />
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleFavorite(item.id);
-                  }}
-                  className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/40 text-red-500 flex items-center justify-center active:scale-90 cursor-pointer"
-                  title="Remove from favorites"
-                >
-                  <Heart size={14} className="fill-red-500 text-red-500" />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <ProductQuantityStepper item={item} inCartQty={itemQty} onQuickAdd={onQuickAdd} isDark={isDark} size="sm" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFavorite(item.id);
+                    }}
+                    className="w-8 h-8 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+                    title="Remove from favorites"
+                  >
+                    <Heart size={14} className="fill-red-500 text-red-500" />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -3760,32 +3913,6 @@ function OrdersTab({ orders, onOpenTracking, onReview, onExplore, onBack, onRefr
           ))}
         </div>
       )}
-
-      {/* Subtle Service Apology Voucher Reminder (Comforting & Non-Distracting) */}
-      <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 text-xs transition-colors ${
-        isDark ? 'bg-white/[0.03] border-white/8 text-slate-300' : 'bg-slate-50 border-slate-200/80 text-slate-600'
-      }`}>
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-xl bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
-            <HeartHandshake size={14} />
-          </div>
-          <span className="truncate">
-            Delays on your order? Use apology code <strong className="font-mono text-rose-500 font-bold">SORRY500</strong> for ₦500 off
-          </span>
-        </div>
-        <button
-          onClick={() => {
-            try {
-              if (navigator?.clipboard?.writeText) navigator.clipboard.writeText('SORRY500');
-              localStorage.setItem('fmx_active_promo', 'SORRY500');
-              if (typeof toast === 'function') toast('Apology code "SORRY500" copied! It will auto-apply at checkout. 🎁', 'success');
-            } catch {}
-          }}
-          className="text-rose-500 font-bold text-xs hover:underline shrink-0 cursor-pointer"
-        >
-          Copy
-        </button>
-      </div>
     </div>
   );
 }
@@ -3871,13 +3998,20 @@ const CleanOrderCard = React.memo(function CleanOrderCard({ order, onTrack, onRe
           </span>
           <div className="flex items-center gap-2">
             {isDelivered && (
-              <button
-                onClick={onReview}
-                className="text-[11px] font-bold text-amber-500 hover:text-amber-400 flex items-center gap-1 cursor-pointer py-1 px-2 rounded-lg hover:bg-amber-500/10 transition-colors"
-              >
-                <Star size={12} className="fill-amber-500" />
-                <span>Rate</span>
-              </button>
+              order.reviewed ? (
+                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 py-1 px-2 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg">
+                  <Check size={12} strokeWidth={2.5} />
+                  <span>Reviewed</span>
+                </span>
+              ) : (
+                <button
+                  onClick={onReview}
+                  className="text-[11px] font-bold text-amber-500 hover:text-amber-400 flex items-center gap-1 cursor-pointer py-1 px-2 rounded-lg hover:bg-amber-500/10 transition-colors"
+                >
+                  <Star size={12} className="fill-amber-500" />
+                  <span>Rate</span>
+                </button>
+              )
             )}
             <button
               onClick={onTrack}
@@ -3915,7 +4049,37 @@ function ProfileTab({
   toast,
   setActiveTab
 }) {
+  const { updateUser } = useAuth();
   const [vouchersOpen, setVouchersOpen] = useState(false);
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+
+  // Live Notification state
+  const [notifState, setNotifState] = useState(() => getNotificationPermission());
+  useEffect(() => {
+    const handlePermChange = (e) => setNotifState(e.detail || getNotificationPermission());
+    window.addEventListener('fmx_notification_permission_changed', handlePermChange);
+    return () => window.removeEventListener('fmx_notification_permission_changed', handlePermChange);
+  }, []);
+
+  const handleToggleNotification = async () => {
+    if (notifState === 'granted') {
+      try {
+        await dispatchWebNotification('🔔 FoodMaxx Notification Test', {
+          body: 'Your live order alerts are working smoothly! 🚀',
+          tag: 'fmx_test_notif'
+        });
+        if (typeof toast === 'function') toast('Test alert dispatched! 🔔', 'success');
+      } catch {}
+    } else {
+      const res = await requestNotificationPermission();
+      setNotifState(res);
+      if (res === 'granted' && typeof toast === 'function') {
+        toast('Push notifications enabled! 🔔', 'success');
+      } else if (res === 'denied' && typeof toast === 'function') {
+        toast('Notifications are blocked in browser settings. Please allow FoodMaxx in site permissions.', 'warning');
+      }
+    }
+  };
 
   // Check ₦1,000 giveaway status
   const isGiveawayClaimed = Boolean(
@@ -3935,10 +4099,9 @@ function ProfileTab({
   const walletBalance = Number(wallet?.balance) || 0;
   const rawName = (user?.full_name || user?.name || '').trim();
   const displayName = rawName || (user?.phone ? `Customer ${user.phone}` : 'FoodMaxx Member');
-  const displayEmail = user?.email || '';
   const displayPhone = user?.phone || '';
 
-  // Builtin vouchers list
+  // Builtin vouchers list (clean, positive perks)
   const VOUCHERS = [
     {
       code: 'WELCOME1000',
@@ -3959,31 +4122,23 @@ function ProfileTab({
     {
       code: 'FREEDEL',
       title: 'Zero Delivery Fee',
-      desc: '100% Free delivery straight to your doorstep.',
+      desc: '100% Free delivery straight to your doorstep in Ibadan.',
       badge: 'FREE DELIVERY',
       min: 'Min order ₦1,500'
     },
     {
       code: 'FREEFRIES',
       title: 'Crispy French Fries Perk',
-      desc: 'Complimentary delicious fries added with your meal.',
+      desc: 'Complimentary golden fries added with your meal.',
       badge: 'FREE ITEM',
       min: 'Min order ₦1,000'
     },
     {
       code: 'FREEDRINK',
       title: 'Chilled Refreshing Drink',
-      desc: 'Complimentary cold beverage with your order.',
+      desc: 'Complimentary cold beverage with your chow.',
       badge: 'FREE DRINK',
       min: 'Min order ₦1,000'
-    },
-    {
-      code: 'SORRY500',
-      title: 'Service Delay Apology Voucher',
-      desc: '₦500 goodwill compensation for kitchen or rider delays.',
-      badge: '₦500 OFF',
-      min: 'Min order ₦1,000',
-      isApology: true
     }
   ];
 
@@ -4001,55 +4156,120 @@ function ProfileTab({
     }
   };
 
+  // Avatar Selection Handler with live persistence
+  const handleSaveAvatar = async (newUrl) => {
+    try {
+      if (updateUser) {
+        updateUser({ avatar_url: newUrl });
+      }
+      if (user?.id) {
+        api.updateUser(user.id, { avatar_url: newUrl }).catch(() => {});
+      }
+      localStorage.setItem('fmx_user_avatar', newUrl);
+      if (typeof toast === 'function') {
+        toast('Profile avatar updated! 🌟', 'success');
+      }
+    } catch {}
+  };
+
+  const currentAvatarUrl = user?.avatar_url || localStorage.getItem('fmx_user_avatar') || getHappyAvatar(displayName);
+
   return (
     <div className="p-4 sm:p-5 max-w-xl mx-auto w-full space-y-4 pb-28">
-      {/* 1. User Header / Profile Summary */}
-      <div className={`p-4 sm:p-5 rounded-2xl border transition-all ${
-        isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-xs'
+      {/* 1. CAPTIVATING PROFILE HERO CARD */}
+      <div className={`p-5 rounded-3xl border transition-all ${
+        isDark ? 'bg-[#181B22] border-white/10 shadow-lg' : 'bg-white border-slate-100 shadow-sm'
       }`}>
         {user ? (
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="relative shrink-0">
-                <img
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = getHappyAvatar(displayName);
-                  }}
-                  src={user?.avatar_url || getHappyAvatar(displayName)}
-                  className="w-13 h-13 rounded-2xl object-cover shadow-xs border border-black/10 dark:border-white/10"
-                  alt={displayName}
-                />
-                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#181B22]" />
+          <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left min-w-0">
+              {/* Interactive Avatar with Glowing Gradient Aura */}
+              <div 
+                onClick={() => setAvatarModalOpen(true)}
+                className="relative group cursor-pointer"
+                title="Tap to customize avatar"
+              >
+                <div className="absolute -inset-1 rounded-[30px] bg-gradient-to-tr from-[#EA4C2A] via-amber-500 to-[#EA4C2A] opacity-30 group-hover:opacity-75 blur-sm transition-opacity" />
+                <div className="relative w-18 h-18 sm:w-20 sm:h-20 rounded-[26px] overflow-hidden bg-white dark:bg-[#1E222D] border-2 border-white dark:border-white/20 shadow-md">
+                  <img
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = getHappyAvatar(displayName);
+                    }}
+                    src={currentAvatarUrl}
+                    className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
+                    alt={displayName}
+                  />
+                </div>
+
+                {/* Floating Edit Camera Badge */}
+                <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white flex items-center justify-center shadow-md border-2 border-white dark:border-[#181B22] transition-transform">
+                  <Camera size={13} className="stroke-[2.5]" />
+                </div>
               </div>
+
+              {/* User Identity Details */}
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-base text-slate-900 dark:text-white leading-tight truncate">
+                <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                  <h3 className="font-black text-lg text-slate-900 dark:text-white leading-tight truncate">
                     {displayName}
                   </h3>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
-                    Active
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    Foodie Member
                   </span>
                 </div>
-                {displayEmail && <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{displayEmail}</p>}
-                {displayPhone && <p className="text-[11px] font-mono text-gray-400 dark:text-gray-500 mt-0.5">{displayPhone}</p>}
+                {displayPhone && (
+                  <p className="text-xs font-mono font-medium text-slate-500 dark:text-slate-400 mt-1">
+                    {displayPhone}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setAvatarModalOpen(true)}
+                  className="mt-1.5 text-[11px] font-bold text-[#EA4C2A] hover:underline flex items-center justify-center sm:justify-start gap-1 cursor-pointer"
+                >
+                  <Sparkles size={11} />
+                  <span>Customize Avatar Look</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Member Stats Pills */}
+            <div className="flex items-center gap-2 pt-2 sm:pt-0">
+              <div className={`px-3 py-2 rounded-2xl border text-center ${
+                isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
+              }`}>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Orders</div>
+                <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
+                  {orders?.length || 0}
+                </div>
+              </div>
+              <div className={`px-3 py-2 rounded-2xl border text-center ${
+                isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
+              }`}>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pass</div>
+                <div className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  {fmt(walletBalance)}
+                </div>
               </div>
             </div>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-11 h-11 rounded-2xl bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center font-bold text-lg shrink-0">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-14 h-14 rounded-2xl bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center font-bold text-2xl shrink-0">
                 👋
               </div>
               <div className="min-w-0">
-                <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">Guest Foodie</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Sign in to unlock ₦1,000 bonus & track orders</p>
+                <h3 className="font-black text-base text-slate-900 dark:text-white">Guest Foodie</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Sign in to claim ₦1,000 welcome giveaway & order perks
+                </p>
               </div>
             </div>
             <button
               onClick={onOpenOnboarding || onLogin}
-              className="px-4 py-2 rounded-xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white font-bold text-xs shadow-sm shadow-[#EA4C2A]/20 transition-all cursor-pointer shrink-0"
+              className="px-4 py-2.5 rounded-xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white font-bold text-xs shadow-md shadow-[#EA4C2A]/20 transition-all cursor-pointer shrink-0"
             >
               Sign In
             </button>
@@ -4057,12 +4277,12 @@ function ProfileTab({
         )}
       </div>
 
-      {/* 2. THE 4 CORE VALUE PILLARS (Wallet, Giveaway, Vouchers, Bonus) */}
+      {/* 2. CAPTIVATING BENTO VALUE GRID */}
       <div className="grid grid-cols-2 gap-3">
-        {/* A. WALLET */}
+        {/* A. CHOW WALLET */}
         <div
           onClick={onOpenWallet}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
+          className={`p-4 rounded-3xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
             isDark
               ? 'bg-[#181B22] border-white/10 hover:border-emerald-500/30'
               : 'bg-white border-slate-100 shadow-xs hover:border-emerald-200'
@@ -4076,11 +4296,11 @@ function ProfileTab({
               + Top Up
             </span>
           </div>
-          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Chow Wallet</div>
-          <div className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight">
+          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Chow Wallet</div>
+          <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5 tracking-tight">
             {fmt(walletBalance)}
           </div>
-          <div className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1">Available balance</div>
+          <div className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-1">1-tap checkout</div>
         </div>
 
         {/* B. GIVEAWAY */}
@@ -4092,7 +4312,7 @@ function ProfileTab({
               handleCopyVoucher('WELCOME1000');
             }
           }}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
+          className={`p-4 rounded-3xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
             isDark
               ? 'bg-[#181B22] border-white/10 hover:border-amber-500/30'
               : 'bg-white border-slate-100 shadow-xs hover:border-amber-200'
@@ -4104,25 +4324,25 @@ function ProfileTab({
             </div>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
               isGiveawayClaimed
-                ? 'bg-gray-100 dark:bg-white/10 text-gray-500'
+                ? 'bg-slate-100 dark:bg-white/10 text-slate-500'
                 : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
             }`}>
               {isGiveawayClaimed ? 'Redeemed' : 'Active'}
             </span>
           </div>
-          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">₦1,000 Giveaway</div>
-          <div className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight">
+          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">₦1,000 Giveaway</div>
+          <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5 tracking-tight">
             {isGiveawayClaimed ? 'Claimed ✓' : '₦1,000 Ready'}
           </div>
-          <div className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1 truncate">
-            {isGiveawayClaimed ? 'Used on previous order' : 'First-time customer gift'}
+          <div className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-1 truncate">
+            {isGiveawayClaimed ? 'Applied on orders' : 'Tap to copy code'}
           </div>
         </div>
 
         {/* C. VOUCHERS */}
         <div
           onClick={() => setVouchersOpen(true)}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
+          className={`p-4 rounded-3xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
             isDark
               ? 'bg-[#181B22] border-white/10 hover:border-red-500/30'
               : 'bg-white border-slate-100 shadow-xs hover:border-red-200'
@@ -4136,23 +4356,21 @@ function ProfileTab({
               View All
             </span>
           </div>
-          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Food Vouchers</div>
-          <div className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight">
-            {VOUCHERS.length} Available
+          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Food Vouchers</div>
+          <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5 tracking-tight">
+            {VOUCHERS.length} Deals
           </div>
-          <div className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1 truncate">
+          <div className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-1 truncate">
             Discounts & Free Delivery
           </div>
         </div>
 
-        {/* D. DELIVERY ADDRESSES */}
+        {/* D. DELIVERY SPOT */}
         <div
           onClick={() => {
-            if (typeof onOpenAddresses === 'function') {
-              onOpenAddresses();
-            }
+            if (typeof onOpenAddresses === 'function') onOpenAddresses();
           }}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
+          className={`p-4 rounded-3xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
             isDark
               ? 'bg-[#181B22] border-white/10 hover:border-blue-500/30'
               : 'bg-white border-slate-100 shadow-xs hover:border-blue-200'
@@ -4166,125 +4384,183 @@ function ProfileTab({
               Manage
             </span>
           </div>
-          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Delivery Address</div>
-          <div className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight truncate">
-            {user?.address ? 'Saved' : 'Add Location'}
+          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Delivery Address</div>
+          <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5 tracking-tight truncate">
+            {user?.address ? 'Saved' : 'Add Spot'}
           </div>
-          <div className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1 truncate">
-            {user?.address || 'Set default delivery spot'}
+          <div className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-1 truncate">
+            {user?.address || 'Set delivery location'}
           </div>
         </div>
       </div>
 
-      {/* 2b. GENTLE SERVICE CARE & APOLOGY VOUCHER (NON-DISTRACTING) */}
-      <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-colors ${
-        isDark ? 'bg-rose-500/10 border-rose-500/20' : 'bg-rose-50/70 border-rose-100'
+      {/* 3. REFINED ACTION MENU */}
+      <div className={`rounded-3xl border overflow-hidden ${
+        isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-xs'
       }`}>
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
-            <HeartHandshake size={16} />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-bold text-slate-900 dark:text-white">Service Apology Voucher</span>
-              <span className="text-[9.5px] font-black uppercase px-1.5 py-0.2 rounded-md bg-rose-500 text-white">
-                ₦500 OFF
-              </span>
-            </div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
-              Code <span className="font-mono font-bold text-rose-600 dark:text-rose-400">SORRY500</span> · Goodwill compensation
-            </p>
-          </div>
-        </div>
+        {/* Item: Avatar Customizer */}
         <button
-          onClick={() => handleCopyVoucher('SORRY500')}
-          className="px-3 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-bold text-xs shrink-0 cursor-pointer shadow-xs transition-all"
+          onClick={() => setAvatarModalOpen(true)}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t first:border-t-0 ${
+            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
+          }`}
         >
-          Apply
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+            isDark ? 'bg-white/5' : 'bg-slate-100'
+          } text-[#EA4C2A] shrink-0`}>
+            <Sparkles size={16} className="stroke-[2.2]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">Avatar Studio</span>
+            <span className="text-[10.5px] text-slate-400 block truncate">Choose 3D character, foodie badge or photo</span>
+          </div>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-[#EA4C2A]">
+            Customize
+          </span>
+          <ChevronRight size={14} className="text-slate-400 shrink-0 ml-1" />
+        </button>
+
+        {/* Item: My Orders */}
+        <button
+          onClick={onOpenOrders}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
+            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
+          }`}
+        >
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+            isDark ? 'bg-white/5' : 'bg-slate-100'
+          } text-amber-500 shrink-0`}>
+            <Package size={16} className="stroke-[2.2]" />
+          </div>
+          <span className="font-bold text-xs flex-1 text-slate-800 dark:text-slate-200">My Orders</span>
+          {orders?.length > 0 && (
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+              isDark ? 'bg-white/10 text-slate-200' : 'bg-slate-100 text-slate-700'
+            }`}>
+              {orders.length}
+            </span>
+          )}
+          <ChevronRight size={14} className="text-slate-400 shrink-0" />
+        </button>
+
+        {/* Item: Saved Addresses */}
+        <button
+          onClick={onOpenAddresses}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
+            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
+          }`}
+        >
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+            isDark ? 'bg-white/5' : 'bg-slate-100'
+          } text-blue-500 shrink-0`}>
+            <MapPin size={16} className="stroke-[2.2]" />
+          </div>
+          <span className="font-bold text-xs flex-1 text-slate-800 dark:text-slate-200">Saved Delivery Addresses</span>
+          {savedAddressesCount > 0 && (
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+              isDark ? 'bg-white/10 text-slate-200' : 'bg-slate-100 text-slate-700'
+            }`}>
+              {savedAddressesCount} Spots
+            </span>
+          )}
+          <ChevronRight size={14} className="text-slate-400 shrink-0" />
+        </button>
+
+        {/* Item: Favorite Meals */}
+        <button
+          onClick={onOpenFavorites}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
+            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
+          }`}
+        >
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+            isDark ? 'bg-white/5' : 'bg-slate-100'
+          } text-rose-500 shrink-0`}>
+            <Heart size={16} className="stroke-[2.2]" />
+          </div>
+          <span className="font-bold text-xs flex-1 text-slate-800 dark:text-slate-200">Favorite Meals</span>
+          <ChevronRight size={14} className="text-slate-400 shrink-0" />
+        </button>
+
+        {/* Item: Live Web Notifications Toggle / Test */}
+        <button
+          onClick={handleToggleNotification}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
+            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
+          }`}
+        >
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+            isDark ? 'bg-white/5' : 'bg-slate-100'
+          } text-amber-500 shrink-0`}>
+            <Bell size={16} className="stroke-[2.2]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">Live Web Notifications</span>
+            <span className="text-[10.5px] text-slate-400 block truncate">
+              {notifState === 'granted' ? 'Tap to send test alert 🔔' : 'Tap to enable order alerts'}
+            </span>
+          </div>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+            notifState === 'granted'
+              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+              : notifState === 'denied'
+              ? 'bg-rose-500/15 text-rose-600'
+              : 'bg-amber-500/15 text-amber-600'
+          }`}>
+            {notifState === 'granted' ? 'Active ✓' : notifState === 'denied' ? 'Blocked' : 'Enable'}
+          </span>
+          <ChevronRight size={14} className="text-slate-400 shrink-0 ml-1" />
+        </button>
+
+        {/* Item: Dark/Light Mode Switcher */}
+        <button
+          onClick={toggleDark}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
+            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
+          }`}
+        >
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+            isDark ? 'bg-white/5 text-amber-400' : 'bg-slate-100 text-indigo-500'
+          } shrink-0`}>
+            {isDark ? <Sun size={16} className="stroke-[2.2]" /> : <Moon size={16} className="stroke-[2.2]" />}
+          </div>
+          <span className="font-bold text-xs flex-1 text-slate-800 dark:text-slate-200">
+            {isDark ? 'Dark Theme (Tap for Light)' : 'Light Theme (Tap for Dark)'}
+          </span>
+          <div className={`w-9 h-5 rounded-full relative p-0.5 transition-colors ${
+            isDark ? 'bg-indigo-600' : 'bg-slate-300'
+          }`}>
+            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+              isDark ? 'translate-x-4' : 'translate-x-0'
+            }`} />
+          </div>
+        </button>
+
+        {/* Item: Help & Live Support */}
+        <button
+          onClick={onOpenSupport}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
+            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
+          }`}
+        >
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+            isDark ? 'bg-white/5' : 'bg-slate-100'
+          } text-emerald-500 shrink-0`}>
+            <MessageSquare size={16} className="stroke-[2.2]" />
+          </div>
+          <span className="font-bold text-xs flex-1 text-slate-800 dark:text-slate-200">Help & Live Support</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            24/7
+          </span>
+          <ChevronRight size={14} className="text-slate-400 shrink-0 ml-1" />
         </button>
       </div>
 
-      {/* 3. CLEAN & SIMPLE ACTION MENU */}
-      <div className={`rounded-2xl border overflow-hidden ${
-        isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-xs'
-      }`}>
-        {[
-          {
-            icon: Package,
-            label: 'My Orders',
-            badge: orders?.length ? `${orders.length}` : null,
-            onClick: onOpenOrders,
-            color: 'text-amber-500'
-          },
-          {
-            icon: MapPin,
-            label: 'Saved Delivery Addresses',
-            badge: savedAddressesCount ? `${savedAddressesCount} Spots` : null,
-            onClick: onOpenAddresses,
-            color: 'text-blue-500'
-          },
-          {
-            icon: Heart,
-            label: 'Favorite Meals',
-            onClick: onOpenFavorites,
-            color: 'text-rose-500'
-          },
-          {
-            icon: MessageSquare,
-            label: 'Help & Live Support',
-            onClick: onOpenSupport,
-            color: 'text-emerald-500'
-          },
-          {
-            icon: isDark ? Sun : Moon,
-            label: isDark ? 'Dark Theme (Tap for Light)' : 'Light Theme (Tap for Dark)',
-            isToggle: true,
-            onClick: toggleDark,
-            color: isDark ? 'text-amber-400' : 'text-indigo-500'
-          }
-        ].map((item, i) => (
-          <button
-            key={i}
-            onClick={item.onClick}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t first:border-t-0 ${
-              isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-            }`}
-          >
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-              isDark ? 'bg-white/5' : 'bg-slate-100'
-            } ${item.color} shrink-0`}>
-              <item.icon size={16} className="stroke-[2.2]" />
-            </div>
-            <span className="font-semibold text-xs flex-1 text-slate-800 dark:text-slate-200">{item.label}</span>
-            {item.isToggle ? (
-              <div className={`w-9 h-5 rounded-full relative p-0.5 transition-colors ${
-                isDark ? 'bg-indigo-600' : 'bg-slate-300'
-              }`}>
-                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                  isDark ? 'translate-x-4' : 'translate-x-0'
-                }`} />
-              </div>
-            ) : (
-              <>
-                {item.badge && (
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                    isDark ? 'bg-white/10 text-gray-300' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {item.badge}
-                  </span>
-                )}
-                <ChevronRight size={14} className="text-gray-400 shrink-0" />
-              </>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* 4. SIGN OUT BUTTON (If logged in) */}
+      {/* 4. SIGN OUT BUTTON */}
       {user && (
         <button
           onClick={onLogout}
-          className="w-full py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 active:scale-[0.98] transition-all cursor-pointer"
+          className="w-full py-3.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 active:scale-[0.98] transition-all cursor-pointer"
         >
           <LogOut size={15} />
           <span>Sign Out</span>
@@ -4293,10 +4569,20 @@ function ProfileTab({
 
       {/* App Version Info */}
       <div className="text-center pt-2">
-        <p className="text-[10px] text-gray-400 font-medium">FoodMaxx Technologies · v2.4.0</p>
+        <p className="text-[10px] text-slate-400 font-semibold tracking-wide">FoodMaxx Technologies · Ibadan</p>
       </div>
 
-      {/* 5. INTERACTIVE VOUCHERS MODAL */}
+      {/* 5. AVATAR PICKER STUDIO MODAL */}
+      <AvatarPickerModal
+        open={avatarModalOpen}
+        onClose={() => setAvatarModalOpen(false)}
+        currentAvatar={currentAvatarUrl}
+        userName={displayName}
+        onSelectAvatar={handleSaveAvatar}
+        isDark={isDark}
+      />
+
+      {/* 6. INTERACTIVE VOUCHERS MODAL */}
       <AnimatePresence>
         {vouchersOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -6255,12 +6541,13 @@ function getItemIngredients(item) {
   ];
 }
 
-function FoodDetailModal({ restaurant, item, onClose }) {
+function FoodDetailModal({ restaurant, item, onClose, isFavorite: initialFavorite = false, onToggleFavorite }) {
   const { addItem } = useCart();
   const { isDark } = useTheme();
   const toast = useToast();
   const [qty, setQty] = useState(1);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [localFavorite, setLocalFavorite] = useState(initialFavorite);
+  const isFavorite = typeof onToggleFavorite === 'function' ? initialFavorite : localFavorite;
   const [instructions, setInstructions] = useState('');
 
   const optionData = getItemSizeAndExtras(item);
@@ -6449,8 +6736,12 @@ function FoodDetailModal({ restaurant, item, onClose }) {
                   type="button"
                   onClick={() => {
                     triggerHaptic('medium');
-                    setIsFavorite(f => !f);
-                    toast(isFavorite ? 'Removed from favourites' : 'Saved to favourites ❤️', 'info');
+                    if (typeof onToggleFavorite === 'function') {
+                      onToggleFavorite();
+                    } else {
+                      setLocalFavorite(f => !f);
+                    }
+                    toast(!isFavorite ? 'Saved to favourites ❤️' : 'Removed from favourites', 'info');
                   }}
                   className="w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-lg"
                   title="Favorite"
@@ -6810,7 +7101,17 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
     }
   });
 
-  // 2. Delay Apology Discount (SORRY500) state in Cart
+  // Check if customer actually has an active apology voucher assigned
+  const hasApologyVoucher = (() => {
+    try {
+      return localStorage.getItem('fmx_active_promo') === 'SORRY500' ||
+             localStorage.getItem('fmx_has_apology') === 'true';
+    } catch {
+      return false;
+    }
+  })();
+
+  // 2. Delay Apology Discount (SORRY500) state in Cart - only active if assigned
   const [applyApologyDiscount, setApplyApologyDiscount] = useState(() => {
     try {
       return localStorage.getItem('fmx_active_promo') === 'SORRY500';
@@ -7475,55 +7776,57 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
                     </div>
                   </div>
 
-                  {/* 2. DELAY APOLOGY DISCOUNT */}
-                  <div className={`p-4 rounded-2xl border transition-all ${
-                    applyApologyDiscount
-                      ? isDark
-                        ? 'bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-red-500/15 border-rose-500/35 shadow-md'
-                        : 'bg-gradient-to-r from-rose-50/90 via-pink-50/80 to-rose-50/90 border-rose-300 shadow-sm'
-                      : isDark
-                      ? 'bg-[#181B22] border-white/10'
-                      : 'bg-white border-slate-200 shadow-xs'
-                  }`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-2xl bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
-                          <HeartHandshake size={22} className="stroke-[2.2]" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                              Delivery Delay Apology
-                            </h4>
-                            <span className={`text-[9.5px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                              applyApologyDiscount
-                                ? 'bg-rose-500 text-white'
-                                : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
-                            }`}>
-                              {applyApologyDiscount ? '−₦500 Applied' : 'Code: SORRY500'}
-                            </span>
+                  {/* 2. DELAY APOLOGY DISCOUNT (Only if customer genuinely has an apology voucher) */}
+                  {hasApologyVoucher && (
+                    <div className={`p-4 rounded-2xl border transition-all ${
+                      applyApologyDiscount
+                        ? isDark
+                          ? 'bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-red-500/15 border-rose-500/35 shadow-md'
+                          : 'bg-gradient-to-r from-rose-50/90 via-pink-50/80 to-rose-50/90 border-rose-300 shadow-sm'
+                        : isDark
+                        ? 'bg-[#181B22] border-white/10'
+                        : 'bg-white border-slate-200 shadow-xs'
+                    }`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-2xl bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
+                            <HeartHandshake size={22} className="stroke-[2.2]" />
                           </div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                            Experienced an unexpected kitchen or rider delay? Use this goodwill voucher for ₦500 off.
-                          </p>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                                Delivery Delay Apology
+                              </h4>
+                              <span className={`text-[9.5px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                applyApologyDiscount
+                                  ? 'bg-rose-500 text-white'
+                                  : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                              }`}>
+                                {applyApologyDiscount ? '−₦500 Applied' : 'Code: SORRY500'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                              Experienced an unexpected kitchen or rider delay? Use this goodwill voucher for ₦500 off.
+                            </p>
+                          </div>
                         </div>
-                      </div>
 
-                      <button
-                        type="button"
-                        onClick={handleToggleApology}
-                        className={`px-3.5 py-2 rounded-xl font-bold text-xs shrink-0 cursor-pointer transition-all active:scale-95 shadow-xs ${
-                          applyApologyDiscount
-                            ? 'bg-rose-500 hover:bg-rose-600 text-white'
-                            : isDark
-                            ? 'bg-white/10 hover:bg-white/15 text-slate-200 border border-white/15'
-                            : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200'
-                        }`}
-                      >
-                        {applyApologyDiscount ? 'Applied ✓' : 'Apply'}
-                      </button>
+                        <button
+                          type="button"
+                          onClick={handleToggleApology}
+                          className={`px-3.5 py-2 rounded-xl font-bold text-xs shrink-0 cursor-pointer transition-all active:scale-95 shadow-xs ${
+                            applyApologyDiscount
+                              ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                              : isDark
+                              ? 'bg-white/10 hover:bg-white/15 text-slate-200 border border-white/15'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200'
+                          }`}
+                        >
+                          {applyApologyDiscount ? 'Applied ✓' : 'Apply'}
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Bottom CTA to close */}
@@ -7881,11 +8184,20 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
   // Available vouchers slide-up pop-up state
   const [voucherSheetOpen, setVoucherSheetOpen] = useState(false);
 
+  const hasApologyVoucher = (() => {
+    try {
+      return localStorage.getItem('fmx_active_promo') === 'SORRY500' ||
+             localStorage.getItem('fmx_has_apology') === 'true';
+    } catch {
+      return false;
+    }
+  })();
+
   const AVAILABLE_VOUCHERS = [
     { code: 'WELCOME1000', title: '₦1,000 Welcome Discount', desc: 'Flat ₦1,000 off for first-time customers' },
     { code: 'FOODMAXX10', title: '10% Off Entire Order', desc: 'Save 10% on fresh delicious dishes' },
     { code: 'FREEDEL', title: 'Free Delivery Ibadan', desc: 'Free doorstep delivery across all zones' },
-    { code: 'SORRY500', title: '₦500 Delay Apology Voucher', desc: 'Goodwill compensation voucher' },
+    ...(hasApologyVoucher ? [{ code: 'SORRY500', title: '₦500 Delay Apology Voucher', desc: 'Goodwill compensation voucher' }] : []),
     { code: 'FREEFRIES', title: 'Free Golden Crispy Fries', desc: 'Complimentary side of fries on orders over ₦4,000' },
     { code: 'FREEDRINK', title: 'Free Chilled Soft Drink', desc: 'Complimentary drink on orders over ₦5,000' }
   ];
@@ -7907,16 +8219,6 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
   const [paystackModalOpen, setPaystackModalOpen] = useState(false);
   const [paystackModalData, setPaystackModalData] = useState(null);
   const pendingOrderDataRef = useRef(null);
-
-  // Group order slide-up sheet state
-  const [groupOrderOpen, setGroupOrderOpen] = useState(() => {
-    try {
-      const p = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-      return Boolean(p?.get('group'));
-    } catch {
-      return false;
-    }
-  });
 
   // Cart items expand/collapse state
   const [isItemsOpen, setIsItemsOpen] = useState(true);
@@ -8251,7 +8553,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
   }
 
   function handlePaystackCheckout(orderData, activeUser) {
-    const activeKey = (paystackKey || getStoredPaystackConfig().publicKey || 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a').trim();
+    const activeKey = (paystackKey || getStoredPaystackConfig().publicKey || 'pk_test_0d51ae7f44721724cc8375bb68e04b306ef70928').trim();
     const txRef = `FMX_PSTK_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
     const effectiveEmail = activeUser?.email || orderData.customer_email || 'customer@foodmaxx.ng';
     const effectiveName = activeUser?.full_name || orderData.customer_name || 'FoodMaxx Customer';
@@ -8302,6 +8604,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
   }
 
   async function placeOrder() {
+    if (loading) return; // Prevent duplicate order submission from rapid double taps
     if (cart.items.length === 0) { toast('Cart is empty', 'error'); return; }
 
     const cleanDeliveryAddress = deliveryAddress.trim();
@@ -8518,7 +8821,8 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
               if (typeof onOpenGroupOrder === 'function') {
                 onOpenGroupOrder();
               } else {
-                setGroupOrderOpen(true);
+                onClose?.();
+                window.dispatchEvent(new CustomEvent('fmx_open_group_order'));
               }
             }}
             className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-[0.99] select-none ${
@@ -9208,18 +9512,19 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
 // ============================================================
 function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) {
   const [copiedRef, setCopiedRef] = useState(false);
-  const [showSummary, setShowSummary] = useState(true);
+  const [copiedPin, setCopiedPin] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
     playNativeSound('success');
     triggerHaptic('success');
     confetti({
-      particleCount: 35,
-      spread: 55,
-      ticks: 100,
+      particleCount: 45,
+      spread: 60,
+      ticks: 120,
       disableForReducedMotion: true,
-      origin: { y: 0.6 },
+      origin: { y: 0.55 },
       colors: ['#EA4C2A', '#10B981', '#F59E0B']
     });
   }, []);
@@ -9230,7 +9535,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
   const deliveryPin = order.delivery_otp || order.pin || '';
   const totalAmount = order.total || order.total_amount || 0;
 
-  // Resolve full delivery address safely (strictly user-entered)
+  // Resolve full delivery address safely
   const fullAddress = order.delivery_address || order.address || order.delivery_zone || 'Delivery location specified at checkout';
   const landmark = order.delivery_landmark || order.landmark || '';
 
@@ -9247,104 +9552,176 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
   const handleCopyRef = () => {
     navigator.clipboard?.writeText(orderRef);
     setCopiedRef(true);
-    toast('Order reference copied! 📋', 'success');
+    if (typeof toast === 'function') toast('Order reference copied! 📋', 'success');
     setTimeout(() => setCopiedRef(false), 2000);
   };
+
+  const handleCopyPin = () => {
+    if (!deliveryPin) return;
+    navigator.clipboard?.writeText(deliveryPin);
+    setCopiedPin(true);
+    if (typeof toast === 'function') toast('Delivery PIN copied! 🛵', 'success');
+    setTimeout(() => setCopiedPin(false), 2000);
+  };
+
+  // Formatted spaced PIN e.g. "4 · 8 · 2 · 1"
+  const formattedPin = deliveryPin ? deliveryPin.split('').join('  ·  ') : '----';
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4"
+      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-md p-0 sm:p-4"
     >
       <motion.div
-        initial={{ scale: 0.92, y: 30, opacity: 0 }}
+        initial={{ scale: 0.93, y: 35, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
-        exit={{ scale: 0.94, y: 20, opacity: 0 }}
-        transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+        exit={{ scale: 0.95, y: 25, opacity: 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 320 }}
         className={`w-full max-w-sm sm:max-w-md ${
-          isDark ? 'bg-[#151821] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200'
-        } rounded-t-[32px] sm:rounded-[32px] border shadow-2xl p-5 sm:p-6 relative max-h-[92vh] overflow-y-auto overscroll-contain momentum-scroll flex flex-col items-center text-center`}
+          isDark ? 'bg-[#141722] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200'
+        } rounded-t-[36px] sm:rounded-[36px] border shadow-2xl p-5 sm:p-6 relative max-h-[92vh] overflow-y-auto overscroll-contain momentum-scroll flex flex-col items-center text-center`}
       >
-        {/* Soft Ambient Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-24 bg-emerald-500/15 blur-2xl pointer-events-none rounded-full" />
+        {/* Mobile Pull Indicator */}
+        <div className="w-12 h-1.5 rounded-full bg-slate-200 dark:bg-white/15 mx-auto mb-3 sm:hidden" />
 
-        {/* Clean Success Circle */}
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', damping: 16, stiffness: 260 }}
-          className="w-16 h-16 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center mb-3 border border-emerald-500/30 shadow-xs shrink-0"
-        >
-          <Check size={32} strokeWidth={3.5} />
-        </motion.div>
+        {/* Ambient Top Glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-56 h-28 bg-emerald-500/15 blur-3xl pointer-events-none rounded-full" />
 
-        <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-          Payment Confirmed!
+        {/* Captivating Multi-Layered Success Badge */}
+        <div className="relative mb-3 flex items-center justify-center">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', damping: 15, stiffness: 260 }}
+            className="w-20 h-20 rounded-full bg-emerald-500/15 border-2 border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-500/20"
+          >
+            <div className="w-13 h-13 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md">
+              <Check size={28} strokeWidth={3.5} />
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Live Pill Badge */}
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 mb-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[10px] font-black uppercase tracking-wider">Payment Confirmed</span>
+        </div>
+
+        <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+          Order in the Kitchen!
         </h2>
-        <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
-          Your order has been placed with <span className="font-bold text-slate-800 dark:text-slate-200">FoodMaxx Kitchen</span> and is being prepared fresh.
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs leading-relaxed">
+          Your order has been confirmed and our chef has begun cooking your fresh meal.
         </p>
 
-        {/* Primary Order Info Card */}
-        <div className={`w-full mt-4 p-4 rounded-2xl border text-left space-y-3 ${
+        {/* Live 3-Stage Kitchen Stepper */}
+        <div className={`w-full mt-4 p-3 rounded-2xl border text-left ${
           isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
         }`}>
-          {/* Order Ref & Amount */}
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Order Reference</div>
-              <button
-                type="button"
-                onClick={handleCopyRef}
-                className="font-mono font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1 hover:text-[#EA4C2A] cursor-pointer mt-0.5"
-              >
-                <span>#{orderRef}</span>
-                <Copy size={11} className={copiedRef ? 'text-emerald-500' : 'text-slate-400'} />
-              </button>
-            </div>
-
-            <div className="text-right">
-              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Amount Paid</div>
-              <div className="font-black text-sm text-[#EA4C2A] mt-0.5">{fmt(totalAmount)}</div>
-            </div>
-          </div>
-
-          {/* Delivery PIN Banner */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25">
-            <div className="flex items-center gap-2">
-              <span className="text-base">🛵</span>
-              <div>
-                <div className="text-[11px] font-bold text-amber-700 dark:text-amber-400 leading-none">
-                  Delivery PIN: {deliveryPin}
-                </div>
-                <div className="text-[9.5px] text-slate-400 mt-0.5">Read to courier upon arrival</div>
+          <div className="grid grid-cols-3 gap-2 text-center relative">
+            <div className="flex flex-col items-center">
+              <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                ✓
               </div>
+              <span className="text-[10.5px] font-bold text-slate-800 dark:text-slate-200 mt-1">Confirmed</span>
+              <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold">Paid</span>
             </div>
-            <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-              Paid ✓
-            </span>
+
+            <div className="flex flex-col items-center">
+              <div className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-xs animate-pulse">
+                🔥
+              </div>
+              <span className="text-[10.5px] font-black text-amber-600 dark:text-amber-400 mt-1">Kitchen</span>
+              <span className="text-[9px] text-amber-500 font-bold">Cooking...</span>
+            </div>
+
+            <div className="flex flex-col items-center opacity-60">
+              <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-bold">
+                🛵
+              </div>
+              <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 mt-1">Courier</span>
+              <span className="text-[9px] text-slate-400">Next</span>
+            </div>
           </div>
         </div>
 
-        {/* Full Delivery Address Card */}
+        {/* HERO DELIVERY PIN CARD */}
+        {deliveryPin && (
+          <div className="w-full mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 text-left">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-base">🛵</span>
+                <span className="text-[10.5px] uppercase font-black tracking-wider text-amber-700 dark:text-amber-300">
+                  Your Delivery PIN
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyPin}
+                className="text-[10.5px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1 hover:underline cursor-pointer"
+              >
+                <span>{copiedPin ? 'Copied ✓' : 'Copy'}</span>
+                <Copy size={11} />
+              </button>
+            </div>
+
+            <div className="text-center py-2.5">
+              <div className="font-mono font-black text-xl sm:text-2xl tracking-widest text-slate-900 dark:text-white select-all">
+                {formattedPin}
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                Read or show this 4-digit PIN to your rider upon arrival
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ORDER DETAILS OVERVIEW (Ref & Total Paid) */}
+        <div className={`w-full mt-3 p-3.5 rounded-2xl border text-left grid grid-cols-2 gap-3 ${
+          isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
+        }`}>
+          <div>
+            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Order Reference</div>
+            <button
+              type="button"
+              onClick={handleCopyRef}
+              className="font-mono font-black text-xs text-slate-900 dark:text-white flex items-center gap-1 hover:text-[#EA4C2A] cursor-pointer mt-1"
+            >
+              <span>#{orderRef}</span>
+              <Copy size={11} className={copiedRef ? 'text-emerald-500' : 'text-slate-400'} />
+            </button>
+          </div>
+
+          <div className="text-right">
+            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Amount Paid</div>
+            <div className="font-black text-sm text-[#EA4C2A] mt-1 flex items-center justify-end gap-1">
+              <span>{fmt(totalAmount)}</span>
+              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                Paid ✓
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* FULL DELIVERY ADDRESS CARD */}
         <div className={`w-full mt-3 p-3.5 rounded-2xl border text-left flex items-start gap-2.5 ${
           isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
         }`}>
-          <div className="w-7 h-7 rounded-xl bg-[#EA4C2A]/15 text-[#EA4C2A] flex items-center justify-center shrink-0 mt-0.5">
-            <MapPin size={14} />
+          <div className="w-8 h-8 rounded-xl bg-[#EA4C2A]/15 text-[#EA4C2A] flex items-center justify-center shrink-0 mt-0.5">
+            <MapPin size={16} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-1">
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                Delivery Address
+                Destination Address
               </span>
-              <span className="text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
                 ~20–30 mins
               </span>
             </div>
-            <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1 leading-snug break-words">
+            <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-0.5 leading-snug break-words">
               {fullAddress}
             </div>
             {landmark && (
@@ -9356,7 +9733,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
           </div>
         </div>
 
-        {/* Collapsible Simple Order Summary */}
+        {/* ORDER ITEMS RECEIPT ACCORDION */}
         {orderItems.length > 0 && (
           <div className={`w-full mt-3 rounded-2xl border overflow-hidden transition-all text-left ${
             isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
@@ -9372,7 +9749,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-bold text-slate-900 dark:text-white">
-                    Order Summary
+                    Order Receipt
                   </span>
                   <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-slate-200/60 dark:bg-white/10 text-slate-600 dark:text-slate-400">
                     {totalItemsCount} {totalItemsCount === 1 ? 'item' : 'items'}
@@ -9401,7 +9778,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
                     isDark ? 'border-white/8 bg-black/20' : 'border-slate-200/70 bg-white/70'
                   }`}>
                     {/* Items list */}
-                    <div className="max-h-64 overflow-y-auto overscroll-contain momentum-scroll space-y-2 pr-1 divide-y divide-slate-100 dark:divide-white/5 touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    <div className="max-h-60 overflow-y-auto overscroll-contain space-y-2 pr-1 divide-y divide-slate-100 dark:divide-white/5">
                       {orderItems.map((item, idx) => {
                         const itemName = item.name || item.item_name || item.product_name || 'Food Item';
                         const qty = Number(item.qty || item.quantity || 1);
@@ -9413,8 +9790,8 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
                         return (
                           <div key={idx} className="pt-2 first:pt-0 flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <div className="font-semibold text-slate-800 dark:text-slate-200 leading-snug">
-                                <span className="text-[#EA4C2A] font-bold mr-1">{qty}x</span>
+                              <div className="font-bold text-slate-800 dark:text-slate-200 leading-snug">
+                                <span className="text-[#EA4C2A] mr-1">{qty}x</span>
                                 {itemName}
                                 {size && size !== 'Regular' && (
                                   <span className="ml-1.5 text-[9.5px] font-medium px-1.5 py-0.5 rounded bg-slate-200/60 dark:bg-white/10 text-slate-500 dark:text-slate-400">
@@ -9436,7 +9813,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
                       })}
                     </div>
 
-                    {/* Simple summary breakdown */}
+                    {/* Breakdown */}
                     <div className="pt-2.5 border-t border-dashed border-slate-200 dark:border-white/10 space-y-1.5 text-[11px] text-slate-500 dark:text-slate-400">
                       {Number(order.subtotal) > 0 && (
                         <div className="flex justify-between">
@@ -9480,7 +9857,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
           </div>
         )}
 
-        {/* Action Buttons */}
+        {/* PRIMARY & SECONDARY ACTION CTAs */}
         <div className="w-full mt-4 space-y-2">
           <button
             type="button"
@@ -9488,10 +9865,10 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
               triggerHaptic('medium');
               onTrackOrder();
             }}
-            className="w-full py-3.5 px-4 rounded-2xl bg-[#EA4C2A] hover:bg-[#d83f1d] active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-lg shadow-[#EA4C2A]/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="w-full py-4 px-4 rounded-2xl bg-[#EA4C2A] hover:bg-[#d83f1d] active:scale-[0.98] text-white font-black text-xs sm:text-sm shadow-xl shadow-[#EA4C2A]/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <span>Track Live Delivery</span>
-            <ChevronRight size={15} strokeWidth={3} />
+            <ChevronRight size={16} strokeWidth={3} />
           </button>
 
           <button
@@ -10089,6 +10466,43 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
             )}
           </div>
 
+          {/* WhatsApp Order Status Notification Card */}
+          <div className={`rounded-3xl p-4 sm:p-5 border transition-all ${
+            isDark ? 'bg-[#15231B] border-emerald-500/25' : 'bg-emerald-50/70 border-emerald-200'
+          }`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20">
+                  <MessageCircle size={20} />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">
+                    WhatsApp Order Status Alerts
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-0.5">
+                    Send or share live cooking, courier tracking & OTP updates on WhatsApp.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const opened = api.openWhatsAppOrderStatus(order, order.order_status);
+                  if (!opened) {
+                    const msg = api.buildWhatsAppStatusMessage(order, order.order_status);
+                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
+                  }
+                  toast('Opening WhatsApp with live order update! 📲', 'success');
+                }}
+                className="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shrink-0 transition-transform active:scale-95 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <MessageCircle size={14} />
+                <span>Share to WhatsApp</span>
+              </button>
+            </div>
+          </div>
+
           {/* Collapsible Order Items & Receipt */}
           <div className={`rounded-3xl border overflow-hidden transition-all ${
             isDark ? 'bg-[#1C1F26] border-white/10' : 'bg-white border-slate-200 shadow-sm'
@@ -10199,7 +10613,7 @@ function WalletModal({ open, onClose, wallet, onTopUp, onRefresh, user, isDark }
 
     const paystackCfg = getStoredPaystackConfig();
     const envKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) || '';
-    const activeKey = (paystackCfg.publicKey || envKey || 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a').trim();
+    const activeKey = (paystackCfg.publicKey || envKey || 'pk_test_0d51ae7f44721724cc8375bb68e04b306ef70928').trim();
 
     const effectiveEmail = (user?.email && user.email.includes('@'))
       ? user.email.trim()
@@ -10467,7 +10881,7 @@ function ReviewModal({ order, onClose, onSubmit }) {
 // ============================================================
 // SUPPORT MODAL
 // ============================================================
-function SupportModal({ open, onClose }) {
+function SupportModal({ open, onClose, user }) {
   const [category, setCategory] = useState('');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
@@ -10479,11 +10893,19 @@ function SupportModal({ open, onClose }) {
     if (!category || !description) { toast('Please fill all fields', 'error'); return; }
     setLoading(true);
     try {
-      const res = await api.createSupportTicket({ category, subject: subject || category, description });
-      toast(res.message, 'success');
+      const res = await api.createSupportTicket({
+        category,
+        subject: subject || category,
+        description,
+        customer_id: user?.id || null,
+        customer_name: user?.name || user?.full_name || 'Customer',
+        customer_email: user?.email || '',
+        customer_phone: user?.phone || ''
+      });
+      toast(res?.message || 'Support ticket submitted successfully! Our team will contact you shortly.', 'success');
       onClose();
     } catch (e) {
-      toast(e.message, 'error');
+      toast(e?.message || 'Failed to submit ticket. Please reach out via WhatsApp.', 'error');
     } finally {
       setLoading(false);
     }

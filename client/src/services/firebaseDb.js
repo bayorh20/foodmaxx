@@ -44,6 +44,7 @@ const COLL_CATEGORIES = 'categories';
 const COLL_RIDERS = 'riders';
 const COLL_SETTINGS = 'settings';
 const COLL_SUPPORT = 'support_tickets';
+const COLL_DAILY_VISITS = 'daily_visits';
 
 export const DEFAULT_ADDONS = [];
 
@@ -982,8 +983,12 @@ export async function updateLiveHomepageSections(sections) {
 // -------------------------------------------------------------
 // LIVE WALLET & USER API
 // -------------------------------------------------------------
-export async function getLiveWallet(userId = 'usr_customer_default') {
-  const docRef = doc(db, COLL_WALLETS, userId);
+export async function getLiveWallet(userId) {
+  const cleanId = String(userId || '').trim();
+  if (!cleanId || cleanId === 'usr_customer_default') {
+    return { balance: 0, currency: 'NGN', transactions: [] };
+  }
+  const docRef = doc(db, COLL_WALLETS, cleanId);
   const snap = await getDoc(docRef);
   if (snap.exists()) {
     const data = snap.data();
@@ -991,7 +996,7 @@ export async function getLiveWallet(userId = 'usr_customer_default') {
     if ((!data.balance || data.balance === 0) && (!data.transactions || data.transactions.length === 0)) {
       const welcomeBalance = 1000;
       const initialWithBonus = {
-        user_id: userId,
+        user_id: cleanId,
         balance: welcomeBalance,
         currency: 'NGN',
         transactions: [{
@@ -1009,7 +1014,7 @@ export async function getLiveWallet(userId = 'usr_customer_default') {
     return data;
   }
   const initial = {
-    user_id: userId,
+    user_id: cleanId,
     balance: 1000,
     currency: 'NGN',
     transactions: [{
@@ -1025,9 +1030,13 @@ export async function getLiveWallet(userId = 'usr_customer_default') {
   return initial;
 }
 
-export async function topUpLiveWallet(userId = 'usr_customer_default', amount, reference) {
-  const docRef = doc(db, COLL_WALLETS, userId);
-  const wallet = await getLiveWallet(userId);
+export async function topUpLiveWallet(userId, amount, reference) {
+  const cleanId = String(userId || '').trim();
+  if (!cleanId || cleanId === 'usr_customer_default') {
+    throw new Error('Authenticated user required for wallet top-up');
+  }
+  const docRef = doc(db, COLL_WALLETS, cleanId);
+  const wallet = await getLiveWallet(cleanId);
   const newBalance = (wallet.balance || 0) + Number(amount);
   const txs = wallet.transactions || [];
   txs.unshift({
@@ -1043,8 +1052,12 @@ export async function topUpLiveWallet(userId = 'usr_customer_default', amount, r
 }
 
 export async function deductLiveWallet(userId, amount, description = 'Order Payment', reference = '') {
-  const docRef = doc(db, COLL_WALLETS, userId);
-  const wallet = await getLiveWallet(userId);
+  const cleanId = String(userId || '').trim();
+  if (!cleanId || cleanId === 'usr_customer_default') {
+    throw new Error('Authenticated user required for wallet deduction');
+  }
+  const docRef = doc(db, COLL_WALLETS, cleanId);
+  const wallet = await getLiveWallet(cleanId);
   if ((wallet.balance || 0) < Number(amount)) {
     throw new Error('Insufficient wallet balance');
   }
@@ -1317,6 +1330,49 @@ export async function updateLiveUser(userId, updates) {
   await setDoc(docRef, { ...updates, updated_at: new Date().toISOString() }, { merge: true });
   const snap = await getDoc(docRef);
   return { id: snap.id, ...snap.data() };
+}
+
+export async function deleteLiveUser(userId, phone = '', email = '') {
+  if (!userId) return false;
+  try {
+    // 1. Delete primary user document in COLL_USERS
+    const docRef = doc(db, COLL_USERS, userId);
+    await deleteDoc(docRef);
+
+    // 2. Remove legacy duplicate user profiles by normalized phone or unique email
+    const cleanPhone = (p) => p ? String(p).replace(/\D/g, '').slice(-10) : '';
+    const cleanEmail = (e) => e ? String(e).toLowerCase().trim() : '';
+
+    const cPhone = cleanPhone(phone);
+    const cEmail = cleanEmail(email);
+
+    if (cPhone || (cEmail && cEmail !== 'customer@foodmaxx.ng')) {
+      const snap = await getDocs(collection(db, COLL_USERS));
+      const deletes = [];
+      snap.forEach(d => {
+        if (d.id === userId) return;
+        const data = d.data();
+        const dPhone = cleanPhone(data.phone);
+        const dEmail = cleanEmail(data.email);
+        if ((cPhone && dPhone === cPhone) || (cEmail && cEmail !== 'customer@foodmaxx.ng' && dEmail === cEmail)) {
+          deletes.push(deleteDoc(doc(db, COLL_USERS, d.id)));
+        }
+      });
+      if (deletes.length > 0) {
+        await Promise.all(deletes);
+      }
+    }
+
+    // 3. Clean up user's wallet document if one exists
+    try {
+      await deleteDoc(doc(db, COLL_WALLETS, userId));
+    } catch {}
+
+    return true;
+  } catch (err) {
+    console.error('Failed to delete user in Firestore:', err);
+    throw err;
+  }
 }
 
 export async function addLiveAddress(userId, addressData) {
@@ -1822,5 +1878,208 @@ export async function updateLiveProductionBatchStatus(batchId, status) {
     return false;
   }
 }
+
+// -------------------------------------------------------------
+// LIVE DAILY APP VISITS & ANALYTICS TRACKING API
+// -------------------------------------------------------------
+export async function recordLiveAppVisit({ visitorId = '', userId = null, role = 'guest', path = '/' } = {}) {
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const hour = new Date().getHours();
+    const docRef = doc(db, COLL_DAILY_VISITS, todayStr);
+
+    let isNewDailyUnique = false;
+    if (typeof window !== 'undefined') {
+      const storageKey = `fmx_visit_${todayStr}`;
+      if (!localStorage.getItem(storageKey)) {
+        isNewDailyUnique = true;
+        try { localStorage.setItem(storageKey, '1'); } catch {}
+      }
+    }
+
+    const snap = await getDoc(docRef);
+    const nowIso = new Date().toISOString();
+    let current = snap.exists() ? snap.data() : {
+      date: todayStr,
+      total_visits: 0,
+      unique_visitors: 0,
+      registered_visits: 0,
+      guest_visits: 0,
+      hourly_visits: {},
+      created_at: nowIso
+    };
+
+    const hourly = current.hourly_visits || {};
+    hourly[hour] = (hourly[hour] || 0) + 1;
+
+    const payload = {
+      date: todayStr,
+      total_visits: (current.total_visits || 0) + 1,
+      unique_visitors: isNewDailyUnique ? ((current.unique_visitors || 0) + 1) : Math.max(1, current.unique_visitors || 1),
+      registered_visits: userId ? ((current.registered_visits || 0) + 1) : (current.registered_visits || 0),
+      guest_visits: !userId ? ((current.guest_visits || 0) + 1) : (current.guest_visits || 0),
+      hourly_visits: hourly,
+      last_visit_at: nowIso,
+      updated_at: nowIso
+    };
+
+    await setDoc(docRef, cleanFirestoreObject(payload), { merge: true });
+    return payload;
+  } catch (err) {
+    console.warn('recordLiveAppVisit notice:', err.message);
+    return null;
+  }
+}
+
+export function formatDailyVisitsData(docs = [], days = 14) {
+  const visitMap = new Map();
+  docs.forEach(d => {
+    const data = typeof d.data === 'function' ? d.data() : d;
+    if (data?.date) {
+      visitMap.set(data.date, data);
+    }
+  });
+
+  const dailyList = [];
+  const today = new Date();
+
+  for (let i = days - 1; i >= 0; i--) {
+    const targetDate = new Date(today);
+    targetDate.setDate(targetDate.getDate() - i);
+    const dateStr = targetDate.toISOString().slice(0, 10);
+    const dayLabel = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const dayShort = targetDate.toLocaleDateString('en-US', { weekday: 'short' });
+
+    const existing = visitMap.get(dateStr) || {
+      date: dateStr,
+      total_visits: 0,
+      unique_visitors: 0,
+      registered_visits: 0,
+      guest_visits: 0,
+      hourly_visits: {}
+    };
+
+    dailyList.push({
+      date: dateStr,
+      dayLabel,
+      dayShort,
+      total_visits: Number(existing.total_visits || 0),
+      unique_visitors: Number(existing.unique_visitors || 0),
+      registered_visits: Number(existing.registered_visits || 0),
+      guest_visits: Number(existing.guest_visits || 0),
+      hourly_visits: existing.hourly_visits || {},
+      isToday: i === 0
+    });
+  }
+
+  const todayStr = today.toISOString().slice(0, 10);
+  const yesterdayDate = new Date(today);
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+
+  const todayData = visitMap.get(todayStr) || { total_visits: 0, unique_visitors: 0 };
+  const yesterdayData = visitMap.get(yesterdayStr) || { total_visits: 0, unique_visitors: 0 };
+
+  const last7DaysTotal = dailyList.slice(-7).reduce((acc, d) => acc + d.total_visits, 0);
+  const last7DaysUnique = dailyList.slice(-7).reduce((acc, d) => acc + d.unique_visitors, 0);
+
+  // Compute peak hour today
+  const hourlyToday = todayData.hourly_visits || {};
+  let peakHour = 12;
+  let peakHourCount = 0;
+  Object.entries(hourlyToday).forEach(([h, count]) => {
+    if (Number(count) > peakHourCount) {
+      peakHourCount = Number(count);
+      peakHour = Number(h);
+    }
+  });
+
+  return {
+    dailyList,
+    todayVisits: Number(todayData.total_visits || 0),
+    todayUnique: Number(todayData.unique_visitors || 0),
+    yesterdayVisits: Number(yesterdayData.total_visits || 0),
+    last7DaysTotal,
+    last7DaysUnique,
+    peakHourStr: `${peakHour % 12 || 12}:00 ${peakHour >= 12 ? 'PM' : 'AM'}`,
+    growthRate: yesterdayData.total_visits > 0
+      ? Math.round(((todayData.total_visits - yesterdayData.total_visits) / yesterdayData.total_visits) * 100)
+      : (todayData.total_visits > 0 ? 100 : 0)
+  };
+}
+
+export async function getLiveDailyVisits(days = 14) {
+  try {
+    const snap = await getDocs(collection(db, COLL_DAILY_VISITS));
+    return formatDailyVisitsData(snap.docs, days);
+  } catch (err) {
+    console.warn('getLiveDailyVisits notice:', err.message);
+    return formatDailyVisitsData([], days);
+  }
+}
+
+export function subscribeToLiveDailyVisits(callback, days = 14) {
+  if (typeof callback !== 'function') return () => {};
+  try {
+    const q = query(collection(db, COLL_DAILY_VISITS));
+    return onSnapshot(q, (snap) => {
+      const formatted = formatDailyVisitsData(snap.docs, days);
+      callback(formatted);
+    }, (err) => console.warn('Daily visits snapshot error:', err.message));
+  } catch (err) {
+    console.warn('Error subscribing to live daily visits:', err);
+    return () => {};
+  }
+}
+
+// -------------------------------------------------------------
+// LIVE ORDER CHAT & MESSAGING
+// -------------------------------------------------------------
+export async function getLiveOrderMessages(orderId) {
+  if (!orderId) return [];
+  try {
+    const docRef = doc(db, COLL_ORDERS, orderId);
+    const snap = await getDoc(docRef);
+    if (snap.exists() && Array.isArray(snap.data().messages)) {
+      return snap.data().messages;
+    }
+  } catch (err) {
+    console.warn('getLiveOrderMessages error:', err);
+  }
+  try {
+    const stored = localStorage.getItem(`fmx_chat_${orderId}`);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function sendLiveOrderMessage(orderId, text, sender = 'customer') {
+  if (!orderId || !text) return null;
+  const newMsg = {
+    id: 'msg_' + Date.now(),
+    order_id: orderId,
+    sender,
+    text,
+    created_at: new Date().toISOString()
+  };
+  try {
+    const docRef = doc(db, COLL_ORDERS, orderId);
+    const snap = await getDoc(docRef);
+    const current = snap.exists() && Array.isArray(snap.data().messages) ? snap.data().messages : [];
+    const updated = [...current, newMsg];
+    await updateDoc(docRef, { messages: updated });
+  } catch (err) {
+    console.warn('sendLiveOrderMessage error:', err);
+  }
+  try {
+    const key = `fmx_chat_${orderId}`;
+    const stored = localStorage.getItem(key);
+    const list = stored ? JSON.parse(stored) : [];
+    localStorage.setItem(key, JSON.stringify([...list, newMsg]));
+  } catch {}
+  return newMsg;
+}
+
 
 

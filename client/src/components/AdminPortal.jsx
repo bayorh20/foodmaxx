@@ -15,7 +15,7 @@ import {
   Lock, Copy, Smartphone, Building2, Mic, ShoppingBag, ChevronDown, ChevronUp, Monitor, Key,
   FolderPlus, ArrowUp, ArrowDown, Video, FileText, Info, RotateCw, Volume2,
   Columns, LayoutList, Grid, Bike, Edit3, Radio, Palette, Camera, LayoutDashboard,
-  HeartHandshake, AlertTriangle
+  HeartHandshake, AlertTriangle, Save
 } from 'lucide-react';
 import { api, FMXWebSocket } from '../services/api';
 import { db } from '../services/firebaseDb';
@@ -1784,6 +1784,9 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
     ]
   };
 
+  const [sendWhatsApp, setSendWhatsApp] = useState(true);
+  const [sendSms, setSendSms] = useState(false);
+
   useEffect(() => {
     if (order) {
       const current = order.order_status || 'ORDER_PLACED';
@@ -1806,6 +1809,20 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
       playOrderNotificationSound();
       triggerHaptic('success');
       toast(`Order #${order.order_reference || order.id?.slice(0, 8)} updated to ${selectedStatus.replace(/_/g, ' ')}! 🚀`, 'success');
+      
+      // WhatsApp Customer Notification Dispatch
+      if (sendWhatsApp && api.openWhatsAppOrderStatus) {
+        api.openWhatsAppOrderStatus(order, selectedStatus, customMessage);
+      }
+      if (api.sendWhatsAppStatusNotification) {
+        api.sendWhatsAppStatusNotification(order, selectedStatus, customMessage);
+      }
+
+      // SMS Notification SDK Dispatch (Termii / GSM Gateway)
+      if (sendSms && api.sendOrderStatusSms) {
+        api.sendOrderStatusSms(order, selectedStatus, { notes: customMessage }).catch(() => {});
+      }
+
       try {
         window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: { id: order.id, status: selectedStatus, notes: customMessage } }));
       } catch {}
@@ -1916,6 +1933,71 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
                 "{customMessage || 'No custom message'}"
               </div>
             </div>
+          </div>
+
+          {/* WhatsApp Customer Dispatch Strip */}
+          <div className="p-3 rounded-xl bg-emerald-950/25 border border-emerald-500/25 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-base">📲</span>
+                <span className="font-bold text-emerald-400 text-xs">WhatsApp Customer Notification API</span>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sendWhatsApp}
+                  onChange={e => setSendWhatsApp(e.target.checked)}
+                  className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+                />
+                <span className="text-[11px] text-slate-300 font-semibold">Auto-send WhatsApp</span>
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const res = api.openWhatsAppOrderStatus(order, selectedStatus, customMessage);
+                if (!res) toast('No phone number on this order for WhatsApp', 'warning');
+                else toast('WhatsApp notification opened! 📲', 'success');
+              }}
+              className="py-1.5 px-3 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-emerald-500/30"
+            >
+              <MessageCircle size={14} className="text-emerald-400" />
+              <span>Preview & Send WhatsApp Message Now</span>
+            </button>
+          </div>
+
+          {/* SMS Customer Dispatch Strip (Termii / GSM Gateway / Native Device) */}
+          <div className="p-3 rounded-xl bg-blue-950/25 border border-blue-500/25 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-base">💬</span>
+                <span className="font-bold text-blue-400 text-xs">SMS Notification SDK (Termii / GSM)</span>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sendSms}
+                  onChange={e => setSendSms(e.target.checked)}
+                  className="w-4 h-4 accent-blue-500 rounded cursor-pointer"
+                />
+                <span className="text-[11px] text-slate-300 font-semibold">Auto-send SMS</span>
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (api.openNativeSms && order) {
+                  const smsText = api.buildOrderStatusSms ? api.buildOrderStatusSms(order, selectedStatus, customMessage) : customMessage;
+                  const phone = order.customer_phone || order.phone;
+                  const opened = api.openNativeSms(phone, smsText);
+                  if (opened) toast('Device SMS app launched! 💬', 'success');
+                  else toast('No phone number on this order for SMS', 'warning');
+                }
+              }}
+              className="py-1.5 px-3 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-blue-500/30"
+            >
+              <span>Preview & Launch Device SMS</span>
+            </button>
           </div>
 
           {/* Action Buttons */}
@@ -2273,6 +2355,25 @@ function AdminRiderAssignModal({ open, onClose, order, riders, onAssigned }) {
         await api.assignRider(order.id, riderPayload, 'ON_THE_WAY');
       } else {
         await api.updateOrderStatus(order.id, 'ON_THE_WAY', `Assigned to ${riderName}`, riderPayload);
+      }
+
+      // WhatsApp Customer Notification Dispatch (With Rider Details & Delivery PIN)
+      const updatedOrderWithRider = {
+        ...order,
+        rider_name: riderName,
+        rider_phone: riderPhone,
+        rider: riderPayload
+      };
+      if (api.openWhatsAppOrderStatus) {
+        api.openWhatsAppOrderStatus(updatedOrderWithRider, 'ON_THE_WAY', `Assigned courier: ${riderName}`);
+      }
+      if (api.sendWhatsAppStatusNotification) {
+        api.sendWhatsAppStatusNotification(updatedOrderWithRider, 'ON_THE_WAY', `Assigned courier: ${riderName}`);
+      }
+
+      // SMS Customer Notification Dispatch (With Rider Details & Delivery PIN)
+      if (api.sendOrderStatusSms) {
+        api.sendOrderStatusSms(updatedOrderWithRider, 'ON_THE_WAY', { notes: `Assigned courier: ${riderName}` }).catch(() => {});
       }
 
       toast(`Rider ${riderName} assigned! Order is now In Transit 🛵`, 'success');
@@ -2682,6 +2783,106 @@ const ADMIN_THEMES = {
 };
 
 // ============================================================
+// ADMIN DELETE CUSTOMER MODAL
+// ============================================================
+function AdminDeleteCustomerModal({ open, onClose, customer, onDeleted }) {
+  const toast = useToast();
+  const [loading, setLoading] = useState(false);
+
+  if (!open || !customer) return null;
+
+  const handleDelete = async () => {
+    setLoading(true);
+    try {
+      const res = await api.deleteAdminCustomer(customer.id, customer.phone, customer.email);
+      if (res && res.error) {
+        throw new Error(res.error);
+      }
+      toast(`Customer "${customer.full_name || customer.phone || 'User'}" deleted successfully!`, 'success');
+      if (onDeleted) onDeleted(customer.id);
+      onClose();
+    } catch (err) {
+      console.error('Failed to delete customer:', err);
+      toast(err.message || 'Failed to delete customer account', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={onClose}>
+      <div className="bg-[#121318] border border-[#262A36] text-white rounded-3xl w-full max-w-md shadow-2xl p-6 relative animate-scale-up" onClick={e => e.stopPropagation()}>
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="w-14 h-14 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center text-2xl mx-auto mb-4">
+          <Trash2 size={28} />
+        </div>
+
+        <h2 className="text-xl font-black text-center mb-1 text-white">Delete Customer Account</h2>
+        <p className="text-xs text-rose-300/90 text-center mb-5 font-medium">
+          Warning: This action permanently removes this customer profile and credentials from FoodMaxx.
+        </p>
+
+        <div className="bg-[#1A1C23] p-4 rounded-2xl border border-[#262A36] mb-5 space-y-2.5 text-xs">
+          <div className="flex items-center justify-between pb-2 border-b border-[#262A36]/60">
+            <span className="text-slate-400 font-medium">Customer Name</span>
+            <span className="font-bold text-white text-sm">{customer.full_name || customer.name || 'Unnamed Customer'}</span>
+          </div>
+          <div className="flex items-center justify-between pb-2 border-b border-[#262A36]/60">
+            <span className="text-slate-400 font-medium">Phone Number</span>
+            <span className="font-mono font-bold text-white">{customer.phone || 'No phone'}</span>
+          </div>
+          {customer.email && (
+            <div className="flex items-center justify-between pb-2 border-b border-[#262A36]/60">
+              <span className="text-slate-400 font-medium">Email Address</span>
+              <span className="font-mono text-slate-300 truncate max-w-[200px]">{customer.email}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400 font-medium">Account ID</span>
+            <span className="font-mono text-[11px] text-slate-400 truncate max-w-[180px]">{customer.id}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-black transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={loading}
+            className="flex-1 py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+          >
+            {loading ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Deleting...</span>
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4" />
+                <span>Confirm Delete</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // ADMIN PORTAL (FoodMaxx Single Merchant Operations Center)
 // ============================================================
 function AdminPortal() {
@@ -2814,6 +3015,10 @@ function AdminPortal() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerFilter, setCustomerFilter] = useState('all'); // 'all' | 'registered' | 'with_orders' | 'guests'
   const [customerPage, setCustomerPage] = useState(1);
+  const [deletingCustomer, setDeletingCustomer] = useState(null);
+  const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
+  const [dailyVisitsData, setDailyVisitsData] = useState(null);
+  const [visitsChartDays, setVisitsChartDays] = useState(14);
   const [tickets, setTickets] = useState([]);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [ticketFilter, setTicketFilter] = useState('all'); // 'all' | 'open' | 'resolved'
@@ -2825,9 +3030,23 @@ function AdminPortal() {
   const [settingsSubTab, setSettingsSubTab] = useState('profile');
   const [savingSettings, setSavingSettings] = useState(false);
   const [testingToneId, setTestingToneId] = useState(null);
+  const [testSmsPhone, setTestSmsPhone] = useState('08012345678');
+  const [testingSms, setTestingSms] = useState(false);
+  const [adminWebNotificationPerm, setAdminWebNotificationPerm] = useState(() => {
+    return api.getNotificationPermission ? api.getNotificationPermission() : 'default';
+  });
+  const [showAdminUnblockGuide, setShowAdminUnblockGuide] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeGroupOrders, setActiveGroupOrders] = useState([]);
   const [expandedGroupId, setExpandedGroupId] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      setAdminWebNotificationPerm(e.detail || (api.getNotificationPermission ? api.getNotificationPermission() : 'default'));
+    };
+    window.addEventListener('fmx_notification_permission_changed', handler);
+    return () => window.removeEventListener('fmx_notification_permission_changed', handler);
+  }, []);
 
   // Real-time listener for active Group Orders
   useEffect(() => {
@@ -3608,6 +3827,15 @@ function AdminPortal() {
     return () => { if (typeof unsub === 'function') unsub(); };
   }, []);
 
+  // LIVE FIRESTORE REALTIME SYNC FOR DAILY APP VISITS & ANALYTICS
+  useEffect(() => {
+    if (!api.subscribeDailyVisits) return;
+    const unsub = api.subscribeDailyVisits((data) => {
+      if (data) setDailyVisitsData(data);
+    }, visitsChartDays);
+    return () => { if (typeof unsub === 'function') unsub(); };
+  }, [visitsChartDays]);
+
 
   // WebSocket Live Real-Time Production Sync (ORDER_CREATED, NEW_ORDER_AVAILABLE, ORDER_STATUS_UPDATED, ORDER_UPDATED)
   useEffect(() => {
@@ -3851,6 +4079,20 @@ function AdminPortal() {
         savePaystackConfig({
           publicKey: merged.paystack_public_key.trim(),
           isLive: merged.paystack_is_live !== false
+        });
+      }
+      if (api.saveSmsConfig) {
+        api.saveSmsConfig({
+          provider: merged.sms_provider || 'twilio',
+          termii_api_key: (merged.termii_api_key || '').trim(),
+          termii_sender_id: (merged.sms_sender_id || 'FoodMaxx').trim(),
+          twilio_account_sid: (merged.twilio_account_sid || '').trim(),
+          twilio_auth_token: (merged.twilio_auth_token || '').trim(),
+          twilio_from_number: (merged.twilio_from_number || '').trim(),
+          enabled: merged.sms_notify_customer !== false,
+          auto_notify_on_dispatch: true,
+          auto_notify_on_delivery: true,
+          auto_notify_on_placed: true
         });
       }
       const res = await api.saveAdminSettings(merged);
@@ -4571,8 +4813,8 @@ function AdminPortal() {
               </div>
             )}
 
-            {/* Top 4 Statistic Cards (Matching Reference Image) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Top Statistic Cards with Daily App Visit Tracker */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
               {/* Card 1: Total Orders */}
               <div className="bg-[#FFF5F5] border border-rose-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
                 <div>
@@ -4634,6 +4876,22 @@ function AdminPortal() {
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#F59E0B] text-white flex items-center justify-center shadow-md shadow-amber-500/25 shrink-0">
                   <Star size={24} className="fill-white" />
+                </div>
+              </div>
+
+              {/* Card 5: Today's App Visits */}
+              <div className="bg-[#FAF5FF] border border-purple-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-black text-black mb-1">Today's Visits</p>
+                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
+                    {dailyVisitsData?.todayVisits ?? 0}
+                  </h3>
+                  <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1">
+                    <span className="text-purple-700 font-bold">{dailyVisitsData?.todayUnique ?? 0} unique diners</span>
+                  </p>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-[#9333EA] text-white flex items-center justify-center shadow-md shadow-purple-500/25 shrink-0">
+                  <Eye size={24} />
                 </div>
               </div>
             </div>
@@ -4772,10 +5030,10 @@ function AdminPortal() {
                               <td className="py-3.5">
                                 <div className="flex items-center gap-3">
                                   <img
-                                    src={dish.image_url || dish.image || '/food-placeholder.png'}
+                                    src={dish.image_url || dish.image || '/foodmaxx-logo.png'}
                                     alt={dish.name}
                                     className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
-                                    onError={(e) => { e.target.src = '/food-placeholder.png'; }}
+                                    onError={(e) => { e.target.onerror = null; e.target.src = '/foodmaxx-logo.png'; }}
                                   />
                                   <span className="font-black text-black truncate max-w-[190px] text-sm">
                                     {dish.name}
@@ -4987,10 +5245,10 @@ function AdminPortal() {
                           <td className="py-3.5 pl-1">
                             <div className="flex items-center gap-3">
                               <img
-                                src={p.image_url || p.image || '/food-placeholder.png'}
+                                src={p.image_url || p.image || '/foodmaxx-logo.png'}
                                 alt={p.name}
                                 className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
-                                onError={(e) => { e.target.src = '/food-placeholder.png'; }}
+                                onError={(e) => { e.target.onerror = null; e.target.src = '/foodmaxx-logo.png'; }}
                               />
                               <div>
                                 <span className="font-black text-black block truncate max-w-[190px] text-xs">{p.name}</span>
@@ -5371,6 +5629,14 @@ function AdminPortal() {
                                   <Phone className="w-3.5 h-3.5" />
                                 </a>
                               )}
+                              <button
+                                type="button"
+                                onClick={() => setDeletingCustomer(cust)}
+                                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 rounded-lg text-xs font-semibold transition-colors border border-rose-200 shadow-xs"
+                                title="Delete Customer Account"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -5446,6 +5712,225 @@ function AdminPortal() {
         {/* ============================================================ */}
         {activeSection === 'reports' && (
           <div className="space-y-6">
+            {/* Real-time Daily App Visit Tracker & Traffic Analytics */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-2 rounded-xl bg-purple-100 text-purple-700">
+                      <Activity size={20} />
+                    </span>
+                    <div>
+                      <h2 className="font-black text-base text-black flex items-center gap-2">
+                        Daily App Visits & Traffic Analytics
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 tracking-wide uppercase">
+                          Live Sync
+                        </span>
+                      </h2>
+                      <p className="text-xs text-black font-semibold mt-0.5">
+                        Track unique visitors, active diner sessions, and daily growth trends across Ibadan.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Range Filter Selector */}
+                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl self-start sm:self-auto">
+                  {[7, 14, 30].map(days => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => setVisitsChartDays(days)}
+                      className={`px-3 py-1 text-xs font-black rounded-lg transition-colors cursor-pointer ${
+                        visitsChartDays === days
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                      }`}
+                    >
+                      {days} Days
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Traffic KPIs */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-5">
+                <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-purple-700 uppercase tracking-wider">Today's Visits</div>
+                  <div className="text-2xl font-black text-purple-950 mt-0.5">
+                    {dailyVisitsData?.todayVisits ?? 0}
+                  </div>
+                  <div className="text-[11px] text-purple-600 font-semibold mt-0.5">
+                    {(dailyVisitsData?.growthRate ?? 0) > 0 ? `+${dailyVisitsData.growthRate}%` : `${dailyVisitsData?.growthRate || 0}%`} vs yesterday
+                  </div>
+                </div>
+
+                <div className="bg-indigo-50/70 border border-indigo-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Unique Diners Today</div>
+                  <div className="text-2xl font-black text-indigo-950 mt-0.5">
+                    {dailyVisitsData?.todayUnique ?? 0}
+                  </div>
+                  <div className="text-[11px] text-indigo-600 font-semibold mt-0.5">
+                    Individual devices
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Past {visitsChartDays} Days Total</div>
+                  <div className="text-2xl font-black text-emerald-950 mt-0.5">
+                    {(dailyVisitsData?.dailyList || []).reduce((acc, d) => acc + (d.total_visits || 0), 0)}
+                  </div>
+                  <div className="text-[11px] text-emerald-600 font-semibold mt-0.5">
+                    Total app hits recorded
+                  </div>
+                </div>
+
+                <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Peak Hour Today</div>
+                  <div className="text-2xl font-black text-amber-950 mt-0.5">
+                    {dailyVisitsData?.peakHourStr || '12:00 PM'}
+                  </div>
+                  <div className="text-[11px] text-amber-700 font-semibold mt-0.5">
+                    Highest diner traffic
+                  </div>
+                </div>
+              </div>
+
+              {/* Visual Daily Visits Bar Chart */}
+              {dailyVisitsData?.dailyList && dailyVisitsData.dailyList.length > 0 ? (
+                <div className="mb-6">
+                  <div className="text-xs font-black text-slate-700 mb-2 flex items-center justify-between">
+                    <span>Daily Visit Volume ({visitsChartDays}-Day Timeline)</span>
+                    <span className="text-[11px] font-normal text-slate-500 flex items-center gap-3">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-purple-600 inline-block"></span> Total Visits
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-indigo-400 inline-block"></span> Unique Diners
+                      </span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-end gap-2 sm:gap-3 h-48 pt-4 border-b border-slate-200 pb-2">
+                    {dailyVisitsData.dailyList.map((d, idx) => {
+                      const maxVisits = Math.max(
+                        ...dailyVisitsData.dailyList.map(x => x.total_visits),
+                        5
+                      );
+                      const totalPct = Math.max(8, (d.total_visits / maxVisits) * 100);
+                      const uniquePct = d.total_visits > 0
+                        ? Math.max(6, (d.unique_visitors / maxVisits) * 100)
+                        : 0;
+
+                      return (
+                        <div key={d.date || idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group relative">
+                          {/* Tooltip on hover */}
+                          <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] font-bold py-1 px-2 rounded pointer-events-none whitespace-nowrap z-20 shadow-md">
+                            {d.dayLabel}: {d.total_visits} visits ({d.unique_visitors} unique)
+                          </div>
+
+                          <div className="text-[11px] font-black text-slate-700 group-hover:text-purple-700 transition-colors">
+                            {d.total_visits}
+                          </div>
+
+                          <div className="w-full flex items-end justify-center gap-1 h-full max-h-32">
+                            {/* Total Visits Bar */}
+                            <div
+                              className={`w-full max-w-[18px] rounded-t-lg transition-all ${
+                                d.isToday
+                                  ? 'bg-purple-600 shadow-sm shadow-purple-400/40 ring-2 ring-purple-300'
+                                  : 'bg-purple-500/80 group-hover:bg-purple-600'
+                              }`}
+                              style={{ height: `${totalPct}%` }}
+                            />
+                            {/* Unique Visitors Bar */}
+                            <div
+                              className="w-full max-w-[14px] bg-indigo-400/80 group-hover:bg-indigo-500 rounded-t-lg transition-all hidden sm:block"
+                              style={{ height: `${uniquePct}%` }}
+                            />
+                          </div>
+
+                          <div className={`text-[10px] font-black font-mono truncate max-w-full ${
+                            d.isToday ? 'text-purple-700 font-extrabold' : 'text-slate-600'
+                          }`}>
+                            {d.isToday ? 'Today' : d.dayShort}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="py-8 text-center text-slate-400 text-xs">
+                  Awaiting first visit telemetry...
+                </div>
+              )}
+
+              {/* Table of Daily Records */}
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xs font-black text-black uppercase tracking-wider">
+                    Recent Daily Breakdown Log
+                  </h4>
+                  <span className="text-[11px] font-mono text-slate-500">
+                    Showing past {visitsChartDays} days
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500 uppercase font-bold text-[10px] tracking-wider">
+                        <th className="pb-2 pl-1">Date</th>
+                        <th className="pb-2">Total Visits</th>
+                        <th className="pb-2">Unique Visitors</th>
+                        <th className="pb-2">Registered vs Guests</th>
+                        <th className="pb-2 pr-1 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {dailyVisitsData?.dailyList ? [...dailyVisitsData.dailyList].slice().reverse().map((row, idx) => (
+                        <tr key={row.date || idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2.5 pl-1 font-bold text-slate-800">
+                            {row.dayLabel} {row.isToday && (
+                              <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-100 text-purple-800 uppercase">
+                                Current
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 font-mono font-black text-purple-700">
+                            {row.total_visits}
+                          </td>
+                          <td className="py-2.5 font-mono font-bold text-indigo-700">
+                            {row.unique_visitors}
+                          </td>
+                          <td className="py-2.5 text-slate-600">
+                            <span className="font-semibold text-emerald-700">{row.registered_visits || 0} registered</span>
+                            <span className="text-slate-400 mx-1">/</span>
+                            <span className="text-slate-500">{row.guest_visits || 0} guests</span>
+                          </td>
+                          <td className="py-2.5 pr-1 text-right">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black ${
+                              row.total_visits > 0
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                : 'bg-slate-100 text-slate-400'
+                            }`}>
+                              {row.total_visits > 0 ? 'Active' : 'No Traffic'}
+                            </span>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={5} className="py-4 text-center text-slate-400 text-xs">
+                            No visit history yet recorded.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
             {/* 7-Day Performance Visualizer */}
             {overview?.last7Days && (
               <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
@@ -7939,6 +8424,345 @@ function AdminPortal() {
                       </div>
                     </div>
                   </div>
+
+                  {/* SMS NOTIFICATION GATEWAY (TERMII & TWILIO) */}
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-2xl">💬</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-black text-sm text-black">SMS Notification Gateway SDK</h4>
+                            {settings.sms_provider === 'termii' || !settings.sms_provider ? (
+                              settings.termii_api_key ? (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                                  Termii Configured ✓
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black uppercase">
+                                  Termii Key Missing (Simulation Mode)
+                                </span>
+                              )
+                            ) : settings.sms_provider === 'native' ? (
+                              <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-black uppercase">
+                                Direct Device SMS (Free)
+                              </span>
+                            ) : (
+                              settings.twilio_account_sid && settings.twilio_auth_token ? (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                                  Twilio Configured ✓
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black uppercase">
+                                  Twilio Keys Missing
+                                </span>
+                              )
+                            )}
+                          </div>
+                          <p className="text-xs text-black font-bold">
+                            Direct GSM transactional SMS for Nigerian diners, courier assignment alerts & delivery OTPs.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-black">Enabled:</span>
+                        <input
+                          type="checkbox"
+                          checked={settings.sms_notify_customer !== false}
+                          onChange={e => setSettings({ ...settings, sms_notify_customer: e.target.checked })}
+                          className="w-5 h-5 accent-blue-600 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1.5">SMS Gateway Provider</label>
+                        <select
+                          value={settings.sms_provider || 'termii'}
+                          onChange={e => setSettings({ ...settings, sms_provider: e.target.value })}
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                        >
+                          <option value="termii">Termii Nigeria (Recommended: DND Bypass & ₦ GSM)</option>
+                          <option value="native">Direct Device SMS (100% Free - Native SIM)</option>
+                          <option value="twilio">Twilio Global</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1.5">Alphanumeric Sender ID</label>
+                        <input
+                          type="text"
+                          maxLength={11}
+                          value={settings.sms_sender_id || 'FoodMaxx'}
+                          onChange={e => setSettings({ ...settings, sms_sender_id: e.target.value })}
+                          placeholder="e.g. FoodMaxx"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                        />
+                        <p className="text-[10px] text-slate-500 font-medium mt-1">Max 11 characters (registered with Termii / Twilio)</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-black text-black mb-1.5">Termii Route Channel</label>
+                        <select
+                          value={settings.termii_channel || 'generic'}
+                          onChange={e => setSettings({ ...settings, termii_channel: e.target.value })}
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                        >
+                          <option value="generic">Generic (Transactional OTP & DND Bypass)</option>
+                          <option value="dnd">DND Priority Channel</option>
+                          <option value="direct">Direct Local Carrier Route</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {settings.sms_provider === 'termii' && (
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-xs font-black text-black">Termii Secret API Key</label>
+                          <a
+                            href="https://termii.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-bold text-blue-600 hover:underline"
+                          >
+                            Get key from termii.com ↗
+                          </a>
+                        </div>
+                        <input
+                          type="password"
+                          value={settings.termii_api_key || ''}
+                          onChange={e => setSettings({ ...settings, termii_api_key: e.target.value })}
+                          placeholder="TLxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (From termii.com dashboard)"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                        />
+                      </div>
+                    )}
+
+                    {settings.sms_provider === 'twilio' && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-black text-black">Twilio API Credentials</label>
+                          <a
+                            href="https://console.twilio.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-bold text-blue-600 hover:underline"
+                          >
+                            Twilio Console ↗
+                          </a>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Twilio Account SID *</label>
+                            <input
+                              type="text"
+                              value={settings.twilio_account_sid || ''}
+                              onChange={e => setSettings({ ...settings, twilio_account_sid: e.target.value })}
+                              placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Twilio Auth Token *</label>
+                            <input
+                              type="password"
+                              value={settings.twilio_auth_token || ''}
+                              onChange={e => setSettings({ ...settings, twilio_auth_token: e.target.value })}
+                              placeholder="Auth Token / Secret"
+                              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Twilio From Number *</label>
+                            <input
+                              type="text"
+                              value={settings.twilio_from_number || ''}
+                              onChange={e => setSettings({ ...settings, twilio_from_number: e.target.value })}
+                              placeholder="+1XXXXXXXXXX (E.164)"
+                              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {settings.sms_provider === 'native' && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 font-medium">
+                        📱 <strong>Direct Device SMS Mode</strong> uses the operator's native phone SMS app via the <code>sms:</code> protocol. No API key or gateway subscription required.
+                      </div>
+                    )}
+
+                    {/* Test & Save SMS Gateway Strip */}
+                    <div className="pt-2 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-1 max-w-sm">
+                        <label className="text-xs font-black text-black shrink-0">Test Recipient:</label>
+                        <input
+                          type="text"
+                          value={testSmsPhone}
+                          onChange={e => setTestSmsPhone(e.target.value)}
+                          placeholder="080XXXXXXXX"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-black font-mono font-bold outline-none"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          disabled={savingSettings}
+                          onClick={() => handleSaveAllSettings()}
+                          className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          <Save size={13} />
+                          <span>{savingSettings ? 'Saving...' : settings.sms_provider === 'twilio' ? 'Save Twilio Config' : 'Save SMS Key'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={testingSms}
+                          onClick={async () => {
+                            if (!testSmsPhone) {
+                              toast('Please enter a recipient phone number', 'warning');
+                              return;
+                            }
+                            setTestingSms(true);
+                            try {
+                              const res = await api.testSmsConnection(
+                                settings.sms_provider || 'twilio',
+                                settings.termii_api_key || '',
+                                settings.sms_sender_id || 'FoodMaxx',
+                                testSmsPhone,
+                                {
+                                  accountSid: settings.twilio_account_sid,
+                                  authToken: settings.twilio_auth_token,
+                                  from: settings.twilio_from_number
+                                }
+                              );
+                              if (res?.success) {
+                                toast(`Twilio SMS Gateway tested and verified for ${testSmsPhone}! 🚀`, 'success');
+                              } else if (res?.code === 572006 || res?.data?.code === 572006) {
+                                toast('Twilio connected! Note: Claim your free phone number on console.twilio.com to send to unverified numbers', 'info');
+                              } else {
+                                toast(res?.error || res?.message || 'Test SMS request dispatched', 'info');
+                              }
+                            } catch (err) {
+                              toast(err.message || 'SMS test failed', 'error');
+                            } finally {
+                              setTestingSms(false);
+                            }
+                          }}
+                          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          <span>{testingSms ? 'Sending SMS...' : 'Send Test SMS 💬'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* WEB BROWSER ALERTS & SOUND CONTROLS */}
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-2xl">🔔</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-black text-sm text-black">Web Browser Background Alerts</h4>
+                            {adminWebNotificationPerm === 'granted' ? (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                                Enabled ✓
+                              </span>
+                            ) : adminWebNotificationPerm === 'denied' ? (
+                              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black uppercase">
+                                Popups Paused in Browser
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black uppercase">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-black font-bold">
+                            Chimes, in-app banners & OS notifications when customers place live orders.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            playOrderNotificationSound();
+                            toast('Kitchen chime played! 🔊', 'info');
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-900 font-bold text-xs cursor-pointer active:scale-95"
+                        >
+                          🔊 Test Sound
+                        </button>
+
+                        {adminWebNotificationPerm !== 'granted' && adminWebNotificationPerm !== 'denied' && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const res = await api.requestNotificationPermission();
+                              setAdminWebNotificationPerm(res);
+                              if (res === 'granted') toast('Browser alerts enabled! 🔔', 'success');
+                            }}
+                            className="px-3.5 py-1.5 rounded-xl bg-[#EA4C2A] hover:bg-[#D43B1B] text-white font-bold text-xs shadow-xs cursor-pointer active:scale-95"
+                          >
+                            Enable Alerts 🔔
+                          </button>
+                        )}
+
+                        {adminWebNotificationPerm === 'denied' && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAdminUnblockGuide(!showAdminUnblockGuide)}
+                            className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs cursor-pointer active:scale-95"
+                          >
+                            {showAdminUnblockGuide ? 'Hide Guide ▲' : 'How to Unblock 🔓'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Unblock walkthrough when blocked in browser settings */}
+                    {adminWebNotificationPerm === 'denied' && showAdminUnblockGuide && (
+                      <div className="p-4 rounded-xl bg-white border border-amber-300 text-xs space-y-2.5">
+                        <div className="font-black text-slate-900 flex items-center gap-1.5">
+                          <span>🔓</span>
+                          <span>Unblocking notifications in Google Chrome / Microsoft Edge / Safari:</span>
+                        </div>
+                        <ol className="list-decimal pl-5 space-y-1 text-slate-700 font-semibold text-[11px]">
+                          <li>Click the <strong>Lock 🔒</strong> or <strong>Tune 🎚️</strong> icon on the left of your URL bar.</li>
+                          <li>Find <strong>Notifications</strong> in the permissions dropdown.</li>
+                          <li>Change it from <strong>Block</strong> to <strong>Allow</strong>.</li>
+                          <li>Click the <strong>Verify & Activate</strong> button below.</li>
+                        </ol>
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                          <span className="text-[11px] text-emerald-700 font-bold">
+                            ✓ In-app kitchen audio chimes and live toasts remain 100% active.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const current = await api.syncNotificationPermission();
+                              setAdminWebNotificationPerm(current);
+                              if (current === 'granted') {
+                                toast('Web browser alerts unblocked and enabled! 🚀', 'success');
+                                setShowAdminUnblockGuide(false);
+                              } else {
+                                toast('Still set to block in browser. Please allow in the address bar 🔒 menu.', 'warning');
+                              }
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer active:scale-95"
+                          >
+                            Verify & Activate Now 🚀
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -8741,6 +9565,16 @@ function AdminPortal() {
         open={createZoneModalOpen}
         onClose={() => setCreateZoneModalOpen(false)}
         onCreated={() => loadSection('zones')}
+      />
+
+      <AdminDeleteCustomerModal
+        open={Boolean(deletingCustomer)}
+        customer={deletingCustomer}
+        onClose={() => setDeletingCustomer(null)}
+        onDeleted={(deletedId) => {
+          setCustomers(prev => prev.filter(c => c.id !== deletedId));
+          setDeletingCustomer(null);
+        }}
       />
 
       <NotificationToneModal

@@ -20,9 +20,9 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
-        entryFileNames: `assets/[name]-${timestamp}.js`,
-        chunkFileNames: `assets/[name]-${timestamp}.js`,
-        assetFileNames: `assets/[name]-${timestamp}.[ext]`,
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('firebase')) return 'vendor-firebase';

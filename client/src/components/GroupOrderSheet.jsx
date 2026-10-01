@@ -63,6 +63,18 @@ export default function GroupOrderSheet({
   const [isPaying, setIsPaying]           = useState(false);
   const [errorMessage, setErrorMessage]   = useState('');
   const [detectingLocation, setDetectingLocation] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const remainingMinutes = useMemo(() => {
+    if (!activeGroup?.cutoff_time) return null;
+    const diff = new Date(activeGroup.cutoff_time).getTime() - now;
+    return Math.max(0, Math.ceil(diff / 60000));
+  }, [activeGroup?.cutoff_time, now]);
 
   // Detect real GPS location
   const handleDetectRealLocation = async () => {
@@ -428,7 +440,11 @@ export default function GroupOrderSheet({
   const borderCol  = isDark ? 'border-white/10' : 'border-slate-100';
   const textMuted  = isDark ? 'text-slate-400' : 'text-slate-500';
 
-  const isClosed = Boolean(activeGroup && (String(activeGroup.status || '').toUpperCase() === 'CLOSED' || String(activeGroup.status || '').toUpperCase() === 'CANCELLED'));
+  const isExpired = Boolean(activeGroup?.cutoff_time && new Date(activeGroup.cutoff_time).getTime() < now);
+  const isClosed = Boolean(activeGroup && (
+    ['CLOSED', 'CANCELLED', 'PLACED', 'LOCKED'].includes(String(activeGroup.status || '').toUpperCase()) ||
+    isExpired
+  ));
 
   return (
     <AnimatePresence>
@@ -552,7 +568,9 @@ export default function GroupOrderSheet({
               <div>
                 <h3 className="text-lg font-black tracking-tight">This Group Order is Closed</h3>
                 <p className={`text-xs mt-1.5 ${textMuted} max-w-xs mx-auto`}>
-                  This group order has already been closed and sent to the kitchen.
+                  {isExpired
+                    ? 'This group order reached its preorder cutoff time and can no longer accept new participants or dishes.'
+                    : 'This group order has already been closed and sent to the kitchen.'}
                 </p>
               </div>
               <button
@@ -737,6 +755,15 @@ export default function GroupOrderSheet({
                     {activeGroup?.delivery_window || activeWindow}
                   </span>
                 </div>
+                {remainingMinutes !== null && (
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-white/10">
+                    <span className={`text-xs font-bold ${textMuted}`}>Preorder Cutoff</span>
+                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <Clock size={13} className="text-amber-500 shrink-0" />
+                      {remainingMinutes > 0 ? `${remainingMinutes} mins left` : 'Cutoff passed'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Short Link & Copy Button */}

@@ -96,7 +96,18 @@ export const DEFAULT_STORE_DETAILS = {
   late_whatsapp_template: 'Dear {customer_name}, we sincerely apologize that your FoodMaxx order #{order_ref} is experiencing an unexpected delay ({delay_minutes} mins). Chef is speeding up your hot meal right now! 🙏 To make it up to you, please enjoy {compensation_val} on your next order with coupon code *{coupon_code}*. Plus, we have included {free_item} on the house! Thank you for dining with FoodMaxx Ibadan. 🍲',
   late_include_free_item: true,
   late_free_item_name: 'Complimentary Chilled Soft Drink / Extra Dodo',
-  late_auto_generate_coupon: true
+  late_auto_generate_coupon: true,
+
+  // 12. SMS NOTIFICATION GATEWAY (TERMII NIGERIA / NATIVE / TWILIO)
+  sms_provider: 'termii',
+  sms_sender_id: 'FoodMaxx',
+  sms_notify_customer: true,
+  termii_api_key: '',
+  termii_channel: 'generic',
+  twilio_account_sid: 'AC75e6b08b631b1718e877a3ba743e067d',
+  twilio_api_key_sid: 'SK2901fe0438990ce94baa9ad9150704f4',
+  twilio_auth_token: 'LhgW1urbSIF3Kxsj4vEqTX37VjxU1vaK',
+  twilio_from_number: 'FoodMaxx'
 };
 
 const STORAGE_KEY = 'fmx_store_settings';
