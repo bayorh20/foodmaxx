@@ -2811,6 +2811,9 @@ function AdminPortal() {
   const [editingZone, setEditingZone] = useState(null);
 
   const [customers, setCustomers] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('all'); // 'all' | 'registered' | 'with_orders' | 'guests'
+  const [customerPage, setCustomerPage] = useState(1);
   const [tickets, setTickets] = useState([]);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [ticketFilter, setTicketFilter] = useState('all'); // 'all' | 'open' | 'resolved'
@@ -3131,6 +3134,42 @@ function AdminPortal() {
   }, [orders, settings.late_delivery_threshold_mins]);
   const delayedOrdersCount = delayedOrders.length;
 
+  // Live Customer Directory Metrics & Filtering
+  const registeredCustomers = useMemo(() => customers.filter(c => c.is_registered), [customers]);
+  const guestCustomers = useMemo(() => customers.filter(c => !c.is_registered), [customers]);
+  const activeCustomers = useMemo(() => customers.filter(c => (c.orders_count || c.total_orders || 0) > 0), [customers]);
+  const totalCustomerRevenue = useMemo(() => customers.reduce((sum, c) => sum + Number(c.total_spent || 0), 0), [customers]);
+
+  const filteredCustomers = useMemo(() => {
+    let list = customers;
+    if (customerFilter === 'registered') {
+      list = list.filter(c => c.is_registered);
+    } else if (customerFilter === 'with_orders') {
+      list = list.filter(c => (c.orders_count || c.total_orders || 0) > 0);
+    } else if (customerFilter === 'guests') {
+      list = list.filter(c => !c.is_registered);
+    }
+
+    if (customerSearch.trim()) {
+      const q = customerSearch.toLowerCase().trim();
+      list = list.filter(c =>
+        (c.full_name || '').toLowerCase().includes(q) ||
+        (c.phone || '').includes(q) ||
+        (c.email || '').toLowerCase().includes(q) ||
+        (c.id || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [customers, customerFilter, customerSearch]);
+
+  const CUSTOMERS_PER_PAGE = 25;
+  const customerTotalPages = Math.ceil(filteredCustomers.length / CUSTOMERS_PER_PAGE) || 1;
+  const safeCustomerPage = Math.min(Math.max(1, customerPage), customerTotalPages);
+  const pagedCustomers = useMemo(() => {
+    const start = (safeCustomerPage - 1) * CUSTOMERS_PER_PAGE;
+    return filteredCustomers.slice(start, start + CUSTOMERS_PER_PAGE);
+  }, [filteredCustomers, safeCustomerPage]);
+
   // Tone presets for late delivery apology messages
   const APOLOGY_TONE_PRESETS = {
     warm: {
@@ -3268,9 +3307,6 @@ function AdminPortal() {
   function handleSendWinbackPromo(customer) {
     toast(`15% Win-back promo code (WE_MISS_YOU) dispatched to ${customer.full_name}! 💌`, 'success');
   }
-
-  // Customer cohort filter state
-  const [customerFilter, setCustomerFilter] = useState('all');
 
   // View mode for orders: 'table' | 'cards'
   const [ordersViewMode, setOrdersViewMode] = useState('table');
@@ -3560,6 +3596,17 @@ function AdminPortal() {
     });
     return () => { if (typeof unsub === 'function') unsub(); };
   }, [orderSoundEnabled]);
+
+  // LIVE FIRESTORE REALTIME SYNC FOR REGISTERED CUSTOMERS
+  useEffect(() => {
+    if (!api.subscribeLiveCustomers) return;
+    const unsub = api.subscribeLiveCustomers((liveCustomers) => {
+      if (Array.isArray(liveCustomers)) {
+        setCustomers(liveCustomers);
+      }
+    });
+    return () => { if (typeof unsub === 'function') unsub(); };
+  }, []);
 
 
   // WebSocket Live Real-Time Production Sync (ORDER_CREATED, NEW_ORDER_AVAILABLE, ORDER_STATUS_UPDATED, ORDER_UPDATED)
@@ -5021,76 +5068,375 @@ function AdminPortal() {
         {/* ============================================================ */}
         {activeSection === 'customers' && (
           <div className="space-y-6">
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
-                <div>
-                  <h2 className="text-lg font-black text-black">Customer Directory</h2>
-                  <p className="text-xs text-black font-semibold mt-0.5">
-                    View customer loyalty, order frequencies, and reach out via WhatsApp.
-                  </p>
+            {/* Top Metric Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Total Customers</span>
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <Users className="w-4 h-4" />
+                  </div>
                 </div>
-                <span className="text-xs font-black px-3.5 py-1 bg-blue-50 text-blue-900 border border-blue-300 rounded-full">
-                  {customers.length} Registered Foodies
-                </span>
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-2 font-mono">
+                  {customers.length}
+                </div>
+                <div className="text-[11px] text-slate-500 font-bold mt-1">
+                  {registeredCustomers.length} registered · {guestCustomers.length} guest diners
+                </div>
               </div>
 
-              <div className="overflow-x-auto mt-4">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Registered Accounts</span>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <UserCheck className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-emerald-700 mt-2 font-mono">
+                  {registeredCustomers.length}
+                </div>
+                <div className="text-[11px] text-emerald-600 font-bold mt-1 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> Real registered users in Firestore
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Active Diners</span>
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <ShoppingCart className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-amber-700 mt-2 font-mono">
+                  {activeCustomers.length}
+                </div>
+                <div className="text-[11px] text-slate-500 font-bold mt-1">
+                  Placed at least 1 food order
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Customer Revenue</span>
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-purple-700 mt-2 font-mono">
+                  ₦{totalCustomerRevenue.toLocaleString()}
+                </div>
+                <div className="text-[11px] text-slate-500 font-bold mt-1">
+                  Total lifetime spend from orders
+                </div>
+              </div>
+            </div>
+
+            {/* Main Customer Table Card */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-6 shadow-xs">
+              {/* Header and Filter Row */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-200">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-black text-black">Customer Directory</h2>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Real-Time Live
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                    Real-time registered customer accounts, order frequency, loyalty, and contact details.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  {/* Search Bar */}
+                  <div className="relative min-w-[240px] sm:min-w-[280px]">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={customerSearch}
+                      onChange={(e) => {
+                        setCustomerSearch(e.target.value);
+                        setCustomerPage(1);
+                      }}
+                      placeholder="Search name, phone, or email..."
+                      className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400"
+                    />
+                    {customerSearch && (
+                      <button
+                        onClick={() => {
+                          setCustomerSearch('');
+                          setCustomerPage(1);
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded-md"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-2 pt-4 pb-2 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => { setCustomerFilter('all'); setCustomerPage(1); }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+                    customerFilter === 'all'
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  All ({customers.length})
+                </button>
+                <button
+                  onClick={() => { setCustomerFilter('registered'); setCustomerPage(1); }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 ${
+                    customerFilter === 'registered'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  }`}
+                >
+                  <CheckCircle className="w-3 h-3" /> Registered Accounts ({registeredCustomers.length})
+                </button>
+                <button
+                  onClick={() => { setCustomerFilter('with_orders'); setCustomerPage(1); }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+                    customerFilter === 'with_orders'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                  }`}
+                >
+                  With Orders ({activeCustomers.length})
+                </button>
+                <button
+                  onClick={() => { setCustomerFilter('guests'); setCustomerPage(1); }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+                    customerFilter === 'guests'
+                      ? 'bg-slate-700 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  Guest Diners ({guestCustomers.length})
+                </button>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto mt-3">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="border-b border-slate-200 text-xs font-black text-black uppercase tracking-wider">
-                      <th className="pb-3 pl-1 font-black text-black">Customer</th>
-                      <th className="pb-3 font-black text-black">Phone</th>
-                      <th className="pb-3 font-black text-black">Total Orders</th>
-                      <th className="pb-3 font-black text-black">Total Spent</th>
-                      <th className="pb-3 pr-1 text-right font-black text-black">Actions</th>
+                    <tr className="border-b border-slate-200 text-xs font-black text-slate-800 uppercase tracking-wider">
+                      <th className="pb-3 pl-1 font-black text-slate-900">Customer</th>
+                      <th className="pb-3 font-black text-slate-900">Phone</th>
+                      <th className="pb-3 font-black text-slate-900">Joined / Date</th>
+                      <th className="pb-3 font-black text-slate-900">Account Type</th>
+                      <th className="pb-3 font-black text-slate-900">Total Orders</th>
+                      <th className="pb-3 font-black text-slate-900">Total Spent</th>
+                      <th className="pb-3 font-black text-slate-900">Last Order</th>
+                      <th className="pb-3 pr-1 text-right font-black text-slate-900">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {customers.length > 0 ? customers.slice(0, 15).map((cust, idx) => (
-                      <tr key={cust.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3.5 pl-1">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-full bg-slate-200 text-black font-black flex items-center justify-center text-xs border border-slate-300">
-                              {(cust.full_name || 'C').charAt(0).toUpperCase()}
+                    {pagedCustomers.length > 0 ? pagedCustomers.map((cust, idx) => {
+                      const joinedDateStr = cust.registered_at || cust.created_at;
+                      let formattedJoined = '—';
+                      if (joinedDateStr) {
+                        try {
+                          const d = new Date(joinedDateStr);
+                          if (!isNaN(d.getTime())) {
+                            formattedJoined = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                          }
+                        } catch {}
+                      }
+
+                      let formattedLastOrder = 'No orders yet';
+                      if (cust.last_ordered) {
+                        try {
+                          const d = new Date(cust.last_ordered);
+                          if (!isNaN(d.getTime())) {
+                            formattedLastOrder = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                          }
+                        } catch {}
+                      }
+
+                      const orderCount = Number(cust.orders_count ?? cust.total_orders ?? 0);
+                      const spentAmount = Number(cust.total_spent || 0);
+
+                      return (
+                        <tr key={cust.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                          {/* Customer Name & Avatar */}
+                          <td className="py-3.5 pl-1">
+                            <div className="flex items-center gap-2.5">
+                              {cust.avatar_url ? (
+                                <img
+                                  src={cust.avatar_url}
+                                  alt={cust.full_name}
+                                  className="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0"
+                                />
+                              ) : (
+                                <div className={`w-9 h-9 rounded-full ${cust.is_registered ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-200 text-slate-800 border-slate-300'} font-black flex items-center justify-center text-xs border shrink-0`}>
+                                  {(cust.full_name || 'C').charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <span className="font-black text-slate-900 block text-xs truncate max-w-[160px]">
+                                  {cust.full_name || 'Customer'}
+                                </span>
+                                <span className="text-[11px] text-slate-500 font-semibold block truncate max-w-[180px]">
+                                  {cust.email || '—'}
+                                </span>
+                              </div>
                             </div>
-                            <div>
-                              <span className="font-black text-black block text-xs">{cust.full_name || 'Customer'}</span>
-                              <span className="text-[11px] text-slate-800 font-bold">{cust.email || '—'}</span>
+                          </td>
+
+                          {/* Phone */}
+                          <td className="py-3.5 font-mono text-slate-900 font-bold">
+                            {cust.phone ? (
+                              <a
+                                href={`tel:${cust.phone}`}
+                                className="hover:text-emerald-600 transition-colors inline-flex items-center gap-1"
+                              >
+                                {cust.phone}
+                              </a>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+
+                          {/* Joined / Registered Date */}
+                          <td className="py-3.5 font-medium text-slate-600 text-[11px]">
+                            {formattedJoined}
+                          </td>
+
+                          {/* Account Type */}
+                          <td className="py-3.5">
+                            {cust.is_registered ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <CheckCircle className="w-2.5 h-2.5 text-emerald-600" />
+                                Registered
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                Guest
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Total Orders */}
+                          <td className="py-3.5 font-black text-slate-900">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-black ${
+                              orderCount > 0 ? 'bg-amber-50 text-amber-900 font-mono' : 'text-slate-400 font-normal'
+                            }`}>
+                              {orderCount} {orderCount === 1 ? 'order' : 'orders'}
+                            </span>
+                          </td>
+
+                          {/* Total Spent */}
+                          <td className="py-3.5 font-black text-slate-900 font-mono text-sm">
+                            {spentAmount > 0 ? (
+                              <span className="text-emerald-700">₦{spentAmount.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-slate-400 text-xs">₦0</span>
+                            )}
+                          </td>
+
+                          {/* Last Order Date */}
+                          <td className="py-3.5 text-slate-600 text-[11px] font-medium">
+                            {formattedLastOrder}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3.5 pr-1 text-right">
+                            <div className="inline-flex items-center gap-1.5 justify-end">
+                              {cust.phone && (
+                                <a
+                                  href={`https://wa.me/${String(cust.phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                                    `Hello ${cust.full_name || 'Customer'}, thank you for dining with FoodMaxx! How can we serve you today?`
+                                  )}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-black transition-colors shadow-xs"
+                                  title="Chat on WhatsApp"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>WhatsApp</span>
+                                </a>
+                              )}
+                              {cust.phone && (
+                                <a
+                                  href={`tel:${cust.phone}`}
+                                  className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+                                  title="Call Customer"
+                                >
+                                  <Phone className="w-3.5 h-3.5" />
+                                </a>
+                              )}
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 font-mono text-black font-black">
-                          {cust.phone || '—'}
-                        </td>
-                        <td className="py-3.5 font-black text-black">
-                          {cust.orders_count ?? 0} orders
-                        </td>
-                        <td className="py-3.5 font-black text-black font-mono text-sm">
-                          ₦{Number(cust.total_spent || 0).toLocaleString()}
-                        </td>
-                        <td className="py-3.5 pr-1 text-right">
-                          {cust.phone && (
-                            <a
-                              href={`https://wa.me/${String(cust.phone).replace(/[^0-9]/g, '')}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-lg text-xs font-black transition-colors shadow-xs"
-                            >
-                              <span>💬 WhatsApp</span>
-                            </a>
-                          )}
-                        </td>
-                      </tr>
-                    )) : (
+                          </td>
+                        </tr>
+                      );
+                    }) : (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-slate-400 font-bold text-sm">
-                          No registered customers yet. Customers appear here after they sign up.
+                        <td colSpan={8} className="py-14 text-center">
+                          <div className="flex flex-col items-center justify-center max-w-sm mx-auto text-slate-500">
+                            <Users className="w-10 h-10 text-slate-300 mb-3" />
+                            <p className="font-black text-slate-800 text-sm">No customers found</p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {customerSearch
+                                ? `No customer matched "${customerSearch}". Try clearing your search.`
+                                : customerFilter === 'registered'
+                                ? 'No registered customers found. New customer signups will appear here instantly.'
+                                : 'No customers match the current filter.'}
+                            </p>
+                            {(customerSearch || customerFilter !== 'all') && (
+                              <button
+                                onClick={() => {
+                                  setCustomerSearch('');
+                                  setCustomerFilter('all');
+                                  setCustomerPage(1);
+                                }}
+                                className="mt-3 px-3 py-1.5 text-xs font-black text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors"
+                              >
+                                Reset Filters
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination Controls */}
+              {customerTotalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100 mt-3 text-xs text-slate-600">
+                  <div className="font-semibold">
+                    Showing <span className="font-black text-slate-900">{(safeCustomerPage - 1) * CUSTOMERS_PER_PAGE + 1}</span> to{' '}
+                    <span className="font-black text-slate-900">{Math.min(safeCustomerPage * CUSTOMERS_PER_PAGE, filteredCustomers.length)}</span> of{' '}
+                    <span className="font-black text-slate-900">{filteredCustomers.length}</span> customers
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setCustomerPage(p => Math.max(1, p - 1))}
+                      disabled={safeCustomerPage <= 1}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-black flex items-center gap-1 transition-colors"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" /> Prev
+                    </button>
+                    <span className="px-3 py-1 font-mono font-bold text-slate-700">
+                      {safeCustomerPage} / {customerTotalPages}
+                    </span>
+                    <button
+                      onClick={() => setCustomerPage(p => Math.min(customerTotalPages, p + 1))}
+                      disabled={safeCustomerPage >= customerTotalPages}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-black flex items-center gap-1 transition-colors"
+                    >
+                      Next <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

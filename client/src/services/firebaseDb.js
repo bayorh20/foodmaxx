@@ -420,15 +420,15 @@ function normalizeOrder(docId, data) {
 }
 
 export function subscribeToCustomerLiveOrders(customerFilter, callback) {
-  const userId = typeof customerFilter === 'string' ? customerFilter : (customerFilter?.id || customerFilter?.email || '');
+  const userId = typeof customerFilter === 'string' ? customerFilter.trim() : (customerFilter?.id || '');
   if (!userId) {
     if (typeof callback === 'function') callback([]);
     return () => {};
   }
   const q = query(
     collection(db, COLL_ORDERS),
-    where('customer.id', '==', userId),
-    limit(30)
+    where('customer_id', '==', userId),
+    limit(40)
   );
   return onSnapshot(q, (snapshot) => {
     const orders = [];
@@ -437,22 +437,54 @@ export function subscribeToCustomerLiveOrders(customerFilter, callback) {
     });
     orders.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     callback(orders);
-  }, () => {
-    // Graceful fallback to limit(30) if composite index is pending
-    const fallbackQ = query(collection(db, COLL_ORDERS), limit(30));
-    return onSnapshot(fallbackQ, (snapshot) => {
-      const orders = [];
-      snapshot.forEach(doc => {
-        const ord = normalizeOrder(doc.id, doc.data());
-        if (ord.customer_id === userId || ord.customer?.id === userId || ord.customer_email === userId) {
-          orders.push(ord);
-        }
-      });
-      orders.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-      callback(orders);
-    });
+  }, (err) => {
+    console.warn('Customer live orders subscription notice:', err?.message);
+    if (typeof callback === 'function') callback([]);
   });
 }
+
+export async function getCustomerLiveOrders(userId) {
+  const cleanId = typeof userId === 'string' ? userId.trim() : (userId?.id || '');
+  if (!cleanId) return [];
+  try {
+    const q = query(
+      collection(db, COLL_ORDERS),
+      where('customer_id', '==', cleanId),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    const orders = [];
+    snap.forEach(d => orders.push(normalizeOrder(d.id, d.data())));
+    orders.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    return orders;
+  } catch (err) {
+    console.warn('getCustomerLiveOrders notice:', err?.message);
+    return [];
+  }
+}
+
+export async function getLiveOrderById(orderId) {
+  const cleanId = String(orderId || '').trim();
+  if (!cleanId) return null;
+  try {
+    const docRef = doc(db, COLL_ORDERS, cleanId);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return normalizeOrder(snap.id, snap.data());
+    }
+    const q = query(collection(db, COLL_ORDERS), where('order_reference', '==', cleanId), limit(1));
+    const querySnap = await getDocs(q);
+    if (!querySnap.empty) {
+      const firstDoc = querySnap.docs[0];
+      return normalizeOrder(firstDoc.id, firstDoc.data());
+    }
+    return null;
+  } catch (err) {
+    console.warn('getLiveOrderById notice:', err?.message);
+    return null;
+  }
+}
+
 
 export function subscribeToLiveOrders(callback, maxOrders = 60) {
   const q = query(collection(db, COLL_ORDERS), limit(maxOrders));
@@ -1033,53 +1065,232 @@ export async function deductLiveWallet(userId, amount, description = 'Order Paym
 // -------------------------------------------------------------
 // LIVE USERS & CUSTOMERS API
 // -------------------------------------------------------------
+export function processLiveCustomers(usersDocs = [], ordersDocs = []) {
+  const customerMap = new Map();
+  const phoneToUserId = new Map();
+  const emailToUserId = new Map();
+
+  const cleanPhone = (p) => p ? String(p).replace(/\D/g, '').slice(-10) : '';
+  const cleanEmail = (e) => e ? String(e).toLowerCase().trim() : '';
+
+  // 1. Ingest all registered users from COLL_USERS
+  usersDocs.forEach(docItem => {
+    const id = docItem.id;
+    const data = typeof docItem.data === 'function' ? docItem.data() : docItem;
+    if (!id || !data) return;
+
+    // Filter out internal admin / staff / rider accounts
+    const email = cleanEmail(data.email);
+    const role = (data.role || '').toLowerCase();
+    const isAdmin = id === 'user_admin' ||
+                    role === 'super_admin' ||
+                    role === 'admin' ||
+                    role === 'kitchen_staff' ||
+                    role === 'rider' ||
+                    email === 'admin@foodmaxx.ng' ||
+                    email === 'superadmin@foodmaxx.ng' ||
+                    email.startsWith('admin@');
+
+    if (isAdmin) return;
+
+    const fullName = data.full_name || data.name || (email ? email.split('@')[0] : 'Customer');
+    const phone = data.phone || '';
+    const cPhone = cleanPhone(phone);
+    const regDate = data.registered_at || data.created_at || (data.updated_at ? data.updated_at : null);
+
+    // Check if we already have this user registered under this phone or specific email
+    let existingCust = null;
+    if (cPhone && phoneToUserId.has(cPhone)) {
+      existingCust = customerMap.get(phoneToUserId.get(cPhone));
+    } else if (email && email !== 'customer@foodmaxx.ng' && emailToUserId.has(email)) {
+      existingCust = customerMap.get(emailToUserId.get(email));
+    }
+
+    if (existingCust) {
+      if ((!existingCust.full_name || existingCust.full_name === 'Customer') && fullName && fullName !== 'Customer') {
+        existingCust.full_name = fullName;
+      }
+      if (!existingCust.avatar_url && (data.avatar_url || data.photo)) {
+        existingCust.avatar_url = data.avatar_url || data.photo;
+      }
+      if (!existingCust.phone && phone) {
+        existingCust.phone = phone;
+        if (cPhone) phoneToUserId.set(cPhone, existingCust.id);
+      }
+      if (regDate && (!existingCust.registered_at || new Date(regDate) < new Date(existingCust.registered_at))) {
+        existingCust.registered_at = regDate;
+      }
+      customerMap.set(id, existingCust);
+      return;
+    }
+
+    const customerObj = {
+      id,
+      full_name: fullName,
+      email: data.email || '',
+      phone: phone,
+      avatar_url: data.avatar_url || data.photo || '',
+      gender: data.gender || '',
+      status: data.status || 'active',
+      is_registered: true,
+      registered_at: regDate,
+      created_at: data.created_at || regDate,
+      orders_count: 0,
+      total_orders: 0,
+      total_spent: 0,
+      last_ordered: null,
+      addresses: Array.isArray(data.savedAddresses) ? data.savedAddresses : []
+    };
+
+    customerMap.set(id, customerObj);
+    if (cPhone) phoneToUserId.set(cPhone, id);
+    if (email && email !== 'customer@foodmaxx.ng') emailToUserId.set(email, id);
+  });
+
+  // 2. Correlate with real orders from COLL_ORDERS
+  const guestMap = new Map();
+
+  ordersDocs.forEach(orderItem => {
+    const oData = typeof orderItem.data === 'function' ? orderItem.data() : orderItem;
+    if (!oData) return;
+
+    const oCustId = oData.customer_id || oData.customer?.id;
+    const oEmail = cleanEmail(oData.customer_email || oData.email || oData.customer?.email);
+    const rawPhone = oData.customer_phone || oData.phone || oData.customer?.phone;
+    const oPhone = cleanPhone(rawPhone);
+    const orderTotal = Number(oData.total || oData.total_amount || 0);
+    const orderDate = oData.created_at || oData.createdAt;
+
+    // Check if order belongs to internal admin - skip if so
+    if (oEmail === 'admin@foodmaxx.ng' && (!rawPhone || !phoneToUserId.has(oPhone))) {
+      // Internal test order placed under admin account
+      return;
+    }
+
+    // Match order to registered customer
+    let matchedId = null;
+    if (oCustId && customerMap.has(oCustId)) {
+      matchedId = oCustId;
+    } else if (oEmail && emailToUserId.has(oEmail)) {
+      matchedId = emailToUserId.get(oEmail);
+    } else if (oPhone && phoneToUserId.has(oPhone)) {
+      matchedId = phoneToUserId.get(oPhone);
+    }
+
+    if (matchedId && customerMap.has(matchedId)) {
+      const regCust = customerMap.get(matchedId);
+      regCust.orders_count += 1;
+      regCust.total_orders += 1;
+      regCust.total_spent += orderTotal;
+
+      if (!regCust.phone && rawPhone) {
+        regCust.phone = rawPhone;
+        if (oPhone && !phoneToUserId.has(oPhone)) phoneToUserId.set(oPhone, matchedId);
+      }
+      if (!regCust.email && oEmail) {
+        regCust.email = oData.customer_email || oData.email || oData.customer?.email;
+        if (!emailToUserId.has(oEmail)) emailToUserId.set(oEmail, matchedId);
+      }
+      if ((!regCust.full_name || regCust.full_name === 'Customer') && (oData.customer_name || oData.customer?.full_name)) {
+        regCust.full_name = oData.customer_name || oData.customer?.full_name;
+      }
+      if (orderDate && (!regCust.last_ordered || new Date(orderDate) > new Date(regCust.last_ordered))) {
+        regCust.last_ordered = orderDate;
+      }
+    } else {
+      // Guest or unregistered buyer
+      const guestKey = oPhone || oEmail || ('guest_' + (oData.id || Math.random()));
+      let guest = guestMap.get(guestKey);
+      if (!guest) {
+        guest = {
+          id: 'guest_' + (oPhone || (oEmail ? oEmail.replace(/[^a-z0-9]/g, '_') : (oData.id || Date.now()))),
+          full_name: oData.customer_name || (typeof oData.customer === 'string' ? oData.customer : oData.customer?.full_name) || 'Guest Diner',
+          email: oData.customer_email || oData.email || oData.customer?.email || '',
+          phone: rawPhone || '',
+          status: 'guest',
+          is_registered: false,
+          registered_at: null,
+          created_at: orderDate || null,
+          orders_count: 0,
+          total_orders: 0,
+          total_spent: 0,
+          last_ordered: null,
+          addresses: []
+        };
+        guestMap.set(guestKey, guest);
+      }
+      guest.orders_count += 1;
+      guest.total_orders += 1;
+      guest.total_spent += orderTotal;
+      if (orderDate && (!guest.last_ordered || new Date(orderDate) > new Date(guest.last_ordered))) {
+        guest.last_ordered = orderDate;
+      }
+    }
+  });
+
+  const registeredList = Array.from(new Set(customerMap.values()));
+  const guestList = Array.from(guestMap.values());
+
+  // Sort registered customers: newest registration / activity first
+  registeredList.sort((a, b) => {
+    const dateA = new Date(a.registered_at || a.last_ordered || a.created_at || 0).getTime();
+    const dateB = new Date(b.registered_at || b.last_ordered || b.created_at || 0).getTime();
+    return dateB - dateA;
+  });
+
+  // Sort guest buyers by latest order
+  guestList.sort((a, b) => {
+    const dateA = new Date(a.last_ordered || 0).getTime();
+    const dateB = new Date(b.last_ordered || 0).getTime();
+    return dateB - dateA;
+  });
+
+  return [...registeredList, ...guestList];
+}
+
 export async function getLiveCustomers() {
   const [usersSnap, ordersSnap] = await Promise.all([
     getDocs(collection(db, COLL_USERS)),
     getDocs(collection(db, COLL_ORDERS))
   ]);
+  return processLiveCustomers(usersSnap.docs, ordersSnap.docs);
+}
 
-  const customerMap = new Map();
+export function subscribeToLiveCustomers(callback) {
+  if (typeof callback !== 'function') return () => {};
 
-  usersSnap.forEach(d => {
-    const data = d.data();
-    customerMap.set(d.id, {
-      id: d.id,
-      full_name: data.name || data.full_name || 'Customer',
-      phone: data.phone || '',
-      email: data.email || '',
-      total_orders: data.orders || 0,
-      total_spent: data.spent || 0,
-      status: 'active',
-      last_ordered: data.lastOrder || data.created_at || ''
-    });
-  });
+  let currentUsersDocs = [];
+  let currentOrdersDocs = [];
+  let unsubUsers = null;
+  let unsubOrders = null;
 
-  ordersSnap.forEach(d => {
-    const data = d.data();
-    const phone = data.customer_phone || data.phone || data.customer?.phone;
-    if (phone) {
-      const existing = customerMap.get(phone) || {
-        id: 'c_' + phone.replace(/\D/g, ''),
-        full_name: data.customer_name || (typeof data.customer === 'string' ? data.customer : data.customer?.full_name) || 'Customer',
-        phone,
-        email: data.customer_email || data.email || data.customer?.email || '',
-        total_orders: 0,
-        total_spent: 0,
-        status: 'active',
-        last_ordered: ''
-      };
-      existing.total_orders += 1;
-      existing.total_spent += Number(data.total || 0);
-      const oDate = data.created_at || data.createdAt;
-      if (oDate && (!existing.last_ordered || new Date(oDate) > new Date(existing.last_ordered))) {
-        existing.last_ordered = oDate;
-      }
-      customerMap.set(phone, existing);
+  const emit = () => {
+    try {
+      const customers = processLiveCustomers(currentUsersDocs, currentOrdersDocs);
+      callback(customers);
+    } catch (e) {
+      console.warn('Error processing live customers:', e);
     }
-  });
+  };
 
-  return Array.from(customerMap.values());
+  try {
+    unsubUsers = onSnapshot(collection(db, COLL_USERS), (snap) => {
+      currentUsersDocs = snap.docs;
+      emit();
+    }, (err) => console.warn('Live users onSnapshot error:', err.message));
+
+    unsubOrders = onSnapshot(collection(db, COLL_ORDERS), (snap) => {
+      currentOrdersDocs = snap.docs;
+      emit();
+    }, (err) => console.warn('Live orders for customers onSnapshot error:', err.message));
+  } catch (err) {
+    console.warn('Error setting up subscribeToLiveCustomers:', err);
+  }
+
+  return () => {
+    if (unsubUsers) unsubUsers();
+    if (unsubOrders) unsubOrders();
+  };
 }
 
 export async function getLiveUser(userId) {

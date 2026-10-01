@@ -13,6 +13,8 @@ import {
   verifyLiveOrderOtp,
   subscribeToLiveOrders,
   subscribeToCustomerLiveOrders,
+  getCustomerLiveOrders,
+  getLiveOrderById,
   getLiveCategories,
   subscribeToLiveCategories,
   createLiveCategory,
@@ -33,6 +35,7 @@ import {
   updateLiveRider,
   toggleLiveRiderStatus,
   getLiveCustomers,
+  subscribeToLiveCustomers,
   getLiveUser,
   subscribeToLiveUser,
   updateLiveUser,
@@ -178,16 +181,28 @@ export const api = {
   login: async (email, password) => {
     const emailLower = (email || '').toLowerCase().trim();
     const isAdmin = emailLower === 'admin@foodmaxx.ng' ||
-                    emailLower.includes('admin') ||
-                    emailLower.includes('manager') ||
-                    emailLower.includes('owner') ||
-                    emailLower.endsWith('@foodmaxx.ng');
+                    emailLower.startsWith('admin@') ||
+                    emailLower === 'superadmin@foodmaxx.ng';
+    const emailSlug = emailLower ? emailLower.replace(/[^a-z0-9]/g, '_') : '';
+    const userId = isAdmin ? 'user_admin' : `user_${emailSlug}`;
+
+    let existingUser = null;
+    try {
+      existingUser = await getLiveUser(userId);
+    } catch (e) {}
+
+    const nowIso = new Date().toISOString();
     const user = {
-      id: isAdmin ? 'user_admin' : ('user_' + emailLower.replace(/[^a-z0-9]/g, '_')),
-      full_name: isAdmin ? 'FoodMaxx Super Admin' : (emailLower.split('@')[0] || 'FoodMaxx Customer'),
+      id: userId,
+      full_name: existingUser?.full_name || existingUser?.name || (isAdmin ? 'FoodMaxx Super Admin' : (emailLower.split('@')[0] || 'FoodMaxx Customer')),
       email: emailLower,
-      phone: '',
-      role: isAdmin ? 'super_admin' : 'customer'
+      phone: existingUser?.phone || '',
+      avatar_url: existingUser?.avatar_url || existingUser?.photo || '',
+      gender: existingUser?.gender || '',
+      role: isAdmin ? 'super_admin' : (existingUser?.role || 'customer'),
+      status: existingUser?.status || 'active',
+      created_at: existingUser?.created_at || existingUser?.registered_at || nowIso,
+      registered_at: existingUser?.registered_at || existingUser?.created_at || nowIso
     };
     const token = 'fmx_token_' + Date.now();
     try {
@@ -200,14 +215,29 @@ export const api = {
 
   register: async (data) => {
     const emailLower = (data?.email || '').toLowerCase().trim();
+    const emailSlug = emailLower ? emailLower.replace(/[^a-z0-9]/g, '_') : '';
+    const phoneSlug = data?.phone ? String(data.phone).replace(/\D/g, '') : '';
+    const userId = emailSlug ? `user_${emailSlug}` : (phoneSlug ? `user_${phoneSlug}` : `user_${Date.now()}`);
+
+    let existingUser = null;
+    try {
+      existingUser = await getLiveUser(userId);
+    } catch (e) {}
+
+    const nowIso = new Date().toISOString();
     const user = {
-      id: 'user_' + Date.now(),
-      full_name: data?.full_name || 'Customer',
+      id: userId,
+      full_name: data?.full_name || existingUser?.full_name || 'FoodMaxx Customer',
       email: emailLower,
-      phone: data?.phone || '',
-      avatar_url: data?.avatar_url || '',
-      gender: data?.gender || '',
-      role: 'customer'
+      phone: data?.phone || existingUser?.phone || '',
+      avatar_url: data?.avatar_url || existingUser?.avatar_url || '',
+      gender: data?.gender || existingUser?.gender || '',
+      role: 'customer',
+      status: 'active',
+      created_at: existingUser?.created_at || existingUser?.registered_at || nowIso,
+      registered_at: existingUser?.registered_at || nowIso,
+      orders_count: existingUser?.orders_count || 0,
+      total_spent: existingUser?.total_spent || 0
     };
     const token = 'fmx_token_' + Date.now();
     try {
@@ -305,36 +335,48 @@ export const api = {
   },
 
   getCustomerOrders: async (currentUser) => {
-    if (!currentUser) return { success: true, data: [] };
-    const all = await getLiveOrders(100);
-    const uId = String(currentUser.id || '').trim();
-    const uPhone = String(currentUser.phone || '').trim();
-    const uEmail = String(currentUser.email || '').trim().toLowerCase();
-
-    const filtered = all.filter(o => {
-      const cId = String(o.customer_id || o.customer?.id || '').trim();
-      const cPhone = String(o.customer_phone || o.customer?.phone || '').trim();
-      const cEmail = String(o.customer_email || o.customer?.email || '').trim().toLowerCase();
-
-      return (uId && cId === uId) ||
-             (uPhone && cPhone && cPhone === uPhone) ||
-             (uEmail && cEmail && cEmail === uEmail);
-    });
-
-    return { success: true, data: filtered };
+    if (!currentUser || !currentUser.id) return { success: true, data: [] };
+    const cleanId = String(currentUser.id || '').trim();
+    const data = await getCustomerLiveOrders(cleanId);
+    return { success: true, data };
   },
 
-  getOrder: async (id) => {
-    const orders = await getLiveOrders();
-    const matched = orders.find(o => o.id === id || o.order_reference === id);
-    if (matched) return { success: true, data: matched };
-    return { success: false, message: 'Order not found' };
+  getOrder: async (id, requestingUser = null) => {
+    if (!id) return { success: false, message: 'Order ID required' };
+    const order = await getLiveOrderById(id);
+    if (!order) return { success: false, message: 'Order not found' };
+
+    // Strict account isolation: verify ownership if a user is provided
+    if (requestingUser) {
+      const uId = String(requestingUser.id || '').trim();
+      const uEmail = String(requestingUser.email || '').trim().toLowerCase();
+      const uPhone = String(requestingUser.phone || '').trim();
+      const isAdmin = requestingUser.role === 'super_admin' || requestingUser.role === 'admin' || requestingUser.role === 'manager';
+
+      const oCustId = String(order.customer_id || order.customer?.id || '').trim();
+      const oCustEmail = String(order.customer_email || order.customer?.email || '').trim().toLowerCase();
+      const oCustPhone = String(order.customer_phone || order.customer?.phone || '').trim();
+
+      const isOwner = (uId && oCustId === uId) ||
+                      (uEmail && oCustEmail && oCustEmail === uEmail) ||
+                      (uPhone && oCustPhone && oCustPhone === uPhone);
+
+      if (!isAdmin && !isOwner) {
+        return { success: false, message: 'Access denied: You do not have permission to view this order.' };
+      }
+    }
+
+    return { success: true, data: order };
   },
 
   createOrder: async (orderData) => {
     const created = await createLiveOrder(orderData);
     try {
-      localStorage.setItem('fmx_last_order_id', created.id);
+      const uId = orderData?.customer_id || orderData?.customer?.id;
+      if (uId) {
+        localStorage.setItem(`fmx_last_order_${uId}`, created.id);
+      }
+      localStorage.removeItem('fmx_last_order_id');
       window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: created }));
     } catch (e) {}
     return { success: true, data: created };
@@ -634,6 +676,10 @@ export const api = {
   getAdminCustomers: async () => {
     const data = await getLiveCustomers();
     return { success: true, data };
+  },
+
+  subscribeLiveCustomers: (callback) => {
+    return subscribeToLiveCustomers(callback);
   },
 
   updateAdminCustomer: async (id, data) => {

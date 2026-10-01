@@ -808,6 +808,25 @@ function CustomerPortal() {
     } catch {}
   }, []);
 
+  // Handle order tracking deep link (?track=ORD-XXXX or ?order=ORD-XXXX) with strict authorization
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const trackId = params.get('track') || params.get('order');
+      if (trackId) {
+        api.getOrder(trackId.trim(), user).then(res => {
+          if (res?.success && res?.data) {
+            setTrackingOrder(res.data);
+          } else {
+            if (typeof toast === 'function') {
+              toast(res?.message || 'Access denied: Unable to view order tracking.', 'error');
+            }
+          }
+        }).catch(() => {});
+      }
+    } catch {}
+  }, [user?.id]);
+
   const [orders, setOrders] = useState([]);
   const [trackingOrder, setTrackingOrder] = useState(null);
   const trackingOrderRef = useRef(null);
@@ -1032,33 +1051,31 @@ function CustomerPortal() {
     return () => { if (typeof unsub === 'function') unsub(); };
   }, []);
 
-  // Firestore real-time customer orders subscription (scoped with limits)
+  // Firestore real-time customer orders subscription (strictly scoped to authenticated user)
   useEffect(() => {
-    const subscriber = api.subscribeCustomerLiveOrders || api.subscribeLiveOrders;
+    // If not authenticated, ensure orders and tracking states are strictly empty
+    if (!user?.id) {
+      setOrders([]);
+      setTrackingOrder(null);
+      setLiveStatusBanner(null);
+      return;
+    }
+
+    const subscriber = api.subscribeCustomerLiveOrders;
     if (!subscriber) return;
-    const unsub = subscriber(user || null, (ordersList) => {
+    const currentUserId = user.id;
+
+    const unsub = subscriber(user, (ordersList) => {
       if (!Array.isArray(ordersList)) return;
 
-      let relevantOrders = [];
-      if (user) {
-        const mine = ordersList.filter(o =>
-          (o.customer_id && o.customer_id === user.id) ||
-          (o.customer_phone && user.phone && o.customer_phone === user.phone) ||
-          (o.customer_email && user.email && o.customer_email === user.email)
-        );
-        relevantOrders = mine;
-      } else {
-        const lastOrdId = localStorage.getItem('fmx_last_order_id');
-        if (lastOrdId) {
-          const matched = ordersList.filter(o => o.id === lastOrdId || o.order_reference === lastOrdId);
-          relevantOrders = matched;
-        } else {
-          relevantOrders = [];
-        }
-      }
+      // Strict client-side isolation check
+      const mine = ordersList.filter(o => {
+        const cId = String(o.customer_id || o.customer?.id || '').trim();
+        return cId === currentUserId;
+      });
 
       // Detect status changes and trigger sound + top banner notification
-      relevantOrders.forEach(ord => {
+      mine.forEach(ord => {
         const prevStatus = prevOrderStatusesRef.current.get(ord.id);
         if (prevStatus && prevStatus !== ord.order_status) {
           playOrderNotificationSound();
@@ -1083,14 +1100,19 @@ function CustomerPortal() {
         prevOrderStatusesRef.current.set(ord.id, ord.order_status);
       });
 
-      setOrders(relevantOrders);
+      setOrders(mine);
 
-      // If active tracking modal is open, ensure it syncs immediately with latest status
+      // If active tracking modal is open, ensure it syncs immediately with latest status or nulls out if not mine
       const currentTracked = trackingOrderRef.current;
       if (currentTracked?.id) {
-        const updatedTracked = ordersList.find(o => o.id === currentTracked.id || o.order_reference === currentTracked.order_reference);
-        if (updatedTracked && updatedTracked.order_status !== currentTracked.order_status) {
-          setTrackingOrder(updatedTracked);
+        const updatedTracked = mine.find(o => o.id === currentTracked.id || o.order_reference === currentTracked.order_reference);
+        if (updatedTracked) {
+          if (updatedTracked.order_status !== currentTracked.order_status) {
+            setTrackingOrder(updatedTracked);
+          }
+        } else {
+          // Tracked order does not belong to active user session! Wipe tracking immediately!
+          setTrackingOrder(null);
         }
       }
     });
@@ -1100,7 +1122,6 @@ function CustomerPortal() {
       if (e.detail?.action === 'logout') {
         setOrders([]);
         setTrackingOrder(null);
-        setTrackingModalOpen(false);
         setLiveStatusBanner(null);
         setSelectedAddress(null);
         setSavedAddresses([]);
@@ -1114,7 +1135,6 @@ function CustomerPortal() {
     window.addEventListener('fmx_tracking_clear', () => {
       setOrders([]);
       setTrackingOrder(null);
-      setTrackingModalOpen(false);
       setLiveStatusBanner(null);
     });
 
@@ -1131,13 +1151,23 @@ function CustomerPortal() {
     const unsub = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const liveData = { id: docSnap.id, ...docSnap.data() };
+        if (user) {
+          const ownerId = liveData.customer_id || liveData.customer?.id;
+          const ownerEmail = liveData.customer_email || liveData.customer?.email;
+          const isAdmin = user.role === 'super_admin' || user.role === 'admin';
+          if (!isAdmin && ownerId && ownerId !== user.id && (!user.email || ownerEmail !== user.email)) {
+            console.warn('Unauthorized live tracking attempt blocked.');
+            setTrackingOrder(null);
+            return;
+          }
+        }
         setTrackingOrder(prev => prev ? { ...prev, ...liveData } : liveData);
       }
     }, (err) => {
       console.warn('Live tracking order subscription notice:', err.message);
     });
     return () => unsub();
-  }, [trackingOrder?.id]);
+  }, [trackingOrder?.id, user?.id]);
 
   useEffect(() => {
     if (user) {
@@ -1271,13 +1301,27 @@ function CustomerPortal() {
 
   function openTrackingOrder(order) {
     if (!order) return;
+    if (user) {
+      const orderOwner = order.customer_id || order.customer?.id;
+      const orderEmail = order.customer_email || order.customer?.email;
+      const isAdmin = user.role === 'super_admin' || user.role === 'admin';
+      if (!isAdmin && orderOwner && orderOwner !== user.id && (!user.email || orderEmail !== user.email)) {
+        toast('Access denied: This order does not belong to your account', 'error');
+        return;
+      }
+    }
     setReturnTabAfterTracking(activeTab);
     // Instant zero-latency open with current order data
     setTrackingOrder(order);
-    // Background refresh without blocking modal opening
+    // Background refresh with strict user scoping
     if (order.id) {
-      api.getOrder(order.id).then(res => {
-        if (res?.data) setTrackingOrder(res.data);
+      api.getOrder(order.id, user).then(res => {
+        if (res?.success && res?.data) {
+          setTrackingOrder(res.data);
+        } else if (!res?.success) {
+          toast(res?.message || 'Unable to access order', 'error');
+          setTrackingOrder(null);
+        }
       }).catch(() => {});
     }
   }
@@ -2032,8 +2076,10 @@ function CustomerPortal() {
           <CheckoutModal
             key="checkout-modal"
             open={checkoutOpen}
-            onClose={() => setCheckoutOpen(false)}
-            onOpenGroupOrder={() => setGroupOrderSheetOpen(true)}
+            onOpenGroupOrder={() => {
+              setCheckoutOpen(false);
+              setGroupOrderSheetOpen(true);
+            }}
             selectedZone={selectedZone}
             selectedAddress={selectedAddress}
             wallet={wallet}
@@ -8158,7 +8204,11 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
       };
 
       // 1. INSTANT 0ms ZERO-DELAY FEEDBACK TO PAYMENT CONFIRMED SCREEN
-      try { localStorage.setItem('fmx_last_order_id', finalOrderData.id); } catch {}
+      try {
+        const uId = orderData?.customer_id || orderData?.customer?.id || user?.id;
+        if (uId) localStorage.setItem(`fmx_last_order_${uId}`, finalOrderData.id);
+        localStorage.removeItem('fmx_last_order_id');
+      } catch {}
       if (Number(firstTimeGiveawayDeduction) > 0 || effectiveUseGiveaway) {
         markGiveawayAsClaimed(orderData.customer_phone);
       }
@@ -8181,7 +8231,11 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
           const res = await api.createOrder(finalOrderData);
           const serverOrder = res?.data?.order || res?.data || res?.order;
           if (serverOrder?.id) {
-            try { localStorage.setItem('fmx_last_order_id', serverOrder.id); } catch {}
+            try {
+              const uId = serverOrder?.customer_id || serverOrder?.customer?.id || user?.id;
+              if (uId) localStorage.setItem(`fmx_last_order_${uId}`, serverOrder.id);
+              localStorage.removeItem('fmx_last_order_id');
+            } catch {}
             try { window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: serverOrder })); } catch {}
           }
         } catch (cErr) {
@@ -8331,6 +8385,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
 
       const orderData = {
         restaurant_id: cart.restaurantId,
+        customer_id: activeUser?.id || user?.id || null,
         customer_name: nameToUse,
         customer_phone: phoneToUse,
         customer_email: emailToUse || activeUser?.email,
@@ -8372,7 +8427,11 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
         const res = await api.createOrder(finalOrderData);
         const placedOrder = res?.data?.order || res?.data || res?.order || finalOrderData;
         if (placedOrder?.id) {
-          try { localStorage.setItem('fmx_last_order_id', placedOrder.id); } catch {}
+          try {
+            const uId = placedOrder?.customer_id || placedOrder?.customer?.id || user?.id;
+            if (uId) localStorage.setItem(`fmx_last_order_${uId}`, placedOrder.id);
+            localStorage.removeItem('fmx_last_order_id');
+          } catch {}
         }
         if (Number(firstTimeGiveawayDeduction) > 0 || effectiveUseGiveaway) {
           markGiveawayAsClaimed(phoneToUse);
@@ -9171,8 +9230,8 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
   const deliveryPin = order.delivery_otp || order.pin || '';
   const totalAmount = order.total || order.total_amount || 0;
 
-  // Resolve full delivery address safely
-  const fullAddress = order.delivery_address || order.address || (order.delivery_zone ? `${order.delivery_zone}, Ibadan` : 'Awolowo Avenue, Old Bodija, Ibadan');
+  // Resolve full delivery address safely (strictly user-entered)
+  const fullAddress = order.delivery_address || order.address || order.delivery_zone || 'Delivery location specified at checkout';
   const landmark = order.delivery_landmark || order.landmark || '';
 
   // Order items resolution
@@ -9574,16 +9633,57 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
     }
   };
 
+  // Critical Account Isolation Guard: Prevent Cross-Account Leakage
+  const orderCustId = String(order?.customer_id || order?.customer?.id || '').trim();
+  const orderCustEmail = String(order?.customer_email || order?.customer?.email || '').trim().toLowerCase();
+  const orderCustPhone = String(order?.customer_phone || order?.customer?.phone || '').trim();
+
+  const userCustId = String(user?.id || '').trim();
+  const userCustEmail = String(user?.email || '').trim().toLowerCase();
+  const userCustPhone = String(user?.phone || '').trim();
+
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'manager';
+  const isOwner = !user || (
+    (userCustId && orderCustId && userCustId === orderCustId) ||
+    (userCustEmail && orderCustEmail && userCustEmail === orderCustEmail) ||
+    (userCustPhone && orderCustPhone && userCustPhone === orderCustPhone)
+  );
+
+  if (user && !isOwner && !isAdmin) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
+        <div className={`w-full max-w-md p-6 rounded-3xl border text-center ${
+          isDark ? 'bg-[#12141A] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200'
+        }`}>
+          <div className="w-14 h-14 rounded-full bg-red-500/10 text-red-500 mx-auto flex items-center justify-center mb-4">
+            <Lock size={28} />
+          </div>
+          <h3 className="text-lg font-bold mb-2">Access Denied</h3>
+          <p className="text-sm text-slate-400 mb-6">
+            This order and tracking information belongs to a different account. You do not have permission to view this order.
+          </p>
+          <button
+            onClick={onClose}
+            className="w-full py-3 rounded-2xl bg-[#EA4C2A] text-white font-bold hover:bg-[#d43f1f] transition-all cursor-pointer shadow-lg shadow-[#EA4C2A]/20"
+          >
+            Return to My Orders
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const isDelivered = order.order_status === 'DELIVERED';
   const isCancelled = order.order_status === 'CANCELLED';
 
-  // Destination address resolution
+  // Destination address resolution (strictly from real customer order)
   const destinationAddress =
     order.delivery_address ||
     order.deliveryAddress ||
     order.address ||
     order.recipient_address ||
-    (order.delivery_zone ? `${order.delivery_zone}, Ibadan` : 'Awolowo Avenue, Old Bodija, Ibadan');
+    order.delivery_zone ||
+    'Delivery location specified at checkout';
   const destinationZone = order.delivery_zone || order.zone || 'Old Bodija / UI Axis';
   const destinationLandmark = order.delivery_landmark || order.landmark || order.delivery_note || '';
   const destinationInstructions = order.delivery_instructions || order.instructions || '';
@@ -9594,7 +9694,7 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
     full_name: order.rider_name || 'Assigned Courier',
     phone: order.rider_phone || '',
     vehicle_type: order.vehicle_type || 'Delivery Motorcycle',
-    rating: order.rider_rating || 4.9,
+    rating: order.rider_rating || null,
   } : null);
   const riderPhone = rider?.phone || order.rider_phone || '';
   const cleanPhone = riderPhone.replace(/[^0-9+]/g, '');
@@ -10453,24 +10553,38 @@ function SupportModal({ open, onClose }) {
 // ============================================================
 function LoginModal({ open, onClose, onSwitchRegister }) {
   const { isDark } = useTheme?.() || {};
+  const { login } = useAuth();
   return (
     <AuthModal
       open={open}
       onClose={onClose}
       initialMode="login"
-      onSuccess={onClose}
+      onSuccess={async (signedInUser) => {
+        if (signedInUser?.email) {
+          await login(signedInUser.email, '', signedInUser.role);
+        }
+        onClose();
+      }}
+      onSwitchRegister={onSwitchRegister}
       isDark={isDark}
     />
   );
 }
 
 function RegisterModal({ open, onClose, onSwitchLogin }) {
+  const { login } = useAuth();
   return (
     <AuthModal
       open={open}
       onClose={onClose}
       initialMode="register"
-      onSuccess={onClose}
+      onSuccess={async (newUser) => {
+        if (newUser?.email) {
+          await login(newUser.email, '', newUser.role);
+        }
+        onClose();
+      }}
+      onSwitchLogin={onSwitchLogin}
       isDark={false}
     />
   );
@@ -11288,6 +11402,28 @@ function AuthProvider({ children }) {
   }
 
   async function login(email, password, forcedRole) {
+    // 1. Purge previous user's local caches, addresses, and order info before establishing new session
+    try {
+      localStorage.removeItem('fmx_last_order_id');
+      localStorage.removeItem('fmx_active_order');
+      localStorage.removeItem('fmx_cart_use_giveaway');
+      localStorage.removeItem('fmx_active_promo');
+      localStorage.removeItem('fmx_saved_addresses');
+      localStorage.removeItem('fmx_last_delivery_address');
+      localStorage.removeItem('fmx_last_name');
+      localStorage.removeItem('fmx_last_phone');
+      localStorage.removeItem('fmx_guest_name');
+      localStorage.removeItem('fmx_active_group_code');
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('fmx_last_order_') || k.startsWith('fmx_order_') || k.startsWith('fmx_user_') || k.startsWith('fmx_pid_')) {
+          localStorage.removeItem(k);
+        }
+      });
+      window.dispatchEvent(new CustomEvent('fmx_tracking_clear'));
+      window.dispatchEvent(new CustomEvent('fmx_address_clear'));
+      window.dispatchEvent(new CustomEvent('fmx_cart_clear'));
+    } catch {}
+
     const res = await api.login(email, password);
     let finalUser = res.user;
     const isExplicitAdmin = forcedRole === 'super_admin' || (email && (email.toLowerCase().includes('admin') || email.toLowerCase().includes('manager') || email.toLowerCase().includes('owner') || email.toLowerCase().endsWith('@foodmaxx.ng')));
@@ -11395,6 +11531,11 @@ function AuthProvider({ children }) {
       localStorage.removeItem('fmx_last_phone');
       localStorage.removeItem('fmx_guest_name');
       localStorage.removeItem('fmx_active_group_code');
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('fmx_last_order_') || k.startsWith('fmx_order_') || k.startsWith('fmx_user_') || k.startsWith('fmx_pid_')) {
+          localStorage.removeItem(k);
+        }
+      });
     } catch {}
     setToken(null);
     setUser(null);

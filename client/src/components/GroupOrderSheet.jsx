@@ -428,11 +428,11 @@ export default function GroupOrderSheet({
   const borderCol  = isDark ? 'border-white/10' : 'border-slate-100';
   const textMuted  = isDark ? 'text-slate-400' : 'text-slate-500';
 
-  const isClosed = activeGroup && (activeGroup.status === 'CLOSED' || activeGroup.status === 'CANCELLED');
+  const isClosed = Boolean(activeGroup && (String(activeGroup.status || '').toUpperCase() === 'CLOSED' || String(activeGroup.status || '').toUpperCase() === 'CANCELLED'));
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
