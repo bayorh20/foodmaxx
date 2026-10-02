@@ -1,5 +1,5 @@
 // FoodMaxx Progressive Web App Service Worker (Network-First HTML for Instant Deploy Updates)
-const CACHE_NAME = 'foodmaxx-pwa-v11-live';
+const CACHE_NAME = 'foodmaxx-pwa-v12-rehost';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
