@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext, useMemo, useDeferredValue, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti';
 import './index.css';
+
+// Dynamically import canvas-confetti only when triggered to save bundle weight
+const triggerConfetti = (opts) => {
+  import('canvas-confetti').then((m) => {
+    const fn = m.default || m;
+    if (typeof fn === 'function') fn(opts);
+  }).catch(() => {});
+};
 import { doc, onSnapshot } from 'firebase/firestore';
 import { api, FMXWebSocket, getStoredProducts, getStoredZones } from './services/api';
 import { db, DEFAULT_ADDONS } from './services/firebaseDb';
@@ -24,17 +31,18 @@ import {
   Columns, LayoutList, Grid, Bike, Edit3, Radio, Palette, Camera, Ticket, HeartHandshake
 } from 'lucide-react';
 
-import NotificationToneModal from './components/NotificationToneModal';
-import NotificationCenterModal from './components/NotificationCenterModal';
+const NotificationToneModal = lazy(() => import('./components/NotificationToneModal'));
+const NotificationCenterModal = lazy(() => import('./components/NotificationCenterModal'));
 import { getStoreDetails, updateStoreDetails, DEFAULT_STORE_DETAILS } from './config/storeDetails';
 import OptimizedProductImage, { getOptimizedImageUrl, preloadImage, prefetchCatalogImages } from './components/OptimizedProductImage';
 const AdminPortal = lazy(() => import('./components/AdminPortal'));
 import SplashScreen from './components/SplashScreen';
-import OnboardingFlow from './components/OnboardingFlow';
-import TransitionStudioModal, { getTransitionVariants } from './components/TransitionStudioModal';
-import GroupOrderSheet from './components/GroupOrderSheet';
-import AuthModal from './components/AuthModal';
-import AvatarPickerModal from './components/AvatarPickerModal';
+const OnboardingFlow = lazy(() => import('./components/OnboardingFlow'));
+import { getTransitionVariants } from './utils/transitionStyles';
+const TransitionStudioModal = lazy(() => import('./components/TransitionStudioModal'));
+const GroupOrderSheet = lazy(() => import('./components/GroupOrderSheet'));
+const AuthModal = lazy(() => import('./components/AuthModal'));
+const AvatarPickerModal = lazy(() => import('./components/AvatarPickerModal'));
 import { getRealCurrentPosition } from './services/realLocation';
 import { getHappyAvatar } from './utils/avatarUtils';
 import { 
@@ -1618,44 +1626,46 @@ function CustomerPortal() {
             />
           )}
           {appStage === 'onboarding' && (
-            <OnboardingFlow
-              onComplete={() => {
-                try {
-                  localStorage.setItem('fmx_onboarded', 'true');
-                  localStorage.setItem('fmx_splash_seen', 'true');
-                  sessionStorage.setItem('fmx_splash_seen', 'true');
-                } catch {}
-                setAppStage('ready');
-              }}
-              onRegister={async ({ full_name, phone, address }) => {
-                try {
-                  localStorage.setItem('fmx_onboarded', 'true');
-                  localStorage.setItem('fmx_last_name', full_name);
-                  localStorage.setItem('fmx_last_phone', phone);
-                  if (address) localStorage.setItem('fmx_last_delivery_address', address);
-                  localStorage.setItem('fmx_splash_seen', 'true');
-                  sessionStorage.setItem('fmx_splash_seen', 'true');
-                } catch {}
-                const res = await silentRegister({ full_name, phone });
-                if (address && res?.id) {
+            <Suspense fallback={null}>
+              <OnboardingFlow
+                onComplete={() => {
                   try {
-                    await api.updateUser(res.id, { address });
-                    updateUser({ address });
+                    localStorage.setItem('fmx_onboarded', 'true');
+                    localStorage.setItem('fmx_splash_seen', 'true');
+                    sessionStorage.setItem('fmx_splash_seen', 'true');
                   } catch {}
-                }
-                toast(`Welcome to FoodMaxx, ${full_name}! ₦1,000 credit added.`, 'success');
-                return res;
-              }}
-              onGuest={() => {
-                try {
-                  localStorage.setItem('fmx_onboarded', 'true');
-                  localStorage.setItem('fmx_splash_seen', 'true');
-                  sessionStorage.setItem('fmx_splash_seen', 'true');
-                } catch {}
-                setAppStage('ready');
-                toast('Browsing FoodMaxx as Guest 🍽️', 'info');
-              }}
-            />
+                  setAppStage('ready');
+                }}
+                onRegister={async ({ full_name, phone, address }) => {
+                  try {
+                    localStorage.setItem('fmx_onboarded', 'true');
+                    localStorage.setItem('fmx_last_name', full_name);
+                    localStorage.setItem('fmx_last_phone', phone);
+                    if (address) localStorage.setItem('fmx_last_delivery_address', address);
+                    localStorage.setItem('fmx_splash_seen', 'true');
+                    sessionStorage.setItem('fmx_splash_seen', 'true');
+                  } catch {}
+                  const res = await silentRegister({ full_name, phone });
+                  if (address && res?.id) {
+                    try {
+                      await api.updateUser(res.id, { address });
+                      updateUser({ address });
+                    } catch {}
+                  }
+                  toast(`Welcome to FoodMaxx, ${full_name}! ₦1,000 credit added.`, 'success');
+                  return res;
+                }}
+                onGuest={() => {
+                  try {
+                    localStorage.setItem('fmx_onboarded', 'true');
+                    localStorage.setItem('fmx_splash_seen', 'true');
+                    sessionStorage.setItem('fmx_splash_seen', 'true');
+                  } catch {}
+                  setAppStage('ready');
+                  toast('Browsing FoodMaxx as Guest 🍽️', 'info');
+                }}
+              />
+            </Suspense>
           )}
         </AnimatePresence>
 
@@ -2230,37 +2240,41 @@ function CustomerPortal() {
       </AnimatePresence>
 
       {/* REAL COLLABORATIVE GROUP ORDER BOTTOM SHEET */}
-      <GroupOrderSheet
-        open={groupOrderSheetOpen}
-        onClose={() => setGroupOrderSheetOpen(false)}
-        cart={cart}
-        user={user}
-        deliveryAddress={selectedAddress?.address || ''}
-        deliveryFee={selectedZone?.delivery_fee || 500}
-        isDark={isDark}
-        onCompleteGroupOrder={(groupData) => {
-          if (groupData?.allOrderItems && groupData.allOrderItems.length > 0) {
-            clearCart();
-            groupData.allOrderItems.forEach(it => {
-              addItem('rest_foodmaxx', 'FoodMaxx', {
-                id: it.id,
-                name: `[${it.memberName}] ${it.name}`,
-                price: it.price,
-                qty: it.qty,
-                selectedSize: it.portion,
-                image: it.image
-              });
-            });
-            setGroupOrderSheetOpen(false);
-            setCheckoutOpen(true);
-            toast(`Group Order (${groupData.groupCode}) ready! ${groupData.members.length} people added meals 👥`, 'success');
-          }
-        }}
-        onBrowseMenu={() => {
-          setGroupOrderSheetOpen(false);
-          setActiveTab('menu');
-        }}
-      />
+      {groupOrderSheetOpen && (
+        <Suspense fallback={null}>
+          <GroupOrderSheet
+            open={groupOrderSheetOpen}
+            onClose={() => setGroupOrderSheetOpen(false)}
+            cart={cart}
+            user={user}
+            deliveryAddress={selectedAddress?.address || ''}
+            deliveryFee={selectedZone?.delivery_fee || 500}
+            isDark={isDark}
+            onCompleteGroupOrder={(groupData) => {
+              if (groupData?.allOrderItems && groupData.allOrderItems.length > 0) {
+                clearCart();
+                groupData.allOrderItems.forEach(it => {
+                  addItem('rest_foodmaxx', 'FoodMaxx', {
+                    id: it.id,
+                    name: `[${it.memberName}] ${it.name}`,
+                    price: it.price,
+                    qty: it.qty,
+                    selectedSize: it.portion,
+                    image: it.image
+                  });
+                });
+                setGroupOrderSheetOpen(false);
+                setCheckoutOpen(true);
+                toast(`Group Order (${groupData.groupCode}) ready! ${groupData.members.length} people added meals 👥`, 'success');
+              }
+            }}
+            onBrowseMenu={() => {
+              setGroupOrderSheetOpen(false);
+              setActiveTab('menu');
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* FOOD DETAIL MODAL */}
       <AnimatePresence>
@@ -2406,30 +2420,34 @@ function CustomerPortal() {
       )}
 
       {/* NOTIFICATIONS CENTER MODAL */}
-      <NotificationCenterModal
-        open={notifsOpen}
-        onClose={() => setNotifsOpen(false)}
-        notifications={notifications}
-        onSelectOrder={(refOrId) => {
-          const ord = orders.find(o => o.id === refOrId || o.order_reference === refOrId);
-          if (ord) {
-            setTrackingOrder(ord);
-          } else {
-            api.getOrder(refOrId, user).then(r => {
-              if (r?.success && r?.data) {
-                setTrackingOrder(r.data);
+      {notifsOpen && (
+        <Suspense fallback={null}>
+          <NotificationCenterModal
+            open={notifsOpen}
+            onClose={() => setNotifsOpen(false)}
+            notifications={notifications}
+            onSelectOrder={(refOrId) => {
+              const ord = orders.find(o => o.id === refOrId || o.order_reference === refOrId);
+              if (ord) {
+                setTrackingOrder(ord);
               } else {
-                toast(r?.message || 'Access denied: Unable to view order tracking.', 'error');
+                api.getOrder(refOrId, user).then(r => {
+                  if (r?.success && r?.data) {
+                    setTrackingOrder(r.data);
+                  } else {
+                    toast(r?.message || 'Access denied: Unable to view order tracking.', 'error');
+                  }
+                });
               }
-            });
-          }
-        }}
-        onRefresh={() => {
-          if (api.getStoredInAppNotifications) {
-            setNotifications(api.getStoredInAppNotifications(user?.id));
-          }
-        }}
-      />
+            }}
+            onRefresh={() => {
+              if (api.getStoredInAppNotifications) {
+                setNotifications(api.getStoredInAppNotifications(user?.id));
+              }
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* SUPPORT MODAL */}
       <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} user={user} />
@@ -2444,26 +2462,34 @@ function CustomerPortal() {
       <FlyingCartDropOverlay />
 
       {/* LOUD NOTIFICATION TONES STUDIO MODAL */}
-      <NotificationToneModal
-        open={toneModalOpen}
-        onClose={() => setToneModalOpen(false)}
-      />
+      {toneModalOpen && (
+        <Suspense fallback={null}>
+          <NotificationToneModal
+            open={toneModalOpen}
+            onClose={() => setToneModalOpen(false)}
+          />
+        </Suspense>
+      )}
 
       {/* 20 SCREEN TRANSITION STYLES STUDIO MODAL */}
-      <TransitionStudioModal
-        open={transitionModalOpen}
-        onClose={() => setTransitionModalOpen(false)}
-        currentStyle={transitionStyle}
-        onSelectStyle={(id) => {
-          setTransitionStyle(id);
-          try {
-            localStorage.setItem('fmx_transition_style', id);
-          } catch (e) {
-            console.warn(e);
-          }
-        }}
-        isDark={isDark}
-      />
+      {transitionModalOpen && (
+        <Suspense fallback={null}>
+          <TransitionStudioModal
+            open={transitionModalOpen}
+            onClose={() => setTransitionModalOpen(false)}
+            currentStyle={transitionStyle}
+            onSelectStyle={(id) => {
+              setTransitionStyle(id);
+              try {
+                localStorage.setItem('fmx_transition_style', id);
+              } catch (e) {
+                console.warn(e);
+              }
+            }}
+            isDark={isDark}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
@@ -4573,14 +4599,18 @@ function ProfileTab({
       </div>
 
       {/* 5. AVATAR PICKER STUDIO MODAL */}
-      <AvatarPickerModal
-        open={avatarModalOpen}
-        onClose={() => setAvatarModalOpen(false)}
-        currentAvatar={currentAvatarUrl}
-        userName={displayName}
-        onSelectAvatar={handleSaveAvatar}
-        isDark={isDark}
-      />
+      {avatarModalOpen && (
+        <Suspense fallback={null}>
+          <AvatarPickerModal
+            open={avatarModalOpen}
+            onClose={() => setAvatarModalOpen(false)}
+            currentAvatar={currentAvatarUrl}
+            userName={displayName}
+            onSelectAvatar={handleSaveAvatar}
+            isDark={isDark}
+          />
+        </Suspense>
+      )}
 
       {/* 6. INTERACTIVE VOUCHERS MODAL */}
       <AnimatePresence>
@@ -8519,7 +8549,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
       } catch {}
       clearCart();
       triggerHaptic('success');
-      confetti({ particleCount: 40, spread: 70, ticks: 120, disableForReducedMotion: true, origin: { y: 0.6 } });
+      triggerConfetti({ particleCount: 40, spread: 70, ticks: 120, disableForReducedMotion: true, origin: { y: 0.6 } });
       onSuccess(finalOrderData);
 
       // 2. Persist order & verify in background without blocking the celebration screen
@@ -8744,7 +8774,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
         } catch {}
         clearCart();
         triggerHaptic('success');
-        confetti({
+        triggerConfetti({
           particleCount: 35,
           spread: 60,
           ticks: 100,
@@ -9519,7 +9549,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
   useEffect(() => {
     playNativeSound('success');
     triggerHaptic('success');
-    confetti({
+    triggerConfetti({
       particleCount: 45,
       spread: 60,
       ticks: 120,
@@ -10976,770 +11006,45 @@ function SupportModal({ open, onClose, user }) {
 function LoginModal({ open, onClose, onSwitchRegister }) {
   const { isDark } = useTheme?.() || {};
   const { login } = useAuth();
+  if (!open) return null;
   return (
-    <AuthModal
-      open={open}
-      onClose={onClose}
-      initialMode="login"
-      onSuccess={async (signedInUser) => {
-        if (signedInUser?.email) {
-          await login(signedInUser.email, '', signedInUser.role);
-        }
-        onClose();
-      }}
-      onSwitchRegister={onSwitchRegister}
-      isDark={isDark}
-    />
+    <Suspense fallback={null}>
+      <AuthModal
+        open={open}
+        onClose={onClose}
+        initialMode="login"
+        onSuccess={async (signedInUser) => {
+          if (signedInUser?.email) {
+            await login(signedInUser.email, '', signedInUser.role);
+          }
+          onClose();
+        }}
+        onSwitchRegister={onSwitchRegister}
+        isDark={isDark}
+      />
+    </Suspense>
   );
 }
 
 function RegisterModal({ open, onClose, onSwitchLogin }) {
   const { login } = useAuth();
+  if (!open) return null;
   return (
-    <AuthModal
-      open={open}
-      onClose={onClose}
-      initialMode="register"
-      onSuccess={async (newUser) => {
-        if (newUser?.email) {
-          await login(newUser.email, '', newUser.role);
-        }
-        onClose();
-      }}
-      onSwitchLogin={onSwitchLogin}
-      isDark={false}
-    />
-  );
-}
-
-// ============================================================
-// VENDOR DASHBOARD PORTAL
-// ============================================================
-function VendorPortal() {
-  const { user } = useAuth();
-  const toast = useToast();
-  const ws = useWS();
-  const [activeSection, setActiveSection] = useState('dashboard');
-  const [restaurant, setRestaurant] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [menuItems, setMenuItems] = useState([]);
-  const [notification, setNotification] = useState(null);
-  const [addItemOpen, setAddItemOpen] = useState(false);
-  const [isOpen, setIsOpen] = useState(true);
-
-  useEffect(() => {
-    if (user?.role === 'restaurant_owner') {
-      loadRestaurant();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!ws || !restaurant) return;
-    // Register as restaurant
-    if (ws.ws?.readyState === 1) {
-      ws.ws.send(JSON.stringify({ type: 'REGISTER', userId: user?.id, userRole: 'restaurant_owner', restaurantId: restaurant.id }));
-    }
-
-    const unsub = ws.on('NEW_ORDER', (msg) => {
-      if (msg.restaurantId === restaurant.id) {
-        setNotification(msg);
-        loadOrders(restaurant.id);
-        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA');
-        audio.play?.().catch(() => {});
-      }
-    });
-    const unsubStatus = ws.on('ORDER_STATUS_UPDATED', () => {
-      if (restaurant) loadOrders(restaurant.id);
-    });
-    return () => { unsub(); unsubStatus(); };
-  }, [ws, restaurant]);
-
-  async function loadRestaurant() {
-    try {
-      const res = await api.me();
-      if (res.restaurantData) {
-        setRestaurant(res.restaurantData);
-        setIsOpen(res.restaurantData.is_open);
-        loadOrders(res.restaurantData.id);
-        loadMenu(res.restaurantData.id);
-      }
-    } catch (e) {}
-  }
-
-  async function loadOrders(restId) {
-    try {
-      // Get admin orders filtered by restaurant
-      const res = await api.getAdminOrders({ restaurant_id: restId });
-      setOrders(res.data || []);
-    } catch (e) {}
-  }
-
-  async function loadMenu(restId) {
-    try {
-      const res = await api.getRestaurantMenu(restId);
-      setMenuItems(res.data || []);
-    } catch (e) {}
-  }
-
-  async function handleStatusUpdate(orderId, status) {
-    try {
-      await api.updateOrderStatus(orderId, status);
-      toast(`Order updated to ${statusLabel[status]}`, 'success');
-      loadOrders(restaurant.id);
-    } catch (e) {
-      toast(e.message, 'error');
-    }
-  }
-
-  async function toggleOpen() {
-    try {
-      await api.updateRestaurant(restaurant.id, { is_open: !isOpen });
-      setIsOpen(p => !p);
-      toast(isOpen ? 'Restaurant closed' : 'Restaurant open for orders!', 'success');
-    } catch (e) {}
-  }
-
-  async function handleAddItem(data) {
-    try {
-      await api.addMenuItem(restaurant.id, data);
-      toast('Menu item added!', 'success');
-      setAddItemOpen(false);
-      loadMenu(restaurant.id);
-    } catch (e) {
-      toast(e.message, 'error');
-    }
-  }
-
-  async function toggleItemAvailability(item) {
-    try {
-      await api.updateMenuItem(restaurant.id, item.id, { is_available: !item.is_available });
-      toast(`${item.name} ${item.is_available ? 'hidden' : 'made available'}`, 'success');
-      loadMenu(restaurant.id);
-    } catch (e) {}
-  }
-
-  if (!user || user.role !== 'restaurant_owner') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8 text-center">
-        <div>
-          <div className="text-5xl mb-4">🏪</div>
-          <h2 className="text-2xl font-bold mb-2">Vendor Dashboard</h2>
-          <p className="text-gray-500 mb-4">Sign in as a restaurant owner to access the vendor dashboard.</p>
-          <p className="text-sm bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-yellow-800">
-            Use <strong>Quick Demo Login</strong> above and select a Vendor account.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const newOrders = orders.filter(o => o.order_status === 'ORDER_PLACED');
-  const preparingOrders = orders.filter(o => ['RESTAURANT_CONFIRMED','PREPARING'].includes(o.order_status));
-  const readyOrders = orders.filter(o => o.order_status === 'READY_FOR_PICKUP');
-  const completedToday = orders.filter(o => o.order_status === 'DELIVERED');
-  const revenueToday = completedToday.reduce((s, o) => s + o.total, 0);
-
-  const navItems = [
-    { id: 'dashboard', icon: BarChart2, label: 'Dashboard' },
-    { id: 'orders', icon: ClipboardList, label: 'Orders' },
-    { id: 'menu', icon: ChefHat, label: 'Menu' },
-    { id: 'settings', icon: Settings, label: 'Settings' },
-  ];
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <div className="w-56 bg-gray-900 text-white min-h-screen flex flex-col shrink-0">
-        <div className="p-5 border-b border-gray-700">
-          <div className="text-sm font-bold text-red-400 mb-3">🍔 FOODMAXX VENDOR</div>
-          {restaurant && (
-            <>
-              <div className="font-bold text-sm truncate">{restaurant.name}</div>
-              <div className="flex items-center gap-2 mt-2">
-                <div className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-400 pulse-online' : 'bg-red-400'}`} />
-                <span className="text-xs text-gray-300">{isOpen ? 'Open' : 'Closed'}</span>
-                <button onClick={toggleOpen} className={`ml-auto text-xs px-2 py-0.5 rounded-full font-bold ${isOpen ? 'bg-red-600' : 'bg-green-600'}`}>
-                  {isOpen ? 'Close' : 'Open'}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-        <nav className="flex-1 p-3 space-y-1">
-          {navItems.map(item => (
-            <button key={item.id} onClick={() => setActiveSection(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeSection === item.id ? 'bg-red-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-            >
-              <item.icon size={17} />
-              {item.label}
-              {item.id === 'orders' && newOrders.length > 0 && (
-                <span className="ml-auto bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{newOrders.length}</span>
-              )}
-            </button>
-          ))}
-        </nav>
-        <div className="p-3">
-          <div className="text-xs text-gray-500 text-center">{user.full_name}</div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 min-w-0">
-        {/* New Order Notification Banner */}
-        {notification && (
-          <div className="bg-red-600 text-white p-4 flex items-center gap-3 animate-pulse">
-            <Bell size={20}/>
-            <span className="font-bold">New order received from {notification.customer?.full_name}!</span>
-            <button onClick={() => { setActiveSection('orders'); setNotification(null); }} className="ml-auto bg-white text-red-600 px-4 py-1.5 rounded-xl font-bold text-sm">
-              View Orders
-            </button>
-            <button onClick={() => setNotification(null)} className="text-red-200"><X size={16}/></button>
-          </div>
-        )}
-
-        {/* Dashboard Section */}
-        {activeSection === 'dashboard' && (
-          <div className="p-6">
-            <h1 className="text-2xl font-bold mb-6">Restaurant Dashboard</h1>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              {[
-                { label: 'New Orders', value: newOrders.length, icon: Package, color: 'bg-red-50 text-red-600', badge: newOrders.length > 0 },
-                { label: 'Preparing', value: preparingOrders.length, icon: ChefHat, color: 'bg-yellow-50 text-yellow-700' },
-                { label: 'Ready', value: readyOrders.length, icon: CheckCircle, color: 'bg-green-50 text-green-600' },
-                { label: "Today's Revenue", value: fmt(revenueToday), icon: DollarSign, color: 'bg-blue-50 text-blue-600' },
-              ].map((stat, i) => (
-                <div key={i} className={`${stat.color} rounded-2xl p-4 relative overflow-hidden`}>
-                  <stat.icon size={20} className="mb-2" />
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                  <div className="text-sm font-semibold opacity-70">{stat.label}</div>
-                  {stat.badge && (
-                    <div className="absolute top-3 right-3 w-3 h-3 bg-red-600 rounded-full animate-pulse" />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Order queue preview */}
-            <h2 className="font-bold text-lg mb-4">Live Order Queue</h2>
-            <div className="space-y-3">
-              {[...newOrders, ...preparingOrders].slice(0, 5).map(order => (
-                <VendorOrderCard key={order.id} order={order} onStatus={handleStatusUpdate} />
-              ))}
-              {orders.length === 0 && (
-                <div className="text-center py-12 bg-white rounded-2xl text-gray-400">
-                  <Package size={36} className="mx-auto mb-2 opacity-30" />
-                  <p>No active orders right now</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Orders Section */}
-        {activeSection === 'orders' && (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold">Order Management</h1>
-              <button onClick={() => loadOrders(restaurant?.id)} className="p-2 rounded-xl bg-gray-100"><RefreshCw size={16}/></button>
-            </div>
-
-            {['ORDER_PLACED','RESTAURANT_CONFIRMED','PREPARING','READY_FOR_PICKUP','DELIVERED','CANCELLED'].map(status => {
-              const statusOrders = orders.filter(o => o.order_status === status);
-              if (statusOrders.length === 0) return null;
-              return (
-                <div key={status} className="mb-6">
-                  <h2 className="font-bold text-sm text-gray-600 mb-3 uppercase tracking-wide flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor[status] }} />
-                    {statusLabel[status]} ({statusOrders.length})
-                  </h2>
-                  <div className="space-y-3">
-                    {statusOrders.map(o => <VendorOrderCard key={o.id} order={o} onStatus={handleStatusUpdate} />)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Menu Section */}
-        {activeSection === 'menu' && (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold">Menu Management</h1>
-              <button onClick={() => setAddItemOpen(true)} className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1">
-                <Plus size={16}/> Add Item
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {menuItems.map(item => (
-                <div key={item.id} className={`bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 ${!item.is_available ? 'opacity-60' : ''}`}>
-                  <img onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }} src={item.image_url} className="w-full h-32 object-cover" />
-                  <div className="p-4">
-                    <div className="font-bold text-sm mb-1">{item.name}</div>
-                    <div className="text-xs text-gray-500 mb-2 line-clamp-2">{item.description}</div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-red-600">{fmt(item.price)}</span>
-                      <div className="flex gap-2">
-                        <button onClick={() => toggleItemAvailability(item)} className={`px-3 py-1 rounded-lg text-xs font-bold ${item.is_available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {item.is_available ? 'Available' : 'Hidden'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Add Item Modal */}
-            {addItemOpen && <AddMenuItemModal restaurantId={restaurant.id} onClose={() => setAddItemOpen(false)} onSubmit={handleAddItem} />}
-          </div>
-        )}
-
-        {/* Settings Section */}
-        {activeSection === 'settings' && restaurant && (
-          <VendorSettings restaurant={restaurant} onSaved={(r) => { setRestaurant(r); toast('Settings saved!', 'success'); }} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function VendorOrderCard({ order, onStatus }) {
-  const nextStatus = {
-    ORDER_PLACED: { status: 'RESTAURANT_CONFIRMED', label: 'Accept Order', color: 'bg-green-600' },
-    RESTAURANT_CONFIRMED: { status: 'PREPARING', label: 'Start Preparing', color: 'bg-yellow-600' },
-    PREPARING: { status: 'READY_FOR_PICKUP', label: 'Ready for Pickup', color: 'bg-blue-600' },
-  };
-  const next = nextStatus[order.order_status];
-
-  return (
-    <div className={`bg-white rounded-2xl p-4 shadow-sm border-l-4 ${order.order_status === 'ORDER_PLACED' ? 'border-l-red-500' : 'border-l-yellow-400'}`}>
-      <div className="flex items-start justify-between mb-2">
-        <div>
-          <div className="font-bold text-sm">{order.order_reference}</div>
-          <div className="text-xs text-gray-500">{order.customer?.full_name} · {fmt(order.total)}</div>
-        </div>
-        <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: statusColor[order.order_status] + '20', color: statusColor[order.order_status] }}>
-          {statusLabel[order.order_status]}
-        </span>
-      </div>
-      {order.delivery_instructions && (
-        <div className="text-xs text-gray-500 bg-yellow-50 rounded-lg p-2 mb-2 italic">"{order.delivery_instructions}"</div>
-      )}
-      <div className="flex gap-2">
-        {next && (
-          <button onClick={() => onStatus(order.id, next.status)} className={`flex-1 ${next.color} text-white py-2 rounded-xl font-bold text-sm`}>
-            {next.label}
-          </button>
-        )}
-        {order.order_status === 'ORDER_PLACED' && (
-          <button onClick={() => onStatus(order.id, 'CANCELLED')} className="px-3 py-2 bg-red-50 text-red-600 rounded-xl font-bold text-sm">
-            Reject
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AddMenuItemModal({ restaurantId, onClose, onSubmit }) {
-  const [form, setForm] = useState({ name: '', description: '', price: '', category: 'Popular', prep_time_min: 15 });
-
-  return (
-    <Modal open={true} onClose={onClose} title="Add Menu Item">
-      <div className="p-5 space-y-3">
-        {[
-          { key: 'name', placeholder: 'Food name', type: 'text' },
-          { key: 'price', placeholder: 'Price (₦)', type: 'number' },
-          { key: 'category', placeholder: 'Category', type: 'text' },
-          { key: 'prep_time_min', placeholder: 'Prep time (minutes)', type: 'number' },
-        ].map(f => (
-          <input key={f.key} type={f.type} placeholder={f.placeholder}
-            className="w-full px-4 py-3 bg-gray-100 rounded-xl text-sm outline-none"
-            value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-          />
-        ))}
-        <textarea
-          placeholder="Description"
-          className="w-full px-4 py-3 bg-gray-100 rounded-xl text-sm outline-none resize-none"
-          rows={3}
-          value={form.description}
-          onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-        />
-        <button onClick={() => onSubmit(form)} className="w-full bg-red-600 text-white py-3 rounded-2xl font-bold">
-          Add Item
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
-function VendorSettings({ restaurant, onSaved }) {
-  const [form, setForm] = useState({
-    delivery_time_min: restaurant.delivery_time_min,
-    delivery_time_max: restaurant.delivery_time_max,
-    delivery_fee: restaurant.delivery_fee,
-    min_order: restaurant.min_order,
-    operating_hours: restaurant.operating_hours,
-  });
-
-  async function save() {
-    try {
-      const res = await api.updateRestaurant(restaurant.id, form);
-      onSaved(res.data);
-    } catch (e) {}
-  }
-
-  return (
-    <div className="p-6 max-w-lg">
-      <h1 className="text-2xl font-bold mb-6">Restaurant Settings</h1>
-      <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
-        {[
-          { key: 'delivery_fee', label: 'Delivery Fee (₦)', type: 'number' },
-          { key: 'min_order', label: 'Minimum Order (₦)', type: 'number' },
-          { key: 'delivery_time_min', label: 'Min Delivery Time (mins)', type: 'number' },
-          { key: 'delivery_time_max', label: 'Max Delivery Time (mins)', type: 'number' },
-          { key: 'operating_hours', label: 'Operating Hours', type: 'text' },
-        ].map(f => (
-          <div key={f.key}>
-            <label className="text-sm font-semibold text-gray-700 mb-1 block">{f.label}</label>
-            <input type={f.type} className="w-full px-4 py-3 bg-gray-100 rounded-xl text-sm outline-none"
-              value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-            />
-          </div>
-        ))}
-        <button onClick={save} className="w-full bg-red-600 text-white py-3 rounded-2xl font-bold">Save Settings</button>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// RIDER PORTAL
-// ============================================================
-function RiderPortal() {
-  const { user } = useAuth();
-  const toast = useToast();
-  const ws = useWS();
-  const [rider, setRider] = useState(null);
-  const [activeSection, setActiveSection] = useState('home');
-  const [earnings, setEarnings] = useState(null);
-  const [activeOrder, setActiveOrder] = useState(null);
-  const [deliveryOffer, setDeliveryOffer] = useState(null);
-  const [otpInput, setOtpInput] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (user?.role === 'rider') {
-      loadRider();
-      loadEarnings();
-      loadActiveOrder();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!ws || !rider) return;
-    // Register as rider
-    if (ws.ws?.readyState === 1) {
-      ws.ws.send(JSON.stringify({ type: 'REGISTER', userId: user?.id, userRole: 'rider', riderId: rider.id }));
-    }
-    const unsub = ws.on('DELIVERY_OFFER', (msg) => {
-      setDeliveryOffer(msg);
-    });
-    const unsubStatus = ws.on('ORDER_STATUS_UPDATED', (msg) => {
-      if (activeOrder?.id === msg.orderId) {
-        setActiveOrder(prev => prev ? { ...prev, order_status: msg.status } : null);
-      }
-    });
-    return () => { unsub(); unsubStatus(); };
-  }, [ws, rider, activeOrder]);
-
-  async function loadRider() {
-    try {
-      const res = await api.getRiderMe();
-      setRider(res.data);
-    } catch (e) {}
-  }
-
-  async function loadEarnings() {
-    try {
-      const res = await api.getRiderEarnings();
-      setEarnings(res.data);
-    } catch (e) {}
-  }
-
-  async function loadActiveOrder() {
-    try {
-      const res = await api.getRiderActiveOrder();
-      setActiveOrder(res.data);
-    } catch (e) {}
-  }
-
-  async function toggleOnline() {
-    try {
-      const res = await api.toggleRiderStatus();
-      setRider(res.data);
-      toast(res.data.is_online ? 'You are now online! 🟢' : 'You are now offline ⚫', 'success');
-    } catch (e) {
-      toast(e.message, 'error');
-    }
-  }
-
-  async function handleAcceptDelivery() {
-    if (!deliveryOffer) return;
-    setLoading(true);
-    try {
-      const res = await api.acceptDelivery(deliveryOffer.orderId);
-      setActiveOrder(res.data.order);
-      setDeliveryOffer(null);
-      toast('Delivery accepted! Head to restaurant. 🏃', 'success');
-      loadRider();
-    } catch (e) {
-      toast(e.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDeclineDelivery() {
-    if (!deliveryOffer) return;
-    await api.declineDelivery(deliveryOffer.orderId);
-    setDeliveryOffer(null);
-    toast('Delivery declined', 'warning');
-  }
-
-  async function handleConfirmPickup() {
-    if (!activeOrder) return;
-    setLoading(true);
-    try {
-      await api.confirmPickup(activeOrder.id);
-      toast('Pickup confirmed! Head to customer 🛵', 'success');
-      loadActiveOrder();
-    } catch (e) {
-      toast(e.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerifyOTP() {
-    if (!otpInput || !activeOrder) return;
-    setLoading(true);
-    try {
-      const res = await api.verifyOTP(activeOrder.id, otpInput);
-      toast(res.message, 'success');
-      setActiveOrder(null);
-      setOtpInput('');
-      loadEarnings();
-      loadRider();
-    } catch (e) {
-      toast(e.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (!user || user.role !== 'rider') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8 text-center">
-        <div>
-          <div className="text-5xl mb-4">🛵</div>
-          <h2 className="text-2xl font-bold mb-2">Rider App</h2>
-          <p className="text-gray-500 mb-4">Sign in as a rider to access the delivery dashboard.</p>
-          <p className="text-sm bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-yellow-800">
-            Use <strong>Quick Demo Login</strong> and select a Rider account.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full max-w-lg md:max-w-xl h-full bg-gray-50 flex flex-col relative shadow-2xl md:rounded-[36px] overflow-hidden">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-5 shrink-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-xs text-gray-400">FoodMaxx Rider</div>
-            <div className="font-bold text-lg">{user.full_name.split(' ')[0]} 👋</div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="text-xs text-gray-400">Status</div>
-              <div className={`font-medium text-sm ${rider?.is_online ? 'text-green-400' : 'text-gray-400'}`}>
-                {rider?.is_online ? '🟢 Online' : '⚫ Offline'}
-              </div>
-            </div>
-            <button
-              onClick={toggleOnline}
-              className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${rider?.is_online ? 'bg-red-600 text-white' : 'bg-green-500 text-white'}`}
-            >
-              {rider?.is_online ? 'Go Offline' : 'Go Online'}
-            </button>
-          </div>
-        </div>
-
-        {/* Quick stats */}
-        <div className="grid grid-cols-3 gap-3 mt-4">
-          {[
-            { label: "Today's Earnings", value: fmt(earnings?.today_earnings || 0) },
-            { label: 'Deliveries', value: earnings?.total_deliveries || 0 },
-            { label: 'Rating', value: `⭐ ${rider?.rating || '—'}` },
-          ].map((s, i) => (
-            <div key={i} className="bg-white/10 rounded-xl p-2.5 text-center">
-              <div className="font-bold text-sm">{s.value}</div>
-              <div className="text-[10px] text-gray-400">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Delivery Offer Modal */}
-      {deliveryOffer && (
-        <div className="absolute inset-0 z-50 flex items-end justify-center bg-black/60">
-          <div className="bg-white rounded-t-3xl w-full p-5 slide-up">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-              <h2 className="font-bold text-xl text-green-600">New Delivery!</h2>
-            </div>
-            <div className="bg-gray-50 rounded-2xl p-4 mb-4">
-              <div className="font-bold mb-1">{deliveryOffer.order?.restaurant?.name}</div>
-              <div className="text-sm text-gray-500 mb-2">{deliveryOffer.order?.delivery_address}</div>
-              <div className="flex gap-3">
-                <div className="flex-1 bg-white rounded-xl p-3 text-center border border-gray-100">
-                  <div className="font-bold text-red-600 text-lg">{fmt(deliveryOffer.order?.estimated_earnings)}</div>
-                  <div className="text-xs text-gray-500">Earnings</div>
-                </div>
-                <div className="flex-1 bg-white rounded-xl p-3 text-center border border-gray-100">
-                  <div className="font-bold text-gray-900 text-lg">{deliveryOffer.order?.items_count}</div>
-                  <div className="text-xs text-gray-500">Items</div>
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={handleDeclineDelivery} className="flex-1 bg-gray-100 text-gray-700 py-4 rounded-2xl font-bold">
-                Decline
-              </button>
-              <button onClick={handleAcceptDelivery} disabled={loading} className="flex-1 bg-green-500 text-white py-4 rounded-2xl font-bold">
-                {loading ? '...' : 'Accept ✓'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Active Delivery */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4">
-        {activeOrder ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-xl">Active Delivery</h2>
-              <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ backgroundColor: statusColor[activeOrder.order_status] + '20', color: statusColor[activeOrder.order_status] }}>
-                {statusLabel[activeOrder.order_status]}
-              </span>
-            </div>
-
-            {/* Restaurant */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <ChefHat size={18} className="text-red-600" />
-                <span className="font-bold">Restaurant</span>
-              </div>
-              <div className="font-semibold">{activeOrder.restaurant?.name}</div>
-              <div className="text-sm text-gray-500">{activeOrder.restaurant?.address}</div>
-              <a href={`tel:${activeOrder.restaurant?.phone}`} className="flex items-center gap-2 mt-2 text-sm text-blue-600 font-semibold">
-                <Phone size={14}/> Call Restaurant
-              </a>
-            </div>
-
-            {/* Customer */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <User size={18} className="text-red-600" />
-                <span className="font-bold">Customer</span>
-              </div>
-              <div className="font-semibold">{activeOrder.customer?.full_name}</div>
-              <div className="text-sm text-gray-500">{activeOrder.delivery_address}</div>
-              {activeOrder.delivery_instructions && (
-                <div className="text-xs text-gray-400 italic mt-1">"{activeOrder.delivery_instructions}"</div>
-              )}
-              <a href={`tel:${activeOrder.customer?.phone}`} className="flex items-center gap-2 mt-2 text-sm text-blue-600 font-semibold">
-                <Phone size={14}/> Call Customer
-              </a>
-            </div>
-
-            {/* Action Buttons */}
-            {['RIDER_ASSIGNED','RESTAURANT_CONFIRMED'].includes(activeOrder.order_status) && (
-              <button onClick={handleConfirmPickup} disabled={loading} className="w-full bg-yellow-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2">
-                <Package size={18}/> Confirm Order Picked Up
-              </button>
-            )}
-
-            {['RIDER_PICKED_UP','ON_THE_WAY','ARRIVING_SOON'].includes(activeOrder.order_status) && (
-              <div className="bg-white rounded-2xl p-4 shadow-sm">
-                <h3 className="font-bold mb-3">Confirm Delivery with OTP</h3>
-                <p className="text-sm text-gray-500 mb-3">Ask the customer for their 4-digit delivery OTP.</p>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    className="flex-1 px-4 py-3 bg-gray-100 rounded-xl text-center text-2xl font-bold tracking-widest outline-none"
-                    placeholder="0000"
-                    maxLength={4}
-                    value={otpInput}
-                    onChange={e => setOtpInput(e.target.value)}
-                  />
-                  <button onClick={handleVerifyOTP} disabled={loading || !otpInput} className="px-5 py-3 bg-green-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">
-                    {loading ? '...' : 'Confirm'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-            {rider?.is_online ? (
-              <>
-                <div className="text-5xl mb-4">🛵</div>
-                <h3 className="font-bold text-xl mb-2">You're online!</h3>
-                <p className="text-gray-500 text-sm">Waiting for delivery assignments...</p>
-                <div className="mt-4 flex gap-1 justify-center">
-                  {[0,1,2].map(i => <div key={i} className="w-2 h-2 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-5xl mb-4">😴</div>
-                <h3 className="font-bold text-xl mb-2">You're offline</h3>
-                <p className="text-gray-500 text-sm mb-4">Go online to start receiving delivery assignments</p>
-                <button onClick={toggleOnline} className="bg-green-500 text-white px-6 py-3 rounded-2xl font-bold">Go Online</button>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Earnings Summary */}
-        {earnings && !activeOrder && (
-          <div className="mt-6 bg-white rounded-2xl p-4 shadow-sm">
-            <h3 className="font-bold mb-4 flex items-center gap-2"><DollarSign size={16} className="text-green-600"/>Earnings Summary</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'Today', value: fmt(earnings.today_earnings) },
-                { label: 'This Week', value: fmt(earnings.week_earnings) },
-                { label: 'This Month', value: fmt(earnings.month_earnings) },
-              ].map((e, i) => (
-                <div key={i} className="bg-gray-50 rounded-xl p-3 text-center">
-                  <div className="font-bold text-sm">{e.value}</div>
-                  <div className="text-[10px] text-gray-500">{e.label}</div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 text-sm text-gray-500 text-center">
-              Wallet Balance: <strong className="text-green-600">{fmt(earnings.wallet_balance)}</strong>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    <Suspense fallback={null}>
+      <AuthModal
+        open={open}
+        onClose={onClose}
+        initialMode="register"
+        onSuccess={async (newUser) => {
+          if (newUser?.email) {
+            await login(newUser.email, '', newUser.role);
+          }
+          onClose();
+        }}
+        onSwitchLogin={onSwitchLogin}
+        isDark={false}
+      />
+    </Suspense>
   );
 }
 

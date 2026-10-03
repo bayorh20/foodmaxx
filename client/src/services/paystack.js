@@ -1,5 +1,3 @@
-import PaystackPop from '@paystack/inline-js';
-
 // Environment or default Paystack configuration
 const FALLBACK_PAYSTACK_KEY = 'pk_test_0d51ae7f44721724cc8375bb68e04b306ef70928';
 const ENV_PAYSTACK_KEY = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) || '';
@@ -84,7 +82,7 @@ export function savePaystackConfig(config) {
 /**
  * Launch Real Official Paystack Native Inline Checkout
  */
-export function launchRealPaystack({
+export async function launchRealPaystack({
   key,
   email,
   amount,
@@ -160,6 +158,7 @@ export function launchRealPaystack({
 
   // Priority 2: PaystackPop instance via @paystack/inline-js
   try {
+    const { default: PaystackPop } = await import('@paystack/inline-js');
     const paystack = new PaystackPop();
     if (typeof paystack.checkout === 'function') {
       paystack.checkout({

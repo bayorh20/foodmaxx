@@ -30,6 +30,7 @@ export default defineConfig({
             if (id.includes('lucide-react')) return 'vendor-icons';
             if (id.includes('canvas-confetti')) return 'vendor-confetti';
             if (id.includes('paystack')) return 'vendor-paystack';
+            if (id.includes('react') || id.includes('scheduler')) return 'vendor-react';
             return 'vendor-core';
           }
         }
