@@ -11,7 +11,10 @@ import { collection, addDoc } from 'firebase/firestore';
 const SMS_CONFIG_STORAGE_KEY = 'fmx_sms_config';
 
 export const DEFAULT_SMS_CONFIG = {
-  provider: (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SMS_PROVIDER) || 'termii', // 'termii' | 'native' | 'twilio'
+  provider: (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SMS_PROVIDER) || 'sendchamp', // 'sendchamp' | 'termii' | 'native' | 'twilio'
+  sendchamp_api_key: (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_SENDCHAMP_API_KEY || import.meta.env.SENDCHAMP_API_KEY)) || 'sendchamp_live_$2a$10$rvuXAXMtaUwr/vb4BKVABumas7yUrrT/z7BZqocZNagN0TkhmKRHS',
+  sendchamp_sender_id: (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_SENDCHAMP_SENDER_ID || import.meta.env.SENDCHAMP_SENDER_ID)) || 'Sendchamp',
+  sendchamp_route: (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_SENDCHAMP_ROUTE || import.meta.env.SENDCHAMP_ROUTE)) || 'dnd',
   termii_api_key: (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_TERMII_API_KEY || import.meta.env.TERMII_API_KEY)) || '',
   termii_sender_id: (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_TERMII_SENDER_ID || import.meta.env.TERMII_SENDER_ID)) || 'FoodMaxx',
   termii_channel: (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_TERMII_CHANNEL || import.meta.env.TERMII_CHANNEL)) || 'generic',
@@ -42,6 +45,9 @@ export function getSmsConfig() {
         provider: parsed.sms_provider || DEFAULT_SMS_CONFIG.provider,
         termii_api_key: parsed.termii_api_key || DEFAULT_SMS_CONFIG.termii_api_key,
         termii_sender_id: parsed.sms_sender_id || parsed.termii_sender_id || DEFAULT_SMS_CONFIG.termii_sender_id,
+        sendchamp_api_key: parsed.sendchamp_api_key || DEFAULT_SMS_CONFIG.sendchamp_api_key,
+        sendchamp_sender_id: parsed.sendchamp_sender_id || parsed.sms_sender_id || DEFAULT_SMS_CONFIG.sendchamp_sender_id,
+        sendchamp_route: parsed.sendchamp_route || DEFAULT_SMS_CONFIG.sendchamp_route,
         twilio_account_sid: parsed.twilio_account_sid || DEFAULT_SMS_CONFIG.twilio_account_sid,
         twilio_api_key_sid: parsed.twilio_api_key_sid || DEFAULT_SMS_CONFIG.twilio_api_key_sid,
         twilio_auth_token: parsed.twilio_auth_token || DEFAULT_SMS_CONFIG.twilio_auth_token,
@@ -271,6 +277,45 @@ export async function sendOrderStatusSms(order, status, options = {}) {
       }
     }
 
+    // Direct Sendchamp HTTPS API connection if backend is offline and API key is present
+    if (config.provider === 'sendchamp' && (config.sendchamp_api_key || config.apiKey)) {
+      try {
+        const scKey = (config.sendchamp_api_key || config.apiKey || '').trim();
+        const scSender = (config.sendchamp_sender_id || config.senderId || 'FoodMaxx').trim();
+        const scRoute = config.sendchamp_route || 'dnd';
+        const directRes = await fetch('https://api.sendchamp.com/api/v1/sms/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${scKey}`
+          },
+          body: JSON.stringify({
+            to: [normPhone],
+            message: message,
+            sender_name: scSender,
+            route: scRoute
+          })
+        });
+        const directData = await directRes.json();
+        logSmsDispatch({
+          orderId: order.id,
+          orderRef: order.order_reference,
+          phone: normPhone,
+          provider: 'sendchamp_direct',
+          status: directRes.ok && (directData.status === 'success' || directData.code === 200) ? 'DELIVERED_TO_GATEWAY' : 'GATEWAY_ERROR',
+          message
+        });
+        return {
+          success: directRes.ok && (directData.status === 'success' || directData.code === 200),
+          provider: 'sendchamp',
+          data: directData
+        };
+      } catch (scErr) {
+        console.warn('Direct Sendchamp fetch notice:', scErr);
+      }
+    }
+
     // Twilio dispatch audit & fallback
     if (config.provider === 'twilio') {
       logSmsDispatch({
@@ -373,7 +418,42 @@ export async function testSmsConnection(provider = 'twilio', apiKey = '', sender
     }
   }
 
-  // 3. Twilio validation & verification feedback
+  // 3. Direct Sendchamp test if API key is provided
+  if (provider === 'sendchamp' && cleanKey) {
+    try {
+      const scSender = cleanSender || twilioConfig.sendchamp_sender_id || twilioConfig.senderId || 'FoodMaxx';
+      const scRoute = twilioConfig.route || twilioConfig.sendchamp_route || 'dnd';
+      const sendchampRes = await fetch('https://api.sendchamp.com/api/v1/sms/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${cleanKey}`
+        },
+        body: JSON.stringify({
+          to: [normPhone],
+          message: testMessage,
+          sender_name: scSender,
+          route: scRoute
+        })
+      });
+      const sendchampData = await sendchampRes.json();
+      logSmsDispatch({
+        phone: normPhone,
+        provider: 'sendchamp_direct_test',
+        status: sendchampRes.ok ? 'DELIVERED_TO_GATEWAY' : 'GATEWAY_ERROR',
+        message: testMessage
+      });
+      if (sendchampRes.ok && (sendchampData.status === 'success' || sendchampData.code === 200 || sendchampData.data?.id)) {
+        return { success: true, message: `Live Sendchamp SMS delivered to ${normPhone}!`, data: sendchampData };
+      }
+      return { success: false, error: sendchampData.message || 'Sendchamp rejected the test request' };
+    } catch (sendchampErr) {
+      return { success: false, error: sendchampErr.message || 'Network error communicating with Sendchamp API' };
+    }
+  }
+
+  // 4. Twilio validation & verification feedback
   if (provider === 'twilio') {
     if (!cleanTwilioSid || !cleanTwilioToken) {
       return {

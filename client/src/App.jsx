@@ -19,7 +19,7 @@ import {
   ShoppingCart, Search, Home, Compass, ClipboardList, User, Star,
   MapPin, Clock, ChevronRight, ChevronLeft, Plus, Minus, X, Check,
   Bell, Heart, Settings, LogOut, Package, Truck, ChefHat, Wallet,
-  BarChart2, Users, Store, Map as MapIcon, Zap, Shield, Coffee, ArrowRight,
+  BarChart2, Users, Store, Map as MapIcon, Zap, Shield, Coffee, ArrowRight, ArrowUpDown,
   RefreshCw, AlertCircle, Phone, MessageSquare, Tag, Percent,
   TrendingUp, DollarSign, Activity, Eye, Edit, Trash2,
   Power, Navigation, CheckCircle, XCircle, Filter, MoreVertical,
@@ -555,44 +555,45 @@ export const getStatusEmoji = (status) => {
 };
 
 export const getStatusNotificationInfo = (status) => {
+  const content = typeof getAppContent === 'function' ? getAppContent() : null;
   switch (status) {
     case 'PREPARING':
       return {
         icon: '🍳',
-        title: 'Cooking Your Meal!',
-        desc: 'FoodMaxx kitchen is freshly grilling and packing your order.'
+        title: getCopy(content, 'notifications', 'cooking_title', 'Cooking Your Meal!'),
+        desc: getCopy(content, 'notifications', 'cooking_desc', 'FoodMaxx kitchen is freshly grilling and packing your order.')
       };
     case 'READY_FOR_PICKUP':
       return {
         icon: '📦',
-        title: 'Order Ready & Packed!',
-        desc: 'Your food is packaged hot and waiting for rider pickup.'
+        title: getCopy(content, 'notifications', 'ready_title', 'Order Ready & Packed!'),
+        desc: getCopy(content, 'notifications', 'ready_desc', 'Your food is packaged hot and waiting for rider pickup.')
       };
     case 'RIDER_ASSIGNED':
     case 'RIDER_PICKED_UP':
     case 'ON_THE_WAY':
       return {
         icon: '🛵',
-        title: 'Rider is on the Way!',
-        desc: 'Your courier is heading towards your delivery address.'
+        title: getCopy(content, 'notifications', 'transit_title', 'Rider is on the Way!'),
+        desc: getCopy(content, 'notifications', 'transit_desc', 'Your courier is heading towards your delivery address.')
       };
     case 'ARRIVING_SOON':
       return {
         icon: '🏡',
-        title: 'Rider Arriving Soon!',
-        desc: 'Your rider is pulling up. Please have your delivery PIN ready!'
+        title: getCopy(content, 'notifications', 'arriving_title', 'Rider Arriving Soon!'),
+        desc: getCopy(content, 'notifications', 'arriving_desc', 'Your rider is pulling up. Please have your delivery PIN ready!')
       };
     case 'DELIVERED':
       return {
         icon: '🎉',
-        title: 'Order Delivered!',
-        desc: 'Your meal has arrived! Enjoy your hot food.'
+        title: getCopy(content, 'notifications', 'delivered_title', 'Order Delivered!'),
+        desc: getCopy(content, 'notifications', 'delivered_desc', 'Your meal has arrived! Enjoy your hot food.')
       };
     case 'CANCELLED':
       return {
         icon: '⚠️',
-        title: 'Order Cancelled',
-        desc: 'This order was cancelled. Tap to view details.'
+        title: getCopy(content, 'notifications', 'cancelled_title', 'Order Cancelled'),
+        desc: getCopy(content, 'notifications', 'cancelled_desc', 'This order was cancelled. Tap to view details.')
       };
     default:
       return {
@@ -949,25 +950,42 @@ function CustomerPortal() {
     trackingOrderRef.current = trackingOrder;
   }, [trackingOrder]);
 
-  // Purge prior user's tracking, orders, delivery details, wallet, and notifications immediately when switching or logging in/out
+  // Purge prior user's tracking, orders, delivery details, wallet, and notifications ONLY when switching accounts or explicit logout
+  const prevUserIdRef = useRef(user?.id);
   useEffect(() => {
-    setOrders([]);
-    setTrackingOrder(null);
-    setPlacedOrderSuccess(null); // SECURITY FIX: clear active order success screen on user switch
-    setLiveStatusBanner(null);
-    setWallet(null); // SECURITY FIX: wipe wallet so no cross-user balance leakage
-    setNotifications([]); // SECURITY FIX: wipe notifications on user switch
-    prevOrderStatusesRef.current = new globalThis.Map(); // Reset status tracker
-    try {
-      localStorage.removeItem('fmx_last_order_id');
-      localStorage.removeItem('fmx_active_order');
-    } catch {}
+    const prevId = prevUserIdRef.current;
+    const currId = user?.id;
+    prevUserIdRef.current = currId;
 
-    // When logging out or guest mode (user is null), wipe delivery details and saved addresses completely
-    if (!user) {
+    // Only wipe when switching between two different user accounts
+    if (prevId && currId && prevId !== currId) {
+      setOrders([]);
+      setTrackingOrder(null);
+      setPlacedOrderSuccess(null);
+      setLiveStatusBanner(null);
+      setWallet(null);
+      setNotifications([]);
+      prevOrderStatusesRef.current = new globalThis.Map();
+      try {
+        localStorage.removeItem('fmx_last_order_id');
+        localStorage.removeItem('fmx_last_order_ref');
+        localStorage.removeItem('fmx_active_order');
+      } catch {}
+    } else if (prevId && !currId) {
+      // User explicitly logged out
+      setOrders([]);
+      setTrackingOrder(null);
+      setPlacedOrderSuccess(null);
+      setLiveStatusBanner(null);
+      setWallet(null);
+      setNotifications([]);
       setSelectedAddress(null);
       setSavedAddresses([]);
+      prevOrderStatusesRef.current = new globalThis.Map();
       try {
+        localStorage.removeItem('fmx_last_order_id');
+        localStorage.removeItem('fmx_last_order_ref');
+        localStorage.removeItem('fmx_active_order');
         localStorage.removeItem('fmx_saved_addresses');
         localStorage.removeItem('fmx_last_delivery_address');
         localStorage.removeItem('fmx_last_name');
@@ -975,7 +993,7 @@ function CustomerPortal() {
         localStorage.removeItem('fmx_guest_name');
       } catch {}
     }
-  }, [user?.id]); // Depend on user.id specifically so switching accounts triggers the effect
+  }, [user?.id]);
   const [liveStatusBanner, setLiveStatusBanner] = useState(null);
   const prevOrderStatusesRef = useRef(new globalThis.Map());
 
@@ -1193,13 +1211,26 @@ function CustomerPortal() {
     return () => { if (typeof unsub === 'function') unsub(); };
   }, []);
 
-  // Firestore real-time customer orders subscription (strictly scoped to authenticated user)
+  // Firestore real-time customer orders subscription (strictly scoped to authenticated user or device orders)
   useEffect(() => {
-    // If not authenticated, ensure orders and tracking states are strictly empty
     if (!user?.id) {
-      setOrders([]);
-      setTrackingOrder(null);
-      setLiveStatusBanner(null);
+      let deviceOrders = [];
+      try {
+        deviceOrders = JSON.parse(localStorage.getItem('fmx_device_orders') || '[]');
+        const lastOrd = localStorage.getItem('fmx_last_order_id');
+        if (lastOrd && !deviceOrders.includes(lastOrd)) deviceOrders.unshift(lastOrd);
+      } catch {}
+      if (deviceOrders.length === 0) {
+        setOrders([]);
+        setTrackingOrder(null);
+        setLiveStatusBanner(null);
+      } else {
+        api.getCustomerOrders(null).then(res => {
+          if (res?.data && res.data.length > 0) {
+            setOrders(res.data);
+          }
+        }).catch(() => {});
+      }
       return;
     }
 
@@ -3802,10 +3833,17 @@ function OrdersTab({ orders, onOpenTracking, onReview, onExplore, onBack, onRefr
   const [filter, setFilter] = useState(() => {
     return activeOrders.length > 0 ? 'active' : 'completed';
   });
+  const [sortOrder, setSortOrder] = useState('newest'); // 'newest' | 'oldest'
 
-  const displayedOrders = filter === 'active'
+  const baseOrders = filter === 'active'
     ? activeOrders
     : pastOrders;
+
+  const displayedOrders = [...baseOrders].sort((a, b) => {
+    const timeA = new Date(a.created_at || 0).getTime();
+    const timeB = new Date(b.created_at || 0).getTime();
+    return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
+  });
 
   if (!orders || orders.length === 0) {
     return (
@@ -3910,6 +3948,27 @@ function OrdersTab({ orders, onOpenTracking, onReview, onExplore, onBack, onRefr
           )}
         </button>
       </div>
+      {/* Date & Time Sorting Control */}
+      {displayedOrders.length > 0 && (
+        <div className="flex items-center justify-between px-1 pt-0.5">
+          <span className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            {displayedOrders.length} {displayedOrders.length === 1 ? 'order' : 'orders'}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+              isDark 
+                ? 'bg-[#161822] border-white/8 text-slate-300 hover:text-white' 
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs'
+            }`}
+            title="Toggle sort order by date and time"
+          >
+            <ArrowUpDown size={12} className="text-[#EA4C2A]" />
+            <span>{sortOrder === 'newest' ? 'Newest first' : 'Oldest first'}</span>
+          </button>
+        </div>
+      )}
 
       {/* Clean Orders List */}
       {displayedOrders.length === 0 ? (
@@ -7924,9 +7983,9 @@ function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete 
     };
   }, []);
 
-  const bankName = storeSettings?.payout_bank_name || 'Official Merchant Account';
-  const accountNumber = storeSettings?.payout_account_number || '';
-  const accountName = storeSettings?.payout_account_name || 'FoodMaxx Kitchen Ltd';
+  const bankName = storeSettings?.payout_bank_name || DEFAULT_STORE_DETAILS.payout_bank_name || 'Moniepoint';
+  const accountNumber = storeSettings?.payout_account_number || DEFAULT_STORE_DETAILS.payout_account_number || '8166004281';
+  const accountName = storeSettings?.payout_account_name || DEFAULT_STORE_DETAILS.payout_account_name || 'Foodmaxx Restaurant';
 
   if (!open || !data) return null;
 
@@ -8526,7 +8585,8 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
       try {
         const uId = orderData?.customer_id || orderData?.customer?.id || user?.id;
         if (uId) localStorage.setItem(`fmx_last_order_${uId}`, finalOrderData.id);
-        localStorage.removeItem('fmx_last_order_id');
+        localStorage.setItem('fmx_last_order_id', finalOrderData.id);
+        if (finalOrderData.order_reference) localStorage.setItem('fmx_last_order_ref', finalOrderData.order_reference);
       } catch {}
       if (Number(firstTimeGiveawayDeduction) > 0 || effectiveUseGiveaway) {
         markGiveawayAsClaimed(orderData.customer_phone);
@@ -8553,7 +8613,8 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
             try {
               const uId = serverOrder?.customer_id || serverOrder?.customer?.id || user?.id;
               if (uId) localStorage.setItem(`fmx_last_order_${uId}`, serverOrder.id);
-              localStorage.removeItem('fmx_last_order_id');
+              localStorage.setItem('fmx_last_order_id', serverOrder.id);
+              if (serverOrder.order_reference) localStorage.setItem('fmx_last_order_ref', serverOrder.order_reference);
             } catch {}
             try { window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: serverOrder })); } catch {}
           }
@@ -8750,7 +8811,8 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
           try {
             const uId = placedOrder?.customer_id || placedOrder?.customer?.id || user?.id;
             if (uId) localStorage.setItem(`fmx_last_order_${uId}`, placedOrder.id);
-            localStorage.removeItem('fmx_last_order_id');
+            localStorage.setItem('fmx_last_order_id', placedOrder.id);
+            if (placedOrder.order_reference) localStorage.setItem('fmx_last_order_ref', placedOrder.order_reference);
           } catch {}
         }
         if (Number(firstTimeGiveawayDeduction) > 0 || effectiveUseGiveaway) {

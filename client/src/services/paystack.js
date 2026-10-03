@@ -60,6 +60,21 @@ export function getStoredPaystackConfig() {
     }
   } catch (e) {}
 
+  try {
+    const storeSettingsRaw = localStorage.getItem('fmx_store_settings');
+    if (storeSettingsRaw) {
+      const parsedStore = JSON.parse(storeSettingsRaw);
+      if (parsedStore.paystack_public_key && isValidPaystackKey(parsedStore.paystack_public_key)) {
+        const pKey = parsedStore.paystack_public_key.trim();
+        return {
+          publicKey: pKey,
+          isLive: parsedStore.paystack_is_live !== undefined ? parsedStore.paystack_is_live : pKey.startsWith('pk_live_'),
+          currency: 'NGN'
+        };
+      }
+    }
+  } catch (e) {}
+
   return {
     publicKey: DEFAULT_PAYSTACK_KEY,
     isLive: DEFAULT_PAYSTACK_KEY.startsWith('pk_live_'),

@@ -444,18 +444,66 @@ export function subscribeToCustomerLiveOrders(customerFilter, callback) {
   });
 }
 
-export async function getCustomerLiveOrders(userId) {
+export async function getCustomerLiveOrders(userId, userPhone = '', deviceOrderIds = []) {
   const cleanId = typeof userId === 'string' ? userId.trim() : (userId?.id || '');
-  if (!cleanId) return [];
+  const cleanPhone = typeof userPhone === 'string' ? userPhone.trim() : (userId?.phone || '');
+  const idList = Array.isArray(deviceOrderIds) ? deviceOrderIds.map(x => String(x).trim()).filter(Boolean) : [];
+
+  if (!cleanId && !cleanPhone && idList.length === 0) return [];
   try {
-    const q = query(
-      collection(db, COLL_ORDERS),
-      where('customer_id', '==', cleanId),
-      limit(50)
-    );
-    const snap = await getDocs(q);
-    const orders = [];
-    snap.forEach(d => orders.push(normalizeOrder(d.id, d.data())));
+    const orderMap = new Map();
+
+    // 1. Query by customer_id if available
+    if (cleanId) {
+      try {
+        const q = query(
+          collection(db, COLL_ORDERS),
+          where('customer_id', '==', cleanId),
+          limit(50)
+        );
+        const snap = await getDocs(q);
+        snap.forEach(d => {
+          const norm = normalizeOrder(d.id, d.data());
+          orderMap.set(norm.id, norm);
+        });
+      } catch (e) {
+        console.warn('Query orders by customer_id notice:', e?.message);
+      }
+    }
+
+    // 2. Query by customer_phone if available
+    if (cleanPhone) {
+      try {
+        const qPhone = query(
+          collection(db, COLL_ORDERS),
+          where('customer_phone', '==', cleanPhone),
+          limit(50)
+        );
+        const snapPhone = await getDocs(qPhone);
+        snapPhone.forEach(d => {
+          const norm = normalizeOrder(d.id, d.data());
+          orderMap.set(norm.id, norm);
+        });
+      } catch (e) {
+        console.warn('Query orders by customer_phone notice:', e?.message);
+      }
+    }
+
+    // 3. Fetch device-specific orders
+    if (idList.length > 0) {
+      for (const ordId of idList.slice(0, 15)) {
+        if (!orderMap.has(ordId)) {
+          try {
+            const single = await getLiveOrderById(ordId);
+            if (single?.id) {
+              orderMap.set(single.id, single);
+            }
+          } catch {}
+        }
+      }
+    }
+
+    const orders = Array.from(orderMap.values());
     orders.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     return orders;
   } catch (err) {
@@ -921,13 +969,13 @@ export function subscribeToLiveSettings(callback) {
 export async function updateLiveSettings(updates) {
   const docRef = doc(db, COLL_SETTINGS, 'store_config');
   const targetOpen = updates.is_open !== undefined ? (updates.is_open === true || updates.is_open === 'true') : (updates.isOpen !== undefined ? (updates.isOpen === true || updates.isOpen === 'true') : true);
-  const clean = {
+  const clean = cleanFirestoreObject({
     ...updates,
     isOpen: targetOpen,
     is_open: targetOpen,
     kitchen_status: targetOpen ? 'open' : 'closed',
     updated_at: new Date().toISOString()
-  };
+  });
   await setDoc(docRef, clean, { merge: true });
   // Invalidate memory cache so immediate reads are fresh!
   memoryCache.settings = { data: null, timestamp: 0 };
@@ -1111,29 +1159,8 @@ export function processLiveCustomers(usersDocs = [], ordersDocs = []) {
     const cPhone = cleanPhone(phone);
     const regDate = data.registered_at || data.created_at || (data.updated_at ? data.updated_at : null);
 
-    // Check if we already have this user registered under this phone or specific email
-    let existingCust = null;
-    if (cPhone && phoneToUserId.has(cPhone)) {
-      existingCust = customerMap.get(phoneToUserId.get(cPhone));
-    } else if (email && email !== 'customer@foodmaxx.ng' && emailToUserId.has(email)) {
-      existingCust = customerMap.get(emailToUserId.get(email));
-    }
-
-    if (existingCust) {
-      if ((!existingCust.full_name || existingCust.full_name === 'Customer') && fullName && fullName !== 'Customer') {
-        existingCust.full_name = fullName;
-      }
-      if (!existingCust.avatar_url && (data.avatar_url || data.photo)) {
-        existingCust.avatar_url = data.avatar_url || data.photo;
-      }
-      if (!existingCust.phone && phone) {
-        existingCust.phone = phone;
-        if (cPhone) phoneToUserId.set(cPhone, existingCust.id);
-      }
-      if (regDate && (!existingCust.registered_at || new Date(regDate) < new Date(existingCust.registered_at))) {
-        existingCust.registered_at = regDate;
-      }
-      customerMap.set(id, existingCust);
+    // Check if we already processed this exact user document ID
+    if (customerMap.has(id)) {
       return;
     }
 
@@ -1148,16 +1175,16 @@ export function processLiveCustomers(usersDocs = [], ordersDocs = []) {
       is_registered: true,
       registered_at: regDate,
       created_at: data.created_at || regDate,
-      orders_count: 0,
-      total_orders: 0,
-      total_spent: 0,
-      last_ordered: null,
-      addresses: Array.isArray(data.savedAddresses) ? data.savedAddresses : []
+      orders_count: Number(data.orders_count) || 0,
+      total_orders: Number(data.total_orders || data.orders_count) || 0,
+      total_spent: Number(data.total_spent) || 0,
+      last_ordered: data.last_ordered || null,
+      addresses: Array.isArray(data.savedAddresses) ? data.savedAddresses : (data.address ? [data.address] : [])
     };
 
     customerMap.set(id, customerObj);
-    if (cPhone) phoneToUserId.set(cPhone, id);
-    if (email && email !== 'customer@foodmaxx.ng') emailToUserId.set(email, id);
+    if (cPhone && !phoneToUserId.has(cPhone)) phoneToUserId.set(cPhone, id);
+    if (email && email !== 'customer@foodmaxx.ng' && !emailToUserId.has(email)) emailToUserId.set(email, id);
   });
 
   // 2. Correlate with real orders from COLL_ORDERS
@@ -1327,7 +1354,8 @@ export function subscribeToLiveUser(userId, callback) {
 
 export async function updateLiveUser(userId, updates) {
   const docRef = doc(db, COLL_USERS, userId);
-  await setDoc(docRef, { ...updates, updated_at: new Date().toISOString() }, { merge: true });
+  const cleaned = cleanFirestoreObject({ ...updates, updated_at: new Date().toISOString() });
+  await setDoc(docRef, cleaned, { merge: true });
   const snap = await getDoc(docRef);
   return { id: snap.id, ...snap.data() };
 }
@@ -1516,6 +1544,34 @@ export async function createLiveGroupOrder(groupData) {
     updated_at: new Date().toISOString()
   };
   await setDoc(docRef, data, { merge: true });
+
+  // Sync to COLL_ORDERS ('orders') so Admin, Kitchen KDS, and Rider Dispatch immediately see this group order!
+  try {
+    const orderDocRef = doc(db, COLL_ORDERS, `GRP-${code}`);
+    await setDoc(orderDocRef, {
+      id: `GRP-${code}`,
+      order_reference: code,
+      customer_name: `${data.creator_name || 'Group Organizer'} (Group: ${data.name || code})`,
+      customer_phone: groupData.phone || '',
+      delivery_address: data.delivery_location || data.delivery_address || '',
+      delivery_zone: data.delivery_zone || 'Standard Delivery',
+      delivery_window: data.delivery_window || '',
+      order_status: 'OPEN_GROUP',
+      status: 'OPEN_GROUP',
+      payment_status: 'pending',
+      payment_method: 'group_split',
+      is_group_order: true,
+      group_code: code,
+      items: [],
+      total_amount: Number(data.total_amount) || 0,
+      total: Number(data.total_amount) || 0,
+      created_at: data.created_at,
+      updated_at: new Date().toISOString()
+    }, { merge: true });
+  } catch (err) {
+    console.warn('Sync group order to orders collection notice:', err);
+  }
+
   return data;
 }
 
@@ -1696,6 +1752,34 @@ export async function recordParticipantPayment(code, participantId, paymentData 
       total_amount: totalPaidAmount,
       updated_at: new Date().toISOString()
     }, { merge: true });
+
+    // Sync to COLL_ORDERS ('orders') so Admin, Kitchen, and Radar show items and revenue
+    try {
+      const allItems = [];
+      updated.forEach(p => {
+        (p.items || []).forEach(it => {
+          allItems.push({
+            ...it,
+            participant_name: p.name,
+            name: `[${p.name}] ${it.name || it.item_name || 'Item'}`
+          });
+        });
+      });
+      const allPaid = updated.length > 0 && updated.every(p => p.payment_status === 'PAID');
+      const orderDocRef = doc(db, COLL_ORDERS, `GRP-${code.toUpperCase()}`);
+      await setDoc(orderDocRef, {
+        items: allItems,
+        total_amount: totalPaidAmount,
+        total: totalPaidAmount,
+        payment_status: allPaid ? 'paid' : (totalPaidAmount > 0 ? 'partial' : 'pending'),
+        order_status: totalPaidAmount > 0 ? 'CONFIRMED' : 'OPEN_GROUP',
+        status: totalPaidAmount > 0 ? 'CONFIRMED' : 'OPEN_GROUP',
+        updated_at: new Date().toISOString()
+      }, { merge: true });
+    } catch (syncErr) {
+      console.warn('Sync group order payment to orders notice:', syncErr);
+    }
+
     return true;
   } catch (e) {
     console.error('Failed to record participant payment:', e);

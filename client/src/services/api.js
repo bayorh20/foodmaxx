@@ -273,41 +273,44 @@ export const api = {
 
   register: async (data) => {
     const emailLower = (data?.email || '').toLowerCase().trim();
-    const emailSlug = emailLower ? emailLower.replace(/[^a-z0-9]/g, '_') : '';
-    const phoneSlug = data?.phone ? String(data.phone).replace(/\D/g, '') : '';
-    const userId = emailSlug ? `user_${emailSlug}` : (phoneSlug ? `user_${phoneSlug}` : `user_${Date.now()}`);
+    const phoneClean = data?.phone ? String(data.phone).trim() : '';
+    const phoneDigits = phoneClean.replace(/\D/g, '').slice(-10);
+    const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
 
-    let existingUser = null;
-    try {
-      existingUser = await getLiveUser(userId);
-    } catch (e) {}
+    // Stable unique ID that never overwrites other customers
+    const userId = data?.id || (phoneDigits ? `usr_${phoneDigits}_${uniqueSuffix}` : `usr_${uniqueSuffix}`);
 
     const nowIso = new Date().toISOString();
     const user = {
       id: userId,
-      full_name: data?.full_name || existingUser?.full_name || 'FoodMaxx Customer',
+      full_name: (data?.full_name || 'FoodMaxx Customer').trim(),
       email: emailLower,
-      phone: data?.phone || existingUser?.phone || '',
-      avatar_url: data?.avatar_url || existingUser?.avatar_url || '',
-      gender: data?.gender || existingUser?.gender || '',
+      phone: phoneClean,
+      avatar_url: data?.avatar_url || '',
+      gender: data?.gender || '',
       role: 'customer',
       status: 'active',
-      created_at: existingUser?.created_at || existingUser?.registered_at || nowIso,
-      registered_at: existingUser?.registered_at || nowIso,
-      orders_count: existingUser?.orders_count || 0,
-      total_spent: existingUser?.total_spent || 0
+      is_registered: true,
+      created_at: nowIso,
+      registered_at: nowIso,
+      orders_count: 0,
+      total_spent: 0
     };
     const token = 'fmx_token_' + Date.now();
     try {
       localStorage.setItem('fmx_token', token);
       localStorage.setItem('fmx_user', JSON.stringify(user));
-      // Store password for login validation (existing custom auth system — no Firebase Auth)
+      if (user.full_name) localStorage.setItem('fmx_last_name', user.full_name);
+      if (user.phone) localStorage.setItem('fmx_last_phone', user.phone);
+
+      // Save directly to Firestore users collection
       await updateLiveUser(user.id, {
         ...user,
-        password: data?.password || existingUser?.password || '',
-        registered_at: user.registered_at
+        password: data?.password || ''
       });
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Registration Firestore notice:', e);
+    }
     return { success: true, token, user };
   },
 
@@ -398,9 +401,16 @@ export const api = {
   },
 
   getCustomerOrders: async (currentUser) => {
-    if (!currentUser || !currentUser.id) return { success: true, data: [] };
-    const cleanId = String(currentUser.id || '').trim();
-    const data = await getCustomerLiveOrders(cleanId);
+    let deviceOrders = [];
+    try {
+      deviceOrders = JSON.parse(localStorage.getItem('fmx_device_orders') || '[]');
+      const lastOrd = localStorage.getItem('fmx_last_order_id');
+      if (lastOrd && !deviceOrders.includes(lastOrd)) deviceOrders.unshift(lastOrd);
+    } catch {}
+
+    const cleanId = String(currentUser?.id || '').trim();
+    const cleanPhone = String(currentUser?.phone || localStorage.getItem('fmx_last_phone') || '').trim();
+    const data = await getCustomerLiveOrders(cleanId, cleanPhone, deviceOrders);
     return { success: true, data };
   },
 
@@ -427,13 +437,21 @@ export const api = {
     const oCustEmail = String(order.customer_email || order.customer?.email || '').trim().toLowerCase();
     const oCustPhone = String(order.customer_phone || order.customer?.phone || '').trim();
 
-    // Check if order was placed in this device's current session
+    // Check if order was placed in this device's current session or matches device orders
     let isDeviceSessionOwner = false;
     try {
       const lastSessionOrderId = localStorage.getItem('fmx_last_order_id');
+      const lastSessionOrderRef = localStorage.getItem('fmx_last_order_ref');
       const uOrderKey = uId ? localStorage.getItem(`fmx_last_order_${uId}`) : null;
+      let deviceOrders = [];
+      try {
+        deviceOrders = JSON.parse(localStorage.getItem('fmx_device_orders') || '[]');
+      } catch {}
+
       if (lastSessionOrderId === order.id || lastSessionOrderId === order.order_reference ||
-          uOrderKey === order.id || uOrderKey === order.order_reference) {
+          lastSessionOrderRef === order.id || lastSessionOrderRef === order.order_reference ||
+          uOrderKey === order.id || uOrderKey === order.order_reference ||
+          (Array.isArray(deviceOrders) && (deviceOrders.includes(order.id) || deviceOrders.includes(order.order_reference)))) {
         isDeviceSessionOwner = true;
       }
     } catch {}
@@ -457,7 +475,16 @@ export const api = {
       if (uId) {
         localStorage.setItem(`fmx_last_order_${uId}`, created.id);
       }
-      localStorage.removeItem('fmx_last_order_id');
+      localStorage.setItem('fmx_last_order_id', created.id);
+      if (created.order_reference) {
+        localStorage.setItem('fmx_last_order_ref', created.order_reference);
+      }
+      try {
+        const stored = JSON.parse(localStorage.getItem('fmx_device_orders') || '[]');
+        const updated = Array.from(new Set([created.id, created.order_reference, ...stored])).filter(Boolean);
+        localStorage.setItem('fmx_device_orders', JSON.stringify(updated.slice(0, 50)));
+      } catch {}
+
       window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: created }));
     } catch (e) {}
     return { success: true, data: created };
@@ -1158,7 +1185,7 @@ export const api = {
           gateway_fees: 0,
           rider_payouts: 0,
           status: 'SETTLED',
-          destination: 'Guaranty Trust Bank (GTB) · •••• 4892'
+          destination: `${getStoreDetails().payout_bank_name || 'Moniepoint'} · •••• ${(getStoreDetails().payout_account_number || '4281').slice(-4)}`
         };
       }
       const amt = Number(o.total || o.total_amount || 0);

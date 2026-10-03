@@ -167,6 +167,68 @@ export const DEFAULT_APP_CONTENT = {
       desc: 'Placeholder inside chat text box',
       value: 'Type your message to FoodMaxx...'
     }
+  },
+  notifications: {
+    cooking_title: {
+      label: 'Cooking Alert Title',
+      desc: 'Status banner and push title when food is cooking',
+      value: 'Cooking Your Meal!'
+    },
+    cooking_desc: {
+      label: 'Cooking Alert Description',
+      desc: 'Status banner and push body when food is cooking',
+      value: 'FoodMaxx kitchen is freshly grilling and packing your order.'
+    },
+    ready_title: {
+      label: 'Order Ready Title',
+      desc: 'Status banner and push title when food is packed',
+      value: 'Order Ready & Packed!'
+    },
+    ready_desc: {
+      label: 'Order Ready Description',
+      desc: 'Status banner and push body when food is packed',
+      value: 'Your food is packaged hot and waiting for rider pickup.'
+    },
+    transit_title: {
+      label: 'Rider on the Way Title',
+      desc: 'Status banner and push title when courier is en route',
+      value: 'Rider is on the Way!'
+    },
+    transit_desc: {
+      label: 'Rider on the Way Description',
+      desc: 'Status banner and push body when courier is en route',
+      value: 'Your courier is heading towards your delivery address.'
+    },
+    arriving_title: {
+      label: 'Rider Arriving Soon Title',
+      desc: 'Status banner and push title when courier arrives at address',
+      value: 'Rider Arriving Soon!'
+    },
+    arriving_desc: {
+      label: 'Rider Arriving Soon Description',
+      desc: 'Status banner and push body when courier arrives with PIN reminder',
+      value: 'Your rider is pulling up. Please have your delivery PIN ready!'
+    },
+    delivered_title: {
+      label: 'Order Delivered Title',
+      desc: 'Status banner and push title when meal is delivered',
+      value: 'Order Delivered!'
+    },
+    delivered_desc: {
+      label: 'Order Delivered Description',
+      desc: 'Status banner and push body when meal is delivered',
+      value: 'Your meal has arrived! Enjoy your hot food.'
+    },
+    cancelled_title: {
+      label: 'Order Cancelled Title',
+      desc: 'Status banner and push title if order is cancelled',
+      value: 'Order Cancelled'
+    },
+    cancelled_desc: {
+      label: 'Order Cancelled Description',
+      desc: 'Status banner and push body if order is cancelled',
+      value: 'This order was cancelled. Tap to view details.'
+    }
   }
 };
 

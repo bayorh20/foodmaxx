@@ -173,6 +173,73 @@ function sendViaTwilio({ accountSid, authToken, from, to, message, apiKeySid, ap
 }
 
 /**
+ * Send SMS via Sendchamp API
+ * Sendchamp API Docs: https://sendchamp.com/docs
+ * @param {object} params { apiKey, senderId, phone, message, route }
+ * @returns {Promise<object>}
+ */
+function sendViaSendchamp({ apiKey, senderId, phone, message, route }) {
+  return new Promise((resolve, reject) => {
+    if (!apiKey) {
+      return resolve({
+        success: true,
+        provider: 'sendchamp_simulation',
+        message_id: `mock_sc_${Date.now()}`,
+        status: 'simulated_success',
+        note: 'Sendchamp API key not configured; message logged in simulation mode'
+      });
+    }
+
+    const payload = JSON.stringify({
+      to: [formatSmsPhone(phone)],
+      sender_name: senderId || 'FoodMaxx',
+      message: message,
+      route: route || 'dnd'
+    });
+
+    const options = {
+      hostname: 'api.sendchamp.com',
+      port: 443,
+      path: '/api/v1/sms/send',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Length': Buffer.byteLength(payload)
+      },
+      timeout: 10000
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(body);
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve({ success: true, provider: 'sendchamp', data: parsed });
+          } else {
+            resolve({ success: false, provider: 'sendchamp', error: parsed.message || 'Sendchamp error', code: res.statusCode });
+          }
+        } catch (e) {
+          resolve({ success: false, provider: 'sendchamp', error: 'Invalid response from Sendchamp', raw: body });
+        }
+      });
+    });
+
+    req.on('error', err => reject(err));
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Sendchamp API request timed out after 10s'));
+    });
+
+    req.write(payload);
+    req.end();
+  });
+}
+
+/**
  * Universal dispatcher
  * @param {object} params 
  * @returns {Promise<object>}
@@ -191,6 +258,16 @@ async function dispatchSms(params) {
     });
   }
 
+  if (provider === 'sendchamp') {
+    return sendViaSendchamp({
+      apiKey: params.apiKey || params.sendchamp_api_key || process.env.SENDCHAMP_API_KEY,
+      senderId: params.senderId || params.sendchamp_sender_id || process.env.SENDCHAMP_SENDER_ID || 'FoodMaxx',
+      phone: params.phone,
+      message: params.message,
+      route: params.route || params.sendchamp_route || 'dnd'
+    });
+  }
+
   // Default to Termii
   return sendViaTermii({
     apiKey: params.apiKey || process.env.TERMII_API_KEY,
@@ -203,6 +280,7 @@ async function dispatchSms(params) {
 module.exports = {
   formatSmsPhone,
   sendViaTermii,
+  sendViaSendchamp,
   sendViaTwilio,
   dispatchSms
 };

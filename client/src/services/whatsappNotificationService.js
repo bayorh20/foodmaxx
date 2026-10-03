@@ -190,26 +190,67 @@ export async function logWhatsAppDispatch(order, status, phone, message) {
   }
 }
 
+import { getSmsConfig } from './smsNotificationSdk';
+
 /**
- * Trigger backend WhatsApp API endpoint (with fallback to client link)
+ * Trigger backend or Sendchamp WhatsApp API endpoint (with fallback to client link)
  * @param {object} payload 
  * @returns {Promise<object>}
  */
 export async function sendWhatsAppNotificationApi(payload) {
+  const normPhone = normalizeWhatsAppPhone(payload.phone);
+  const message = payload.message || buildWhatsAppStatusMessage(payload.order, payload.status, payload.extraNotes);
+  const config = typeof getSmsConfig === 'function' ? getSmsConfig() : {};
+  const scKey = (config.sendchamp_api_key || '').trim();
+
+  // 1. If Sendchamp live key is configured, attempt direct background WhatsApp dispatch
+  if (scKey) {
+    try {
+      const senderVal = config.sendchamp_whatsapp_sender || config.sendchamp_sender_id || 'FoodMaxx';
+      const scRes = await fetch('https://api.sendchamp.com/api/v1/whatsapp/message/send', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${scKey}`
+        },
+        body: JSON.stringify({
+          sender: senderVal,
+          recipient: normPhone,
+          message: message,
+          type: 'text'
+        })
+      });
+      const scData = await scRes.json();
+      if (scRes.ok && (scData.status === 'success' || scData.code === 200)) {
+        await logWhatsAppDispatch(payload.order, payload.status, normPhone, message);
+        return { success: true, provider: 'sendchamp_whatsapp', data: scData };
+      }
+      console.warn('Sendchamp WhatsApp dispatch notice:', scData.message || scData);
+    } catch (scErr) {
+      console.warn('Sendchamp WhatsApp request error:', scErr);
+    }
+  }
+
+  // 2. Try backend WhatsApp proxy endpoint if available
   try {
     const res = await fetch('/api/notifications/whatsapp/send-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        ...payload,
+        phone: normPhone,
+        message
+      })
     });
     const data = await res.json();
     return data;
   } catch (err) {
-    // If backend is offline or in client-only mode, return structured fallback
+    // 3. Fallback to 1-click WhatsApp deep link
     return {
       success: true,
       mode: 'client_link',
-      wa_url: getWhatsAppShareUrl(payload.phone, payload.message || buildWhatsAppStatusMessage(payload.order, payload.status))
+      wa_url: getWhatsAppShareUrl(normPhone, message)
     };
   }
 }

@@ -3048,22 +3048,61 @@ function AdminPortal() {
     return () => window.removeEventListener('fmx_notification_permission_changed', handler);
   }, []);
 
-  // Real-time listener for active Group Orders
+  // Real-time listener for active Group Orders - always listen globally
   useEffect(() => {
-    if (settingsSubTab === 'group_orders' && db) {
-      try {
-        const q = query(collection(db, 'group_orders'));
-        const unsub = onSnapshot(q, (snap) => {
-          const list = [];
-          snap.forEach(d => list.push({ id: d.id, ...d.data() }));
-          setActiveGroupOrders(list);
-        }, err => console.warn('Group orders admin listener:', err));
-        return () => unsub();
-      } catch (e) {
-        console.warn('Could not listen to group orders:', e);
-      }
+    if (!db) return;
+    try {
+      const q = query(collection(db, 'group_orders'));
+      const unsub = onSnapshot(q, (snap) => {
+        const list = [];
+        snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+        list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        setActiveGroupOrders(list);
+      }, err => console.warn('Group orders admin listener:', err));
+      return () => unsub();
+    } catch (e) {
+      console.warn('Could not listen to group orders:', e);
     }
-  }, [settingsSubTab]);
+  }, []);
+
+  // Real-time synchronization of group orders into Admin Orders feed
+  useEffect(() => {
+    if (!Array.isArray(activeGroupOrders) || activeGroupOrders.length === 0) return;
+    setOrders(prev => {
+      const existingIds = new Set((prev || []).map(o => String(o.id || o.order_reference || '')));
+      const newGroupEntries = [];
+      activeGroupOrders.forEach(grp => {
+        const grpId = `GRP-${grp.code}`;
+        if (!existingIds.has(grpId) && !existingIds.has(grp.code)) {
+          const allItems = [];
+          (grp.participants || grp.members || []).forEach(p => {
+            (p.items || []).forEach(it => {
+              allItems.push({ ...it, name: `[${p.name || 'Member'}] ${it.name || it.item_name || 'Item'}` });
+            });
+          });
+          newGroupEntries.push({
+            id: grpId,
+            order_reference: grp.code,
+            customer_name: `${grp.creator_name || 'Group Host'} (Group: ${grp.name || grp.code})`,
+            customer_phone: grp.phone || '',
+            delivery_address: grp.delivery_location || grp.delivery_address || 'Ibadan',
+            delivery_zone: grp.delivery_zone || 'Standard Delivery',
+            order_status: grp.status === 'LOCKED' || grp.status === 'PLACED' ? 'CONFIRMED' : (grp.total_amount > 0 ? 'CONFIRMED' : 'OPEN_GROUP'),
+            status: grp.status === 'LOCKED' || grp.status === 'PLACED' ? 'CONFIRMED' : (grp.total_amount > 0 ? 'CONFIRMED' : 'OPEN_GROUP'),
+            payment_status: grp.total_amount > 0 ? 'paid' : 'pending',
+            is_group_order: true,
+            group_code: grp.code,
+            items: allItems,
+            total_amount: Number(grp.total_amount) || 0,
+            total: Number(grp.total_amount) || 0,
+            created_at: grp.created_at || new Date().toISOString()
+          });
+        }
+      });
+      if (newGroupEntries.length === 0) return prev;
+      return [...newGroupEntries, ...prev];
+    });
+  }, [activeGroupOrders]);
 
   // Late Delivery Apology History
   const [apologyHistory, setApologyHistory] = useState(() => {
@@ -3620,7 +3659,10 @@ function AdminPortal() {
 
       // Validate authorized email patterns & password match
       const isEmailAuthorized = cleanEmail === 'admin@foodmaxx.ng' || cleanEmail.includes('admin') || cleanEmail.endsWith('@foodmaxx.ng');
-      const isPasswordValid = cleanPass === validPassword || cleanPass === 'admin123';
+      const isCustomPasswordSet = Boolean(validPassword && validPassword !== 'admin123' && validPassword !== 'admin');
+      const isPasswordValid = isCustomPasswordSet 
+        ? cleanPass === validPassword 
+        : (cleanPass === validPassword || cleanPass === 'admin123' || cleanPass === 'admin');
       if (!isEmailAuthorized || !isPasswordValid) {
         throw new Error('Invalid email or password. Admin access denied.');
       }
@@ -4035,7 +4077,7 @@ function AdminPortal() {
         <body>
           <div class="center bold" style="font-size: 16px;">${settings.store_name || 'FOODMAXX'}</div>
           ${settings.address ? `<div class="center">${settings.address}</div>` : ''}
-          <div class="center">Tel: ${settings.phone || '08023456789'}</div>
+          <div class="center">Tel: ${settings.phone || DEFAULT_STORE_DETAILS.phone || '0816 600 4281'}</div>
           <div class="center" style="font-size: 12px; margin-top: 4px;">${settings.receipt_header_note || 'FOODMAXX IBD - FRESH & HOT'}</div>
           <div class="line"></div>
           <div class="row"><span class="bold">SAMPLE ORDER:</span><span class="bold">#FMX-7729</span></div>
@@ -4083,9 +4125,12 @@ function AdminPortal() {
       }
       if (api.saveSmsConfig) {
         api.saveSmsConfig({
-          provider: merged.sms_provider || 'twilio',
+          provider: merged.sms_provider || 'termii',
           termii_api_key: (merged.termii_api_key || '').trim(),
           termii_sender_id: (merged.sms_sender_id || 'FoodMaxx').trim(),
+          sendchamp_api_key: (merged.sendchamp_api_key || '').trim(),
+          sendchamp_sender_id: (merged.sendchamp_sender_id || merged.sms_sender_id || 'FoodMaxx').trim(),
+          sendchamp_route: (merged.sendchamp_route || 'dnd').trim(),
           twilio_account_sid: (merged.twilio_account_sid || '').trim(),
           twilio_auth_token: (merged.twilio_auth_token || '').trim(),
           twilio_from_number: (merged.twilio_from_number || '').trim(),
@@ -4458,6 +4503,7 @@ function AdminPortal() {
   const navItems = [
     { id: 'overview', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'orders', icon: ClipboardList, label: 'Orders', badge: pendingOrdersCount > 0 ? pendingOrdersCount : null, alertBadge: delayedOrdersCount > 0 ? `${delayedOrdersCount} late` : null },
+    { id: 'group_orders', icon: Users, label: 'Group Orders', badge: activeGroupOrders.length > 0 ? activeGroupOrders.length : null },
     { id: 'products', icon: Utensils, label: 'Menu' },
     { id: 'inventory', icon: Package, label: 'Inventory', badge: lowStockCount > 0 ? lowStockCount : null },
     { id: 'customers', icon: Users, label: 'Customers' },
@@ -6023,6 +6069,7 @@ function AdminPortal() {
                   { id: 'all', label: 'All Orders', count: orders.length },
                   { id: 'CONFIRMED', label: '⚡ New Orders', count: pendingOrdersCount },
                   { id: 'PREPARING', label: '🍳 Cooking', count: inPrepOrdersCount },
+                  { id: 'group_orders', label: '🍱 Group Orders', count: orders.filter(o => o.is_group_order || (o.id && String(o.id).startsWith('GRP-')) || o.group_code).length },
                   { id: 'READY_FOR_PICKUP', label: '📦 Ready for Rider', count: orders.filter(o => o.order_status === 'READY_FOR_PICKUP').length },
                   { id: 'ON_THE_WAY', label: '🛵 On the Way', count: orders.filter(o => o.order_status === 'ON_THE_WAY').length },
                   { id: 'DELIVERED', label: '✅ Delivered', count: orders.filter(o => o.order_status === 'DELIVERED').length },
@@ -6073,6 +6120,9 @@ function AdminPortal() {
                   if (['DELIVERED', 'CANCELLED'].includes(o.order_status)) return false;
                   const elapsedMins = (Date.now() - new Date(o.created_at).getTime()) / 60000;
                   return elapsedMins > 25;
+                }
+                if (orderFilterStatus === 'group_orders') {
+                  return o.is_group_order || (o.id && String(o.id).startsWith('GRP-')) || o.group_code;
                 }
                 const matchStatus = orderFilterStatus === 'all' ||
                   (orderFilterStatus === 'CONFIRMED' && (o.order_status === 'CONFIRMED' || o.order_status === 'ORDER_PLACED')) ||
@@ -8140,9 +8190,9 @@ function AdminPortal() {
                         <label className="block text-xs font-black text-black mb-1">Bank Name</label>
                         <input
                           type="text"
-                          value={settings.payout_bank_name || 'Guaranty Trust Bank (GTBank)'}
+                          value={settings.payout_bank_name || DEFAULT_STORE_DETAILS.payout_bank_name || 'Moniepoint'}
                           onChange={e => setSettings({ ...settings, payout_bank_name: e.target.value })}
-                          placeholder="e.g. Guaranty Trust Bank"
+                          placeholder="e.g. Moniepoint"
                           className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
                         />
                       </div>
@@ -8151,7 +8201,7 @@ function AdminPortal() {
                         <input
                           type="text"
                           maxLength={10}
-                          value={settings.payout_account_number || '0123456789'}
+                          value={settings.payout_account_number || DEFAULT_STORE_DETAILS.payout_account_number || '8166004281'}
                           onChange={e => setSettings({ ...settings, payout_account_number: e.target.value.replace(/\D/g, '') })}
                           placeholder="10-digit NUBAN"
                           className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
@@ -8161,9 +8211,9 @@ function AdminPortal() {
                         <label className="block text-xs font-black text-black mb-1">Account Beneficiary Name</label>
                         <input
                           type="text"
-                          value={settings.payout_account_name || 'FoodMaxx Kitchen Ltd'}
+                          value={settings.payout_account_name || DEFAULT_STORE_DETAILS.payout_account_name || 'Foodmaxx Restaurant'}
                           onChange={e => setSettings({ ...settings, payout_account_name: e.target.value })}
-                          placeholder="e.g. FoodMaxx Kitchen Ltd"
+                          placeholder="e.g. Foodmaxx Restaurant"
                           className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
                         />
                       </div>
@@ -8433,7 +8483,17 @@ function AdminPortal() {
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="font-black text-sm text-black">SMS Notification Gateway SDK</h4>
-                            {settings.sms_provider === 'termii' || !settings.sms_provider ? (
+                            {settings.sms_provider === 'sendchamp' ? (
+                              settings.sendchamp_api_key ? (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                                  Sendchamp Configured ✓
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black uppercase">
+                                  Sendchamp Key Missing
+                                </span>
+                              )
+                            ) : settings.sms_provider === 'termii' || !settings.sms_provider ? (
                               settings.termii_api_key ? (
                                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
                                   Termii Configured ✓
@@ -8485,6 +8545,7 @@ function AdminPortal() {
                           className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
                         >
                           <option value="termii">Termii Nigeria (Recommended: DND Bypass & ₦ GSM)</option>
+                          <option value="sendchamp">Sendchamp Nigeria (Multi-Channel & DND Route)</option>
                           <option value="native">Direct Device SMS (100% Free - Native SIM)</option>
                           <option value="twilio">Twilio Global</option>
                         </select>
@@ -8500,24 +8561,59 @@ function AdminPortal() {
                           placeholder="e.g. FoodMaxx"
                           className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
                         />
-                        <p className="text-[10px] text-slate-500 font-medium mt-1">Max 11 characters (registered with Termii / Twilio)</p>
+                        <p className="text-[10px] text-slate-500 font-medium mt-1">Max 11 characters (registered with Termii / Sendchamp / Twilio)</p>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-black text-black mb-1.5">Termii Route Channel</label>
-                        <select
-                          value={settings.termii_channel || 'generic'}
-                          onChange={e => setSettings({ ...settings, termii_channel: e.target.value })}
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
-                        >
-                          <option value="generic">Generic (Transactional OTP & DND Bypass)</option>
-                          <option value="dnd">DND Priority Channel</option>
-                          <option value="direct">Direct Local Carrier Route</option>
-                        </select>
+                        <label className="block text-xs font-black text-black mb-1.5">Route Channel</label>
+                        {settings.sms_provider === 'sendchamp' ? (
+                          <select
+                            value={settings.sendchamp_route || 'dnd'}
+                            onChange={e => setSettings({ ...settings, sendchamp_route: e.target.value })}
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          >
+                            <option value="dnd">dnd — DND Route (Bypasses Nigerian DND)</option>
+                            <option value="non_dnd">non_dnd — Standard Non-DND Route</option>
+                            <option value="international">international — Global Route</option>
+                          </select>
+                        ) : (
+                          <select
+                            value={settings.termii_channel || 'generic'}
+                            onChange={e => setSettings({ ...settings, termii_channel: e.target.value })}
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          >
+                            <option value="generic">Generic (Transactional OTP & DND Bypass)</option>
+                            <option value="dnd">DND Priority Channel</option>
+                            <option value="direct">Direct Local Carrier Route</option>
+                          </select>
+                        )}
                       </div>
                     </div>
 
-                    {settings.sms_provider === 'termii' && (
+                    {settings.sms_provider === 'sendchamp' && (
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-xs font-black text-black">Sendchamp Secret / Live Access Key</label>
+                          <a
+                            href="https://my.sendchamp.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-bold text-blue-600 hover:underline"
+                          >
+                            Get key from my.sendchamp.com ↗
+                          </a>
+                        </div>
+                        <input
+                          type="password"
+                          value={settings.sendchamp_api_key || ''}
+                          onChange={e => setSettings({ ...settings, sendchamp_api_key: e.target.value })}
+                          placeholder="sendchamp_live_... or test key (from Sendchamp APIs & Webhooks)"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                        />
+                      </div>
+                    )}
+
+                    {(settings.sms_provider === 'termii' || !settings.sms_provider) && (
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
                           <label className="block text-xs font-black text-black">Termii Secret API Key</label>
@@ -8628,19 +8724,26 @@ function AdminPortal() {
                             }
                             setTestingSms(true);
                             try {
+                              const providerName = settings.sms_provider || 'termii';
+                              const activeKey = providerName === 'sendchamp'
+                                ? (settings.sendchamp_api_key || '')
+                                : (settings.termii_api_key || '');
                               const res = await api.testSmsConnection(
-                                settings.sms_provider || 'twilio',
-                                settings.termii_api_key || '',
+                                providerName,
+                                activeKey,
                                 settings.sms_sender_id || 'FoodMaxx',
                                 testSmsPhone,
                                 {
+                                  route: settings.sendchamp_route || 'dnd',
+                                  sendchamp_route: settings.sendchamp_route || 'dnd',
+                                  sendchamp_sender_id: settings.sms_sender_id || 'FoodMaxx',
                                   accountSid: settings.twilio_account_sid,
                                   authToken: settings.twilio_auth_token,
                                   from: settings.twilio_from_number
                                 }
                               );
                               if (res?.success) {
-                                toast(`Twilio SMS Gateway tested and verified for ${testSmsPhone}! 🚀`, 'success');
+                                toast(`${providerName.toUpperCase()} SMS Gateway tested and verified for ${testSmsPhone}! 🚀`, 'success');
                               } else if (res?.code === 572006 || res?.data?.code === 572006) {
                                 toast('Twilio connected! Note: Claim your free phone number on console.twilio.com to send to unverified numbers', 'info');
                               } else {
@@ -8843,7 +8946,7 @@ function AdminPortal() {
                       <label className="block text-xs font-black text-black mb-1.5">Receipt Footer Greeting</label>
                       <input
                         type="text"
-                        value={settings.receipt_footer_note || 'Thank you for dining with FoodMaxx! For catering: 08023456789'}
+                        value={settings.receipt_footer_note || DEFAULT_STORE_DETAILS.receipt_footer_note || 'Thank you for ordering with FoodMaxx. ❤️'}
                         onChange={e => setSettings({ ...settings, receipt_footer_note: e.target.value })}
                         placeholder="e.g. Thank you for dining with FoodMaxx!"
                         className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
