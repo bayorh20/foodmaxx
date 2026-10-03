@@ -28,7 +28,7 @@ import {
   CreditCard, Flame, ShieldCheck, Utensils, SlidersHorizontal, UserCheck, Printer,
   Lock, Copy, Smartphone, Building2, Mic, ShoppingBag, ChevronDown, ChevronUp, Monitor, Key,
   FolderPlus, ArrowUp, ArrowDown, Video, FileText, Info, RotateCw,
-  Columns, LayoutList, Grid, Bike, Edit3, Radio, Palette, Camera, Ticket, HeartHandshake
+  Columns, LayoutList, Grid, Bike, Edit3, Radio, Palette, Camera, Ticket, HeartHandshake, Volume2
 } from 'lucide-react';
 
 const NotificationToneModal = lazy(() => import('./components/NotificationToneModal'));
@@ -4070,6 +4070,8 @@ function ProfileTab({
   onOpenAddresses,
   onOpenOrders,
   onOpenFavorites,
+  onOpenToneStudio,
+  onOpenTransitionStudio,
   isDark,
   toggleDark,
   toast,
@@ -4201,101 +4203,82 @@ function ProfileTab({
   const currentAvatarUrl = user?.avatar_url || localStorage.getItem('fmx_user_avatar') || getHappyAvatar(displayName);
 
   return (
-    <div className="p-4 sm:p-5 max-w-xl mx-auto w-full space-y-4 pb-28">
-      {/* 1. CAPTIVATING PROFILE HERO CARD */}
-      <div className={`p-5 rounded-3xl border transition-all ${
-        isDark ? 'bg-[#181B22] border-white/10 shadow-lg' : 'bg-white border-slate-100 shadow-sm'
+    <div className="p-4 sm:p-5 max-w-lg mx-auto w-full space-y-4 pb-28">
+      {/* 1. USER PROFILE HEADER */}
+      <div className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+        isDark ? 'bg-[#151922] border-white/10' : 'bg-white border-slate-100 shadow-xs'
       }`}>
         {user ? (
-          <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left min-w-0">
-              {/* Interactive Avatar with Glowing Gradient Aura */}
-              <div 
-                onClick={() => setAvatarModalOpen(true)}
-                className="relative group cursor-pointer"
-                title="Tap to customize avatar"
-              >
-                <div className="absolute -inset-1 rounded-[30px] bg-gradient-to-tr from-[#EA4C2A] via-amber-500 to-[#EA4C2A] opacity-30 group-hover:opacity-75 blur-sm transition-opacity" />
-                <div className="relative w-18 h-18 sm:w-20 sm:h-20 rounded-[26px] overflow-hidden bg-white dark:bg-[#1E222D] border-2 border-white dark:border-white/20 shadow-md">
-                  <img
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = getHappyAvatar(displayName);
-                    }}
-                    src={currentAvatarUrl}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
-                    alt={displayName}
-                  />
-                </div>
-
-                {/* Floating Edit Camera Badge */}
-                <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white flex items-center justify-center shadow-md border-2 border-white dark:border-[#181B22] transition-transform">
-                  <Camera size={13} className="stroke-[2.5]" />
-                </div>
+          <div className="flex items-center gap-3.5">
+            {/* Avatar with subtle edit camera badge */}
+            <div 
+              onClick={() => setAvatarModalOpen(true)}
+              className="relative cursor-pointer group shrink-0"
+              title="Customize Avatar"
+            >
+              <div className="w-15 h-15 rounded-full overflow-hidden bg-slate-100 dark:bg-white/10 border-2 border-slate-200 dark:border-white/20">
+                <img
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = getHappyAvatar(displayName);
+                  }}
+                  src={currentAvatarUrl}
+                  className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
+                  alt={displayName}
+                />
               </div>
-
-              {/* User Identity Details */}
-              <div className="min-w-0">
-                <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-                  <h3 className="font-black text-lg text-slate-900 dark:text-white leading-tight truncate">
-                    {displayName}
-                  </h3>
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
-                    Foodie Member
-                  </span>
-                </div>
-                {displayPhone && (
-                  <p className="text-xs font-mono font-medium text-slate-500 dark:text-slate-400 mt-1">
-                    {displayPhone}
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setAvatarModalOpen(true)}
-                  className="mt-1.5 text-[11px] font-bold text-[#EA4C2A] hover:underline flex items-center justify-center sm:justify-start gap-1 cursor-pointer"
-                >
-                  <Sparkles size={11} />
-                  <span>Customize Avatar Look</span>
-                </button>
+              <div className="absolute -bottom-0.5 -right-0.5 w-5.5 h-5.5 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center shadow-xs border-2 border-white dark:border-[#151922]">
+                <Camera size={11} className="stroke-[2.5]" />
               </div>
             </div>
 
-            {/* Quick Member Stats Pills */}
-            <div className="flex items-center gap-2 pt-2 sm:pt-0">
-              <div className={`px-3 py-2 rounded-2xl border text-center ${
-                isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
-              }`}>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Orders</div>
-                <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
-                  {orders?.length || 0}
-                </div>
+            {/* User Identity Details */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-base sm:text-lg text-slate-900 dark:text-white truncate">
+                  {displayName}
+                </h2>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                  Member
+                </span>
               </div>
-              <div className={`px-3 py-2 rounded-2xl border text-center ${
-                isDark ? 'bg-white/5 border-white/8' : 'bg-slate-50 border-slate-100'
-              }`}>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pass</div>
-                <div className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  {fmt(walletBalance)}
-                </div>
-              </div>
+              {displayPhone && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                  {displayPhone}
+                </p>
+              )}
+              {user.email && !displayPhone && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5 truncate">
+                  {user.email}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => setAvatarModalOpen(true)}
+                className="mt-1 text-[11px] font-semibold text-[#EA4C2A] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>Edit Avatar</span>
+              </button>
             </div>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-14 h-14 rounded-2xl bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center font-bold text-2xl shrink-0">
-                👋
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                <User size={22} className="stroke-[1.8]" />
               </div>
               <div className="min-w-0">
-                <h3 className="font-black text-base text-slate-900 dark:text-white">Guest Foodie</h3>
+                <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                  Welcome to FoodMaxx
+                </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Sign in to claim ₦1,000 welcome giveaway & order perks
+                  Sign in to track orders & claim perks
                 </p>
               </div>
             </div>
             <button
               onClick={onOpenOnboarding || onLogin}
-              className="px-4 py-2.5 rounded-xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white font-bold text-xs shadow-md shadow-[#EA4C2A]/20 transition-all cursor-pointer shrink-0"
+              className="px-4 py-2 rounded-xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white font-semibold text-xs transition-all cursor-pointer shrink-0 shadow-xs"
             >
               Sign In
             </button>
@@ -4303,290 +4286,292 @@ function ProfileTab({
         )}
       </div>
 
-      {/* 2. CAPTIVATING BENTO VALUE GRID */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* A. CHOW WALLET */}
-        <div
-          onClick={onOpenWallet}
-          className={`p-4 rounded-3xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
-            isDark
-              ? 'bg-[#181B22] border-white/10 hover:border-emerald-500/30'
-              : 'bg-white border-slate-100 shadow-xs hover:border-emerald-200'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Wallet size={16} />
+      {/* 2. COMPACT STATS BAR */}
+      {user && (
+        <div className={`rounded-2xl border flex items-center divide-x divide-slate-100 dark:divide-white/10 overflow-hidden ${
+          isDark ? 'bg-[#151922] border-white/10' : 'bg-white border-slate-100 shadow-xs'
+        }`}>
+          {/* Wallet Balance */}
+          <button
+            onClick={onOpenWallet}
+            className="flex-1 py-3 px-2 text-center hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+              Wallet
             </div>
-            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-              + Top Up
-            </span>
-          </div>
-          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Chow Wallet</div>
-          <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5 tracking-tight">
-            {fmt(walletBalance)}
-          </div>
-          <div className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-1">1-tap checkout</div>
-        </div>
+            <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+              {fmt(walletBalance)}
+            </div>
+          </button>
 
-        {/* B. GIVEAWAY */}
-        <div
-          onClick={() => {
-            if (isGiveawayClaimed) {
-              if (typeof toast === 'function') toast('The ₦1,000 giveaway has already been redeemed for this account.', 'info');
-            } else {
-              handleCopyVoucher('WELCOME1000');
-            }
-          }}
-          className={`p-4 rounded-3xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
-            isDark
-              ? 'bg-[#181B22] border-white/10 hover:border-amber-500/30'
-              : 'bg-white border-slate-100 shadow-xs hover:border-amber-200'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <Gift size={16} />
+          {/* Orders Count */}
+          <button
+            onClick={onOpenOrders}
+            className="flex-1 py-3 px-2 text-center hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+              Orders
+            </div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
+              {orders?.length || 0}
+            </div>
+          </button>
+
+          {/* Saved Addresses Count */}
+          <button
+            onClick={onOpenAddresses}
+            className="flex-1 py-3 px-2 text-center hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+              Saved Spots
+            </div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
+              {savedAddressesCount || 0}
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* 3. VOUCHERS & PROMO BANNER */}
+      <div
+        onClick={() => setVouchersOpen(true)}
+        className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-[0.99] ${
+          isDark ? 'bg-[#151922] border-white/10 hover:border-white/20' : 'bg-white border-slate-100 shadow-xs hover:border-slate-200'
+        }`}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8.5 h-8.5 rounded-xl bg-orange-500/10 text-[#EA4C2A] flex items-center justify-center shrink-0">
+            <Ticket size={17} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-xs text-slate-900 dark:text-white">
+                Vouchers & Promo Codes
+              </span>
+              {!isGiveawayClaimed && (
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                  ₦1,000 Free
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">
+              {!isGiveawayClaimed ? '₦1,000 welcome discount ready to apply' : `${VOUCHERS.length} discount deals available`}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 text-xs font-semibold text-[#EA4C2A] shrink-0">
+          <span>View</span>
+          <ChevronRight size={14} />
+        </div>
+      </div>
+
+      {/* 4. ACTIVITY GROUP */}
+      <div>
+        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2">
+          Activity
+        </div>
+        <div className={`rounded-2xl border overflow-hidden divide-y divide-slate-100 dark:divide-white/5 ${
+          isDark ? 'bg-[#151922] border-white/10' : 'bg-white border-slate-100 shadow-xs'
+        }`}>
+          {/* Order History */}
+          <button
+            onClick={onOpenOrders}
+            className="w-full flex items-center justify-between p-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <Package size={17} />
+              </div>
+              <span className="font-medium text-xs text-slate-900 dark:text-slate-100">Order History</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {orders?.length > 0 && (
+                <span className="text-[11px] font-semibold text-slate-400">
+                  {orders.length}
+                </span>
+              )}
+              <ChevronRight size={15} className="text-slate-400" />
+            </div>
+          </button>
+
+          {/* Chow Wallet */}
+          <button
+            onClick={onOpenWallet}
+            className="w-full flex items-center justify-between p-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <Wallet size={17} />
+              </div>
+              <span className="font-medium text-xs text-slate-900 dark:text-slate-100">Chow Wallet</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                {fmt(walletBalance)}
+              </span>
+              <ChevronRight size={15} className="text-slate-400" />
+            </div>
+          </button>
+
+          {/* Delivery Addresses */}
+          <button
+            onClick={onOpenAddresses}
+            className="w-full flex items-center justify-between p-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                <MapPin size={17} />
+              </div>
+              <span className="font-medium text-xs text-slate-900 dark:text-slate-100">Delivery Addresses</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {savedAddressesCount > 0 && (
+                <span className="text-[11px] font-semibold text-slate-400">
+                  {savedAddressesCount}
+                </span>
+              )}
+              <ChevronRight size={15} className="text-slate-400" />
+            </div>
+          </button>
+
+          {/* Favorite Meals */}
+          <button
+            onClick={onOpenFavorites}
+            className="w-full flex items-center justify-between p-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                <Heart size={17} />
+              </div>
+              <span className="font-medium text-xs text-slate-900 dark:text-slate-100">Favorite Meals</span>
+            </div>
+            <ChevronRight size={15} className="text-slate-400" />
+          </button>
+        </div>
+      </div>
+
+      {/* 5. PREFERENCES GROUP */}
+      <div>
+        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2">
+          Preferences
+        </div>
+        <div className={`rounded-2xl border overflow-hidden divide-y divide-slate-100 dark:divide-white/5 ${
+          isDark ? 'bg-[#151922] border-white/10' : 'bg-white border-slate-100 shadow-xs'
+        }`}>
+          {/* Notifications */}
+          <button
+            onClick={handleToggleNotification}
+            className="w-full flex items-center justify-between p-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                <Bell size={17} />
+              </div>
+              <div>
+                <span className="font-medium text-xs text-slate-900 dark:text-slate-100 block">Push Notifications</span>
+                <span className="text-[10px] text-slate-400 block">Live status alerts for order updates</span>
+              </div>
             </div>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-              isGiveawayClaimed
-                ? 'bg-slate-100 dark:bg-white/10 text-slate-500'
-                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+              notifState === 'granted'
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                : 'bg-slate-100 dark:bg-white/10 text-slate-500'
             }`}>
-              {isGiveawayClaimed ? 'Redeemed' : 'Active'}
+              {notifState === 'granted' ? 'Enabled' : 'Enable'}
             </span>
-          </div>
-          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">₦1,000 Giveaway</div>
-          <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5 tracking-tight">
-            {isGiveawayClaimed ? 'Claimed ✓' : '₦1,000 Ready'}
-          </div>
-          <div className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-1 truncate">
-            {isGiveawayClaimed ? 'Applied on orders' : 'Tap to copy code'}
-          </div>
-        </div>
+          </button>
 
-        {/* C. VOUCHERS */}
-        <div
-          onClick={() => setVouchersOpen(true)}
-          className={`p-4 rounded-3xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
-            isDark
-              ? 'bg-[#181B22] border-white/10 hover:border-red-500/30'
-              : 'bg-white border-slate-100 shadow-xs hover:border-red-200'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center shrink-0">
-              <Ticket size={16} />
+          {/* Dark Mode */}
+          <div
+            onClick={toggleDark}
+            className="w-full flex items-center justify-between p-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer select-none"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                isDark ? 'bg-indigo-500/10 text-indigo-400' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {isDark ? <Moon size={17} /> : <Sun size={17} />}
+              </div>
+              <span className="font-medium text-xs text-slate-900 dark:text-slate-100">Dark Appearance</span>
             </div>
-            <span className="text-[10px] font-bold text-[#EA4C2A] bg-[#EA4C2A]/10 px-2 py-0.5 rounded-full">
-              View All
-            </span>
+            {/* iOS style toggle */}
+            <div className={`w-9 h-5 rounded-full relative p-0.5 transition-colors ${
+              isDark ? 'bg-[#EA4C2A]' : 'bg-slate-300 dark:bg-white/20'
+            }`}>
+              <div className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
+                isDark ? 'translate-x-4' : 'translate-x-0'
+              }`} />
+            </div>
           </div>
-          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Food Vouchers</div>
-          <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5 tracking-tight">
-            {VOUCHERS.length} Deals
-          </div>
-          <div className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-1 truncate">
-            Discounts & Free Delivery
-          </div>
-        </div>
 
-        {/* D. DELIVERY SPOT */}
-        <div
-          onClick={() => {
-            if (typeof onOpenAddresses === 'function') onOpenAddresses();
-          }}
-          className={`p-4 rounded-3xl border transition-all cursor-pointer select-none active:scale-[0.98] ${
-            isDark
-              ? 'bg-[#181B22] border-white/10 hover:border-blue-500/30'
-              : 'bg-white border-slate-100 shadow-xs hover:border-blue-200'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-              <MapPin size={16} />
-            </div>
-            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
-              Manage
-            </span>
-          </div>
-          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Delivery Address</div>
-          <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5 tracking-tight truncate">
-            {user?.address ? 'Saved' : 'Add Spot'}
-          </div>
-          <div className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-1 truncate">
-            {user?.address || 'Set delivery location'}
-          </div>
+          {/* Alert Tones */}
+          {typeof onOpenToneStudio === 'function' && (
+            <button
+              onClick={onOpenToneStudio}
+              className="w-full flex items-center justify-between p-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center">
+                  <Volume2 size={17} />
+                </div>
+                <span className="font-medium text-xs text-slate-900 dark:text-slate-100">Order Alert Tones</span>
+              </div>
+              <ChevronRight size={15} className="text-slate-400" />
+            </button>
+          )}
+
+          {/* Screen Motion Styles */}
+          {typeof onOpenTransitionStudio === 'function' && (
+            <button
+              onClick={onOpenTransitionStudio}
+              className="w-full flex items-center justify-between p-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-pink-500/10 text-pink-500 flex items-center justify-center">
+                  <Sparkles size={17} />
+                </div>
+                <span className="font-medium text-xs text-slate-900 dark:text-slate-100">Screen Motion Styles</span>
+              </div>
+              <ChevronRight size={15} className="text-slate-400" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* 3. REFINED ACTION MENU */}
-      <div className={`rounded-3xl border overflow-hidden ${
-        isDark ? 'bg-[#181B22] border-white/10' : 'bg-white border-slate-100 shadow-xs'
-      }`}>
-        {/* Item: Avatar Customizer */}
-        <button
-          onClick={() => setAvatarModalOpen(true)}
-          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t first:border-t-0 ${
-            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-            isDark ? 'bg-white/5' : 'bg-slate-100'
-          } text-[#EA4C2A] shrink-0`}>
-            <Sparkles size={16} className="stroke-[2.2]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">Avatar Studio</span>
-            <span className="text-[10.5px] text-slate-400 block truncate">Choose 3D character, foodie badge or photo</span>
-          </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-[#EA4C2A]">
-            Customize
-          </span>
-          <ChevronRight size={14} className="text-slate-400 shrink-0 ml-1" />
-        </button>
-
-        {/* Item: My Orders */}
-        <button
-          onClick={onOpenOrders}
-          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
-            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-            isDark ? 'bg-white/5' : 'bg-slate-100'
-          } text-amber-500 shrink-0`}>
-            <Package size={16} className="stroke-[2.2]" />
-          </div>
-          <span className="font-bold text-xs flex-1 text-slate-800 dark:text-slate-200">My Orders</span>
-          {orders?.length > 0 && (
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-              isDark ? 'bg-white/10 text-slate-200' : 'bg-slate-100 text-slate-700'
-            }`}>
-              {orders.length}
-            </span>
-          )}
-          <ChevronRight size={14} className="text-slate-400 shrink-0" />
-        </button>
-
-        {/* Item: Saved Addresses */}
-        <button
-          onClick={onOpenAddresses}
-          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
-            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-            isDark ? 'bg-white/5' : 'bg-slate-100'
-          } text-blue-500 shrink-0`}>
-            <MapPin size={16} className="stroke-[2.2]" />
-          </div>
-          <span className="font-bold text-xs flex-1 text-slate-800 dark:text-slate-200">Saved Delivery Addresses</span>
-          {savedAddressesCount > 0 && (
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-              isDark ? 'bg-white/10 text-slate-200' : 'bg-slate-100 text-slate-700'
-            }`}>
-              {savedAddressesCount} Spots
-            </span>
-          )}
-          <ChevronRight size={14} className="text-slate-400 shrink-0" />
-        </button>
-
-        {/* Item: Favorite Meals */}
-        <button
-          onClick={onOpenFavorites}
-          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
-            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-            isDark ? 'bg-white/5' : 'bg-slate-100'
-          } text-rose-500 shrink-0`}>
-            <Heart size={16} className="stroke-[2.2]" />
-          </div>
-          <span className="font-bold text-xs flex-1 text-slate-800 dark:text-slate-200">Favorite Meals</span>
-          <ChevronRight size={14} className="text-slate-400 shrink-0" />
-        </button>
-
-        {/* Item: Live Web Notifications Toggle / Test */}
-        <button
-          onClick={handleToggleNotification}
-          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
-            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-            isDark ? 'bg-white/5' : 'bg-slate-100'
-          } text-amber-500 shrink-0`}>
-            <Bell size={16} className="stroke-[2.2]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">Live Web Notifications</span>
-            <span className="text-[10.5px] text-slate-400 block truncate">
-              {notifState === 'granted' ? 'Tap to send test alert 🔔' : 'Tap to enable order alerts'}
-            </span>
-          </div>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            notifState === 'granted'
-              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-              : notifState === 'denied'
-              ? 'bg-rose-500/15 text-rose-600'
-              : 'bg-amber-500/15 text-amber-600'
-          }`}>
-            {notifState === 'granted' ? 'Active ✓' : notifState === 'denied' ? 'Blocked' : 'Enable'}
-          </span>
-          <ChevronRight size={14} className="text-slate-400 shrink-0 ml-1" />
-        </button>
-
-        {/* Item: Dark/Light Mode Switcher */}
-        <button
-          onClick={toggleDark}
-          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
-            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-            isDark ? 'bg-white/5 text-amber-400' : 'bg-slate-100 text-indigo-500'
-          } shrink-0`}>
-            {isDark ? <Sun size={16} className="stroke-[2.2]" /> : <Moon size={16} className="stroke-[2.2]" />}
-          </div>
-          <span className="font-bold text-xs flex-1 text-slate-800 dark:text-slate-200">
-            {isDark ? 'Dark Theme (Tap for Light)' : 'Light Theme (Tap for Dark)'}
-          </span>
-          <div className={`w-9 h-5 rounded-full relative p-0.5 transition-colors ${
-            isDark ? 'bg-indigo-600' : 'bg-slate-300'
-          }`}>
-            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
-              isDark ? 'translate-x-4' : 'translate-x-0'
-            }`} />
-          </div>
-        </button>
-
-        {/* Item: Help & Live Support */}
-        <button
-          onClick={onOpenSupport}
-          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer border-t ${
-            isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-            isDark ? 'bg-white/5' : 'bg-slate-100'
-          } text-emerald-500 shrink-0`}>
-            <MessageSquare size={16} className="stroke-[2.2]" />
-          </div>
-          <span className="font-bold text-xs flex-1 text-slate-800 dark:text-slate-200">Help & Live Support</span>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            24/7
-          </span>
-          <ChevronRight size={14} className="text-slate-400 shrink-0 ml-1" />
-        </button>
+      {/* 6. SUPPORT GROUP */}
+      <div>
+        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2">
+          Help & Legal
+        </div>
+        <div className={`rounded-2xl border overflow-hidden divide-y divide-slate-100 dark:divide-white/5 ${
+          isDark ? 'bg-[#151922] border-white/10' : 'bg-white border-slate-100 shadow-xs'
+        }`}>
+          {/* Help & Support */}
+          <button
+            onClick={onOpenSupport}
+            className="w-full flex items-center justify-between p-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <MessageSquare size={17} />
+              </div>
+              <span className="font-medium text-xs text-slate-900 dark:text-slate-100">Help & Live Support</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                24/7
+              </span>
+              <ChevronRight size={15} className="text-slate-400" />
+            </div>
+          </button>
+        </div>
       </div>
 
-      {/* 4. SIGN OUT BUTTON */}
+      {/* 7. SIGN OUT (When Logged In) */}
       {user && (
         <button
           onClick={onLogout}
-          className="w-full py-3.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 active:scale-[0.98] transition-all cursor-pointer"
+          className="w-full py-3 rounded-2xl font-semibold text-xs flex items-center justify-center gap-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 active:scale-[0.99] transition-all cursor-pointer"
         >
           <LogOut size={15} />
           <span>Sign Out</span>
@@ -4594,11 +4579,13 @@ function ProfileTab({
       )}
 
       {/* App Version Info */}
-      <div className="text-center pt-2">
-        <p className="text-[10px] text-slate-400 font-semibold tracking-wide">FoodMaxx Technologies · Ibadan</p>
+      <div className="text-center pt-1">
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+          FoodMaxx v2.4 · Ibadan, Nigeria
+        </p>
       </div>
 
-      {/* 5. AVATAR PICKER STUDIO MODAL */}
+      {/* 8. AVATAR PICKER STUDIO MODAL */}
       {avatarModalOpen && (
         <Suspense fallback={null}>
           <AvatarPickerModal
@@ -4612,16 +4599,16 @@ function ProfileTab({
         </Suspense>
       )}
 
-      {/* 6. INTERACTIVE VOUCHERS MODAL */}
+      {/* 9. CLEAN VOUCHERS MODAL */}
       <AnimatePresence>
         {vouchersOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className={`w-full max-w-md rounded-3xl p-5 border shadow-2xl relative max-h-[85vh] flex flex-col ${
-                isDark ? 'bg-[#181B22] border-white/10 text-white' : 'bg-white border-slate-100 text-slate-900'
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              className={`w-full max-w-md rounded-2xl p-5 border shadow-2xl relative max-h-[85vh] flex flex-col ${
+                isDark ? 'bg-[#151922] border-white/10 text-white' : 'bg-white border-slate-100 text-slate-900'
               }`}
             >
               {/* Modal Header */}
@@ -4648,7 +4635,7 @@ function ProfileTab({
                 {VOUCHERS.map((v) => (
                   <div
                     key={v.code}
-                    className={`p-3.5 rounded-2xl border transition-all ${
+                    className={`p-3.5 rounded-xl border transition-all ${
                       isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'
                     }`}
                   >
