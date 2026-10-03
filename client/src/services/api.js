@@ -108,6 +108,7 @@ import {
   addInAppNotification,
   markInAppNotificationAsRead,
   markAllInAppNotificationsAsRead,
+  clearAllInAppNotifications,
   getUnreadInAppNotificationsCount,
   isNotificationSupported,
   syncNotificationPermission,

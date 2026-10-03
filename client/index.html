@@ -40,9 +40,8 @@
     <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
     <link rel="dns-prefetch" href="https://images.unsplash.com" />
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap" />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap" rel="stylesheet" />
-    <script src="https://js.paystack.co/v1/inline.js"></script>
+    <script defer src="https://js.paystack.co/v1/inline.js"></script>
 
     <!-- FoodMaxx Instant Paint Theme & Self-Healing Watchdog -->
     <style>
@@ -187,7 +186,7 @@
           }
         }, true);
 
-        // Display rescue button if app hasn't mounted after 5 seconds
+        // Display rescue button if app hasn't mounted after 12 seconds
         setTimeout(function() {
           if (!window.__FOODMAXX_MOUNTED__) {
             var btn = document.getElementById('fmx-rescue-btn');
@@ -195,7 +194,7 @@
             var msg = document.getElementById('fmx-splash-status');
             if (msg) msg.textContent = 'Taking longer than usual... Tap to reload';
           }
-        }, 5000);
+        }, 12000);
       })();
     </script>
   </head>
