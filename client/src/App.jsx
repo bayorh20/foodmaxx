@@ -4653,11 +4653,29 @@ function ProfileTab({
         </button>
       )}
 
-      {/* App Version Info */}
-      <div className="text-center pt-1">
+      {/* App Version Info & Live OTA Update */}
+      <div className="text-center pt-1 pb-4 flex flex-col items-center gap-1.5">
         <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-          FoodMaxx v2.4 · Ibadan, Nigeria
+          FoodMaxx v2.4.1 · Ibadan, Nigeria
         </p>
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistration().then(reg => {
+                if (reg) reg.update();
+                if (typeof toast === 'function') toast('Checking for live updates... 🔄', 'info');
+                setTimeout(() => window.location.reload(), 600);
+              });
+            } else {
+              window.location.reload();
+            }
+          }}
+          className="text-[11px] font-semibold text-[#EA4C2A] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+        >
+          <RotateCw size={11} />
+          <span>Check for Updates</span>
+        </button>
       </div>
 
       {/* 8. AVATAR PICKER STUDIO MODAL */}

@@ -29,41 +29,71 @@ if (typeof window !== 'undefined') {
 // Initialize Speed SDK for Core Web Vitals, 120 FPS rendering, and zero touch delay
 initSpeedSDK();
 
-// FoodMaxx PWA Service Worker Registration (safe — never blocks React paint)
+// ============================================================
+// FOODMAXX INSTANT LIVE OVER-THE-AIR (OTA) AUTO-UPDATE ENGINE
+// Automatically updates the installed APK without requiring re-download!
+// ============================================================
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+  const hadInitialController = Boolean(navigator.serviceWorker.controller);
+  let isReloading = false;
 
-  const registerSW = () => {
-    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then((reg) => {
-      // Check for updates silently in background
-      reg.update().catch(() => {});
+  const performAutoUpdate = (reg) => {
+    if (!reg) return;
+    reg.update().catch(() => {});
+  };
 
+  const registerSW = async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+
+      // 1. Silent update check on cold start
+      performAutoUpdate(reg);
+
+      // 2. Auto-check on resume / visibility change (when returning from another app or phone unlock)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          performAutoUpdate(reg);
+        }
+      });
+      window.addEventListener('focus', () => performAutoUpdate(reg));
+      window.addEventListener('online', () => performAutoUpdate(reg));
+
+      // 3. Heartbeat polling: check for new deployments every 45 seconds while app is active
+      setInterval(() => performAutoUpdate(reg), 45000);
+
+      // 4. Handle pending/waiting worker
+      if (reg.waiting && hadInitialController) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      // 5. When a new service worker is detected
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         if (!newWorker) return;
 
         newWorker.addEventListener('statechange', () => {
-          // Only reload if there was already an active controller (i.e. a real update, not first install)
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // Activate the new worker then reload once — only on actual update
+          if (newWorker.state === 'installed' && hadInitialController) {
+            console.log('[FoodMaxx OTA] New update downloaded! Applying immediately...');
             newWorker.postMessage({ type: 'SKIP_WAITING' });
           }
         });
       });
-    }).catch(() => {});
-
-    // Reload on controller change — but ONLY if page has been alive > 3 seconds
-    // (guards against first-install activation triggering an instant reload)
-    const swReadyAt = Date.now();
-    let isReloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!isReloading && (Date.now() - swReadyAt) > 3000) {
-        isReloading = true;
-        window.location.reload();
-      }
-    });
+    } catch (e) {
+      console.warn('[FoodMaxx OTA] Registration notice:', e);
+    }
   };
 
-  // Register after load so we never delay the first paint
+  // 6. When the new service worker activates, auto-reload to display updated UI
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadInitialController && !isReloading) {
+      isReloading = true;
+      console.log('[FoodMaxx OTA] Controller changed. Refreshing to new version...');
+      setTimeout(() => {
+        window.location.reload();
+      }, 200);
+    }
+  });
+
   if (document.readyState === 'complete') {
     registerSW();
   } else {
