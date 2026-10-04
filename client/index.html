@@ -172,12 +172,13 @@
         // Catch chunk loading errors or HTML-as-JS SyntaxErrors
         window.addEventListener('error', function(e) {
           var msg = (e && e.message) ? String(e.message).toLowerCase() : '';
-          var src = (e && e.target && e.target.src) ? String(e.target.src) : '';
+          var isScript = Boolean(e && e.target && (e.target.tagName === 'SCRIPT' || e.target.nodeName === 'SCRIPT'));
+          var src = (isScript && e.target.src) ? String(e.target.src) : '';
           if (
             msg.indexOf('unexpected token') !== -1 ||
             msg.indexOf('loading chunk') !== -1 ||
             msg.indexOf('dynamically imported') !== -1 ||
-            src.indexOf('/assets/') !== -1
+            (isScript && src.indexOf('/assets/') !== -1)
           ) {
             var last = sessionStorage.getItem('fmx_last_auto_recover');
             var now = Date.now();

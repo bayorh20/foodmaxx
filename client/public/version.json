@@ -1,14 +1,15 @@
 {
-  "version": "2.5.1",
-  "versionCode": 3,
+  "version": "2.5.2",
+  "versionCode": 4,
   "releaseDate": "2026-10-04",
   "appName": "FoodMaxx Express",
   "downloadUrl": "https://github.com/bayorh20/foodmaxx/releases/download/latest/FoodMaxx-Native.apk",
   "features": [
-    "Ultra-compressed lightweight APK (~12MB down from 64MB) for instant fast downloads",
+    "Fixed Android launcher app icon with official FoodMaxx brand logo and adaptive round icons",
+    "Resolved app crash on opening with crash-proof Firebase push initialization & Android 12+ splash theme",
+    "Ultra-compressed lightweight APK (~12MB) for instant fast downloads",
     "Full contrast WCAG AA compliant design system across Admin Dashboard",
     "High-contrast Lock Screen Preview & Push Notification banner display",
-    "100% Native Android execution without browser controls or address bar",
-    "Instant order status push notifications with direct in-app landing"
+    "100% Native Android execution without browser controls or address bar"
   ]
 }

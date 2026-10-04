@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1089997088415",
+    "project_id": "foodmaxxapp",
+    "storage_bucket": "foodmaxxapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1089997088415:android:b8f17849c2a3e6f9",
+        "android_client_info": {
+          "package_name": "com.foodmaxx.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAF6AcT8cCNQO81_1rknzUR1LYCLWE0zGM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

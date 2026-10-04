@@ -5,6 +5,7 @@ import App from './App.jsx'
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import { initSpeedSDK } from './services/speedOptimizer.js'
+import { Capacitor } from '@capacitor/core';
 
 // Initialize Lenis Smooth Scroll SDK ONLY for desktop mouse wheel
 // Touch devices use 100% native hardware-composited 120Hz scrolling for instant responsiveness
@@ -33,7 +34,8 @@ initSpeedSDK();
 // FOODMAXX INSTANT LIVE OVER-THE-AIR (OTA) AUTO-UPDATE ENGINE
 // Automatically updates the installed APK without requiring re-download!
 // ============================================================
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+const isNative = typeof window !== 'undefined' && Boolean(Capacitor.isNativePlatform());
+if (typeof window !== 'undefined' && !isNative && 'serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
   const hadInitialController = Boolean(navigator.serviceWorker.controller);
   let isReloading = false;
 

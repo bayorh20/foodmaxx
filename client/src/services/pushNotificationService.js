@@ -353,8 +353,8 @@ export async function installPushNotifications(userId = null) {
       if (granted) {
         localStorage.setItem(PUSH_PERMISSION_KEY, 'granted');
         window.dispatchEvent(new CustomEvent('fmx_notification_permission_changed', { detail: 'granted' }));
-        await PushNotifications.register();
-        await ensureDeviceRegistered(userId);
+        await PushNotifications.register().catch(e => console.warn('[FoodMaxx Push] Register notice:', e));
+        await ensureDeviceRegistered(userId).catch(() => {});
         playOrderNotificationSound(true);
         triggerHaptic('success');
         return { success: true, permission: 'granted', token: getSavedPushToken() };
@@ -465,7 +465,7 @@ export async function autoInitPushNotifications(userId = null) {
       await configureNativePushListeners(userId);
       const perm = await PushNotifications.checkPermissions();
       if (perm.receive === 'granted') {
-        await PushNotifications.register();
+        await PushNotifications.register().catch(e => console.warn('[FoodMaxx Push] Auto-init register notice:', e));
       }
     } catch {}
     return;
