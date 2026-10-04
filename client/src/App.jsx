@@ -43,6 +43,8 @@ const TransitionStudioModal = lazy(() => import('./components/TransitionStudioMo
 const GroupOrderSheet = lazy(() => import('./components/GroupOrderSheet'));
 const AuthModal = lazy(() => import('./components/AuthModal'));
 const AvatarPickerModal = lazy(() => import('./components/AvatarPickerModal'));
+const CheckoutQuickRegisterModal = lazy(() => import('./components/CheckoutQuickRegisterModal'));
+import { generateAIAvatarForUser } from './services/aiAvatarService';
 import { getRealCurrentPosition } from './services/realLocation';
 import { getHappyAvatar } from './utils/avatarUtils';
 import { 
@@ -560,40 +562,40 @@ export const getStatusNotificationInfo = (status) => {
     case 'PREPARING':
       return {
         icon: '🍳',
-        title: getCopy(content, 'notifications', 'cooking_title', 'Cooking Your Meal!'),
-        desc: getCopy(content, 'notifications', 'cooking_desc', 'FoodMaxx kitchen is freshly grilling and packing your order.')
+        title: getCopy(content, 'notifications', 'cooking_title', 'Order Being Prepared'),
+        desc: getCopy(content, 'notifications', 'cooking_desc', 'Your meal is being freshly prepared and packed.')
       };
     case 'READY_FOR_PICKUP':
       return {
         icon: '📦',
-        title: getCopy(content, 'notifications', 'ready_title', 'Order Ready & Packed!'),
-        desc: getCopy(content, 'notifications', 'ready_desc', 'Your food is packaged hot and waiting for rider pickup.')
+        title: getCopy(content, 'notifications', 'ready_title', 'Order Ready for Pickup'),
+        desc: getCopy(content, 'notifications', 'ready_desc', 'Your meal is packed and ready for pickup.')
       };
     case 'RIDER_ASSIGNED':
     case 'RIDER_PICKED_UP':
     case 'ON_THE_WAY':
       return {
         icon: '🛵',
-        title: getCopy(content, 'notifications', 'transit_title', 'Rider is on the Way!'),
-        desc: getCopy(content, 'notifications', 'transit_desc', 'Your courier is heading towards your delivery address.')
+        title: getCopy(content, 'notifications', 'transit_title', 'Order on the Way'),
+        desc: getCopy(content, 'notifications', 'transit_desc', 'Your rider has picked up your order and is heading to you.')
       };
     case 'ARRIVING_SOON':
       return {
         icon: '🏡',
-        title: getCopy(content, 'notifications', 'arriving_title', 'Rider Arriving Soon!'),
-        desc: getCopy(content, 'notifications', 'arriving_desc', 'Your rider is pulling up. Please have your delivery PIN ready!')
+        title: getCopy(content, 'notifications', 'arriving_title', 'Order Arriving Soon'),
+        desc: getCopy(content, 'notifications', 'arriving_desc', 'Your rider is almost at your doorstep. Please have your delivery PIN ready.')
       };
     case 'DELIVERED':
       return {
         icon: '🎉',
-        title: getCopy(content, 'notifications', 'delivered_title', 'Order Delivered!'),
-        desc: getCopy(content, 'notifications', 'delivered_desc', 'Your meal has arrived! Enjoy your hot food.')
+        title: getCopy(content, 'notifications', 'delivered_title', 'Order Delivered'),
+        desc: getCopy(content, 'notifications', 'delivered_desc', 'Your meal has arrived. Enjoy your food!')
       };
     case 'CANCELLED':
       return {
         icon: '⚠️',
         title: getCopy(content, 'notifications', 'cancelled_title', 'Order Cancelled'),
-        desc: getCopy(content, 'notifications', 'cancelled_desc', 'This order was cancelled. Tap to view details.')
+        desc: getCopy(content, 'notifications', 'cancelled_desc', 'Your order has been cancelled. Tap to view the details.')
       };
     default:
       return {
@@ -1890,12 +1892,12 @@ function CustomerPortal() {
                       const firstName = rawName.split(' ')[0];
                       const isGuest = !user || !firstName || firstName.toLowerCase().includes('guest');
                       const h = new Date().getHours();
-                      const timeOfDay = h < 12 ? 'Good Morning ☀️' : h < 17 ? 'Good Afternoon 🌤️' : 'Good Evening 🌙';
+                      const timeOfDay = h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
 
                       if (isGuest) {
                         return (
                           <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-tight">
-                            {h < 12 ? 'Good morning 👋' : 'Good evening 👋'}
+                            {timeOfDay}
                           </h2>
                         );
                       }
@@ -1906,7 +1908,7 @@ function CustomerPortal() {
                             <span>{timeOfDay}</span>
                           </p>
                           <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-tight mt-0.5 truncate">
-                            {firstName} 👋
+                            {firstName}
                           </h2>
                         </>
                       );
@@ -2653,15 +2655,16 @@ function SkeletonSection({ title = "Top picks on FoodMaxx" }) {
 function GreetingBanner({ user, isDark }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
-  const emoji = hour < 12 ? '☀️' : hour < 17 ? '🌤️' : '🌙';
   const suggestion = hour < 12 ? 'Start your day right with a hearty breakfast.' : hour < 17 ? 'Lunch is calling — treat yourself!' : 'Wind down with your favourite evening meal.';
 
   return (
     <div className={`mx-4 mb-4 rounded-2xl px-4 py-3 flex items-center gap-3 ${isDark ? 'bg-[#1A1D24]' : 'bg-gray-50'}`}>
-      <span className="text-3xl">{emoji}</span>
+      <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-[#EA4C2A] flex items-center justify-center shrink-0">
+        <Utensils size={18} />
+      </div>
       <div>
         <p className={`font-bold text-[15px] sm:text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
-          {greeting}{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}! 👋
+          {greeting}{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}!
         </p>
         <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{suggestion}</p>
       </div>
@@ -6747,169 +6750,111 @@ function FoodDetailModal({ restaurant, item, onClose, isFavorite: initialFavorit
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-xs p-0 sm:p-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ y: '100%', opacity: 0.95 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: '100%', opacity: 0.3, transition: { duration: 0.2, ease: 'easeIn' } }}
-        transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.7 }}
-        className={`w-full max-w-lg sm:max-w-xl max-h-[92vh] sm:max-h-[90vh] h-[90vh] sm:h-auto ${
-          isDark ? 'bg-[#121418] text-white border-white/10' : 'bg-white text-slate-900 border-slate-100'
-        } rounded-t-[32px] sm:rounded-[36px] border border-b-0 sm:border relative flex flex-col shadow-2xl overflow-hidden`}
+        transition={{ type: 'spring', damping: 30, stiffness: 450, mass: 0.6 }}
+        className={`w-full max-w-lg rounded-t-[28px] sm:rounded-[28px] border sm:border overflow-hidden flex flex-col shadow-2xl relative max-h-[90vh] ${
+          isDark ? 'bg-[#13161F] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200'
+        }`}
         onClick={e => e.stopPropagation()}
       >
-        {/* Scrollable Content Container */}
+        {/* Scrollable Container */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           
-          {/* 1. Immersive Hero Media Card - Fills the Upper Part */}
-          <div className="relative h-80 sm:h-96 md:h-[420px] w-full bg-slate-900 overflow-hidden shrink-0">
-            {/* Shimmer skeleton while loading */}
+          {/* 1. Hero Image with Floating Controls */}
+          <div className="relative h-60 sm:h-72 w-full bg-slate-100 dark:bg-slate-900 overflow-hidden shrink-0">
             {!imageLoaded && (
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 animate-pulse flex items-center justify-center">
-                <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-emerald-400 animate-spin" />
+              <div className="absolute inset-0 bg-slate-200 dark:bg-slate-800 animate-pulse flex items-center justify-center">
+                <div className="w-7 h-7 rounded-full border-2 border-[#EA4C2A]/30 border-t-[#EA4C2A] animate-spin" />
               </div>
             )}
-            <motion.img
+            <img
               key={heroImage}
-              initial={{ opacity: 0.3, scale: 1.02 }}
-              animate={{ opacity: imageLoaded ? 1 : 0.6, scale: 1 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
+              src={heroImage}
+              alt={item.name}
               onLoad={() => setImageLoaded(true)}
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=75';
                 setImageLoaded(true);
               }}
-              src={heroImage}
-              alt={item.name}
-              loading="eager"
-              fetchPriority="high"
-              decoding="async"
-              className={`w-full h-full object-cover object-center transition-all duration-300 ${imageLoaded ? 'filter-none' : 'blur-xs scale-105'}`}
+              className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
-            {/* Soft Ambient Vignette Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 pointer-events-none" />
 
-            {/* Mobile Drag Indicator Handle Floating Over Image */}
-            <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-white/70 backdrop-blur-md rounded-full z-30 pointer-events-none sm:hidden shadow-xs" />
+            {/* Subtle Gradient for floating button contrast */}
+            <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
 
-            {/* Floating Top Control Pills */}
-            <div className="absolute top-4 left-0 right-0 px-4 flex items-center justify-between z-20">
+            {/* Mobile Sheet Drag Indicator */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-white/70 rounded-full sm:hidden z-10" />
+
+            {/* Floating Top Buttons */}
+            <div className="absolute top-3.5 inset-x-0 px-4 flex items-center justify-between z-20">
               <button
                 type="button"
                 onClick={() => { triggerHaptic('selection'); onClose(); }}
-                className="w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-lg"
-                title="Back"
+                className="w-9 h-9 rounded-full bg-white/90 dark:bg-black/60 backdrop-blur-md text-slate-800 dark:text-white flex items-center justify-center active:scale-90 transition-transform shadow-md cursor-pointer border border-white/20"
+                title="Close"
               >
-                <ChevronLeft size={22} className="stroke-[2.5]" />
+                <X size={18} strokeWidth={2.5} />
               </button>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleShare}
-                  className="w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-lg"
-                  title="Share"
-                >
-                  <Share2 size={17} className="stroke-[2.2]" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic('medium');
-                    if (typeof onToggleFavorite === 'function') {
-                      onToggleFavorite();
-                    } else {
-                      setLocalFavorite(f => !f);
-                    }
-                    toast(!isFavorite ? 'Saved to favourites ❤️' : 'Removed from favourites', 'info');
-                  }}
-                  className="w-10 h-10 rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-md text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer border border-white/20 shadow-lg"
-                  title="Favorite"
-                >
-                  <Heart size={17} className={isFavorite ? 'text-[#EA4C2A] fill-[#EA4C2A] stroke-[2.2]' : 'stroke-[2.2]'} />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('medium');
+                  if (typeof onToggleFavorite === 'function') {
+                    onToggleFavorite();
+                  } else {
+                    setLocalFavorite(f => !f);
+                  }
+                  toast(!isFavorite ? 'Saved to favourites ❤️' : 'Removed from favourites', 'info');
+                }}
+                className="w-9 h-9 rounded-full bg-white/90 dark:bg-black/60 backdrop-blur-md text-slate-800 dark:text-white flex items-center justify-center active:scale-90 transition-transform shadow-md cursor-pointer border border-white/20"
+                title="Favorite"
+              >
+                <Heart size={17} className={isFavorite ? 'text-[#EA4C2A] fill-[#EA4C2A]' : ''} strokeWidth={2.2} />
+              </button>
             </div>
           </div>
 
-          {/* 2. Product Information Block with Curved Top Transition */}
-          <div className={`p-5 space-y-5 -mt-4 relative z-10 rounded-t-[28px] ${
-            isDark ? 'bg-[#121418]' : 'bg-white'
-          }`}>
-            
-            {/* Title & Price Header */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                {/* Category pill */}
-                <span className={`inline-block text-[11px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full mb-2 ${
-                  isDark ? 'bg-[#EA4C2A]/20 text-[#EA4C2A]' : 'bg-[#EA4C2A]/10 text-[#EA4C2A]'
-                }`}>
-                  {item.category || 'Specialty Dish'}
+          {/* 2. Product Details Block */}
+          <div className="p-5 space-y-5">
+            {/* Header: Name & Price */}
+            <div>
+              {item.category && (
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#EA4C2A] block mb-1">
+                  {item.category}
                 </span>
-                {/* Bold item name */}
-                <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight ${
-                  isDark ? 'text-white' : 'text-slate-900'
-                }`}>
+              )}
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white leading-snug">
                   {item.name}
                 </h1>
-
-                {/* Rating Row */}
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="flex items-center gap-1">
-                    {[1,2,3,4,5].map(star => (
-                      <svg key={star} className={`w-3.5 h-3.5 ${star <= 4 ? 'text-amber-400' : 'text-slate-300 dark:text-slate-600'}`} fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                    ))}
-                    <span className={`text-xs font-bold ml-0.5 ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                      {item.rating || '4.7'}
-                    </span>
-                  </div>
-                  <span className={`text-[11px] ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
-                    ({item.review_count || '238'} reviews)
-                  </span>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                    🔥 Popular
-                  </span>
-                </div>
-              </div>
-
-              {/* Prominent Unit Price Tag */}
-              <div className="text-right shrink-0 pt-1">
-                <div className={`text-2xl sm:text-3xl font-black text-[#EA4C2A] tracking-tight`}>
+                <div className="text-xl sm:text-2xl font-black text-[#EA4C2A] tracking-tight shrink-0">
                   {fmt(unitPrice)}
                 </div>
-                <span className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>per serving</span>
-                {sizeAdj > 0 && (
-                  <div className="text-[10px] text-gray-400 font-medium mt-0.5">
-                    Base {fmt(item.price)} + {fmt(sizeAdj)}
-                  </div>
-                )}
               </div>
+              {item.description && (
+                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-normal mt-2">
+                  {item.description}
+                </p>
+              )}
             </div>
 
-            {/* Description */}
-            <p className={`text-sm leading-relaxed ${
-              isDark ? 'text-gray-300' : 'text-slate-600'
-            }`}>
-              {item.description || `${item.name} prepared fresh with authentic ingredients and traditional spices. Served hot and ready to enjoy.`}
-            </p>
-
-            {/* 4. Portion Size Selector */}
+            {/* 3. Portion Sizes (if available) */}
             {hasSizes && (
-              <div className="space-y-3">
+              <div className="space-y-2.5 pt-2 border-t border-slate-100 dark:border-white/5">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className={`font-extrabold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Choose Portion Size
-                    </h3>
-                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>Select one to continue</p>
-                  </div>
-                  <span className="text-[10px] font-bold text-[#EA4C2A] bg-[#EA4C2A]/10 dark:bg-[#EA4C2A]/20 px-2.5 py-1 rounded-full">
-                    Required
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Portion Size
+                  </span>
+                  <span className="text-[10px] font-semibold text-slate-400">
+                    Select 1
                   </span>
                 </div>
 
@@ -6917,8 +6862,6 @@ function FoodDetailModal({ restaurant, item, onClose, isFavorite: initialFavorit
                   {sizes.map((s, idx) => {
                     const isSelected = selectedSize === s.name;
                     const variationPrice = item.price + (s.price_adjustment || 0);
-                    const isBase = (s.price_adjustment || 0) === 0;
-                    const sizeEmoji = idx === 0 ? '🥣' : idx === 1 ? '🍽️' : '🪣';
 
                     return (
                       <button
@@ -6928,53 +6871,37 @@ function FoodDetailModal({ restaurant, item, onClose, isFavorite: initialFavorit
                           triggerHaptic('selection');
                           setSelectedSize(s.name);
                         }}
-                        className={`w-full flex items-center gap-3 p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-[#EA4C2A]/[0.08] dark:bg-[#EA4C2A]/15 border-[#EA4C2A] shadow-sm'
+                            ? 'border-[#EA4C2A] bg-orange-500/[0.06] dark:bg-orange-500/10 shadow-xs'
                             : isDark
-                            ? 'bg-white/[0.03] border-white/10 hover:border-white/20 hover:bg-white/[0.06]'
-                            : 'bg-slate-50/80 border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-xs'
+                            ? 'border-white/10 hover:border-white/20 bg-white/[0.02]'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
                         }`}
                       >
-                        {/* Emoji icon */}
-                        <span className="text-xl shrink-0">{sizeEmoji}</span>
-
-                        {/* Name + description */}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-sm font-extrabold tracking-tight ${
-                              isSelected
-                                ? (isDark ? 'text-white' : 'text-slate-900')
-                                : (isDark ? 'text-gray-200' : 'text-slate-700')
-                            }`}>
-                              {s.name}
-                            </span>
-                            {isBase && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400">
-                                Standard
-                              </span>
-                            )}
+                        <div className="min-w-0 flex-1 pr-3">
+                          <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                            {s.name}
                           </div>
                           {s.description && (
-                            <p className={`text-[11px] mt-0.5 truncate ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
+                            <div className="text-xs text-slate-400 truncate mt-0.5">
                               {s.description}
-                            </p>
+                            </div>
                           )}
                         </div>
 
-                        {/* Price + radio */}
-                        <div className="shrink-0 text-right flex flex-col items-end gap-1">
-                          <span className={`text-sm font-extrabold tracking-tight ${
-                            isSelected ? 'text-[#EA4C2A]' : isDark ? 'text-white' : 'text-slate-900'
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <span className={`text-sm font-bold ${
+                            isSelected ? 'text-[#EA4C2A]' : 'text-slate-600 dark:text-slate-300'
                           }`}>
                             {fmt(variationPrice)}
                           </span>
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
                             isSelected
-                              ? 'border-[#EA4C2A] bg-[#EA4C2A] text-white'
+                              ? 'border-[#EA4C2A] bg-[#EA4C2A]'
                               : isDark ? 'border-white/30' : 'border-slate-300'
                           }`}>
-                            {isSelected && <Check size={11} className="stroke-[3]" />}
+                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                           </div>
                         </div>
                       </button>
@@ -6984,69 +6911,65 @@ function FoodDetailModal({ restaurant, item, onClose, isFavorite: initialFavorit
               </div>
             )}
 
-            {/* 5. Extras — 2-column card grid */}
+            {/* 4. Extras & Add-ons (if available) */}
             {extras.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-2.5 pt-2 border-t border-slate-100 dark:border-white/5">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className={`font-extrabold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Upgrades &amp; Extras
-                    </h3>
-                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>Add more to your order</p>
-                  </div>
-                  <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${
-                    isDark ? 'bg-white/8 text-gray-400' : 'bg-slate-100 text-slate-400'
-                  }`}>Optional</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Add Extras
+                  </span>
+                  <span className="text-[10px] font-semibold text-slate-400">
+                    Optional
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="divide-y divide-slate-100 dark:divide-white/5 rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
                   {extras.map((e, idx) => {
                     const eQty = getExtraQty(e.name);
                     const isAdded = eQty > 0;
                     return (
                       <div
                         key={e.name || idx}
-                        className={`flex flex-col justify-between p-3 rounded-2xl border transition-all ${
+                        className={`flex items-center justify-between p-3.5 transition-colors ${
                           isAdded
-                            ? (isDark ? 'bg-[#EA4C2A]/15 border-[#EA4C2A]/50' : 'bg-orange-50 border-orange-300/70')
-                            : (isDark ? 'bg-white/[0.04] border-white/8' : 'bg-slate-50 border-slate-200')
+                            ? isDark ? 'bg-[#EA4C2A]/10' : 'bg-orange-50/50'
+                            : isDark ? 'bg-white/[0.02]' : 'bg-white'
                         }`}
                       >
-                        {/* Name + price */}
-                        <div className="mb-2.5">
-                          <p className={`text-xs font-bold leading-tight ${isDark ? 'text-gray-100' : 'text-slate-800'}`}>
+                        <div className="min-w-0 pr-3">
+                          <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                             {e.name}
                           </p>
-                          <p className="text-[11px] font-semibold text-[#EA4C2A] mt-0.5">
+                          <p className="text-xs font-semibold text-[#EA4C2A] mt-0.5">
                             +{fmt(e.price_adjustment)}
                           </p>
                         </div>
 
-                        {/* Controls */}
+                        {/* Quantity Stepper / Add button */}
                         {eQty === 0 ? (
                           <button
                             type="button"
                             onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, 1); }}
-                            className="w-full py-1.5 rounded-xl bg-[#EA4C2A]/10 hover:bg-[#EA4C2A] text-[#EA4C2A] hover:text-white font-bold text-xs transition-all cursor-pointer active:scale-95"
+                            className="px-3 py-1.5 rounded-xl bg-orange-500/10 hover:bg-[#EA4C2A] text-[#EA4C2A] hover:text-white font-bold text-xs transition-colors cursor-pointer active:scale-95 shrink-0"
                           >
                             + Add
                           </button>
                         ) : (
-                          <div className={`flex items-center justify-between rounded-xl px-1 py-0.5 border ${
-                            isDark ? 'bg-black/30 border-white/10' : 'bg-white border-slate-200'
-                          }`}>
+                          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-white/10 px-1 py-0.5 bg-white dark:bg-[#1E222D] shrink-0">
                             <button
                               type="button"
                               onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, -1); }}
-                              className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center font-black text-sm text-slate-700 dark:text-white cursor-pointer"
+                              className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 cursor-pointer"
                             >
                               −
                             </button>
-                            <span className="font-black text-xs text-[#EA4C2A] w-5 text-center">{eQty}</span>
+                            <span className="font-extrabold text-xs text-[#EA4C2A] w-5 text-center">
+                              {eQty}
+                            </span>
                             <button
                               type="button"
                               onClick={() => { triggerHaptic('selection'); updateExtraQty(e.name, 1); }}
-                              className="w-7 h-7 rounded-lg bg-[#EA4C2A] text-white flex items-center justify-center font-black text-sm cursor-pointer"
+                              className="w-6 h-6 rounded-lg bg-[#EA4C2A] text-white flex items-center justify-center font-bold text-sm cursor-pointer"
                             >
                               +
                             </button>
@@ -7059,87 +6982,71 @@ function FoodDetailModal({ restaurant, item, onClose, isFavorite: initialFavorit
               </div>
             )}
 
-            {/* 6. Special Instructions — textarea with character counter */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
-                  <span>🍴</span> Special Kitchen Notes
-                </label>
-                <span className={`text-[11px] font-semibold tabular-nums ${
-                  instructions.length >= 100
-                    ? 'text-[#EA4C2A]'
-                    : isDark ? 'text-gray-600' : 'text-slate-300'
-                }`}>
-                  {instructions.length}/120
-                </span>
-              </div>
+            {/* 5. Special Instructions */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-white/5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                Special Instructions
+              </label>
               <textarea
                 rows={2}
-                maxLength={120}
-                placeholder="e.g. Extra spicy, sauce on the side, no onions..."
+                maxLength={140}
+                placeholder="e.g. Sauce on the side, allergies, extra cutlery..."
                 value={instructions}
                 onChange={e => setInstructions(e.target.value)}
-                className={`w-full text-xs rounded-2xl px-4 py-3 border outline-none font-medium resize-none transition-colors leading-relaxed ${
+                className={`w-full text-xs sm:text-sm rounded-2xl px-3.5 py-2.5 border outline-none font-medium resize-none transition-colors ${
                   isDark
-                    ? 'bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-[#EA4C2A]/60 focus:bg-white/8'
-                    : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-gray-400 focus:border-[#EA4C2A]/50 focus:bg-white'
+                    ? 'bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-[#EA4C2A]'
+                    : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-[#EA4C2A] focus:bg-white'
                 }`}
               />
             </div>
+
           </div>
         </div>
 
-        {/* 7. Sticky Bottom Bar — frosted glass */}
-        <div className={`shrink-0 px-4 pt-3 border-t backdrop-blur-xl ${
-          isDark
-            ? 'bg-[#121418]/90 border-white/8'
-            : 'bg-white/90 border-slate-100'
-        } pb-[max(1.25rem,env(safe-area-inset-bottom,1.25rem))] flex items-center gap-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)]`}>
-          
-          {/* Tactile Qty Stepper */}
-          <div className={`flex items-center rounded-2xl border shrink-0 overflow-hidden ${
-            isDark ? 'bg-white/8 border-white/12' : 'bg-slate-100 border-slate-200'
+        {/* 6. Sticky Bottom Action Bar */}
+        <div className={`p-4 border-t shrink-0 flex items-center gap-3 backdrop-blur-md pb-[max(1rem,env(safe-area-inset-bottom,1rem))] ${
+          isDark ? 'bg-[#13161F]/95 border-white/10' : 'bg-white/95 border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'
+        }`}>
+          {/* Quantity Stepper */}
+          <div className={`flex items-center rounded-2xl border shrink-0 ${
+            isDark ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'
           }`}>
             <button
               type="button"
               onClick={() => { triggerHaptic('selection'); setQty(q => Math.max(1, q - 1)); }}
               disabled={qty <= 1}
-              className={`w-10 h-11 flex items-center justify-center font-black text-lg cursor-pointer transition-all active:scale-90 disabled:opacity-25 ${
-                isDark ? 'text-white hover:bg-white/10' : 'text-slate-800 hover:bg-slate-200'
-              }`}
+              className="w-10 h-11 flex items-center justify-center font-bold text-base cursor-pointer disabled:opacity-30 text-slate-700 dark:text-slate-200 active:scale-90 transition-transform"
             >
               −
             </button>
-            <span className={`font-black text-sm select-none w-7 text-center ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <span className="w-7 text-center font-bold text-sm text-slate-900 dark:text-white">
               {qty}
             </span>
             <button
               type="button"
               onClick={() => { triggerHaptic('selection'); setQty(q => q + 1); }}
-              className={`w-10 h-11 flex items-center justify-center font-black text-lg cursor-pointer transition-all active:scale-90 ${
-                isDark ? 'text-white hover:bg-white/10' : 'text-slate-800 hover:bg-slate-200'
-              }`}
+              className="w-10 h-11 flex items-center justify-center font-bold text-base cursor-pointer text-slate-700 dark:text-slate-200 active:scale-90 transition-transform"
             >
               +
             </button>
           </div>
 
-          {/* Add to Cart Button */}
+          {/* Add to Cart CTA */}
           <button
             type="button"
             onClick={handleAdd}
             disabled={!isAvailable}
-            className={`flex-1 py-3.5 px-5 rounded-2xl font-extrabold text-sm text-white active:scale-[0.97] transition-all flex items-center justify-between cursor-pointer ${
+            className={`flex-1 py-3.5 px-4 rounded-2xl font-black text-sm text-white flex items-center justify-between active:scale-[0.98] transition-all cursor-pointer shadow-md ${
               isAvailable
-                ? 'bg-[#EA4C2A] hover:bg-[#D43D1D] shadow-lg shadow-[#EA4C2A]/30'
-                : 'bg-slate-400/60 cursor-not-allowed'
+                ? 'bg-[#EA4C2A] hover:bg-[#d83f1d] shadow-[#EA4C2A]/25'
+                : 'bg-slate-400 cursor-not-allowed'
             }`}
           >
             <span>{isAvailable ? 'Add to Cart' : 'Sold Out'}</span>
-            <span className="font-black tracking-tight text-base">{fmt(total)}</span>
+            <span className="font-extrabold tracking-tight">{fmt(total)}</span>
           </button>
         </div>
-
       </motion.div>
     </motion.div>
   );
@@ -8343,7 +8250,42 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
     }
   });
   const [contactEmail, setContactEmail] = useState(() => (!user ? '' : (user?.email || '')));
-  const [isEditingContact, setIsEditingContact] = useState(false);
+
+  // Popup quick registration screen when customer is not registered
+  const isRegisteredCustomer = Boolean(user && (user.is_registered || user.phone));
+  const [quickRegisterOpen, setQuickRegisterOpen] = useState(false);
+  const [checkoutAvatarPickerOpen, setCheckoutAvatarPickerOpen] = useState(false);
+
+  // Auto-show popup registration when checkout opens for an unregistered customer
+  useEffect(() => {
+    if (open && !isRegisteredCustomer) {
+      setQuickRegisterOpen(true);
+    }
+  }, [open, isRegisteredCustomer]);
+
+  const handleQuickRegisterSubmit = async ({ full_name, phone, avatar_url }) => {
+    try {
+      setContactName(full_name);
+      setContactPhone(phone);
+      try {
+        localStorage.setItem('fmx_last_name', full_name);
+        localStorage.setItem('fmx_last_phone', phone);
+      } catch {}
+
+      if (silentRegister) {
+        await silentRegister({
+          full_name,
+          phone,
+          avatar_url
+        });
+      }
+      setQuickRegisterOpen(false);
+      triggerConfetti({ particleCount: 25, spread: 50, origin: { y: 0.5 } });
+      toast(`🎉 Welcome, ${full_name}! Your AI avatar has been assigned.`, 'success');
+    } catch (e) {
+      toast(e?.message || 'Quick registration notice', 'error');
+    }
+  };
 
   // Sync contact & address when user changes (handles login AND logout)
   useEffect(() => {
@@ -8642,10 +8584,8 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
     const txRef = `FMX_PSTK_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
     const effectiveEmail = activeUser?.email || orderData.customer_email || 'customer@foodmaxx.ng';
     const effectiveName = activeUser?.full_name || orderData.customer_name || 'FoodMaxx Customer';
-    const effectivePhone = activeUser?.phone || orderData.customer_phone || '';
-
     pendingOrderDataRef.current = orderData;
-    setLoading(true);
+    triggerHaptic('impact');
 
     launchRealPaystack({
       key: activeKey,
@@ -8750,7 +8690,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
           phone: phoneToUse,
           email: emailToUse
         };
-      } else if (isEditingContact && updateUser) {
+      } else if (updateUser && (nameToUse !== activeUser?.full_name || phoneToUse !== activeUser?.phone)) {
         updateUser({
           full_name: nameToUse,
           phone: phoneToUse,
@@ -8838,6 +8778,96 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
           origin: { y: 0.6 }
         });
         toast('🎉 Order placed 100% Free!', 'success');
+        onSuccess(placedOrder);
+        setLoading(false);
+        return;
+      }
+
+      // Cash on Delivery
+      if (paymentMethod === 'cod') {
+        const codRef = `FMX_COD_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
+        const finalOrderData = {
+          ...orderData,
+          payment_method: 'cod',
+          payment_reference: codRef,
+          payment_status: 'pending'
+        };
+        const res = await api.createOrder(finalOrderData);
+        const placedOrder = res?.data?.order || res?.data || res?.order || finalOrderData;
+        if (placedOrder?.id) {
+          try {
+            const uId = placedOrder?.customer_id || placedOrder?.customer?.id || user?.id;
+            if (uId) localStorage.setItem(`fmx_last_order_${uId}`, placedOrder.id);
+            localStorage.setItem('fmx_last_order_id', placedOrder.id);
+            if (placedOrder.order_reference) localStorage.setItem('fmx_last_order_ref', placedOrder.order_reference);
+          } catch {}
+        }
+        if (Number(firstTimeGiveawayDeduction) > 0 || effectiveUseGiveaway) {
+          markGiveawayAsClaimed(phoneToUse);
+        }
+        try {
+          window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: placedOrder }));
+        } catch {}
+        clearCart();
+        triggerHaptic('success');
+        triggerConfetti({
+          particleCount: 35,
+          spread: 60,
+          ticks: 100,
+          disableForReducedMotion: true,
+          origin: { y: 0.6 }
+        });
+        toast('🎉 Order placed successfully! Pay when order arrives.', 'success');
+        onSuccess(placedOrder);
+        setLoading(false);
+        return;
+      }
+
+      // FoodMaxx Chow Wallet
+      if (paymentMethod === 'wallet') {
+        if (rawWalletBalance < total) {
+          toast('Insufficient Chow Wallet balance. Top up or select Pay Online.', 'warning');
+          setLoading(false);
+          return;
+        }
+        const walletRef = `FMX_WLT_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
+        const finalOrderData = {
+          ...orderData,
+          payment_method: 'wallet',
+          payment_reference: walletRef,
+          payment_status: 'paid'
+        };
+        const res = await api.createOrder(finalOrderData);
+        const placedOrder = res?.data?.order || res?.data || res?.order || finalOrderData;
+        if (placedOrder?.id) {
+          try {
+            const uId = placedOrder?.customer_id || placedOrder?.customer?.id || user?.id;
+            if (uId) localStorage.setItem(`fmx_last_order_${uId}`, placedOrder.id);
+            localStorage.setItem('fmx_last_order_id', placedOrder.id);
+            if (placedOrder.order_reference) localStorage.setItem('fmx_last_order_ref', placedOrder.order_reference);
+          } catch {}
+        }
+        if (activeUser?.id) {
+          try {
+            await api.deductWallet(total, activeUser.id, `Order payment #${placedOrder?.order_reference || placedOrder?.id}`);
+          } catch {}
+        }
+        if (Number(firstTimeGiveawayDeduction) > 0 || effectiveUseGiveaway) {
+          markGiveawayAsClaimed(phoneToUse);
+        }
+        try {
+          window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: placedOrder }));
+        } catch {}
+        clearCart();
+        triggerHaptic('success');
+        triggerConfetti({
+          particleCount: 35,
+          spread: 60,
+          ticks: 100,
+          disableForReducedMotion: true,
+          origin: { y: 0.6 }
+        });
+        toast('🎉 Order paid with FoodMaxx Chow Wallet!', 'success');
         onSuccess(placedOrder);
         setLoading(false);
         return;
@@ -9088,149 +9118,241 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
             )}
           </div>
 
-          {/* 4. DELIVERY DETAILS (Mockup White Card with Red MapPin and Change Button) */}
-          <div className={`p-4 rounded-2xl border transition-all ${
+          {/* 4. DELIVERY DETAILS & CONTACT FORM */}
+          <div className={`p-4 rounded-2xl border transition-all space-y-3.5 ${
             isDark ? 'bg-[#151821] border-white/10' : 'bg-white border-slate-200/80 shadow-xs'
           }`}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-rose-500/10 text-[#EA4C2A] flex items-center justify-center shrink-0 mt-0.5">
-                  <MapPin size={16} className="text-[#EA4C2A]" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    Delivery details
-                  </div>
-                  <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate mt-0.5">
-                    {deliveryAddress || 'Enter delivery address'}
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                    {contactName || (user ? 'Customer' : 'Guest')} · {contactPhone || 'No phone set'}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsEditingContact(prev => !prev)}
-                className="text-xs font-bold text-[#EA4C2A] hover:underline px-2.5 py-1.5 rounded-lg border border-[#EA4C2A]/20 hover:bg-[#EA4C2A]/10 transition-colors shrink-0 cursor-pointer"
-              >
-                {isEditingContact ? 'Done' : (deliveryAddress ? 'Change' : 'Add')}
-              </button>
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-white/5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Delivery Details
+              </span>
+              {!isRegisteredCustomer && (
+                <button
+                  type="button"
+                  onClick={() => setQuickRegisterOpen(true)}
+                  className="text-[10px] font-extrabold text-[#EA4C2A] bg-orange-500/10 px-2 py-0.5 rounded-full hover:bg-orange-500/20 transition-colors cursor-pointer"
+                >
+                  ⚡ 1-Tap Sign Up
+                </button>
+              )}
             </div>
 
-            {/* Inline edit container */}
-            {isEditingContact && (
-              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-white/5 space-y-2.5">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    value={contactName}
-                    onChange={e => {
-                      setContactName(e.target.value);
-                      try { localStorage.setItem('fmx_last_name', e.target.value.trim()); } catch {}
-                    }}
-                    placeholder="Your Name"
-                    className={`w-full p-2.5 rounded-xl border text-xs outline-none ${
-                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    maxLength={11}
-                    value={contactPhone}
-                    onChange={e => {
-                      const v = e.target.value.replace(/\D/g, '').slice(0, 11);
-                      setContactPhone(v);
-                      try { localStorage.setItem('fmx_last_phone', v); } catch {}
-                    }}
-                    placeholder="080XXXXXXXX"
-                    className={`w-full p-2.5 rounded-xl border text-xs outline-none font-mono ${
-                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase">Delivery Address</label>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          toast('Detecting GPS location...', 'info');
-                          const loc = await getRealCurrentPosition();
-                          if (loc?.address) {
-                            setDeliveryAddress(loc.address);
-                            try { localStorage.setItem('fmx_last_delivery_address', loc.address); } catch {}
-                            toast('📍 Real GPS location detected!', 'success');
-                          }
-                        } catch (err) {
-                          toast(err.message || 'Could not detect location', 'warning');
-                        }
-                      }}
-                      className="text-[10px] font-bold text-[#EA4C2A] hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <MapPin size={10} />
-                      <span>Use Current Location</span>
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={deliveryAddress}
-                    onChange={e => {
-                      setDeliveryAddress(e.target.value);
-                      try { localStorage.setItem('fmx_last_delivery_address', e.target.value.trim()); } catch {}
-                    }}
-                    placeholder="Enter street, house number and area"
-                    className={`w-full p-2.5 rounded-xl border text-xs outline-none ${
-                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                    }`}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Optional Rider Landmark Note */}
-            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-white/5">
+            {/* Full Name */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                Full Name
+              </label>
               <input
                 type="text"
-                placeholder="Rider note or landmark (optional)..."
+                value={contactName}
+                onChange={e => {
+                  setContactName(e.target.value);
+                  try { localStorage.setItem('fmx_last_name', e.target.value.trim()); } catch {}
+                }}
+                placeholder="Your full name"
+                className={`w-full p-3 rounded-xl border text-xs sm:text-sm font-medium outline-none transition-all ${
+                  isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#EA4C2A]' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-[#EA4C2A] focus:bg-white'
+                }`}
+              />
+            </div>
+
+            {/* Phone Number */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                inputMode="numeric"
+                maxLength={11}
+                value={contactPhone}
+                onChange={e => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  setContactPhone(v);
+                  try { localStorage.setItem('fmx_last_phone', v); } catch {}
+                }}
+                placeholder="For delivery contact & PIN"
+                className={`w-full p-3 rounded-xl border text-xs sm:text-sm font-medium outline-none font-mono transition-all ${
+                  isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#EA4C2A]' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-[#EA4C2A] focus:bg-white'
+                }`}
+              />
+            </div>
+
+            {/* Delivery Address */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  Delivery Address
+                </label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      toast('Detecting GPS location...', 'info');
+                      const loc = await getRealCurrentPosition();
+                      if (loc?.address) {
+                        setDeliveryAddress(loc.address);
+                        try { localStorage.setItem('fmx_last_delivery_address', loc.address); } catch {}
+                        toast('📍 Real GPS location detected!', 'success');
+                      }
+                    } catch (err) {
+                      toast(err.message || 'Could not detect location', 'warning');
+                    }
+                  }}
+                  className="text-[10px] font-bold text-[#EA4C2A] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <MapPin size={11} />
+                  <span>Use Current Location</span>
+                </button>
+              </div>
+              <input
+                type="text"
+                value={deliveryAddress}
+                onChange={e => {
+                  setDeliveryAddress(e.target.value);
+                  try { localStorage.setItem('fmx_last_delivery_address', e.target.value.trim()); } catch {}
+                }}
+                placeholder="Enter your delivery address"
+                className={`w-full p-3 rounded-xl border text-xs sm:text-sm font-medium outline-none transition-all ${
+                  isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#EA4C2A]' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-[#EA4C2A] focus:bg-white'
+                }`}
+              />
+            </div>
+
+            {/* Landmark & Directions */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                Landmark & Directions
+              </label>
+              <input
+                type="text"
+                value={landmark}
+                onChange={e => setLandmark(e.target.value)}
+                placeholder="Help your rider find you"
+                className={`w-full p-3 rounded-xl border text-xs sm:text-sm font-medium outline-none transition-all ${
+                  isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#EA4C2A]' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-[#EA4C2A] focus:bg-white'
+                }`}
+              />
+            </div>
+
+            {/* Delivery Instructions */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                Delivery Instructions
+              </label>
+              <input
+                type="text"
                 value={instructions}
                 onChange={e => setInstructions(e.target.value)}
-                className="w-full text-xs placeholder:text-gray-400 bg-transparent outline-none text-slate-900 dark:text-white font-medium"
+                placeholder="E.g. Call when outside the gate, leave at security, add extra cutlery..."
+                className={`w-full p-3 rounded-xl border text-xs sm:text-sm font-medium outline-none transition-all ${
+                  isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#EA4C2A]' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-[#EA4C2A] focus:bg-white'
+                }`}
               />
             </div>
           </div>
 
-          {/* 5. PAYMENT METHOD (Mockup Paystack Card with Cyan Stripes) */}
+          {/* 5. PAYMENT METHOD */}
           <div className={`p-4 rounded-2xl border transition-all ${
             isDark ? 'bg-[#151821] border-white/10' : 'bg-white border-slate-200/80 shadow-xs'
           }`}>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">
-              Payment method
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">
+              Payment Method
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                {/* Paystack 4 stripes cyan badge */}
-                <div className="w-9 h-9 rounded-xl bg-[#00C3F7]/10 flex flex-col items-center justify-center gap-0.5 shrink-0 p-2">
-                  <div className="w-full h-1 bg-[#00C3F7] rounded-full" />
-                  <div className="w-3/4 h-1 bg-[#00C3F7] rounded-full" />
-                  <div className="w-full h-1 bg-[#00C3F7] rounded-full" />
-                </div>
-                <div className="min-w-0">
-                  <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                    Pay with Paystack
+            <div className="space-y-2.5">
+              {/* Option 1: Pay Online */}
+              <div
+                onClick={() => { triggerHaptic('selection'); setPaymentMethod('paystack'); }}
+                className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                  paymentMethod === 'paystack'
+                    ? (isDark ? 'bg-[#00C3F7]/10 border-[#00C3F7]' : 'bg-sky-50 border-[#00C3F7] ring-1 ring-[#00C3F7]')
+                    : (isDark ? 'bg-white/5 border-white/5 hover:border-white/10' : 'bg-slate-50 border-slate-100 hover:border-slate-200')
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#00C3F7]/15 flex flex-col items-center justify-center gap-0.5 shrink-0 p-2">
+                    <div className="w-full h-1 bg-[#00C3F7] rounded-full" />
+                    <div className="w-3/4 h-1 bg-[#00C3F7] rounded-full" />
+                    <div className="w-full h-1 bg-[#00C3F7] rounded-full" />
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                    Cards, Bank Transfer, USSD & more
-                  </p>
+                  <div className="min-w-0">
+                    <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+                      Pay Online
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                      Pay with Card, Bank Transfer or USSD
+                    </p>
+                  </div>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                  paymentMethod === 'paystack' ? 'border-[#00C3F7] bg-[#00C3F7]' : 'border-slate-300 dark:border-slate-600'
+                }`}>
+                  {paymentMethod === 'paystack' && <div className="w-2 h-2 rounded-full bg-white" />}
                 </div>
               </div>
-              <ChevronRight size={18} className="text-slate-400 shrink-0" />
+
+              {/* Option 2: Cash on Delivery */}
+              <div
+                onClick={() => { triggerHaptic('selection'); setPaymentMethod('cod'); }}
+                className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                  paymentMethod === 'cod'
+                    ? (isDark ? 'bg-emerald-500/10 border-emerald-500' : 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500')
+                    : (isDark ? 'bg-white/5 border-white/5 hover:border-white/10' : 'bg-slate-50 border-slate-100 hover:border-slate-200')
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <DollarSign size={18} strokeWidth={2.5} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+                      Cash on Delivery
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                      Pay when your order arrives
+                    </p>
+                  </div>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                  paymentMethod === 'cod' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 dark:border-slate-600'
+                }`}>
+                  {paymentMethod === 'cod' && <div className="w-2 h-2 rounded-full bg-white" />}
+                </div>
+              </div>
+
+              {/* Option 3: FoodMaxx Chow Wallet */}
+              <div
+                onClick={() => { triggerHaptic('selection'); setPaymentMethod('wallet'); }}
+                className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                  paymentMethod === 'wallet'
+                    ? (isDark ? 'bg-orange-500/10 border-[#EA4C2A]' : 'bg-orange-50 border-[#EA4C2A] ring-1 ring-[#EA4C2A]')
+                    : (isDark ? 'bg-white/5 border-white/5 hover:border-white/10' : 'bg-slate-50 border-slate-100 hover:border-slate-200')
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-orange-500/15 text-[#EA4C2A] flex items-center justify-center shrink-0">
+                    <Wallet size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+                        FoodMaxx Chow Wallet
+                      </span>
+                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-orange-500/15 text-[#EA4C2A]">
+                        {fmt(rawWalletBalance)}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                      Pay instantly with your wallet
+                    </p>
+                  </div>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                  paymentMethod === 'wallet' ? 'border-[#EA4C2A] bg-[#EA4C2A]' : 'border-slate-300 dark:border-slate-600'
+                }`}>
+                  {paymentMethod === 'wallet' && <div className="w-2 h-2 rounded-full bg-white" />}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -9285,7 +9407,15 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
             disabled={loading || cart.items.length === 0}
             className="w-full bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-[0.98] text-white py-3.5 px-4 rounded-2xl font-bold text-sm sm:text-base shadow-lg shadow-[#EA4C2A]/25 flex items-center justify-between cursor-pointer transition-all disabled:opacity-50"
           >
-            <span>{loading ? 'Processing...' : 'Pay with Paystack'}</span>
+            <span>
+              {loading
+                ? 'Processing...'
+                : paymentMethod === 'paystack'
+                ? 'Paystack Checkout'
+                : paymentMethod === 'cod'
+                ? 'Place Order (Cash on Delivery)'
+                : 'Pay with Chow Wallet'}
+            </span>
             <span className="font-extrabold tracking-tight">{fmt(total)}</span>
           </button>
         </div>
@@ -9418,6 +9548,45 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
             />
           )}
         </AnimatePresence>
+
+        {/* Quick 2-Field Registration Popup when user is not registered */}
+        <AnimatePresence>
+          {quickRegisterOpen && (!user || !user.is_registered) && (
+            <Suspense fallback={null}>
+              <CheckoutQuickRegisterModal
+                open={quickRegisterOpen}
+                onClose={() => setQuickRegisterOpen(false)}
+                initialName={contactName}
+                initialPhone={contactPhone}
+                isDark={isDark}
+                onSubmit={handleQuickRegisterSubmit}
+              />
+            </Suspense>
+          )}
+        </AnimatePresence>
+
+        {/* AI Avatar Studio inside Checkout */}
+        {checkoutAvatarPickerOpen && (
+          <Suspense fallback={null}>
+            <AvatarPickerModal
+              open={checkoutAvatarPickerOpen}
+              onClose={() => setCheckoutAvatarPickerOpen(false)}
+              currentAvatar={user?.avatar_url || ''}
+              userName={contactName || user?.full_name || 'FoodMaxx Diner'}
+              onSelectAvatar={async (newAvatar) => {
+                if (updateUser) updateUser({ avatar_url: newAvatar });
+                if (user?.id) {
+                  api.updateUser(user.id, { avatar_url: newAvatar }).catch(() => {});
+                }
+                try {
+                  localStorage.setItem('fmx_user_avatar', newAvatar);
+                } catch {}
+                toast('AI avatar updated! ✨', 'success');
+              }}
+              isDark={isDark}
+            />
+          </Suspense>
+        )}
 
 
 
@@ -9600,6 +9769,7 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
   const [copiedRef, setCopiedRef] = useState(false);
   const [copiedPin, setCopiedPin] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const modalScrollRef = useRef(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -9613,6 +9783,10 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
       origin: { y: 0.55 },
       colors: ['#EA4C2A', '#10B981', '#F59E0B']
     });
+
+    if (modalScrollRef.current) {
+      modalScrollRef.current.scrollTop = 0;
+    }
   }, []);
 
   if (!order) return null;
@@ -9658,16 +9832,17 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-md p-0 sm:p-4"
+      className="fixed inset-0 z-[120] overflow-y-auto overflow-x-hidden flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-md p-0 sm:p-4 touch-pan-y"
     >
       <motion.div
+        ref={modalScrollRef}
         initial={{ scale: 0.93, y: 35, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
         exit={{ scale: 0.95, y: 25, opacity: 0 }}
         transition={{ type: 'spring', damping: 25, stiffness: 320 }}
         className={`w-full max-w-sm sm:max-w-md ${
           isDark ? 'bg-[#141722] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200'
-        } rounded-t-[36px] sm:rounded-[36px] border shadow-2xl p-5 sm:p-6 relative max-h-[92vh] overflow-y-auto overscroll-contain momentum-scroll flex flex-col items-center text-center`}
+        } rounded-t-[36px] sm:rounded-[36px] border shadow-2xl p-5 sm:p-6 relative max-h-[90dvh] sm:max-h-[88vh] overflow-y-auto touch-pan-y overscroll-y-auto flex flex-col items-center text-center`}
       >
         {/* Mobile Pull Indicator */}
         <div className="w-12 h-1.5 rounded-full bg-slate-200 dark:bg-white/15 mx-auto mb-3 sm:hidden" />
@@ -10205,7 +10380,7 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
   const getHeadline = () => {
     if (isDelivered) return getCopy(appCopy, 'customer_tracking', 'step_delivered_desc', 'Meal Delivered 🎉');
     if (isCancelled) return 'Order Cancelled';
-    if (currentStep === 3) return getCopy(appCopy, 'customer_tracking', 'step_transit_desc', 'Rider is on the way to your door 🛵');
+    if (currentStep === 3) return getCopy(appCopy, 'customer_tracking', 'step_transit_desc', 'Your Meal Is on the Way! 🍽️');
     if (currentStep === 2) return getCopy(appCopy, 'customer_tracking', 'step_kitchen_desc', 'FoodMaxx kitchen is cooking your meal 🍳');
     return getCopy(appCopy, 'customer_tracking', 'step_placed_desc', 'Order confirmed & sent to kitchen ✨');
   };
@@ -10216,7 +10391,7 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
     }
     if (isDelivered) return 'Package delivered successfully. Enjoy your hot meal!';
     if (isCancelled) return 'This order was cancelled. Please contact support if you need help.';
-    if (currentStep === 3) return `Courier ${rider.full_name} is riding towards ${destinationZone}.`;
+    if (currentStep === 3) return 'Your order has been picked up and is heading to you. Get ready to enjoy your meal! #Thanks for choosing FoodMaxx 😋❤️';
     if (currentStep === 2) return 'Your food is fresh on the grill and will be packed shortly.';
     return 'Kitchen has received your order and is queuing ingredients.';
   };
@@ -10301,43 +10476,37 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
         {/* Scrollable Body */}
         <div ref={trackingBodyRef} className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-4 overscroll-contain">
 
-          {/* Primary ETA & Status Hero Banner */}
-          <div className={`rounded-3xl p-5 border transition-all ${
-            isDark
-              ? 'bg-gradient-to-br from-[#1C1F26] via-[#16181E] to-[#121418] border-white/10 shadow-lg'
-              : 'bg-gradient-to-br from-white via-orange-50/40 to-amber-50/20 border-orange-100 shadow-md'
+          {/* Clean Status & ETA Header */}
+          <div className={`rounded-2xl p-4 border transition-all ${
+            isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-slate-200 shadow-xs'
           }`}>
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
                 isDelivered
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
-                  : 'bg-[#EA4C2A]/15 text-[#EA4C2A] border border-[#EA4C2A]/25'
+                  ? 'bg-emerald-500/10 text-emerald-500'
+                  : 'bg-[#EA4C2A]/10 text-[#EA4C2A]'
               }`}>
-                {statusLabel[order.order_status] || 'Active Delivery'}
+                {statusLabel[order.order_status] || 'Order Active'}
               </span>
 
-              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-black/30 px-3 py-1 rounded-full border border-slate-200/80 dark:border-white/10">
-                <Clock size={12} className="text-[#EA4C2A]" />
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  {order.estimated_delivery_time || '20-30 mins'}
-                </span>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                <Clock size={13} className="text-[#EA4C2A]" />
+                <span>{order.estimated_delivery_time || '20-30 mins'}</span>
               </div>
             </div>
 
-            <h3 className="font-black text-xl text-slate-900 dark:text-white tracking-tight leading-snug">
+            <h3 className="font-extrabold text-lg text-slate-900 dark:text-white tracking-tight">
               {getHeadline()}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
               {getSubheadline()}
             </p>
 
-            {/* Clean Connected 4-Step Stepper */}
-            <div className="relative pt-6 pb-2 mt-3">
-              {/* Connected background track */}
-              <div className="absolute top-[37px] left-6 right-6 h-1 bg-slate-200 dark:bg-white/10 rounded-full" />
-              {/* Active progress fill */}
+            {/* Clean 4-Stage Progress Stepper */}
+            <div className="relative pt-4 pb-1 mt-1">
+              <div className="absolute top-[26px] left-4 right-4 h-1 bg-slate-200 dark:bg-white/10 rounded-full" />
               <div
-                className="absolute top-[37px] left-6 h-1 bg-gradient-to-r from-[#EA4C2A] to-orange-400 rounded-full transition-all duration-700 shadow-xs"
+                className="absolute top-[26px] left-4 h-1 bg-[#EA4C2A] rounded-full transition-all duration-500"
                 style={{
                   width: `${Math.max(0, Math.min(100, ((currentStep - 1) / (MILESTONES.length - 1)) * 100))}%`
                 }}
@@ -10349,20 +10518,20 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
                   const isCurrent = m.step === currentStep;
                   return (
                     <div key={m.step} className="flex flex-col items-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
                         done
-                          ? 'bg-[#EA4C2A] text-white shadow-md shadow-[#EA4C2A]/30 scale-105'
+                          ? 'bg-[#EA4C2A] text-white shadow-xs'
                           : isDark
-                          ? 'bg-[#12141A] text-slate-500 border border-white/10'
-                          : 'bg-white text-slate-400 border border-slate-300'
-                      } ${isCurrent ? 'ring-4 ring-[#EA4C2A]/20 scale-110' : ''}`}>
-                        {done && m.step < currentStep ? <Check size={13} strokeWidth={3.5} /> : m.icon}
+                          ? 'bg-[#181B24] text-slate-500 border border-white/10'
+                          : 'bg-white text-slate-400 border border-slate-200'
+                      } ${isCurrent ? 'ring-3 ring-[#EA4C2A]/20 scale-110' : ''}`}>
+                        {done && m.step < currentStep ? <Check size={11} strokeWidth={3.5} /> : m.step}
                       </div>
-                      <span className={`text-[10.5px] mt-2 font-medium tracking-tight whitespace-nowrap ${
+                      <span className={`text-[10px] mt-1.5 font-bold ${
                         isCurrent
-                          ? 'font-extrabold text-[#EA4C2A]'
+                          ? 'text-[#EA4C2A]'
                           : done
-                          ? isDark ? 'text-slate-200 font-semibold' : 'text-slate-800 font-semibold'
+                          ? isDark ? 'text-slate-200' : 'text-slate-700'
                           : 'text-slate-400'
                       }`}>
                         {m.label}
@@ -10374,8 +10543,8 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
             </div>
           </div>
 
-          {/* Interactive Route Map */}
-          <div className="rounded-3xl overflow-hidden border border-slate-200/80 dark:border-white/10 shadow-sm">
+          {/* Clean Route Map */}
+          <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-white/10 shadow-xs">
             <MotorcycleRouteMap
               status={order.order_status}
               eta={order.estimated_delivery_time}
@@ -10384,269 +10553,148 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
             />
           </div>
 
-          {/* Unified Courier & Handover PIN Card */}
-          <div className={`rounded-3xl p-4 sm:p-5 border transition-all ${
-            isDark ? 'bg-[#181B24] border-white/10 shadow-md' : 'bg-white border-slate-200 shadow-xs'
-          }`}>
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                Dispatch Courier
-              </span>
-              {!isDelivered && !isCancelled && order.delivery_otp ? (
-                <div className="flex items-center gap-1.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2.5 py-1 rounded-xl border border-amber-500/20">
-                  <ShieldCheck size={13} className="text-amber-500" />
-                  <span className="text-[10px] font-bold uppercase">PIN:</span>
-                  <span className="font-mono font-black text-xs tracking-wider">{order.delivery_otp}</span>
-                  <button
-                    type="button"
-                    onClick={handleCopyPin}
-                    className="p-1 hover:bg-black/10 rounded cursor-pointer"
-                    title="Copy PIN"
-                  >
-                    {copiedPin ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
-                  </button>
+          {/* Delivery PIN Banner (If available) */}
+          {!isDelivered && !isCancelled && order.delivery_otp && (
+            <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
+              isDark ? 'bg-amber-500/10 border-amber-500/20 text-white' : 'bg-amber-50/80 border-amber-200 text-slate-900'
+            }`}>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <ShieldCheck size={16} />
                 </div>
-              ) : (
-                <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  {isDelivered ? 'Trip Completed' : '🛵 On Duty'}
-                </span>
-              )}
-            </div>
-
-            {rider ? (
-              <>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#EA4C2A] to-orange-400 text-white font-black text-lg flex items-center justify-center shadow-md shadow-[#EA4C2A]/20 shrink-0">
-                        {rider.full_name?.[0] || 'C'}
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-[#181B24]" />
-                    </div>
-
-                    <div className="min-w-0">
-                      <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">
-                        {rider.full_name}
-                      </h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                        {rider.vehicle_type}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="flex items-center gap-0.5 text-xs font-bold text-amber-500">
-                          <Star size={11} className="fill-amber-500" />
-                          {rider.rating || 5.0}
-                        </span>
-                        <span className="text-slate-400 text-[11px]">• Verified Courier</span>
-                      </div>
-                    </div>
+                <div>
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">
+                    Your Delivery PIN
                   </div>
+                  <div className="font-mono font-black text-sm tracking-wider">
+                    {order.delivery_otp}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyPin}
+                className="px-3 py-1.5 rounded-xl bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1 active:scale-95 cursor-pointer"
+              >
+                <span>{copiedPin ? 'Copied ✓' : 'Copy PIN'}</span>
+              </button>
+            </div>
+          )}
 
-                  {/* Rider Phone Chip */}
-                  {riderPhone && (
-                    <button
-                      type="button"
-                      onClick={handleCopyPhone}
-                      className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0 border ${
-                        copiedPhone
-                          ? 'bg-emerald-500 text-white border-emerald-500'
-                          : isDark
-                          ? 'bg-white/5 hover:bg-white/10 text-slate-200 border-white/10'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                      }`}
-                      title="Copy phone"
-                    >
-                      <span>{riderPhone}</span>
-                      {copiedPhone ? <Check size={11} /> : <Copy size={11} className="opacity-60" />}
-                    </button>
-                  )}
+          {/* Courier Card */}
+          <div className={`p-4 rounded-2xl border transition-all ${
+            isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-slate-200 shadow-xs'
+          }`}>
+            <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 mb-2.5">
+              Courier
+            </div>
+            {rider ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-[#EA4C2A] to-amber-500 text-white font-bold flex items-center justify-center text-sm shadow-xs shrink-0">
+                    {rider.full_name?.[0] || 'C'}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                      {rider.full_name}
+                    </h4>
+                    <p className="text-xs text-slate-400">
+                      {rider.vehicle_type || 'Delivery Motorcycle'}
+                    </p>
+                  </div>
                 </div>
 
-                {/* Quick Contact Action Buttons */}
-                <div className="grid grid-cols-2 gap-2.5 mt-4 pt-3.5 border-t border-slate-100 dark:border-white/8">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setChatOpen(true)}
-                    className="py-2.5 px-3 rounded-2xl bg-[#EA4C2A] hover:bg-[#D43D1D] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-[#EA4C2A]/25 transition-all cursor-pointer"
+                    className="flex-1 sm:flex-none py-2 px-3 rounded-xl bg-[#EA4C2A] hover:bg-[#d83f1d] text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                   >
-                    <MessageCircle size={14} />
-                    <span>Chat with Rider</span>
+                    <MessageCircle size={13} />
+                    <span>Chat</span>
                   </button>
                   {cleanPhone ? (
                     <a
                       href={`tel:${cleanPhone}`}
-                      className={`py-2.5 px-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 border transition-all active:scale-95 cursor-pointer text-center ${
-                        isDark
-                          ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                      className={`flex-1 sm:flex-none py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border cursor-pointer active:scale-95 transition-all ${
+                        isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
                       }`}
                     >
-                      <PhoneCall size={14} className="text-emerald-500" />
-                      <span>Call Rider</span>
+                      <PhoneCall size={13} className="text-emerald-500" />
+                      <span>Call</span>
                     </a>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setChatOpen(true)}
-                      className={`py-2.5 px-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 border transition-all active:scale-95 cursor-pointer text-center ${
-                        isDark
-                          ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-                      }`}
-                    >
-                      <PhoneCall size={14} className="text-emerald-500" />
-                      <span>In-App Dispatch Line</span>
-                    </button>
-                  )}
+                  ) : null}
                 </div>
-              </>
+              </div>
             ) : (
-              <div className="flex items-center gap-3 py-1">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 font-bold text-2xl flex items-center justify-center shrink-0 border border-amber-500/20">
-                  🛵
-                </div>
-                <div className="min-w-0">
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                    Courier Pending Assignment
-                  </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Our nearest dispatch courier will be paired once your meal is boxed.
-                  </p>
-                </div>
+              <div className="flex items-center gap-2.5 py-1 text-xs text-slate-500 dark:text-slate-400">
+                <span className="text-base">🛵</span>
+                <span>Courier will be assigned as soon as the kitchen boxes your meal.</span>
               </div>
             )}
           </div>
 
-          {/* Delivery Destination Card */}
-          <div className={`rounded-3xl p-4 sm:p-5 border transition-all ${
-            isDark ? 'bg-[#1C1F26] border-white/10 shadow-sm' : 'bg-white border-slate-200 shadow-sm'
+          {/* Delivery Destination */}
+          <div className={`p-4 rounded-2xl border transition-all ${
+            isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-slate-200 shadow-xs'
           }`}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-[#EA4C2A]/15 text-[#EA4C2A] flex items-center justify-center text-sm">
-                  <MapPin size={14} className="stroke-[2.5]" />
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  Drop-off Location
-                </span>
-              </div>
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-full">
-                {destinationZone}
+            <div className="flex items-center gap-2 mb-1.5">
+              <MapPin size={14} className="text-[#EA4C2A]" />
+              <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">
+                Delivery Address
               </span>
             </div>
-
-            <div className="font-bold text-sm text-slate-900 dark:text-white leading-snug pl-9">
+            <div className="text-xs font-bold text-slate-900 dark:text-white pl-5 leading-relaxed">
               {destinationAddress}
             </div>
-
             {destinationLandmark && (
-              <div className="mt-2 pl-9 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <span>📍</span>
-                <span className="font-semibold">Landmark: {destinationLandmark}</span>
-              </div>
-            )}
-
-            {destinationInstructions && (
-              <div className="mt-2 pl-9 text-xs text-slate-500 dark:text-slate-400 italic">
-                "{destinationInstructions}"
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 pl-5 mt-0.5">
+                Landmark: {destinationLandmark}
               </div>
             )}
           </div>
 
-          {/* WhatsApp Order Status Notification Card */}
-          <div className={`rounded-3xl p-4 sm:p-5 border transition-all ${
-            isDark ? 'bg-[#15231B] border-emerald-500/25' : 'bg-emerald-50/70 border-emerald-200'
-          }`}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20">
-                  <MessageCircle size={20} />
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">
-                    WhatsApp Order Status Alerts
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-0.5">
-                    Send or share live cooking, courier tracking & OTP updates on WhatsApp.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const opened = api.openWhatsAppOrderStatus(order, order.order_status);
-                  if (!opened) {
-                    const msg = api.buildWhatsAppStatusMessage(order, order.order_status);
-                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
-                  }
-                  toast('Opening WhatsApp with live order update! 📲', 'success');
-                }}
-                className="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shrink-0 transition-transform active:scale-95 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <MessageCircle size={14} />
-                <span>Share to WhatsApp</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Collapsible Order Items & Receipt */}
-          <div className={`rounded-3xl border overflow-hidden transition-all ${
-            isDark ? 'bg-[#1C1F26] border-white/10' : 'bg-white border-slate-200 shadow-sm'
+          {/* Clean Collapsible Order Receipt */}
+          <div className={`rounded-2xl border overflow-hidden transition-all ${
+            isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-slate-200 shadow-xs'
           }`}>
             <button
               type="button"
               onClick={() => setShowOrderDetails(!showOrderDetails)}
-              className="w-full p-4 sm:p-4.5 flex items-center justify-between text-left cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
+              className="w-full p-3.5 flex items-center justify-between text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
             >
-              <div className="flex items-center gap-2.5">
-                <span className="text-base">🧾</span>
-                <div>
-                  <h4 className="font-bold text-xs text-slate-900 dark:text-white">Order Receipt & Items</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    {order.items?.length || 0} items • Total: {fmt(order.total)}
-                  </p>
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">🧾</span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  Order Items ({order.items?.length || 0})
+                </span>
               </div>
-              <ChevronDown
-                size={16}
-                className={`text-slate-400 transition-transform duration-200 ${showOrderDetails ? 'rotate-180' : ''}`}
-              />
+              <div className="flex items-center gap-1 text-xs font-semibold text-[#EA4C2A]">
+                <span>{showOrderDetails ? 'Hide' : 'View'}</span>
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 ${showOrderDetails ? 'rotate-180' : ''}`}
+                />
+              </div>
             </button>
 
             {showOrderDetails && (
-              <div className="px-4.5 pb-4 pt-1 border-t border-slate-100 dark:border-white/10 space-y-2.5">
+              <div className="px-3.5 pb-3.5 pt-1 border-t border-slate-100 dark:border-white/10 space-y-2 text-xs">
                 {order.items?.map((item, iIdx) => (
-                  <div key={item.id || iIdx} className="flex justify-between items-start text-xs py-1">
+                  <div key={item.id || iIdx} className="flex justify-between items-start py-0.5">
                     <div className="min-w-0 pr-2">
-                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                      <span className="font-medium text-slate-800 dark:text-slate-200">
                         {item.quantity || item.qty || 1}x {item.item_name || item.name}
                       </span>
-                      {item.selected_size && item.selected_size !== 'Regular' && (
-                        <div className="text-[11px] text-slate-400 mt-0.5">
-                          Portion: {item.selected_size}
-                        </div>
-                      )}
-                      {item.selected_extras?.length > 0 && (
-                        <div className="text-[11px] text-[#EA4C2A] mt-0.5">
-                          +{item.selected_extras.join(', ')}
-                        </div>
-                      )}
                     </div>
-                    <span className="font-bold text-slate-900 dark:text-white shrink-0">
+                    <span className="font-semibold text-slate-900 dark:text-white shrink-0">
                       {fmt(item.total_price || item.price)}
                     </span>
                   </div>
                 ))}
 
-                <div className="pt-2.5 mt-2 border-t border-slate-200/70 dark:border-white/10 flex justify-between items-center text-xs">
-                  <span className="text-slate-500 font-medium">Payment Status:</span>
-                  <span className="font-bold text-emerald-500 flex items-center gap-1">
-                    <Check size={11} strokeWidth={3} /> Paid via Paystack
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center font-black text-sm pt-1">
-                  <span>Total Amount</span>
+                <div className="flex justify-between items-center font-bold text-xs pt-2 border-t border-slate-100 dark:border-white/10">
+                  <span>Total Paid</span>
                   <span className="text-[#EA4C2A]">{fmt(order.total)}</span>
                 </div>
               </div>
@@ -11236,14 +11284,17 @@ function AuthProvider({ children }) {
     return { success: true, token: tokenVal, user: finalUser };
   }
 
-  async function silentRegister({ full_name, phone, email, address }) {
-    const safeEmail = email || `${phone.replace(/\D/g, '')}@foodmaxx.ng`;
+  async function silentRegister({ full_name, phone, email, address, avatar_url }) {
+    const cleanPhone = (phone || '').replace(/\D/g, '');
+    const safeEmail = email || `${cleanPhone || Date.now()}@foodmaxx.ng`;
+    const userAvatar = avatar_url || generateAIAvatarForUser(full_name, cleanPhone);
     try {
       const res = await api.register({
         full_name,
         phone,
         email: safeEmail,
         address: address || '',
+        avatar_url: userAvatar,
         password: 'guest_' + Date.now()
       });
       const registeredUser = res.user || {
@@ -11252,11 +11303,14 @@ function AuthProvider({ children }) {
         phone,
         email: safeEmail,
         address: address || '',
+        avatar_url: userAvatar,
+        is_registered: true,
         role: 'customer'
       };
       const authToken = res.token || ('fmx_token_' + Date.now());
       localStorage.setItem('fmx_token', authToken);
       localStorage.setItem('fmx_user', JSON.stringify(registeredUser));
+      if (userAvatar) localStorage.setItem('fmx_user_avatar', userAvatar);
       setToken(authToken);
       setUser(registeredUser);
 
@@ -11272,11 +11326,14 @@ function AuthProvider({ children }) {
         phone,
         email: safeEmail,
         address: address || '',
+        avatar_url: userAvatar,
+        is_registered: true,
         role: 'customer'
       };
       const localToken = 'fmx_token_' + Date.now();
       localStorage.setItem('fmx_token', localToken);
       localStorage.setItem('fmx_user', JSON.stringify(localUser));
+      if (userAvatar) localStorage.setItem('fmx_user_avatar', userAvatar);
       setToken(localToken);
       setUser(localUser);
 

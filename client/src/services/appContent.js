@@ -69,7 +69,7 @@ export const DEFAULT_APP_CONTENT = {
     step_transit_desc: {
       label: 'Step 3 Subtitle',
       desc: 'Status text when rider is en route',
-      value: 'Rider is on the way to your door'
+      value: 'Your Meal Is on the Way! 🍽️'
     },
     step_delivered_title: {
       label: 'Step 4 Label',
@@ -190,14 +190,14 @@ export const DEFAULT_APP_CONTENT = {
       value: 'Your food is packaged hot and waiting for rider pickup.'
     },
     transit_title: {
-      label: 'Rider on the Way Title',
+      label: 'Meal on the Way Title',
       desc: 'Status banner and push title when courier is en route',
-      value: 'Rider is on the Way!'
+      value: 'Your Meal Is on the Way! 🍽️'
     },
     transit_desc: {
-      label: 'Rider on the Way Description',
+      label: 'Meal on the Way Description',
       desc: 'Status banner and push body when courier is en route',
-      value: 'Your courier is heading towards your delivery address.'
+      value: 'Your order has been picked up and is heading to you. Get ready to enjoy your meal!\n#Thanks for choosing FoodMaxx 😋❤️'
     },
     arriving_title: {
       label: 'Rider Arriving Soon Title',

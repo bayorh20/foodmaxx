@@ -33,3 +33,16 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Capacitor native build outputs
+**/android/.gradle/
+**/android/build/
+**/android/app/build/
+**/android/local.properties
+**/android/.cxx/
+**/ios/App/build/
+**/ios/App/Pods/
+**/ios/App/.symlinks/
+**/ios/App/Pods.xcodeproj
+**/ios/App/App.xcarchive/
+**/ios/App/*.ipa
+

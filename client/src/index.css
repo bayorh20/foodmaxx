@@ -742,4 +742,37 @@ select option {
   contain-intrinsic-size: 160px 240px;
 }
 
+/* ============================================================
+   ULTRA-FAST MODAL & OVERLAY TRANSITION ACCELERATION
+   Zero-lag, 60-120fps hardware acceleration
+   ============================================================ */
+@keyframes fmxModalFastIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+.animate-scale-up {
+  animation: fmxModalFastIn 0.12s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  will-change: transform, opacity;
+}
+
+/* Fast modal backdrops without GPU lag */
+.backdrop-blur-xs {
+  backdrop-filter: blur(2px) !important;
+  -webkit-backdrop-filter: blur(2px) !important;
+}
+
+/* Eliminate backdrop blur lag on lower-spec mobile GPU devices */
+.backdrop-blur-md, .backdrop-blur-lg, .backdrop-blur-sm {
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+
 

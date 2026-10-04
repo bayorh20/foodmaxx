@@ -8,6 +8,10 @@ import {
   markAllInAppNotificationsAsRead,
   clearAllInAppNotifications
 } from '../services/webNotificationService';
+import { 
+  installPushNotifications, 
+  sendTestPushNotification 
+} from '../services/pushNotificationService';
 import { playOrderNotificationSound } from '../services/nativeMobile';
 
 export default function NotificationCenterModal({
@@ -20,6 +24,8 @@ export default function NotificationCenterModal({
   const [permission, setPermission] = useState(getNotificationPermission);
   const [showUnblockGuide, setShowUnblockGuide] = useState(false);
   const [verificationFeedback, setVerificationFeedback] = useState(null);
+  const [isInstallingPush, setIsInstallingPush] = useState(false);
+  const [testSentFeedback, setTestSentFeedback] = useState(false);
 
   useEffect(() => {
     const update = () => setPermission(getNotificationPermission());
@@ -36,9 +42,26 @@ export default function NotificationCenterModal({
 
   const unreadCount = notifications.filter(n => !n.read && !n.is_read).length;
 
-  const handleEnableWebPush = async () => {
-    const res = await requestNotificationPermission();
-    setPermission(res);
+  const handleInstallPush = async () => {
+    setIsInstallingPush(true);
+    try {
+      const res = await installPushNotifications();
+      setPermission(res.permission);
+      if (res.success) {
+        setTestSentFeedback(true);
+        setTimeout(() => setTestSentFeedback(false), 3000);
+      }
+    } finally {
+      setIsInstallingPush(false);
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    const res = await sendTestPushNotification();
+    if (res.success) {
+      setTestSentFeedback(true);
+      setTimeout(() => setTestSentFeedback(false), 2500);
+    }
   };
 
   const handleVerifyPermission = async () => {
@@ -151,13 +174,13 @@ export default function NotificationCenterModal({
           </div>
         </div>
 
-        {/* Discreet, Clean Alert Permission Strip (Only shown when permission is not active) */}
+        {/* Discreet Push Notification Installation & Test Strip */}
         {permission === 'denied' && (
           <div className="mx-4 mt-3 px-3.5 py-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 min-w-0">
               <span className="text-sm shrink-0">🔔</span>
               <span className="truncate text-[11.5px] font-semibold">
-                Browser popups paused · Chimes active
+                Push alerts paused · Sounds active
               </span>
             </div>
             <button
@@ -171,19 +194,50 @@ export default function NotificationCenterModal({
         )}
 
         {permission === 'default' && (
-          <div className="mx-4 mt-3 px-3.5 py-2.5 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 min-w-0">
-              <span className="text-sm shrink-0">🔔</span>
-              <span className="truncate text-[11.5px] font-semibold">
-                Turn on order alert notifications
+          <div className="mx-4 mt-3 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-rose-500/10 border border-orange-500/20 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 min-w-0">
+              <span className="text-sm shrink-0">🚀</span>
+              <div className="min-w-0">
+                <span className="block truncate text-[11.5px] font-bold text-slate-900 dark:text-white">
+                  Push Notifications
+                </span>
+                <span className="block text-[10px] text-slate-500 dark:text-slate-400">
+                  Instant lock-screen updates on order status
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={isInstallingPush}
+              onClick={handleInstallPush}
+              className="px-3 py-1.5 rounded-xl bg-[#EA4C2A] hover:bg-[#d83f1d] text-white font-bold text-[11px] shrink-0 cursor-pointer shadow-sm transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {isInstallingPush ? (
+                <>
+                  <span className="w-2.5 h-2.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  <span>Setting up...</span>
+                </>
+              ) : (
+                <span>Turn On 🚀</span>
+              )}
+            </button>
+          </div>
+        )}
+
+        {permission === 'granted' && (
+          <div className="mx-4 mt-3 px-3.5 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 min-w-0">
+              <span className="text-xs">✓</span>
+              <span className="truncate text-[11px] font-semibold">
+                Push Notifications Active
               </span>
             </div>
             <button
               type="button"
-              onClick={handleEnableWebPush}
-              className="px-2.5 py-1 rounded-xl bg-[#EA4C2A] hover:bg-[#d83f1d] text-white font-bold text-[11px] shrink-0 cursor-pointer shadow-xs transition-all active:scale-95"
+              onClick={handleSendTestPush}
+              className="px-2.5 py-1 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-800 dark:text-emerald-200 font-bold text-[10.5px] shrink-0 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
             >
-              Enable
+              {testSentFeedback ? 'Sent! 🚀' : 'Test Push 🔔'}
             </button>
           </div>
         )}

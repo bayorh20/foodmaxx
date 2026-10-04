@@ -126,6 +126,7 @@ import {
   testSmsConnection,
   DEFAULT_SMS_CONFIG
 } from './smsNotificationSdk.js';
+import { generateAIAvatarForUser } from './aiAvatarService.js';
 
 const memoryStore = {};
 export const safeStorage = {
@@ -280,13 +281,16 @@ export const api = {
     // Stable unique ID that never overwrites other customers
     const userId = data?.id || (phoneDigits ? `usr_${phoneDigits}_${uniqueSuffix}` : `usr_${uniqueSuffix}`);
 
+    const fullName = (data?.full_name || 'FoodMaxx Customer').trim();
+    const assignedAvatar = data?.avatar_url || generateAIAvatarForUser(fullName, phoneClean);
+
     const nowIso = new Date().toISOString();
     const user = {
       id: userId,
-      full_name: (data?.full_name || 'FoodMaxx Customer').trim(),
+      full_name: fullName,
       email: emailLower,
       phone: phoneClean,
-      avatar_url: data?.avatar_url || '',
+      avatar_url: assignedAvatar,
       gender: data?.gender || '',
       role: 'customer',
       status: 'active',

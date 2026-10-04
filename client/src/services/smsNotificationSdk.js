@@ -119,7 +119,7 @@ export function buildOrderStatusSms(order, status, extraNotes = '') {
       return `FoodMaxx: Hi ${name}, your order #${ref} (${total}) is confirmed! Kitchen is prepping now. Track live: ${shortUrl}`;
 
     case 'PREPARING':
-      return `FoodMaxx: Your meal for order #${ref} is now cooking in our Bodija kitchen. Track: ${shortUrl}`;
+      return `FoodMaxx: Hi ${name}, your order #${ref} is now being prepared in our kitchen. Track: ${shortUrl}`;
 
     case 'READY_FOR_PICKUP':
       return `FoodMaxx: Order #${ref} is packed hot & ready for dispatch. Courier will be assigned shortly. Track: ${shortUrl}`;

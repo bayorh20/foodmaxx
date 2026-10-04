@@ -14,6 +14,7 @@ import {
   HAPPY_MALE_AVATARS,
   detectGender
 } from '../utils/avatarUtils';
+import { generateAIAvatar, generateAIAvatarForUser } from '../services/aiAvatarService';
 
 export default function AuthModal({
   open,
@@ -161,13 +162,11 @@ export default function AuthModal({
   };
 
 
-  // Shuffle smiling avatar
+  // Shuffle AI foodie avatar
   const handleShuffleAvatar = () => {
     triggerHaptic('selection');
-    const pool = regGender === 'female'
-      ? HAPPY_FEMALE_AVATARS
-      : (regGender === 'male' ? HAPPY_MALE_AVATARS : [...HAPPY_FEMALE_AVATARS, ...HAPPY_MALE_AVATARS]);
-    const randomPick = pool[Math.floor(Math.random() * pool.length)].url;
+    const randomSeed = `${regName || 'FoodMaxx'}_shuffle_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
+    const randomPick = generateAIAvatar(randomSeed, '3d_pixar');
     setRegAvatarUrl(randomPick);
   };
 

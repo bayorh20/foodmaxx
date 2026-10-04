@@ -67,53 +67,78 @@ ${trackingUrl}
 ${extraNotes ? `💬 *Chef Note:* ${extraNotes}\n` : ''}Thank you for dining with FoodMaxx!`;
 
     case 'PREPARING':
-      return `*FOODMAXX KITCHEN UPDATE* 🍳🔥
+      return `Hello ${customerName}, your order #${orderRef} is now being prepared in our kitchen.
 
-Hello *${customerName}*, your order *#${orderRef}* is now cooking in our Bodija kitchen!
+Our chefs are cooking your meal fresh and getting it ready for delivery.
+${extraNotes ? `\n💬 Note: ${extraNotes}\n` : ''}
+📲 Track Your Order:
+${trackingUrl}
 
-Our chefs are preparing and grilling your meal fresh.
-${extraNotes ? `💬 *Kitchen Update:* ${extraNotes}\n` : ''}
-📲 *Track Live Cooking:*
-${trackingUrl}`;
+Your meal will be ready soon. ❤️`;
 
     case 'READY_FOR_PICKUP':
-      return `*ORDER PACKED & READY!* 📦✨
+      return `ORDER PACKED & READY! 📦
 
-Hello *${customerName}*, your order *#${orderRef}* is packed fresh & hot!
-We are pairing your order with an active courier now for rapid dispatch.
+Hello ${customerName}, your order #${orderRef} is freshly packed and ready for dispatch.
 
-📲 *Track Progress:*
-${trackingUrl}`;
+We’re now assigning a delivery rider to your order so it can be on its way to you shortly.
+
+📲 Track Your Order:
+${trackingUrl}
+
+Thank you for choosing FoodMaxx. ❤️`;
 
     case 'ON_THE_WAY':
     case 'RIDER_ASSIGNED':
-      return `*YOUR RIDER IS ON THE WAY!* 🛵💨
+    case 'RIDER_PICKED_UP':
+      return `YOUR RIDER IS ON THE WAY! 🛵
 
-Hello *${customerName}*, your meal for order *#${orderRef}* has left the kitchen and is speeding to you!
+Hello ${customerName}, your order #${orderRef} is on the way.
 
-${riderName ? `🛵 *Rider:* ${riderName} ${riderPhone ? `(${riderPhone})` : ''}\n` : ''}${deliveryOtp ? `🔐 *Your Delivery Security PIN:* *${deliveryOtp}*\n_(Give this 4-digit PIN to the rider only after receiving your package)_\n` : ''}📍 *Destination:* ${order.delivery_address || order.delivery_zone || 'Your location'}
+${riderName ? `Rider: ${riderName}${riderPhone ? ` (${riderPhone})` : ''}\n` : ''}${deliveryOtp ? `PIN: ${deliveryOtp}\n` : ''}Address: ${order.delivery_address || order.delivery_zone || 'Your delivery address'}
 
-📲 *Live Courier Map Tracking:*
-${trackingUrl}
-${extraNotes ? `\n💬 *Note:* ${extraNotes}` : ''}`;
+Please give the PIN to the rider after receiving your order.
+
+Track Order:
+${trackingUrl}`;
 
     case 'ARRIVING_SOON':
-      return `*RIDER ARRIVING AT YOUR GATE!* 🏡🔔
+      return `RIDER HAS ARRIVED! 🛵
 
-Hello *${customerName}*, your FoodMaxx rider is right at your delivery gate or doorstep for order *#${orderRef}*!
+Hello ${customerName}, your FoodMaxx rider is at your doorstep with order #${orderRef}.
 
-${riderName ? `🛵 *Rider:* ${riderName} ${riderPhone ? `(${riderPhone})` : ''}\n` : ''}${deliveryOtp ? `🔐 *Your Delivery PIN:* *${deliveryOtp}*\n` : ''}Please meet the rider to collect your hot meal. Enjoy your food! 🍽️`;
+${riderName ? `Rider: ${riderName}${riderPhone ? ` (${riderPhone})` : ''}\n` : ''}${deliveryOtp ? `Delivery PIN: ${deliveryOtp}\n` : ''}
+Please meet the rider to collect your order.
+
+Enjoy your meal! ❤️
+
+THANK YOU FOR CHOOSING FOODMAXX! ❤️`;
 
     case 'DELIVERED':
-      return `*ORDER DELIVERED!* 🎉🍽️
+      return `*ORDER DELIVERED!* 🎉
 
-Hello *${customerName}*, your FoodMaxx order *#${orderRef}* has been successfully delivered!
+Hello *${customerName}*, your FoodMaxx order *#${orderRef}* has been delivered successfully.
 
-We hope you thoroughly enjoy your feast!
-⭐ *Rate your food & rider experience:*
+We hope you enjoy your meal! ❤️
+
+⭐ *Rate your experience:*
 ${trackingUrl}&rate=true
 
-Have questions? We are always here on WhatsApp to assist you.`;
+*Delivery issue?* Contact Support: *${order.support_phone || '08166004281'}*
+
+*THANK YOU FOR CHOOSING FOODMAXX!* ❤️`;
+
+    case 'ORDER_DELAY':
+    case 'DELAY_NOTICE':
+      return `*ORDER DELAY NOTICE*
+
+Hello *${customerName}*, we’re sorry your order *#${orderRef}* is taking longer than expected.
+
+Our team is working to get your meal to you as quickly as possible.
+
+As an apology, enjoy *15%* off your next order with code *SORRY15*. We’ve also added *a chilled drink* to your order for your enjoyment. ❤️
+
+Thank you for your patience and for choosing *FoodMaxx*.`;
 
     case 'CANCELLED':
       return `*FOODMAXX ORDER CANCELLED* ⚠️
