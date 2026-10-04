@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-android:
     name: Build Android APK
@@ -53,13 +56,37 @@ jobs:
           cd client/android
           ./gradlew assembleDebug
 
-      - name: Upload Android APK
+      - name: Prepare Direct APK Asset
+        run: |
+          cp client/android/app/build/outputs/apk/debug/app-debug.apk client/android/app/build/outputs/apk/debug/FoodMaxx-Native.apk
+
+      - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: FoodMaxx-Android-APK
-          path: client/android/app/build/outputs/apk/debug/app-debug.apk
+          path: client/android/app/build/outputs/apk/debug/FoodMaxx-Native.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish Native APK to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: latest
+          name: "FoodMaxx 100% Native Mobile App (Latest)"
+          draft: false
+          prerelease: false
+          make_latest: true
+          body: |
+            ### 📱 FoodMaxx 100% Native Mobile App
+            - **100% Native Android App Container** (No Chrome Custom Tabs, no browser address bars, no phone browser features)
+            - **Push Notifications** with high-resolution banner photo support & auto-open on tap
+            - **Ultra-Fast Performance** with native audio synthesizer & haptic vibrations
+            - **Direct APK Download**: [FoodMaxx-Native.apk](https://github.com/bayorh20/foodmaxx/releases/download/latest/FoodMaxx-Native.apk)
+          files: |
+            client/android/app/build/outputs/apk/debug/FoodMaxx-Native.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-ios:
     name: Build iOS IPA

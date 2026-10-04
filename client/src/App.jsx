@@ -1098,6 +1098,101 @@ function CustomerPortal() {
     } catch { return {}; }
   });
 
+  // 100% Native Android Hardware Back Button Handling via Capacitor
+  useEffect(() => {
+    let removeListener = null;
+    let isSubscribed = true;
+
+    const initNativeBackButton = async () => {
+      try {
+        const { App: CapApp } = await import('@capacitor/app');
+        if (!isSubscribed) return;
+
+        const listener = await CapApp.addListener('backButton', () => {
+          // Priority 1: Dismiss active item preview / details
+          if (selectedItem) {
+            setSelectedItem(null);
+            return;
+          }
+          // Priority 2: Dismiss modals and sheets
+          if (checkoutOpen) {
+            setCheckoutOpen(false);
+            return;
+          }
+          if (cartOpen) {
+            setCartOpen(false);
+            return;
+          }
+          if (searchOpen) {
+            setSearchOpen(false);
+            return;
+          }
+          if (locationsModalOpen) {
+            setLocationsModalOpen(false);
+            return;
+          }
+          if (groupOrderSheetOpen) {
+            setGroupOrderSheetOpen(false);
+            return;
+          }
+          if (loginOpen) {
+            setLoginOpen(false);
+            return;
+          }
+          if (registerOpen) {
+            setRegisterOpen(false);
+            return;
+          }
+          if (supportOpen) {
+            setSupportOpen(false);
+            return;
+          }
+          if (walletOpen) {
+            setWalletOpen(false);
+            return;
+          }
+          if (notifsOpen) {
+            setNotifsOpen(false);
+            return;
+          }
+          if (toneModalOpen) {
+            setToneModalOpen(false);
+            return;
+          }
+          if (transitionModalOpen) {
+            setTransitionModalOpen(false);
+            return;
+          }
+          if (trackingOrder) {
+            setTrackingOrder(null);
+            return;
+          }
+          // Priority 3: Navigate sub-tabs back to home tab
+          if (activeTab !== 'home') {
+            setActiveTab('home');
+            return;
+          }
+          // Priority 4: Gracefully exit/minimize native app
+          CapApp.exitApp();
+        });
+
+        removeListener = listener.remove;
+      } catch (e) {
+        // Pure web browser or Capacitor App plugin not active
+      }
+    };
+
+    initNativeBackButton();
+    return () => {
+      isSubscribed = false;
+      if (typeof removeListener === 'function') removeListener();
+    };
+  }, [
+    selectedItem, checkoutOpen, cartOpen, searchOpen, locationsModalOpen,
+    groupOrderSheetOpen, loginOpen, registerOpen, supportOpen, walletOpen,
+    notifsOpen, toneModalOpen, transitionModalOpen, trackingOrder, activeTab
+  ]);
+
   useEffect(() => {
     const handleIconsUpdated = (e) => {
       if (e.detail?.nav_icons) setCustomNavIcons(e.detail.nav_icons);
@@ -1886,6 +1981,20 @@ function CustomerPortal() {
                   <p className="text-[11px] text-slate-300 font-medium line-clamp-2 mt-1 leading-relaxed">
                     {activeBroadcastBanner.message}
                   </p>
+
+                  {/* Attached Picture / Photo Banner */}
+                  {Boolean(activeBroadcastBanner.imageUrl || activeBroadcastBanner.image_url) &&
+                    (activeBroadcastBanner.imageUrl || activeBroadcastBanner.image_url) !== '/foodmaxx-logo.png' && (
+                    <div className="my-2 rounded-xl overflow-hidden border border-white/15 bg-black/40 shadow-inner max-h-48 w-full">
+                      <img
+                        src={activeBroadcastBanner.imageUrl || activeBroadcastBanner.image_url}
+                        alt="Notification Photo"
+                        className="w-full h-36 object-cover hover:scale-102 transition-transform duration-200"
+                        onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+                      />
+                    </div>
+                  )}
+
                   <div className="mt-2.5 flex items-center justify-between">
                     <button
                       type="button"

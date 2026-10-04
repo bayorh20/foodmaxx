@@ -700,24 +700,36 @@ button, [role="button"] {
 }
 
 /* 2. CARD SURFACES MUST HAVE LIGHT BACKGROUND COLOURS */
-.admin-portal-dark .bg-white {
+.admin-portal-dark .bg-white,
+.admin-portal-dark [class*="bg-white"],
+.admin-portal-dark .card-modern,
+.admin-portal-light .bg-white,
+.admin-portal-light [class*="bg-white"],
+.admin-theme-light .bg-white {
   background-color: #FFFFFF !important;
   border-color: #E2E8F0 !important;
+  color: #0F172A !important;
 }
 
 .admin-portal-dark .bg-slate-50,
 .admin-portal-dark .bg-slate-100,
 .admin-portal-dark .bg-gray-50,
-.admin-portal-dark .bg-gray-100 {
+.admin-portal-dark .bg-gray-100,
+.admin-portal-dark [class*="bg-slate-50"],
+.admin-portal-dark [class*="bg-slate-100"],
+.admin-portal-light .bg-slate-50,
+.admin-portal-light .bg-slate-100 {
   background-color: #F8FAFC !important;
   border-color: #E2E8F0 !important;
+  color: #0F172A !important;
 }
 
 .admin-portal-dark .border-slate-200,
 .admin-portal-dark .border-slate-200\/80,
 .admin-portal-dark .border-slate-300,
 .admin-portal-dark .border-gray-200,
-.admin-portal-dark .border-gray-300 {
+.admin-portal-dark .border-gray-300,
+.admin-portal-dark [class*="border-slate-200"] {
   border-color: #E2E8F0 !important;
 }
 
@@ -726,29 +738,36 @@ button, [role="button"] {
 .admin-portal-dark [class*="bg-\[\#FFF5F5\]"] {
   background-color: #FFF5F5 !important;
   border-color: #FECDD3 !important;
+  color: #0F172A !important;
 }
 .admin-portal-dark .bg-\[\#F0FDF4\],
 .admin-portal-dark [class*="bg-\[\#F0FDF4\]"] {
   background-color: #F0FDF4 !important;
   border-color: #A7F3D0 !important;
+  color: #0F172A !important;
 }
 .admin-portal-dark .bg-\[\#EFF6FF\],
 .admin-portal-dark [class*="bg-\[\#EFF6FF\]"] {
   background-color: #EFF6FF !important;
   border-color: #BFDBFE !important;
+  color: #0F172A !important;
 }
 .admin-portal-dark .bg-\[\#FFFBEB\],
 .admin-portal-dark [class*="bg-\[\#FFFBEB\]"] {
   background-color: #FFFBEB !important;
   border-color: #FDE68A !important;
+  color: #0F172A !important;
 }
 .admin-portal-dark .bg-\[\#FAF5FF\],
 .admin-portal-dark [class*="bg-\[\#FAF5FF\]"] {
   background-color: #FAF5FF !important;
   border-color: #E9D5FF !important;
+  color: #0F172A !important;
 }
 
-/* 4. High-Contrast Typography INSIDE Light Cards */
+/* 4. UNIVERSAL CONTRAST ENFORCEMENT: ALL TEXT INSIDE LIGHT CARDS MUST BE DARK & CRISP */
+
+/* A. Headings, titles & primary text: Deep dark slate (#0F172A) */
 .admin-portal-dark .bg-white h1,
 .admin-portal-dark .bg-white h2,
 .admin-portal-dark .bg-white h3,
@@ -757,55 +776,132 @@ button, [role="button"] {
 .admin-portal-dark .bg-white h6,
 .admin-portal-dark .bg-white strong,
 .admin-portal-dark .bg-white b,
+.admin-portal-dark .bg-white .font-black,
 .admin-portal-dark .bg-white .text-black,
 .admin-portal-dark .bg-white .text-slate-900,
+.admin-portal-dark .bg-white .text-slate-950,
 .admin-portal-dark .bg-white .text-gray-900,
 .admin-portal-dark .bg-white [class*="text-black"],
-.admin-portal-dark .bg-white span.text-black,
-.admin-portal-dark .bg-white span.font-black,
-.admin-portal-dark .bg-white span.font-mono,
-.admin-portal-dark [class*="bg-\[\#FFF5F5\]"] h3,
-.admin-portal-dark [class*="bg-\[\#FFF5F5\]"] p,
-.admin-portal-dark [class*="bg-\[\#FFF5F5\]"] span,
-.admin-portal-dark [class*="bg-\[\#F0FDF4\]"] h3,
-.admin-portal-dark [class*="bg-\[\#F0FDF4\]"] p,
-.admin-portal-dark [class*="bg-\[\#F0FDF4\]"] span,
-.admin-portal-dark [class*="bg-\[\#EFF6FF\]"] h3,
-.admin-portal-dark [class*="bg-\[\#EFF6FF\]"] p,
-.admin-portal-dark [class*="bg-\[\#EFF6FF\]"] span,
-.admin-portal-dark [class*="bg-\[\#FFFBEB\]"] h3,
-.admin-portal-dark [class*="bg-\[\#FFFBEB\]"] p,
-.admin-portal-dark [class*="bg-\[\#FFFBEB\]"] span,
-.admin-portal-dark [class*="bg-\[\#FAF5FF\]"] h3,
-.admin-portal-dark [class*="bg-\[\#FAF5FF\]"] p,
-.admin-portal-dark [class*="bg-\[\#FAF5FF\]"] span {
+.admin-portal-dark .bg-white [class*="text-slate-900"],
+.admin-portal-dark .bg-white .text-white:not(button):not(button *):not([class*="bg-[#EA4C2A]"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-purple"]):not([class*="bg-indigo"]):not([class*="bg-amber"]):not([class*="bg-red"]):not([class*="bg-black"]):not([class*="bg-slate-900"]),
+.admin-portal-dark .bg-white [class*="text-white"]:not(button):not(button *):not([class*="bg-[#EA4C2A]"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-purple"]):not([class*="bg-indigo"]):not([class*="bg-amber"]):not([class*="bg-red"]):not([class*="bg-black"]):not([class*="bg-slate-900"]),
+.admin-portal-dark .bg-white [class*="dark:text-white"]:not(button):not(button *):not([class*="bg-"]),
+.admin-portal-dark .bg-slate-50 h1,
+.admin-portal-dark .bg-slate-50 h2,
+.admin-portal-dark .bg-slate-50 h3,
+.admin-portal-dark .bg-slate-50 h4,
+.admin-portal-dark .bg-slate-50 strong,
+.admin-portal-dark .bg-slate-50 b,
+.admin-portal-dark .bg-slate-50 .text-white:not(button):not(button *):not([class*="bg-"]),
+.admin-portal-dark .bg-slate-50 [class*="text-white"]:not(button):not(button *):not([class*="bg-"]),
+.admin-portal-dark .bg-slate-100 h1,
+.admin-portal-dark .bg-slate-100 h2,
+.admin-portal-dark .bg-slate-100 h3,
+.admin-portal-dark [class*="bg-[#FFF5F5]"] h1,
+.admin-portal-dark [class*="bg-[#FFF5F5]"] h2,
+.admin-portal-dark [class*="bg-[#FFF5F5]"] h3,
+.admin-portal-dark [class*="bg-[#FFF5F5]"] p,
+.admin-portal-dark [class*="bg-[#FFF5F5]"] span,
+.admin-portal-dark [class*="bg-[#F0FDF4]"] h1,
+.admin-portal-dark [class*="bg-[#F0FDF4]"] h2,
+.admin-portal-dark [class*="bg-[#F0FDF4]"] h3,
+.admin-portal-dark [class*="bg-[#F0FDF4]"] p,
+.admin-portal-dark [class*="bg-[#F0FDF4]"] span,
+.admin-portal-dark [class*="bg-[#EFF6FF]"] h1,
+.admin-portal-dark [class*="bg-[#EFF6FF]"] h2,
+.admin-portal-dark [class*="bg-[#EFF6FF]"] h3,
+.admin-portal-dark [class*="bg-[#EFF6FF]"] p,
+.admin-portal-dark [class*="bg-[#EFF6FF]"] span,
+.admin-portal-dark [class*="bg-[#FFFBEB]"] h1,
+.admin-portal-dark [class*="bg-[#FFFBEB]"] h2,
+.admin-portal-dark [class*="bg-[#FFFBEB]"] h3,
+.admin-portal-dark [class*="bg-[#FFFBEB]"] p,
+.admin-portal-dark [class*="bg-[#FFFBEB]"] span,
+.admin-portal-dark [class*="bg-[#FAF5FF]"] h1,
+.admin-portal-dark [class*="bg-[#FAF5FF]"] h2,
+.admin-portal-dark [class*="bg-[#FAF5FF]"] h3,
+.admin-portal-dark [class*="bg-[#FAF5FF]"] p,
+.admin-portal-dark [class*="bg-[#FAF5FF]"] span {
   color: #0F172A !important;
 }
 
-.admin-portal-dark .bg-white p,
+/* B. Secondary text, labels & descriptions: Slate-800 (#1E293B) */
+/* Completely overrides light-on-light text-slate-200 and text-slate-300 */
+.admin-portal-dark .bg-white .text-slate-200,
+.admin-portal-dark .bg-white .text-slate-300,
+.admin-portal-dark .bg-white .text-gray-200,
+.admin-portal-dark .bg-white .text-gray-300,
+.admin-portal-dark .bg-white .text-zinc-200,
+.admin-portal-dark .bg-white .text-zinc-300,
+.admin-portal-dark .bg-white [class*="text-slate-200"],
+.admin-portal-dark .bg-white [class*="text-slate-300"],
+.admin-portal-dark .bg-white [class*="text-gray-200"],
+.admin-portal-dark .bg-white [class*="text-gray-300"],
+.admin-portal-dark .bg-white [class*="dark:text-slate-200"],
+.admin-portal-dark .bg-white [class*="dark:text-slate-300"],
+.admin-portal-dark [class*="bg-white"] .text-slate-200,
+.admin-portal-dark [class*="bg-white"] .text-slate-300,
+.admin-portal-dark [class*="bg-white"] [class*="text-slate-200"],
+.admin-portal-dark [class*="bg-white"] [class*="text-slate-300"],
+.admin-portal-dark [class*="bg-[#FFF"] .text-slate-200,
+.admin-portal-dark [class*="bg-[#FFF"] .text-slate-300,
+.admin-portal-dark [class*="bg-[#F0FDF4]"] .text-slate-200,
+.admin-portal-dark [class*="bg-[#F0FDF4]"] .text-slate-300,
+.admin-portal-dark [class*="bg-[#EFF6FF]"] .text-slate-200,
+.admin-portal-dark [class*="bg-[#EFF6FF]"] .text-slate-300,
+.admin-portal-dark .bg-slate-50 .text-slate-200,
+.admin-portal-dark .bg-slate-50 .text-slate-300,
+.admin-portal-dark .bg-slate-50 [class*="text-slate-200"],
+.admin-portal-dark .bg-slate-50 [class*="text-slate-300"],
+.admin-portal-dark [class*="bg-slate-50"] .text-slate-200,
+.admin-portal-dark [class*="bg-slate-50"] .text-slate-300,
+.admin-portal-dark .bg-slate-100 .text-slate-200,
+.admin-portal-dark .bg-slate-100 .text-slate-300,
+.admin-portal-dark [class*="bg-slate-100"] .text-slate-200,
+.admin-portal-dark [class*="bg-slate-100"] .text-slate-300,
 .admin-portal-dark .bg-white label,
-.admin-portal-dark .bg-white .text-slate-800,
-.admin-portal-dark .bg-white .text-slate-700,
-.admin-portal-dark .bg-white .text-gray-800,
-.admin-portal-dark .bg-white .text-gray-700,
 .admin-portal-dark .bg-slate-50 label,
-.admin-portal-dark .bg-slate-50 p {
-  color: #334155 !important;
+.admin-portal-dark [class*="bg-white"] label,
+.admin-portal-dark [class*="bg-slate-50"] label,
+.admin-portal-dark .bg-white p:not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-purple"]):not([class*="text-indigo"]),
+.admin-portal-dark .bg-slate-50 p:not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-purple"]):not([class*="text-indigo"]),
+.admin-portal-dark [class*="bg-white"] p:not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-purple"]):not([class*="text-indigo"]) {
+  color: #1E293B !important;
 }
 
-.admin-portal-dark .bg-white .text-slate-500,
+/* C. Muted text, timestamps & subtext: Slate-600 (#475569) */
+/* Guarantees at least 5.8:1 WCAG AA contrast ratio against white surfaces */
 .admin-portal-dark .bg-white .text-slate-400,
-.admin-portal-dark .bg-white .text-gray-500 {
-  color: #64748B !important;
+.admin-portal-dark .bg-white .text-slate-500,
+.admin-portal-dark .bg-white .text-gray-400,
+.admin-portal-dark .bg-white .text-gray-500,
+.admin-portal-dark .bg-white .text-zinc-400,
+.admin-portal-dark .bg-white [class*="text-slate-400"],
+.admin-portal-dark .bg-white [class*="text-slate-500"],
+.admin-portal-dark .bg-white [class*="text-gray-400"],
+.admin-portal-dark .bg-white [class*="text-gray-500"],
+.admin-portal-dark .bg-white [class*="dark:text-slate-400"],
+.admin-portal-dark .bg-slate-50 .text-slate-400,
+.admin-portal-dark .bg-slate-50 .text-slate-500,
+.admin-portal-dark .bg-slate-50 [class*="text-slate-400"],
+.admin-portal-dark .bg-slate-50 [class*="text-slate-500"],
+.admin-portal-dark .bg-slate-100 .text-slate-400,
+.admin-portal-dark .bg-slate-100 .text-slate-500,
+.admin-portal-dark [class*="bg-white"] .text-slate-400,
+.admin-portal-dark [class*="bg-white"] .text-slate-500 {
+  color: #475569 !important;
 }
 
-/* 5. Inputs, Textareas, Selects & Placeholders inside Cards */
+/* 5. Inputs, Textareas, Selects & Placeholders inside Light Cards */
 .admin-portal-dark .bg-white input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
 .admin-portal-dark .bg-white textarea,
 .admin-portal-dark .bg-white select,
 .admin-portal-dark .bg-slate-50 input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
 .admin-portal-dark .bg-slate-50 textarea,
-.admin-portal-dark .bg-slate-50 select {
+.admin-portal-dark .bg-slate-50 select,
+.admin-portal-dark [class*="bg-white"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+.admin-portal-dark [class*="bg-white"] textarea,
+.admin-portal-dark [class*="bg-white"] select {
   background-color: #FFFFFF !important;
   color: #0F172A !important;
   border-color: #CBD5E1 !important;
@@ -816,48 +912,62 @@ button, [role="button"] {
 .admin-portal-dark .bg-white select:focus,
 .admin-portal-dark .bg-slate-50 input:focus,
 .admin-portal-dark .bg-slate-50 textarea:focus,
-.admin-portal-dark .bg-slate-50 select:focus {
+.admin-portal-dark .bg-slate-50 select:focus,
+.admin-portal-dark [class*="bg-white"] input:focus,
+.admin-portal-dark [class*="bg-white"] textarea:focus,
+.admin-portal-dark [class*="bg-white"] select:focus {
   border-color: #EA4C2A !important;
   box-shadow: 0 0 0 2px rgba(234, 76, 42, 0.15) !important;
   background-color: #FFFFFF !important;
+  color: #0F172A !important;
 }
 
 .admin-portal-dark .bg-white input::placeholder,
 .admin-portal-dark .bg-white textarea::placeholder,
 .admin-portal-dark .bg-slate-50 input::placeholder,
-.admin-portal-dark .bg-slate-50 textarea::placeholder {
-  color: #94A3B8 !important;
+.admin-portal-dark .bg-slate-50 textarea::placeholder,
+.admin-portal-dark [class*="bg-white"] input::placeholder,
+.admin-portal-dark [class*="bg-white"] textarea::placeholder {
+  color: #64748B !important;
   opacity: 1 !important;
 }
 
 .admin-portal-dark .bg-white select option,
-.admin-portal-dark .bg-slate-50 select option {
+.admin-portal-dark .bg-slate-50 select option,
+.admin-portal-dark [class*="bg-white"] select option {
   background-color: #FFFFFF !important;
   color: #0F172A !important;
 }
 
 /* 6. Tables inside Light Cards */
-.admin-portal-dark .bg-white table {
+.admin-portal-dark .bg-white table,
+.admin-portal-dark [class*="bg-white"] table {
   color: #0F172A !important;
 }
 .admin-portal-dark .bg-white thead,
 .admin-portal-dark .bg-white thead tr,
-.admin-portal-dark .bg-white thead th {
+.admin-portal-dark .bg-white thead th,
+.admin-portal-dark [class*="bg-white"] thead th {
   background-color: #F8FAFC !important;
-  color: #334155 !important;
+  color: #0F172A !important;
+  font-weight: 800 !important;
   border-color: #E2E8F0 !important;
 }
-.admin-portal-dark .bg-white tbody tr {
+.admin-portal-dark .bg-white tbody tr,
+.admin-portal-dark [class*="bg-white"] tbody tr {
   border-color: #F1F5F9 !important;
 }
-.admin-portal-dark .bg-white tbody tr:hover {
+.admin-portal-dark .bg-white tbody tr:hover,
+.admin-portal-dark [class*="bg-white"] tbody tr:hover {
   background-color: #F8FAFC !important;
 }
-.admin-portal-dark .bg-white tbody td {
+.admin-portal-dark .bg-white tbody td,
+.admin-portal-dark [class*="bg-white"] tbody td {
   color: #0F172A !important;
   border-color: #F1F5F9 !important;
 }
-.admin-portal-dark .bg-white tbody td .font-mono {
+.admin-portal-dark .bg-white tbody td .font-mono,
+.admin-portal-dark [class*="bg-white"] tbody td .font-mono {
   color: #0F172A !important;
 }
 
@@ -865,48 +975,139 @@ button, [role="button"] {
   border-color: #F1F5F9 !important;
 }
 
-/* 7. Modals & Dialogs (Light Card Style) */
+/* 7. ALL ADMIN MODALS & POPUPS (Standardized to Clean Light Card Theme) */
+.admin-portal-dark .fixed.inset-0 .bg-\[\#121318\],
+.admin-portal-dark .fixed.inset-0 .bg-\[\#181A20\],
+.admin-portal-dark .fixed.inset-0 .bg-\[\#1A1C23\],
+.admin-portal-dark .fixed.inset-0 .bg-\[\#141720\],
+.admin-portal-dark .fixed.inset-0 .bg-\[\#0F1117\],
+.admin-portal-dark .fixed.inset-0 .bg-slate-900,
+.admin-portal-dark .fixed.inset-0 .bg-slate-800,
+.admin-portal-dark .fixed.inset-0 [class*="bg-\[\#121318\]"],
+.admin-portal-dark .fixed.inset-0 [class*="bg-\[\#181A20\]"],
+.admin-portal-dark .fixed.inset-0 [class*="bg-\[\#1A1C23\]"],
+.admin-portal-dark .fixed.inset-0 [role="dialog"],
 .admin-portal-dark [role="dialog"],
-.admin-portal-dark .fixed .bg-white {
+.admin-portal-dark .fixed .bg-white,
+.admin-portal-light .fixed.inset-0 [role="dialog"],
+.admin-portal-light [role="dialog"] {
   background-color: #FFFFFF !important;
-  border-color: #E2E8F0 !important;
+  border-color: #CBD5E1 !important;
   color: #0F172A !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
 }
+
+/* Modal Headers, Headings & Text across ALL modal types */
+.admin-portal-dark .fixed.inset-0 h1,
+.admin-portal-dark .fixed.inset-0 h2,
+.admin-portal-dark .fixed.inset-0 h3,
+.admin-portal-dark .fixed.inset-0 h4,
+.admin-portal-dark .fixed.inset-0 strong,
+.admin-portal-dark .fixed.inset-0 b,
+.admin-portal-dark .fixed.inset-0 .text-white:not(button):not(button *):not([class*="bg-[#EA4C2A]"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-purple"]):not([class*="bg-indigo"]):not([class*="bg-amber"]):not([class*="bg-red"]),
+.admin-portal-dark .fixed.inset-0 [class*="text-white"]:not(button):not(button *):not([class*="bg-[#EA4C2A]"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-purple"]):not([class*="bg-indigo"]):not([class*="bg-amber"]):not([class*="bg-red"]),
 .admin-portal-dark [role="dialog"] h1,
 .admin-portal-dark [role="dialog"] h2,
 .admin-portal-dark [role="dialog"] h3,
-.admin-portal-dark [role="dialog"] h4,
 .admin-portal-dark [role="dialog"] strong,
-.admin-portal-dark [role="dialog"] b {
+.admin-portal-dark [role="dialog"] .text-white:not(button):not(button *):not([class*="bg-"]) {
   color: #0F172A !important;
 }
+
+/* Modal Paragraphs, Labels & Descriptions */
+.admin-portal-dark .fixed.inset-0 p:not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-purple"]),
+.admin-portal-dark .fixed.inset-0 label,
+.admin-portal-dark .fixed.inset-0 .text-slate-200,
+.admin-portal-dark .fixed.inset-0 .text-slate-300,
+.admin-portal-dark .fixed.inset-0 .text-gray-200,
+.admin-portal-dark .fixed.inset-0 .text-gray-300,
+.admin-portal-dark .fixed.inset-0 .text-zinc-200,
+.admin-portal-dark .fixed.inset-0 .text-zinc-300,
+.admin-portal-dark .fixed.inset-0 [class*="text-slate-200"],
+.admin-portal-dark .fixed.inset-0 [class*="text-slate-300"],
 .admin-portal-dark [role="dialog"] p,
-.admin-portal-dark [role="dialog"] label {
-  color: #334155 !important;
+.admin-portal-dark [role="dialog"] label,
+.admin-portal-dark [role="dialog"] .text-slate-200,
+.admin-portal-dark [role="dialog"] .text-slate-300 {
+  color: #1E293B !important;
 }
-.admin-portal-dark [role="dialog"] input,
-.admin-portal-dark [role="dialog"] select,
-.admin-portal-dark [role="dialog"] textarea {
-  background-color: #FFFFFF !important;
+
+/* Modal Muted Subtext & Timestamps */
+.admin-portal-dark .fixed.inset-0 .text-slate-400,
+.admin-portal-dark .fixed.inset-0 .text-slate-500,
+.admin-portal-dark .fixed.inset-0 .text-gray-400,
+.admin-portal-dark .fixed.inset-0 .text-gray-500,
+.admin-portal-dark .fixed.inset-0 [class*="text-slate-400"],
+.admin-portal-dark .fixed.inset-0 [class*="text-slate-500"],
+.admin-portal-dark [role="dialog"] .text-slate-400,
+.admin-portal-dark [role="dialog"] .text-slate-500 {
+  color: #475569 !important;
+}
+
+/* Modal Inputs, Sub-panels & Selects */
+.admin-portal-dark .fixed.inset-0 input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+.admin-portal-dark .fixed.inset-0 textarea,
+.admin-portal-dark .fixed.inset-0 select,
+.admin-portal-dark .fixed.inset-0 .bg-\[\#1A1C23\],
+.admin-portal-dark .fixed.inset-0 .bg-\[\#181A20\],
+.admin-portal-dark .fixed.inset-0 .bg-\[\#141720\],
+.admin-portal-dark .fixed.inset-0 .bg-\[\#0F1117\],
+.admin-portal-dark .fixed.inset-0 .bg-slate-900,
+.admin-portal-dark .fixed.inset-0 .bg-slate-800,
+.admin-portal-dark [role="dialog"] input:not([type="checkbox"]):not([type="radio"]),
+.admin-portal-dark [role="dialog"] textarea,
+.admin-portal-dark [role="dialog"] select {
+  background-color: #F8FAFC !important;
   color: #0F172A !important;
   border-color: #CBD5E1 !important;
+}
+
+.admin-portal-dark .fixed.inset-0 input::placeholder,
+.admin-portal-dark .fixed.inset-0 textarea::placeholder,
+.admin-portal-dark [role="dialog"] input::placeholder,
+.admin-portal-dark [role="dialog"] textarea::placeholder {
+  color: #64748B !important;
+  opacity: 1 !important;
+}
+
+/* Modal Close & Secondary Buttons */
+.admin-portal-dark .fixed.inset-0 button.rounded-full,
+.admin-portal-dark .fixed.inset-0 button.rounded-xl.bg-\[\#1A1C23\],
+.admin-portal-dark .fixed.inset-0 button[class*="bg-\[\#1A1C23\]"],
+.admin-portal-dark .fixed.inset-0 button[class*="bg-\[\#181A20\]"],
+.admin-portal-dark .fixed.inset-0 button.border-\[\#262A36\]:not([class*="bg-[#EA4C2A]"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-blue"]) {
+  background-color: #F1F5F9 !important;
+  color: #1E293B !important;
+  border-color: #CBD5E1 !important;
+}
+.admin-portal-dark .fixed.inset-0 button.rounded-full:hover,
+.admin-portal-dark .fixed.inset-0 button.rounded-xl.bg-\[\#1A1C23\]:hover,
+.admin-portal-dark .fixed.inset-0 button[class*="bg-\[\#1A1C23\]"]:hover,
+.admin-portal-dark .fixed.inset-0 button[class*="bg-\[\#181A20\]"]:hover {
+  background-color: #E2E8F0 !important;
+  color: #0F172A !important;
 }
 
 /* 8. Neutral Action Buttons inside Cards */
 .admin-portal-dark .bg-white button.bg-slate-100,
 .admin-portal-dark .bg-white button.bg-slate-200,
-.admin-portal-dark .bg-white button.bg-gray-100 {
+.admin-portal-dark .bg-white button.bg-gray-100,
+.admin-portal-dark .bg-white button.bg-white,
+.admin-portal-dark [class*="bg-white"] button.bg-slate-100,
+.admin-portal-dark [class*="bg-white"] button.bg-slate-200 {
   background-color: #F1F5F9 !important;
   color: #0F172A !important;
   border-color: #CBD5E1 !important;
 }
 .admin-portal-dark .bg-white button.bg-slate-100:hover,
-.admin-portal-dark .bg-white button.bg-slate-200:hover {
+.admin-portal-dark .bg-white button.bg-slate-200:hover,
+.admin-portal-dark [class*="bg-white"] button.bg-slate-100:hover,
+.admin-portal-dark [class*="bg-white"] button.bg-slate-200:hover {
   background-color: #E2E8F0 !important;
   color: #0F172A !important;
 }
 
-/* 9. Buttons with Explicit Accent Backgrounds Keep Crisp White Text */
+/* 9. Buttons with Explicit Colored/Accent Backgrounds PRESERVE CRISP WHITE TEXT */
 .admin-portal-dark button[class*="bg-\[\#EA4C2A\]"],
 .admin-portal-dark button[class*="bg-emerald"],
 .admin-portal-dark button[class*="bg-rose"],
@@ -917,10 +1118,15 @@ button, [role="button"] {
 .admin-portal-dark button[class*="bg-amber-6"],
 .admin-portal-dark button[class*="bg-amber-7"],
 .admin-portal-dark [class*="bg-\[\#EA4C2A\]"] span,
+.admin-portal-dark [class*="bg-\[\#EA4C2A\]"] div,
 .admin-portal-dark [class*="bg-emerald-6"] span,
+.admin-portal-dark [class*="bg-emerald-7"] span,
 .admin-portal-dark [class*="bg-rose-6"] span,
+.admin-portal-dark [class*="bg-rose-7"] span,
 .admin-portal-dark [class*="bg-blue-6"] span,
+.admin-portal-dark [class*="bg-blue-7"] span,
 .admin-portal-dark [class*="bg-purple-6"] span,
+.admin-portal-dark [class*="bg-purple-7"] span,
 .admin-portal-dark [class*="bg-indigo-6"] span {
   color: #FFFFFF !important;
 }
@@ -928,8 +1134,9 @@ button, [role="button"] {
 /* 10. Links */
 .admin-portal-dark a.text-blue-700,
 .admin-portal-dark button.text-blue-700,
-.admin-portal-dark a.text-blue-600 {
-  color: #2563EB !important;
+.admin-portal-dark a.text-blue-600,
+.admin-portal-dark [class*="text-blue-700"] {
+  color: #1D4ED8 !important;
 }
 
 /* ============================================================

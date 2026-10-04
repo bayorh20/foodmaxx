@@ -315,12 +315,13 @@ export default function PushNotificationManager({ toast }) {
     if (permissionStatus !== 'granted') {
       await handleSubscribeCurrentDevice();
     }
-    playOrderNotificationSound(true);
-    triggerHaptic('success');
+    const photoUrl = imageUrl && imageUrl !== '/foodmaxx-logo.png' ? imageUrl : undefined;
     await triggerLocalPushNotification(title || '🔔 FoodMaxx Admin Test', {
       body: message || 'This is a test notification from FoodMaxx Admin.',
       url: url || '/',
-      icon: imageUrl || '/foodmaxx-logo.png',
+      icon: '/foodmaxx-logo.png',
+      image: photoUrl,
+      imageUrl: photoUrl,
       tag: `fmx_test_${Date.now()}`
     });
     if (toast) toast('Test notification fired on your screen! 🔔', 'success');
@@ -828,12 +829,12 @@ export default function PushNotificationManager({ toast }) {
                             {isEnabled ? 'Automated' : 'Disabled'}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 font-medium">{rule.description}</p>
+                        <p className="text-xs text-slate-600 font-bold">{rule.description}</p>
 
                         {/* Editable Notification Template Fields */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                           <div>
-                            <span className="text-[10px] font-bold text-slate-500 block mb-1">Title Template (#{'{ref}'})</span>
+                            <span className="text-[10px] font-black text-slate-700 block mb-1">Title Template (#{'{ref}'})</span>
                             <input
                               type="text"
                               value={rule.title || ''}
@@ -842,12 +843,12 @@ export default function PushNotificationManager({ toast }) {
                             />
                           </div>
                           <div>
-                            <span className="text-[10px] font-bold text-slate-500 block mb-1">Message Template ({'{rider}'})</span>
+                            <span className="text-[10px] font-black text-slate-700 block mb-1">Message Template ({'{rider}'})</span>
                             <input
                               type="text"
                               value={rule.message || ''}
                               onChange={e => handleUpdateRuleTemplate(ruleKey, 'message', e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-medium focus:bg-white focus:border-[#EA4C2A] outline-none"
+                              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-bold focus:bg-white focus:border-[#EA4C2A] outline-none"
                             />
                           </div>
                         </div>
@@ -921,7 +922,7 @@ export default function PushNotificationManager({ toast }) {
               <tbody className="divide-y divide-slate-100 font-medium">
                 {filteredTokens.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                    <td colSpan={5} className="py-8 text-center text-slate-700 font-bold">
                       No device tokens found yet. Click "Subscribe This Device" above or open the app on your phone!
                     </td>
                   </tr>
@@ -935,7 +936,7 @@ export default function PushNotificationManager({ toast }) {
 
                     return (
                       <tr key={tok.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2.5 px-3 font-mono text-slate-600">
+                        <td className="py-2.5 px-3 font-mono text-slate-800 font-bold">
                           <div className="flex items-center gap-1.5">
                             <span className="truncate max-w-[120px]">{tok.token ? `${tok.token.slice(0, 16)}...` : tok.id}</span>
                             {isCurrent && (
@@ -946,7 +947,7 @@ export default function PushNotificationManager({ toast }) {
                             <button
                               type="button"
                               onClick={() => handleCopy(tok.token || tok.id, tok.id)}
-                              className="text-slate-400 hover:text-slate-800 cursor-pointer ml-1"
+                              className="text-slate-600 hover:text-slate-900 cursor-pointer ml-1"
                               title="Copy Full Token"
                             >
                               {isCopied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
@@ -957,7 +958,7 @@ export default function PushNotificationManager({ toast }) {
                           {tok.user_id && tok.user_id !== 'anonymous_guest' ? (
                             <span className="text-[#EA4C2A]">{tok.user_id}</span>
                           ) : (
-                            <span className="text-slate-400">Anonymous Diner</span>
+                            <span className="text-slate-600 font-bold">Anonymous Diner</span>
                           )}
                         </td>
                         <td className="py-2.5 px-3">
@@ -970,14 +971,14 @@ export default function PushNotificationManager({ toast }) {
                             <span>{tok.platform || 'web'}</span>
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-slate-500 text-[11px]">
+                        <td className="py-2.5 px-3 text-slate-700 font-bold text-[11px]">
                           {tok.last_active ? new Date(tok.last_active).toLocaleString() : 'Recent'}
                         </td>
                         <td className="py-2.5 px-3 text-right">
                           <button
                             type="button"
                             onClick={() => handleDeleteToken(tok.id)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            className="p-1 rounded-lg text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Remove Device"
                           >
                             <Trash2 size={14} />
@@ -1005,7 +1006,7 @@ export default function PushNotificationManager({ toast }) {
 
           <div className="space-y-3">
             {logs.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-xs">
+              <div className="py-8 text-center text-slate-700 font-bold text-xs">
                 No broadcasts sent yet. Use the "Compose Broadcast" tab to send your first alert!
               </div>
             ) : (
@@ -1018,8 +1019,8 @@ export default function PushNotificationManager({ toast }) {
                         {log.target_platform || 'all'}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 font-medium">{log.message}</p>
-                    <div className="text-[10px] text-slate-500 flex items-center gap-2">
+                    <p className="text-xs text-slate-800 font-bold">{log.message}</p>
+                    <div className="text-[10px] text-slate-600 font-bold flex items-center gap-2">
                       <span>Sent by {log.sender || 'Admin'}</span>
                       <span>·</span>
                       <span>{log.created_at ? new Date(log.created_at).toLocaleString() : 'Just now'}</span>

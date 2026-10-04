@@ -536,11 +536,15 @@ export function subscribeToIncomingBroadcasts(onBroadcast) {
           playOrderNotificationSound(true);
           triggerHaptic('success');
 
+          const photoUrl = data.image_url && data.image_url !== '/foodmaxx-logo.png' ? data.image_url : undefined;
+
           // 2. Trigger native / OS push notification if granted
           triggerLocalPushNotification(data.title, {
             body: data.message,
             url: data.url || '/',
-            icon: data.image_url || '/foodmaxx-logo.png',
+            icon: '/foodmaxx-logo.png',
+            image: photoUrl,
+            imageUrl: photoUrl,
             tag: `fmx_broadcast_${logId}`
           }).catch(() => {});
 
@@ -687,10 +691,13 @@ export async function broadcastPushNotification({
   // 4. Play sound chime and trigger local test alert on active device immediately
   playOrderNotificationSound(true);
   triggerHaptic('success');
+  const photoUrl = imageUrl && imageUrl !== '/foodmaxx-logo.png' ? imageUrl : undefined;
   await triggerLocalPushNotification(cleanTitle, {
     body: cleanMessage,
     url,
-    icon: imageUrl,
+    icon: '/foodmaxx-logo.png',
+    image: photoUrl,
+    imageUrl: photoUrl,
     tag: `fmx_broadcast_${Date.now()}`
   }).catch(() => {});
 
