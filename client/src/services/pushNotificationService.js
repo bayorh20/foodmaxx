@@ -256,10 +256,17 @@ export async function configureNativePushListeners(userId = null) {
       }));
     });
 
-    // 4. On push notification tapped by user
+    // 4. On push notification tapped by user (forces app to open & navigate)
     await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
       const url = notification.notification.data?.url || '/';
-      if (typeof window !== 'undefined' && url) {
+      if (typeof window !== 'undefined') {
+        try { window.focus(); } catch {}
+        if (url.includes('tab=')) {
+          const tabParam = new URLSearchParams(url.split('?')[1]).get('tab');
+          if (tabParam) {
+            window.dispatchEvent(new CustomEvent('fmx_switch_tab', { detail: tabParam }));
+          }
+        }
         window.location.href = url;
       }
     });
@@ -272,12 +279,18 @@ export async function configureNativePushListeners(userId = null) {
 
 /**
  * Display a high-priority local push notification via Service Worker or Native Notification
+ * Touching the notification forces the app to open. No website links are shown.
  */
 export async function triggerLocalPushNotification(title, options = {}) {
+  // Strip any raw URLs from the visible message so website links are NEVER shown
+  const rawBody = options.body || 'New live update from FoodMaxx.';
+  const cleanBody = String(rawBody).replace(/https?:\/\/[^\s]+/gi, '').trim();
+
   const defaultOptions = {
-    body: options.body || 'New live update from FoodMaxx.',
+    body: cleanBody,
     icon: options.icon || '/foodmaxx-logo.png',
     badge: options.badge || '/favicon.svg',
+    image: options.image || options.imageUrl || options.image_url || undefined,
     tag: options.tag || `fmx_alert_${Date.now()}`,
     vibrate: [200, 100, 200],
     data: {
@@ -296,7 +309,24 @@ export async function triggerLocalPushNotification(title, options = {}) {
       }
     }
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, defaultOptions);
+      const notif = new Notification(title, defaultOptions);
+      notif.onclick = function(event) {
+        event.preventDefault();
+        try { window.focus(); } catch {}
+        const dest = options.url || '/';
+        if (typeof window !== 'undefined' && dest) {
+          if (dest.includes('tab=')) {
+            const tabParam = new URLSearchParams(dest.split('?')[1]).get('tab');
+            if (tabParam) {
+              window.dispatchEvent(new CustomEvent('fmx_switch_tab', { detail: tabParam }));
+            }
+          }
+          if (window.location.pathname !== dest && dest.startsWith('/')) {
+            window.location.href = dest;
+          }
+        }
+        notif.close();
+      };
       return true;
     }
   } catch (err) {
@@ -632,12 +662,16 @@ export async function broadcastPushNotification({
     return false;
   });
 
-  // 2. Record broadcast log in Firestore (triggers real-time onSnapshot on all devices!)
+  // 2. Strip any raw website URLs from visible title & message so links are never shown
+  const cleanTitle = String(title).replace(/https?:\/\/[^\s]+/gi, '').trim();
+  const cleanMessage = String(message).replace(/https?:\/\/[^\s]+/gi, '').trim();
+
+  // 3. Record broadcast log in Firestore (triggers real-time onSnapshot on all devices!)
   let logId = null;
   try {
     const logRef = await addDoc(collection(db, 'notification_logs'), {
-      title,
-      message,
+      title: cleanTitle,
+      message: cleanMessage,
       url,
       target_platform: targetPlatform,
       target_count: filtered.length || tokens.length || 1,
@@ -650,11 +684,11 @@ export async function broadcastPushNotification({
     console.warn('[FoodMaxx Push] Notice saving notification log:', e);
   }
 
-  // 3. Play sound chime and trigger local test alert on active device immediately
+  // 4. Play sound chime and trigger local test alert on active device immediately
   playOrderNotificationSound(true);
   triggerHaptic('success');
-  await triggerLocalPushNotification(title, {
-    body: message,
+  await triggerLocalPushNotification(cleanTitle, {
+    body: cleanMessage,
     url,
     icon: imageUrl,
     tag: `fmx_broadcast_${Date.now()}`
@@ -664,8 +698,8 @@ export async function broadcastPushNotification({
   window.dispatchEvent(new CustomEvent('fmx_broadcast_received', {
     detail: {
       id: logId || `bcast_${Date.now()}`,
-      title,
-      message,
+      title: cleanTitle,
+      message: cleanMessage,
       url,
       imageUrl,
       createdAt: new Date().toISOString()
@@ -676,9 +710,173 @@ export async function broadcastPushNotification({
     success: true,
     logId,
     recipientCount: filtered.length || tokens.length || 1,
-    title,
-    message
+    title: cleanTitle,
+    message: cleanMessage
   };
+}
+
+// ============================================================
+// AUTOMATED EVENT-BASED & CONDITIONAL PUSH NOTIFICATIONS
+// ============================================================
+export const DEFAULT_PUSH_EVENT_RULES = {
+  order_confirmed: {
+    id: 'order_confirmed',
+    name: 'Order Confirmed',
+    description: 'Triggered when diner places order and payment is verified',
+    icon: '🍔',
+    enabled: true,
+    title: '🍔 Order Confirmed! (#{ref})',
+    message: 'Your order has been received and queued in the FoodMaxx kitchen.'
+  },
+  order_preparing: {
+    id: 'order_preparing',
+    name: 'Cooking in Kitchen',
+    description: 'Triggered when kitchen begins grilling and preparing meal',
+    icon: '🍳',
+    enabled: true,
+    title: '🍳 Cooking in Kitchen! (#{ref})',
+    message: 'Our chef is actively grilling your meal. Fresh, hot, and delicious!'
+  },
+  order_ready: {
+    id: 'order_ready',
+    name: 'Packed & Ready for Rider',
+    description: 'Triggered when food is boxed and waiting for dispatch',
+    icon: '📦',
+    enabled: true,
+    title: '📦 Order Packed & Ready! (#{ref})',
+    message: 'Your meal is boxed hot and waiting for courier dispatch.'
+  },
+  order_on_the_way: {
+    id: 'order_on_the_way',
+    name: 'Rider on the Way',
+    description: 'Triggered when courier accepts order and heads out',
+    icon: '🛵',
+    enabled: true,
+    title: '🛵 Rider is on the Way! (#{ref})',
+    message: '{rider} is speeding towards your location! Have your delivery PIN ready.'
+  },
+  order_delivered: {
+    id: 'order_delivered',
+    name: 'Order Delivered',
+    description: 'Triggered upon delivery confirmation or OTP verification',
+    icon: '🎉',
+    enabled: true,
+    title: '🎉 Order Delivered! Enjoy! (#{ref})',
+    message: 'Your meal has arrived! Thank you for dining with FoodMaxx.'
+  },
+  order_cancelled: {
+    id: 'order_cancelled',
+    name: 'Order Cancelled',
+    description: 'Triggered if an order is cancelled or refunded',
+    icon: '⚠️',
+    enabled: true,
+    title: '⚠️ Order Cancelled (#{ref})',
+    message: 'Your order #{ref} has been cancelled. Reach out if you need assistance.'
+  },
+  order_delayed: {
+    id: 'order_delayed',
+    name: 'Kitchen Delay Alert (>25m)',
+    description: 'Triggered when preparation takes longer than standard queue time',
+    icon: '⏱️',
+    enabled: true,
+    title: '⏱️ Kitchen Update on #{ref}',
+    message: 'Taking extra care with your order to guarantee perfection. Almost ready!'
+  }
+};
+
+const PUSH_RULES_STORAGE_KEY = 'fmx_push_event_rules';
+
+/**
+ * Get configured automated push notification rules
+ */
+export function getAutomatedPushRules() {
+  if (typeof window === 'undefined') return DEFAULT_PUSH_EVENT_RULES;
+  try {
+    const saved = localStorage.getItem(PUSH_RULES_STORAGE_KEY);
+    if (!saved) return DEFAULT_PUSH_EVENT_RULES;
+    const parsed = JSON.parse(saved);
+    return { ...DEFAULT_PUSH_EVENT_RULES, ...parsed };
+  } catch {
+    return DEFAULT_PUSH_EVENT_RULES;
+  }
+}
+
+/**
+ * Save updated automated push notification rules
+ */
+export function saveAutomatedPushRules(newRules) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(PUSH_RULES_STORAGE_KEY, JSON.stringify(newRules));
+    window.dispatchEvent(new CustomEvent('fmx_push_rules_updated', { detail: newRules }));
+  } catch (e) {
+    console.warn('[FoodMaxx Push] Notice saving push rules:', e);
+  }
+}
+
+/**
+ * Dispatch an Automated Event-Based Push Notification for Order Status Updates
+ * @param {object} order - The order document
+ * @param {string} status - New order status (e.g. 'PREPARING', 'ON_THE_WAY', 'DELIVERED')
+ * @param {object} options - Optional rider details, custom notes, etc.
+ */
+export async function dispatchOrderStatusPushNotification(order, status, options = {}) {
+  if (!order || !status) return null;
+
+  // Map order status to event rule key
+  let ruleKey = null;
+  const s = String(status).toUpperCase();
+  if (s === 'ORDER_PLACED' || s === 'CONFIRMED') ruleKey = 'order_confirmed';
+  else if (s === 'PREPARING' || s === 'COOKING') ruleKey = 'order_preparing';
+  else if (s === 'READY_FOR_PICKUP' || s === 'READY') ruleKey = 'order_ready';
+  else if (s === 'ON_THE_WAY') ruleKey = 'order_on_the_way';
+  else if (s === 'DELIVERED') ruleKey = 'order_delivered';
+  else if (s === 'CANCELLED') ruleKey = 'order_cancelled';
+  else if (s === 'DELAYED') ruleKey = 'order_delayed';
+
+  if (!ruleKey) return null;
+
+  const allRules = getAutomatedPushRules();
+  const rule = allRules[ruleKey];
+  if (!rule || rule.enabled === false) {
+    console.log(`[FoodMaxx Push] Automated rule for event '${ruleKey}' is disabled.`);
+    return null;
+  }
+
+  const orderRef = order.order_reference || (order.id ? String(order.id).slice(0, 8) : 'FMX');
+  const riderName = options.rider?.name || options.rider?.full_name || order.rider_name || 'Your rider';
+
+  // Format title & message with variable replacement
+  let title = rule.title || `Order #${orderRef}`;
+  title = title.replace(/#\{ref\}/g, `#${orderRef}`).replace(/\{ref\}/g, orderRef);
+
+  let message = options.customMessage || rule.message || 'Status updated for your order.';
+  message = message
+    .replace(/#\{ref\}/g, `#${orderRef}`)
+    .replace(/\{ref\}/g, orderRef)
+    .replace(/\{rider\}/g, riderName);
+
+  if (options.notes && options.notes !== 'Status updated to ' + status) {
+    message += ` (${options.notes})`;
+  }
+
+  // Use food image from order item if available
+  const dishImage = order.items?.[0]?.image_url || order.items?.[0]?.image || '/foodmaxx-logo.png';
+  const targetUrl = order.id ? `/order-tracking/${order.id}` : '/';
+
+  try {
+    return await broadcastPushNotification({
+      title,
+      message,
+      url: targetUrl,
+      targetPlatform: 'all',
+      imageUrl: dishImage,
+      sender: `FoodMaxx Kitchen (${rule.name})`
+    });
+  } catch (err) {
+    console.warn('[FoodMaxx Push] Error dispatching order status notification:', err);
+    return null;
+  }
 }
 
 export default {
@@ -696,5 +894,9 @@ export default {
   getAllRegisteredPushTokens,
   deletePushToken,
   getNotificationBroadcastLogs,
-  broadcastPushNotification
+  broadcastPushNotification,
+  DEFAULT_PUSH_EVENT_RULES,
+  getAutomatedPushRules,
+  saveAutomatedPushRules,
+  dispatchOrderStatusPushNotification
 };

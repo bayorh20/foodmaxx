@@ -127,6 +127,7 @@ import {
   DEFAULT_SMS_CONFIG
 } from './smsNotificationSdk.js';
 import { generateAIAvatarForUser } from './aiAvatarService.js';
+import { dispatchOrderStatusPushNotification } from './pushNotificationService.js';
 
 const memoryStore = {};
 export const safeStorage = {
@@ -490,6 +491,11 @@ export const api = {
       } catch {}
 
       window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: created }));
+      
+      // Automatic Push Notification on Order Placement
+      try {
+        dispatchOrderStatusPushNotification(created, 'ORDER_PLACED');
+      } catch (err) {}
     } catch (e) {}
     return { success: true, data: created };
   },
@@ -499,12 +505,14 @@ export const api = {
       const updated = await assignLiveRider(id, rider, status);
       try {
         window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: updated }));
+        dispatchOrderStatusPushNotification(updated, status, { notes, rider });
       } catch (e) {}
       return { success: true, data: updated };
     }
     const updated = await updateLiveOrderStatus(id, status, notes);
     try {
       window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: updated }));
+      dispatchOrderStatusPushNotification(updated, status, { notes });
     } catch (e) {}
     return { success: true, data: updated };
   },
@@ -513,12 +521,21 @@ export const api = {
     const updated = await assignLiveRider(orderId, rider, status);
     try {
       window.dispatchEvent(new CustomEvent('fmx_order_updated', { detail: updated }));
+      dispatchOrderStatusPushNotification(updated, status, { rider });
     } catch (e) {}
     return { success: true, data: updated };
   },
 
   verifyOrderPIN: async (id, pin) => {
     const res = await verifyLiveOrderOtp(id, pin);
+    if (res?.success) {
+      try {
+        const orderSnap = await getLiveOrderById(id);
+        if (orderSnap) {
+          dispatchOrderStatusPushNotification(orderSnap, 'DELIVERED');
+        }
+      } catch (err) {}
+    }
     return { success: res.success, message: res.message };
   },
 

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Bell, Send, Smartphone, Globe, Apple, Check, Trash2, 
   RefreshCw, Sparkles, AlertCircle, Copy, CheckCircle, Flame, 
-  Zap, Clock, ArrowRight, ExternalLink, ShieldCheck, Tag, Users
+  Zap, Clock, ArrowRight, ExternalLink, ShieldCheck, Tag, Users,
+  Upload, Image as ImageIcon, X, Sliders, CheckCircle2
 } from 'lucide-react';
 import { 
   getAllRegisteredPushTokens, 
@@ -14,9 +15,14 @@ import {
   installPushNotifications,
   getPushPermissionStatus,
   getOrCreateDeviceId,
-  detectPlatform
+  detectPlatform,
+  getAutomatedPushRules,
+  saveAutomatedPushRules,
+  dispatchOrderStatusPushNotification,
+  DEFAULT_PUSH_EVENT_RULES
 } from '../services/pushNotificationService';
 import { playOrderNotificationSound, triggerHaptic } from '../services/nativeMobile';
+import { compressImageFile } from '../App';
 
 const QUICK_TEMPLATES = [
   {
@@ -69,12 +75,22 @@ const QUICK_TEMPLATES = [
   }
 ];
 
+const PRESET_PHOTOS = [
+  { label: 'FoodMaxx Logo', url: '/foodmaxx-logo.png' },
+  { label: 'Firewood Jollof', url: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=500&auto=format&fit=crop&q=80' },
+  { label: 'Grilled Turkey', url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80' },
+  { label: 'Smoky Suya', url: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&auto=format&fit=crop&q=80' },
+  { label: 'Amala Feast', url: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop&q=80' }
+];
+
 export default function PushNotificationManager({ toast }) {
-  const [subTab, setSubTab] = useState('compose'); // 'compose' | 'devices' | 'history'
+  const [subTab, setSubTab] = useState('compose'); // 'compose' | 'rules' | 'devices' | 'history'
   const [tokens, setTokens] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [broadcasting, setBroadcasting] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Device & Permission State
   const [currentDeviceId, setCurrentDeviceId] = useState('');
@@ -89,6 +105,10 @@ export default function PushNotificationManager({ toast }) {
   const [imageUrl, setImageUrl] = useState('/foodmaxx-logo.png');
   const [copiedId, setCopiedId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Automated Event Rules State
+  const [eventRules, setEventRules] = useState(getAutomatedPushRules());
+  const [testingRuleId, setTestingRuleId] = useState(null);
 
   // Load Tokens and Logs from Firestore
   const loadData = async () => {
@@ -160,26 +180,109 @@ export default function PushNotificationManager({ toast }) {
     }
   };
 
+  // Quick Emoji Injector
+  const handleAddEmoji = (emoji) => {
+    setTitle(prev => `${emoji} ${prev}`);
+  };
+
   // Apply Quick Template
   const handleApplyTemplate = (tpl) => {
     setTitle(tpl.title);
     setMessage(tpl.message);
-    setUrl(tpl.url);
-    setImageUrl(tpl.image);
-    triggerHaptic('selection');
-    if (toast) toast(`Applied "${tpl.label}" template! 📋`, 'info');
+    setUrl(tpl.url || '/');
+    setImageUrl(tpl.image || '/foodmaxx-logo.png');
+    if (toast) toast(`Applied "${tpl.label}" template ✨`, 'info');
   };
 
-  // Add Emoji to Title
-  const handleAddEmoji = (emoji) => {
-    setTitle(prev => `${prev} ${emoji}`);
+  // Photo Upload Handler (Local camera/file -> Compressed Data URL)
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const compressedDataUrl = await compressImageFile(file, 800, 0.8);
+      setImageUrl(compressedDataUrl);
+      if (toast) toast('Notification photo loaded and compressed! 📸', 'success');
+      playOrderNotificationSound(false);
+      triggerHaptic('success');
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      if (toast) toast('Failed to load image: ' + (err.message || 'Error'), 'error');
+    } finally {
+      setUploadingPhoto(false);
+      if (e.target) e.target.value = '';
+    }
   };
 
-  // Broadcast to all devices
+  // Toggle Automated Event Rule
+  const handleToggleRule = (ruleKey) => {
+    const current = eventRules[ruleKey] || {};
+    const updated = {
+      ...eventRules,
+      [ruleKey]: {
+        ...current,
+        enabled: current.enabled === false ? true : false
+      }
+    };
+    setEventRules(updated);
+    saveAutomatedPushRules(updated);
+    const isNowEnabled = updated[ruleKey].enabled;
+    if (toast) toast(`Event "${current.name || ruleKey}" is now ${isNowEnabled ? 'ACTIVE 🟢' : 'MUTED 🔴'}`, 'info');
+    triggerHaptic('medium');
+  };
+
+  // Edit Event Rule Template
+  const handleUpdateRuleTemplate = (ruleKey, field, value) => {
+    const updated = {
+      ...eventRules,
+      [ruleKey]: {
+        ...eventRules[ruleKey],
+        [field]: value
+      }
+    };
+    setEventRules(updated);
+    saveAutomatedPushRules(updated);
+  };
+
+  // Test-Fire an Automated Event Trigger
+  const handleTestEventTrigger = async (ruleKey) => {
+    setTestingRuleId(ruleKey);
+    try {
+      const mockOrder = {
+        id: 'ord_sample_99',
+        order_reference: 'FMX-7824',
+        rider_name: 'Babajide (Yamaha AG100)',
+        customer: { id: currentDeviceId, full_name: 'Diner VIP' },
+        items: [{ image_url: imageUrl || '/foodmaxx-logo.png' }]
+      };
+      
+      const statusMap = {
+        order_confirmed: 'ORDER_PLACED',
+        order_preparing: 'PREPARING',
+        order_ready: 'READY_FOR_PICKUP',
+        order_on_the_way: 'ON_THE_WAY',
+        order_delivered: 'DELIVERED',
+        order_cancelled: 'CANCELLED',
+        order_delayed: 'DELAYED'
+      };
+      
+      await dispatchOrderStatusPushNotification(mockOrder, statusMap[ruleKey] || 'PREPARING', {
+        rider: { name: 'Babajide (Courier 04)' },
+        customMessage: eventRules[ruleKey]?.message
+      });
+      if (toast) toast(`Sample alert fired for "${eventRules[ruleKey]?.name}"! 🔔`, 'success');
+    } catch (err) {
+      if (toast) toast('Trigger test failed: ' + (err.message || 'Error'), 'error');
+    } finally {
+      setTimeout(() => setTestingRuleId(null), 1000);
+    }
+  };
+
+  // Send Broadcast to Subscribers
   const handleSendBroadcast = async (e) => {
     e.preventDefault();
     if (!title.trim() || !message.trim()) {
-      if (toast) toast('Please fill in notification title and message.', 'warning');
+      if (toast) toast('Title and message cannot be empty', 'warning');
       return;
     }
 
@@ -190,13 +293,13 @@ export default function PushNotificationManager({ toast }) {
         message,
         url,
         targetPlatform,
-        imageUrl,
-        sender: 'FoodMaxx Kitchen Admin'
+        imageUrl: imageUrl || '/foodmaxx-logo.png',
+        sender: 'FoodMaxx Marketing Studio'
       });
 
-      playOrderNotificationSound(true);
-      triggerHaptic('success');
-      if (toast) toast(`🚀 Broadcast sent to ${res.recipientCount} device(s)!`, 'success');
+      if (toast) {
+        toast(`Broadcast delivered to ${res.recipientCount} active device(s)! 🚀`, 'success');
+      }
 
       // Refresh sent logs & devices
       loadData();
@@ -258,19 +361,28 @@ export default function PushNotificationManager({ toast }) {
 
   return (
     <div className="space-y-6 max-w-5xl">
+      {/* Hidden File Input for Image Upload */}
+      <input 
+        ref={fileInputRef} 
+        type="file" 
+        accept="image/*" 
+        onChange={handlePhotoUpload} 
+        className="hidden" 
+      />
+
       {/* 1. HEADER & CONTROLS */}
-      <div className="bg-white dark:bg-[#12151E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-orange-500/10 text-[#EA4C2A] flex items-center justify-center font-bold">
               <Bell size={22} />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                 Push Notification Studio
               </h2>
-              <p className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400">
-                Send real-time alerts & marketing broadcasts to installed Android APKs, iOS, and Web diners.
+              <p className="text-xs sm:text-sm font-bold text-slate-600">
+                Send rich broadcasts with photo uploads & automated kitchen event triggers to installed Android APKs and diners.
               </p>
             </div>
           </div>
@@ -281,7 +393,7 @@ export default function PushNotificationManager({ toast }) {
             type="button"
             onClick={loadData}
             disabled={loading}
-            className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             <span>Sync</span>
@@ -300,26 +412,26 @@ export default function PushNotificationManager({ toast }) {
       {/* 2. THIS DEVICE SUBSCRIPTION STATUS CARD */}
       <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs ${
         permissionStatus === 'granted'
-          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-200'
-          : 'bg-amber-500/10 border-amber-500/30 text-amber-950 dark:text-amber-200'
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+          : 'bg-amber-50 border-amber-300 text-amber-950'
       }`}>
         <div className="flex items-center gap-3">
           <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-            permissionStatus === 'granted' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'
+            permissionStatus === 'granted' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
           }`}>
             {permissionStatus === 'granted' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
           </div>
           <div>
             <div className="font-extrabold text-sm flex items-center gap-2 flex-wrap">
-              <span>{permissionStatus === 'granted' ? 'This Device is Registered & Ready' : 'This Device is Not Yet Subscribed to Push'}</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-900 text-white dark:bg-white dark:text-black font-bold">
+              <span>{permissionStatus === 'granted' ? 'This Device is Registered & Listening' : 'This Device is Not Yet Subscribed to Push'}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-900 text-white font-bold">
                 {detectPlatform()}
               </span>
             </div>
-            <p className="text-xs opacity-80 mt-0.5 font-medium">
+            <p className="text-xs text-slate-600 mt-0.5 font-medium">
               {permissionStatus === 'granted'
-                ? `Device ID: ${currentDeviceId} · Ready to receive instant kitchen and promotional alerts.`
-                : 'Enable notifications on this browser or APK so you can receive live broadcasts directly on this screen.'}
+                ? `Device ID: ${currentDeviceId} · Ready to receive real-time kitchen updates, order changes, and marketing alerts.`
+                : 'Enable notifications on this browser or APK to receive live order updates directly on this screen.'}
             </p>
           </div>
         </div>
@@ -339,60 +451,60 @@ export default function PushNotificationManager({ toast }) {
 
       {/* 3. SUBSCRIBER METRICS CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white dark:bg-[#12151E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subscribers</span>
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Subscribers</span>
             <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-[#EA4C2A] flex items-center justify-center font-bold">
               <Users size={16} />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{stats.total}</div>
-          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1">Total Registered</p>
+          <div className="text-2xl sm:text-3xl font-black text-slate-900">{stats.total}</div>
+          <p className="text-[11px] font-bold text-slate-500 mt-1">Total Registered</p>
         </div>
 
-        <div className="bg-white dark:bg-[#12151E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Android APK</span>
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Android APK</span>
             <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
               <Smartphone size={16} />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{stats.android}</div>
-          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1">Installed Devices</p>
+          <div className="text-2xl sm:text-3xl font-black text-slate-900">{stats.android}</div>
+          <p className="text-[11px] font-bold text-slate-500 mt-1">Installed Devices</p>
         </div>
 
-        <div className="bg-white dark:bg-[#12151E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">iOS / Apple</span>
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">iOS / Apple</span>
             <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center font-bold">
               <Apple size={16} />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{stats.ios}</div>
-          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1">iPhone & iPad</p>
+          <div className="text-2xl sm:text-3xl font-black text-slate-900">{stats.ios}</div>
+          <p className="text-[11px] font-bold text-slate-500 mt-1">iPhone & iPad</p>
         </div>
 
-        <div className="bg-white dark:bg-[#12151E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Web / PWA</span>
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Web / PWA</span>
             <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
               <Globe size={16} />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{stats.web}</div>
-          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1">Desktop & Mobile Web</p>
+          <div className="text-2xl sm:text-3xl font-black text-slate-900">{stats.web}</div>
+          <p className="text-[11px] font-bold text-slate-500 mt-1">Desktop & Mobile Web</p>
         </div>
       </div>
 
       {/* 4. SUB-TABS NAVIGATION */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 flex-wrap">
         <button
           type="button"
           onClick={() => setSubTab('compose')}
           className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 ${
             subTab === 'compose'
-              ? 'bg-[#EA4C2A] text-white shadow-xs shadow-orange-500/25'
-              : 'bg-white dark:bg-[#12151E] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700'
+              ? 'bg-[#EA4C2A] text-white shadow-xs'
+              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80'
           }`}
         >
           <Send size={15} />
@@ -400,11 +512,23 @@ export default function PushNotificationManager({ toast }) {
         </button>
         <button
           type="button"
+          onClick={() => setSubTab('rules')}
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 ${
+            subTab === 'rules'
+              ? 'bg-[#EA4C2A] text-white shadow-xs'
+              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80'
+          }`}
+        >
+          <Zap size={15} />
+          <span>Automated Event Rules</span>
+        </button>
+        <button
+          type="button"
           onClick={() => setSubTab('devices')}
           className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 ${
             subTab === 'devices'
-              ? 'bg-[#EA4C2A] text-white shadow-xs shadow-orange-500/25'
-              : 'bg-white dark:bg-[#12151E] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700'
+              ? 'bg-[#EA4C2A] text-white shadow-xs'
+              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80'
           }`}
         >
           <Smartphone size={15} />
@@ -415,8 +539,8 @@ export default function PushNotificationManager({ toast }) {
           onClick={() => setSubTab('history')}
           className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 ${
             subTab === 'history'
-              ? 'bg-[#EA4C2A] text-white shadow-xs shadow-orange-500/25'
-              : 'bg-white dark:bg-[#12151E] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700'
+              ? 'bg-[#EA4C2A] text-white shadow-xs'
+              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80'
           }`}
         >
           <Clock size={15} />
@@ -424,14 +548,14 @@ export default function PushNotificationManager({ toast }) {
         </button>
       </div>
 
-      {/* 5. TAB CONTENT */}
+      {/* 5. TAB 1: COMPOSE BROADCAST WITH PHOTO UPLOAD */}
       {subTab === 'compose' && (
         <div className="space-y-6">
           {/* Quick Marketing Templates */}
-          <div className="bg-white dark:bg-[#12151E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles size={16} className="text-[#EA4C2A]" />
-              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">
                 1-Click Marketing Templates
               </h3>
             </div>
@@ -441,12 +565,12 @@ export default function PushNotificationManager({ toast }) {
                   key={t.id}
                   type="button"
                   onClick={() => handleApplyTemplate(t)}
-                  className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1A1F2D] hover:border-[#EA4C2A] hover:bg-orange-50/50 dark:hover:bg-orange-950/20 text-left transition-all cursor-pointer group"
+                  className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:border-[#EA4C2A] hover:bg-orange-50/50 text-left transition-all cursor-pointer group"
                 >
-                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-[#EA4C2A] truncate">
+                  <div className="text-xs font-bold text-slate-900 group-hover:text-[#EA4C2A] truncate">
                     {t.label}
                   </div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                  <div className="text-[10px] text-slate-500 truncate mt-0.5">
                     {t.title}
                   </div>
                 </button>
@@ -457,10 +581,10 @@ export default function PushNotificationManager({ toast }) {
           {/* Main 2-Column Composer */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Form Column */}
-            <form onSubmit={handleSendBroadcast} className="lg:col-span-7 bg-white dark:bg-[#12151E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+            <form onSubmit={handleSendBroadcast} className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Notification Title *</label>
+                  <label className="text-xs font-bold text-slate-800">Notification Title *</label>
                   <div className="flex items-center gap-1">
                     {['🍗', '🔥', '🛵', '⚡', '🎉', '🎁'].map(em => (
                       <button
@@ -480,61 +604,117 @@ export default function PushNotificationManager({ toast }) {
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   placeholder="e.g. 🔥 Weekend Grills Special 20% OFF!"
-                  className="w-full bg-slate-50 dark:bg-[#0B0F19] border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white font-bold focus:bg-white dark:focus:bg-[#0B0F19] focus:border-[#EA4C2A] outline-none transition-all"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-bold focus:bg-white focus:border-[#EA4C2A] outline-none transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Message / Body *</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">Message / Body *</label>
                 <textarea
                   required
                   rows={3}
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   placeholder="e.g. Order smoky firewood party jollof and grilled turkey delivered in minutes..."
-                  className="w-full bg-slate-50 dark:bg-[#0B0F19] border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-xs sm:text-sm text-slate-900 dark:text-white font-medium focus:bg-white dark:focus:bg-[#0B0F19] focus:border-[#EA4C2A] outline-none transition-all resize-none"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs sm:text-sm text-slate-900 font-medium focus:bg-white focus:border-[#EA4C2A] outline-none transition-all resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Target Audience</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">Target Audience</label>
                   <select
                     value={targetPlatform}
                     onChange={e => setTargetPlatform(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#0B0F19] border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:border-[#EA4C2A] outline-none cursor-pointer"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:border-[#EA4C2A] outline-none cursor-pointer"
                   >
-                    <option value="all" className="bg-slate-900 text-white">All Devices ({stats.total})</option>
-                    <option value="android" className="bg-slate-900 text-white">Android APK Only ({stats.android})</option>
-                    <option value="ios" className="bg-slate-900 text-white">Apple iOS Only ({stats.ios})</option>
-                    <option value="web" className="bg-slate-900 text-white">Web Browser Only ({stats.web})</option>
+                    <option value="all">All Devices ({stats.total})</option>
+                    <option value="android">Android APK Only ({stats.android})</option>
+                    <option value="ios">Apple iOS Only ({stats.ios})</option>
+                    <option value="web">Web Browser Only ({stats.web})</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Action Destination Link</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">When Touched, Force App to Open:</label>
                   <select
                     value={url}
                     onChange={e => setUrl(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#0B0F19] border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:border-[#EA4C2A] outline-none cursor-pointer"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:border-[#EA4C2A] outline-none cursor-pointer"
                   >
-                    <option value="/" className="bg-slate-900 text-white">Home Screen (/)</option>
-                    <option value="/?tab=menu" className="bg-slate-900 text-white">Daily Kitchen Menu</option>
-                    <option value="/?tab=orders" className="bg-slate-900 text-white">Order Tracking Screen</option>
-                    <option value="/?tab=profile" className="bg-slate-900 text-white">User Profile & Wallet</option>
+                    <option value="/">Open App Home Screen</option>
+                    <option value="/?tab=menu">Open Kitchen Menu</option>
+                    <option value="/?tab=orders">Open Live Order Tracking</option>
+                    <option value="/?tab=profile">Open User Profile & Wallet</option>
                   </select>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Thumbnail Icon / Image</label>
-                <input
-                  type="text"
-                  value={imageUrl}
-                  onChange={e => setImageUrl(e.target.value)}
-                  placeholder="https://... or /foodmaxx-logo.png"
-                  className="w-full bg-slate-50 dark:bg-[#0B0F19] border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white font-medium focus:border-[#EA4C2A] outline-none"
-                />
+              {/* PHOTO UPLOAD & MEDIA ATTACHMENT */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon size={16} className="text-[#EA4C2A]" />
+                    <label className="text-xs font-bold text-slate-900">Notification Image / Photo Banner</label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    className="px-3 py-1.5 rounded-lg bg-[#EA4C2A] hover:bg-[#d83f1d] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                  >
+                    <Upload size={13} className={uploadingPhoto ? 'animate-bounce' : ''} />
+                    <span>{uploadingPhoto ? 'Uploading...' : 'Upload Photo'}</span>
+                  </button>
+                </div>
+
+                {/* Photo Preview & Quick Select */}
+                {imageUrl && (
+                  <div className="flex items-center gap-3 p-2 bg-white rounded-xl border border-slate-200">
+                    <img 
+                      src={imageUrl} 
+                      alt="Notification Attachment" 
+                      className="w-14 h-14 object-cover rounded-lg border border-slate-200 shrink-0 bg-slate-100" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-bold text-slate-900 truncate">
+                        {imageUrl.startsWith('data:') ? 'Custom Photo Uploaded (Ready to Send)' : imageUrl}
+                      </div>
+                      <div className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 mt-0.5">
+                        <CheckCircle2 size={12} /> Photo attached to push banner
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setImageUrl('/foodmaxx-logo.png')}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      title="Reset to default logo"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Preset Fast Photo Picks */}
+                <div>
+                  <div className="text-[11px] font-bold text-slate-500 mb-1.5">Or pick a delicious food preset:</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRESET_PHOTOS.map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => setImageUrl(p.url)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                          imageUrl === p.url 
+                            ? 'bg-[#EA4C2A] text-white border-[#EA4C2A]' 
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div className="pt-2">
@@ -566,8 +746,8 @@ export default function PushNotificationManager({ toast }) {
                 </div>
 
                 {/* Push Notification Card Mockup */}
-                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/15 shadow-lg">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/15 shadow-lg space-y-2">
+                  <div className="flex items-center justify-between gap-2 mb-1">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-4 h-4 rounded-md object-contain bg-white p-0.5" />
                       <span className="text-[10px] font-black text-white/80 uppercase tracking-wider truncate">FoodMaxx</span>
@@ -578,13 +758,20 @@ export default function PushNotificationManager({ toast }) {
                   <div className="text-xs font-bold text-white leading-snug line-clamp-2">
                     {title || 'Notification Title'}
                   </div>
-                  <div className="text-[11px] text-slate-300 font-medium leading-relaxed mt-0.5 line-clamp-3">
+                  <div className="text-[11px] text-slate-300 font-medium leading-relaxed line-clamp-3">
                     {message || 'Notification description will appear here on your customer lock screen...'}
                   </div>
 
+                  {/* Rich Photo Attachment Preview on Lock Screen */}
+                  {imageUrl && imageUrl !== '/foodmaxx-logo.png' && (
+                    <div className="rounded-xl overflow-hidden mt-2 border border-white/10 max-h-32">
+                      <img src={imageUrl} alt="Attached Media" className="w-full h-28 object-cover" />
+                    </div>
+                  )}
+
                   <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-[#EA4C2A] font-bold">
-                    <span>View Menu 🛵</span>
-                    <span className="text-slate-400">Dismiss</span>
+                    <span>Touch to Open App 📲</span>
+                    <span className="text-slate-400">FoodMaxx Express</span>
                   </div>
                 </div>
 
@@ -593,20 +780,119 @@ export default function PushNotificationManager({ toast }) {
               </div>
 
               <p className="text-[11px] text-slate-400 text-center mt-4">
-                Delivered instantly to notification tray with sound chime and haptic buzz.
+                Touching notification forces the FoodMaxx App to open immediately. No website links are shown.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* SUBTAB 2: REGISTERED DEVICES / SUBSCRIBERS */}
+      {/* 6. TAB 2: AUTOMATED EVENT-BASED & CONDITIONAL RULES */}
+      {subTab === 'rules' && (
+        <div className="space-y-6">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Zap size={20} className="text-[#EA4C2A]" />
+                  Automated Event-Based Push Notifications
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 font-medium mt-0.5">
+                  These notifications fire automatically in real time whenever an order status changes in the kitchen, courier is dispatched, or delay occurs.
+                </p>
+              </div>
+              <div className="text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 self-start sm:self-auto">
+                🟢 Live Event Engine Active
+              </div>
+            </div>
+
+            {/* List of Conditional Event Rules */}
+            <div className="space-y-3.5 divide-y divide-slate-100">
+              {Object.keys(eventRules).map(ruleKey => {
+                const rule = eventRules[ruleKey];
+                const isEnabled = rule.enabled !== false;
+                const isTesting = testingRuleId === ruleKey;
+
+                return (
+                  <div key={ruleKey} className="pt-3.5 first:pt-0 flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-lg shrink-0">
+                        {rule.icon || '🔔'}
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-black text-sm text-slate-900">{rule.name}</span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                            isEnabled ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'
+                          }`}>
+                            {isEnabled ? 'Automated' : 'Disabled'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium">{rule.description}</p>
+
+                        {/* Editable Notification Template Fields */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-500 block mb-1">Title Template (#{'{ref}'})</span>
+                            <input
+                              type="text"
+                              value={rule.title || ''}
+                              onChange={e => handleUpdateRuleTemplate(ruleKey, 'title', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-bold focus:bg-white focus:border-[#EA4C2A] outline-none"
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-500 block mb-1">Message Template ({'{rider}'})</span>
+                            <input
+                              type="text"
+                              value={rule.message || ''}
+                              onChange={e => handleUpdateRuleTemplate(ruleKey, 'message', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-medium focus:bg-white focus:border-[#EA4C2A] outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleTestEventTrigger(ruleKey)}
+                        disabled={isTesting}
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                        title="Simulate this event on your device"
+                      >
+                        <Zap size={13} className={isTesting ? 'text-amber-500 animate-spin' : 'text-slate-600'} />
+                        <span>{isTesting ? 'Firing...' : 'Test Trigger'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleRule(ruleKey)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isEnabled
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                            : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                        }`}
+                      >
+                        <span>{isEnabled ? 'Enabled' : 'Muted'}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. TAB 3: REGISTERED DEVICES / SUBSCRIBERS */}
       {subTab === 'devices' && (
-        <div className="bg-white dark:bg-[#12151E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-white">Active Device Subscriptions</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              <h3 className="text-base font-black text-slate-900">Active Device Subscriptions</h3>
+              <p className="text-xs text-slate-600 font-medium">
                 Devices currently listening for order status and marketing announcements.
               </p>
             </div>
@@ -616,14 +902,14 @@ export default function PushNotificationManager({ toast }) {
                 placeholder="Search user ID or platform..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-[#0B0F19] border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-[#EA4C2A]"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-[#EA4C2A] focus:bg-white"
               />
             </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-[#1A1F2D] border-y border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider">
+              <thead className="bg-slate-50 border-y border-slate-200 text-slate-700 font-bold uppercase tracking-wider">
                 <tr>
                   <th className="py-2.5 px-3">Device Token</th>
                   <th className="py-2.5 px-3">User Associated</th>
@@ -632,7 +918,7 @@ export default function PushNotificationManager({ toast }) {
                   <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {filteredTokens.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-slate-400">
@@ -648,26 +934,26 @@ export default function PushNotificationManager({ toast }) {
                     const isCurrent = tok.id === currentDeviceId;
 
                     return (
-                      <tr key={tok.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-300">
+                      <tr key={tok.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 px-3 font-mono text-slate-600">
                           <div className="flex items-center gap-1.5">
                             <span className="truncate max-w-[120px]">{tok.token ? `${tok.token.slice(0, 16)}...` : tok.id}</span>
                             {isCurrent && (
-                              <span className="px-1.5 py-0.5 rounded bg-orange-100 text-[#EA4C2A] dark:bg-orange-950/40 text-[10px] font-bold">
+                              <span className="px-1.5 py-0.5 rounded bg-orange-100 text-[#EA4C2A] text-[10px] font-bold">
                                 You
                               </span>
                             )}
                             <button
                               type="button"
                               onClick={() => handleCopy(tok.token || tok.id, tok.id)}
-                              className="text-slate-400 hover:text-slate-800 dark:hover:text-white cursor-pointer ml-1"
+                              className="text-slate-400 hover:text-slate-800 cursor-pointer ml-1"
                               title="Copy Full Token"
                             >
                               {isCopied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
                             </button>
                           </div>
                         </td>
-                        <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
+                        <td className="py-2.5 px-3 font-bold text-slate-900">
                           {tok.user_id && tok.user_id !== 'anonymous_guest' ? (
                             <span className="text-[#EA4C2A]">{tok.user_id}</span>
                           ) : (
@@ -676,22 +962,22 @@ export default function PushNotificationManager({ toast }) {
                         </td>
                         <td className="py-2.5 px-3">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            isAndroid ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' :
-                            isIos ? 'bg-indigo-50 text-indigo-800 border border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800' :
-                            'bg-blue-50 text-blue-800 border border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+                            isAndroid ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' :
+                            isIos ? 'bg-indigo-50 text-indigo-800 border border-indigo-300' :
+                            'bg-blue-50 text-blue-800 border border-blue-300'
                           }`}>
                             {isAndroid ? <Smartphone size={10} /> : isIos ? <Apple size={10} /> : <Globe size={10} />}
                             <span>{tok.platform || 'web'}</span>
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 text-[11px]">
+                        <td className="py-2.5 px-3 text-slate-500 text-[11px]">
                           {tok.last_active ? new Date(tok.last_active).toLocaleString() : 'Recent'}
                         </td>
                         <td className="py-2.5 px-3 text-right">
                           <button
                             type="button"
                             onClick={() => handleDeleteToken(tok.id)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Remove Device"
                           >
                             <Trash2 size={14} />
@@ -707,12 +993,12 @@ export default function PushNotificationManager({ toast }) {
         </div>
       )}
 
-      {/* SUBTAB 3: SENT BROADCAST HISTORY */}
+      {/* 8. TAB 4: SENT BROADCAST HISTORY */}
       {subTab === 'history' && (
-        <div className="bg-white dark:bg-[#12151E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
           <div>
-            <h3 className="text-base font-black text-slate-900 dark:text-white">Broadcast Audit Trail</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            <h3 className="text-base font-black text-slate-900">Broadcast Audit Trail</h3>
+            <p className="text-xs text-slate-600 font-medium">
               History of all announcements and promotions sent via Push Notifications.
             </p>
           </div>
@@ -724,16 +1010,16 @@ export default function PushNotificationManager({ toast }) {
               </div>
             ) : (
               logs.map(log => (
-                <div key={log.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#1A1F2D] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div key={log.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-sm text-slate-900 dark:text-white">{log.title}</span>
-                      <span className="px-2 py-0.5 rounded-full bg-orange-100 text-[#EA4C2A] dark:bg-orange-950/40 text-[10px] font-bold">
+                      <span className="font-extrabold text-sm text-slate-900">{log.title}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-orange-100 text-[#EA4C2A] text-[10px] font-bold">
                         {log.target_platform || 'all'}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">{log.message}</p>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <p className="text-xs text-slate-600 font-medium">{log.message}</p>
+                    <div className="text-[10px] text-slate-500 flex items-center gap-2">
                       <span>Sent by {log.sender || 'Admin'}</span>
                       <span>·</span>
                       <span>{log.created_at ? new Date(log.created_at).toLocaleString() : 'Just now'}</span>
@@ -741,7 +1027,7 @@ export default function PushNotificationManager({ toast }) {
                   </div>
 
                   <div className="shrink-0 flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-xs font-black">
+                    <span className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-black">
                       {log.target_count || 1} Targeted
                     </span>
                   </div>

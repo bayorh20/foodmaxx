@@ -110,6 +110,8 @@ self.addEventListener('fetch', (event) => {
 
 // ============================================================
 // WEB PUSH & BACKGROUND NOTIFICATION HANDLERS
+// Touching notification forces app to open and focus immediately.
+// No website links are shown to the user.
 // ============================================================
 self.addEventListener('push', (event) => {
   let data = {
@@ -131,19 +133,19 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  // Strip any raw website URLs from the visible body so links are never shown
+  let cleanBody = String(data.body || '').replace(/https?:\/\/[^\s]+/gi, '').trim();
+
   const options = {
-    body: data.body,
+    body: cleanBody,
     icon: data.icon || '/foodmaxx-logo.png',
     badge: data.badge || '/favicon.svg',
+    image: data.image || data.imageUrl || data.image_url || undefined,
     vibrate: [200, 100, 200],
     data: {
       url: data.url || '/',
       timestamp: Date.now()
-    },
-    actions: [
-      { action: 'track', title: 'View Order 🛵' },
-      { action: 'dismiss', title: 'Close' }
-    ]
+    }
   };
 
   event.waitUntil(
@@ -154,20 +156,21 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const targetUrl = event.notification.data?.url || '/';
+  const destPath = event.notification.data?.url || '/';
+  const targetUrl = new URL(destPath, self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // If a window is already open, focus it and navigate
-      for (let client of windowClients) {
-        if ('focus' in client) {
-          if (client.url.includes(self.location.origin)) {
-            client.navigate(targetUrl);
-            return client.focus();
+      // 1. If an app window/tab is already open, focus it, bring to front, and navigate
+      for (const client of windowClients) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          if ('navigate' in client) {
+            client.navigate(targetUrl).catch(() => {});
           }
+          return client.focus();
         }
       }
-      // If no window is open, open a new window to targetUrl
+      // 2. If app is closed, force open the app directly to targetUrl
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }
@@ -176,6 +179,6 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 self.addEventListener('notificationclose', (event) => {
-  // Optional telemetry or cleanup on dismiss
+  // Notification dismissed
 });
 
