@@ -2670,7 +2670,7 @@ function AdminKitchenSlipModal({ open, onClose, order, settings }) {
 const ADMIN_THEMES = {
   saas: {
     id: 'saas',
-    name: 'Modern SaaS (Reference)',
+    name: 'FoodMaxx Standard',
     icon: '✨',
     dot: '#EA4C2A',
     bg: '#F8F9FA',
@@ -2678,8 +2678,8 @@ const ADMIN_THEMES = {
     sidebarActive: '#202534',
     card: '#FFFFFF',
     border: '#E2E8F0',
-    text: '#000000',
-    subtext: '#111827',
+    text: '#111827',
+    subtext: '#475569',
     accent: '#EA4C2A',
     accentWarm: '#F59E0B'
   },
@@ -2688,54 +2688,58 @@ const ADMIN_THEMES = {
     name: 'FoodTech Emerald',
     icon: '🥗',
     dot: '#059669',
-    bg: '#0B0F19',
-    sidebar: '#0E1726',
-    card: '#111827',
-    border: '#1E293B',
-    text: '#F9FAFB',
-    subtext: '#CBD5E1',
+    bg: '#F8F9FA',
+    sidebar: '#12151E',
+    sidebarActive: '#202534',
+    card: '#FFFFFF',
+    border: '#E2E8F0',
+    text: '#111827',
+    subtext: '#475569',
     accent: '#059669',
     accentWarm: '#F59E0B'
   },
   charcoal: {
     id: 'charcoal',
-    name: 'Charcoal Pro',
+    name: 'Charcoal Slate',
     icon: '⬛',
-    dot: '#2A2E3D',
-    bg: '#0F1115',
-    sidebar: '#14171E',
-    card: '#1A1E27',
-    border: '#252B38',
-    text: '#F1F5F9',
-    subtext: '#CBD5E1',
+    dot: '#334155',
+    bg: '#F8F9FA',
+    sidebar: '#12151E',
+    sidebarActive: '#202534',
+    card: '#FFFFFF',
+    border: '#E2E8F0',
+    text: '#111827',
+    subtext: '#475569',
     accent: '#EA4C2A',
     accentWarm: '#F59E0B'
   },
   midnight: {
     id: 'midnight',
-    name: 'Midnight Cyber',
+    name: 'Midnight Ocean',
     icon: '🌌',
-    dot: '#1E2E4E',
-    bg: '#0A0F1D',
-    sidebar: '#0E1528',
-    card: '#131E38',
-    border: '#1E2F52',
-    text: '#F8FAFC',
-    subtext: '#CBD5E1',
-    accent: '#38BDF8',
+    dot: '#0284C7',
+    bg: '#F8F9FA',
+    sidebar: '#12151E',
+    sidebarActive: '#202534',
+    card: '#FFFFFF',
+    border: '#E2E8F0',
+    text: '#111827',
+    subtext: '#475569',
+    accent: '#0284C7',
     accentWarm: '#F59E0B'
   },
   forest: {
     id: 'forest',
     name: 'Nordic Forest',
     icon: '🌲',
-    dot: '#1B362F',
-    bg: '#091310',
-    sidebar: '#0D1B16',
-    card: '#122620',
-    border: '#1B3A31',
-    text: '#F0FDF4',
-    subtext: '#A7F3D0',
+    dot: '#10B981',
+    bg: '#F8F9FA',
+    sidebar: '#12151E',
+    sidebarActive: '#202534',
+    card: '#FFFFFF',
+    border: '#E2E8F0',
+    text: '#111827',
+    subtext: '#475569',
     accent: '#10B981',
     accentWarm: '#F59E0B'
   },
@@ -2743,42 +2747,45 @@ const ADMIN_THEMES = {
     id: 'amethyst',
     name: 'Royal Amethyst',
     icon: '🔮',
-    dot: '#2F204A',
-    bg: '#110C1B',
-    sidebar: '#171125',
-    card: '#201833',
-    border: '#2E2248',
-    text: '#FAF5FF',
-    subtext: '#E9D5FF',
-    accent: '#A855F7',
+    dot: '#9333EA',
+    bg: '#F8F9FA',
+    sidebar: '#12151E',
+    sidebarActive: '#202534',
+    card: '#FFFFFF',
+    border: '#E2E8F0',
+    text: '#111827',
+    subtext: '#475569',
+    accent: '#9333EA',
     accentWarm: '#F59E0B'
   },
   obsidian: {
     id: 'obsidian',
-    name: 'Obsidian OLED',
+    name: 'Obsidian Warm',
     icon: '⚫',
-    dot: '#222222',
-    bg: '#000000',
-    sidebar: '#080808',
-    card: '#101010',
-    border: '#1F1F1F',
-    text: '#FFFFFF',
-    subtext: '#E4E4E7',
-    accent: '#FF4B26',
+    dot: '#EA4C2A',
+    bg: '#F8F9FA',
+    sidebar: '#12151E',
+    sidebarActive: '#202534',
+    card: '#FFFFFF',
+    border: '#E2E8F0',
+    text: '#111827',
+    subtext: '#475569',
+    accent: '#EA4C2A',
     accentWarm: '#F59E0B'
   },
   light: {
     id: 'light',
-    name: 'Executive Light',
+    name: 'Executive Clean',
     icon: '☀️',
-    dot: '#E2E8F0',
-    bg: '#F8FAFC',
-    sidebar: '#FFFFFF',
+    dot: '#EA4C2A',
+    bg: '#F8F9FA',
+    sidebar: '#12151E',
+    sidebarActive: '#202534',
     card: '#FFFFFF',
     border: '#E2E8F0',
-    text: '#0F172A',
+    text: '#111827',
     subtext: '#475569',
-    accent: '#059669',
+    accent: '#EA4C2A',
     accentWarm: '#F59E0B'
   }
 };
@@ -2908,7 +2915,7 @@ function AdminPortal() {
 
   const [adminThemeKey, setAdminThemeKey] = useState(() => {
     const saved = localStorage.getItem('fmx_admin_theme');
-    return saved || 'foodtech';
+    return (saved === 'foodtech' || saved === 'charcoal' || saved === 'midnight' ? 'saas' : saved) || 'saas';
   });
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const currentAdminTheme = ADMIN_THEMES[adminThemeKey] || ADMIN_THEMES.saas;
@@ -4528,10 +4535,10 @@ function AdminPortal() {
 
   return (
     <div 
-      className={`min-h-screen flex flex-col md:flex-row antialiased font-sans selection:bg-[#EA4C2A] selection:text-white transition-colors duration-200 ${currentAdminTheme.id === 'saas' || currentAdminTheme.id === 'light' ? 'admin-portal-light bg-[#F8F9FA] text-slate-900 font-semibold' : 'admin-portal-dark dark'}`}
+      className="admin-portal-root admin-portal min-h-screen flex flex-col md:flex-row antialiased font-sans selection:bg-[#EA4C2A] selection:text-white transition-colors duration-200 bg-[#F8F9FA] text-[#111827]"
       style={{
-        backgroundColor: currentAdminTheme.bg,
-        color: currentAdminTheme.id === 'saas' || currentAdminTheme.id === 'light' ? '#0F172A' : currentAdminTheme.text
+        backgroundColor: '#F8F9FA',
+        color: '#111827'
       }}
     >
       {/* Mobile Top Header */}
@@ -4741,8 +4748,8 @@ function AdminPortal() {
 
       {/* Main Admin Viewport */}
       <main 
-        className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8 transition-colors duration-200"
-        style={{ backgroundColor: currentAdminTheme.bg }}
+        className="admin-main-viewport flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8 transition-colors duration-200"
+        style={{ backgroundColor: '#F8F9FA', color: '#111827' }}
       >
         {/* Top Header (Matching Reference Image) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -4755,7 +4762,7 @@ function AdminPortal() {
             <div>
               <h1 
                 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight"
-                style={{ color: currentAdminTheme.id === 'saas' || currentAdminTheme.id === 'light' ? '#0F172A' : '#F8FAFC' }}
+                style={{ color: '#111827' }}
               >
                 {activeSection === 'overview' ? 'Dashboard' :
                  activeSection === 'orders' ? 'Orders' :
@@ -4771,7 +4778,7 @@ function AdminPortal() {
               </h1>
               <p 
                 className="text-sm sm:text-base font-bold mt-0.5"
-                style={{ color: currentAdminTheme.id === 'saas' || currentAdminTheme.id === 'light' ? '#475569' : '#CBD5E1' }}
+                style={{ color: '#475569' }}
               >
                 Welcome back! Here's what's happening at FoodMaxx.
               </p>
@@ -4800,10 +4807,10 @@ function AdminPortal() {
             </button>
 
             {/* Restaurant Profile Pill */}
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-full shadow-xs">
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 rounded-full shadow-xs">
               <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-7 h-7 rounded-full object-cover border border-slate-200" />
-              <span className="text-sm font-black text-slate-900 dark:text-white">FoodMaxx</span>
-              <ChevronDown size={15} className="text-slate-600 dark:text-slate-300" />
+              <span className="text-sm font-black text-[#111827]">FoodMaxx</span>
+              <ChevronDown size={15} className="text-[#475569]" />
             </div>
 
             {/* Quick Loud Chime Audio Bell */}
@@ -4823,11 +4830,11 @@ function AdminPortal() {
               className={`p-2 rounded-full border text-xs font-bold transition-all cursor-pointer shadow-xs ${
                 orderSoundEnabled
                   ? 'bg-amber-100 border-amber-400 text-amber-900 hover:bg-amber-200'
-                  : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
               }`}
               title={orderSoundEnabled ? 'Kitchen Chime Active (Tap to Mute)' : 'Chime Muted (Tap to Enable)'}
             >
-              <Bell size={15} className={orderSoundEnabled ? 'fill-amber-600 text-amber-900' : 'text-slate-700 dark:text-slate-200'} />
+              <Bell size={15} className={orderSoundEnabled ? 'fill-amber-600 text-amber-900' : 'text-slate-700'} />
             </button>
 
             {/* Theme Picker */}
@@ -6103,12 +6110,12 @@ function AdminPortal() {
                           ? 'bg-[#EA4C2A] text-white shadow-xs'
                           : tab.isAlert && tab.count > 0 
                           ? 'bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100' 
-                          : 'bg-slate-100 text-black hover:bg-slate-200 border border-slate-300'
+                          : 'bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-300'
                       }`}
                     >
                       <span>{tab.label}</span>
                       <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-black ${
-                        active ? 'bg-black/25 text-white' : 'bg-slate-300 text-black'
+                        active ? 'bg-black/25 text-white' : 'bg-slate-200 text-slate-800'
                       }`}>
                         {tab.count}
                       </span>
@@ -6119,13 +6126,13 @@ function AdminPortal() {
 
               {/* Search input */}
               <div className="relative min-w-[240px]">
-                <Search size={14} className="absolute left-3 top-2.5 text-black" />
+                <Search size={14} className="absolute left-3 top-2.5 text-slate-500" />
                 <input
                   type="text"
                   placeholder="Search order ref, customer, phone..."
                   value={orderSearch}
                   onChange={e => setOrderSearch(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white transition-colors placeholder:text-slate-900"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-xs text-[#111827] font-bold outline-none focus:border-[#EA4C2A] focus:bg-white transition-colors placeholder:text-slate-500"
                 />
               </div>
             </div>
@@ -6440,7 +6447,7 @@ function AdminPortal() {
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     menuSubTab === 'dishes'
                       ? 'bg-[#EA4C2A] text-white shadow-xs'
-                      : 'text-black hover:text-[#EA4C2A] hover:bg-white'
+                      : 'text-slate-800 font-bold hover:text-[#EA4C2A] hover:bg-white'
                   }`}
                 >
                   🍽️ Dishes ({products.length})
@@ -6451,7 +6458,7 @@ function AdminPortal() {
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     menuSubTab === 'categories'
                       ? 'bg-[#EA4C2A] text-white shadow-xs'
-                      : 'text-black hover:text-[#EA4C2A] hover:bg-white'
+                      : 'text-slate-800 font-bold hover:text-[#EA4C2A] hover:bg-white'
                   }`}
                 >
                   📂 Category Manager ({categories.length})
@@ -6462,7 +6469,7 @@ function AdminPortal() {
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     menuSubTab === 'sections'
                       ? 'bg-[#EA4C2A] text-white shadow-xs'
-                      : 'text-black hover:text-[#EA4C2A] hover:bg-white'
+                      : 'text-slate-800 font-bold hover:text-[#EA4C2A] hover:bg-white'
                   }`}
                 >
                   ✨ Section Editor ({homepageSections.length})
@@ -7300,10 +7307,10 @@ function AdminPortal() {
                       className={`px-4 py-2 rounded-xl text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
                         active
                           ? 'bg-[#EA4C2A] text-white shadow-xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
                       }`}
                     >
-                      <Icon size={16} className={active ? 'text-white' : 'text-black'} />
+                      <Icon size={16} className={active ? 'text-white' : 'text-slate-700'} />
                       <span>{tab.label}</span>
                       {tab.badge && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-600 text-white animate-pulse">
@@ -7323,8 +7330,8 @@ function AdminPortal() {
               <div className="space-y-5">
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
                   <div>
-                    <h3 className="text-lg font-black text-black">Store Profile & Operating Schedule</h3>
-                    <p className="text-sm font-bold text-black mt-0.5">Basic brand contact info and live opening/closing controls.</p>
+                    <h3 className="text-lg font-black text-slate-900">Store Profile & Operating Schedule</h3>
+                    <p className="text-sm font-bold text-slate-600 mt-0.5">Basic brand contact info and live opening/closing controls.</p>
                   </div>
 
                   {/* Immediate Store Open/Close Orders Status */}

@@ -731,56 +731,56 @@ export default function PushNotificationManager({ toast }) {
             </form>
 
             {/* Live Phone Mockup Preview Column */}
-            <div className="lg:col-span-5 flex flex-col items-center justify-center bg-slate-900 border border-slate-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-              <div className="absolute top-3 left-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="phone-mockup phone-chassis lg:col-span-5 flex flex-col items-center justify-center bg-slate-900 border border-slate-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+              <div className="absolute top-3 left-4 text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Smartphone size={13} /> Live Lock Screen Preview
               </div>
 
-              <div className="w-full max-w-[290px] bg-slate-950/90 rounded-[32px] p-3 border-2 border-slate-700/80 shadow-2xl mt-4">
+              <div className="w-full max-w-[290px] bg-slate-950 rounded-[32px] p-3 border-2 border-slate-700 shadow-2xl mt-4">
                 {/* Speaker pill notch */}
                 <div className="w-16 h-3.5 bg-black rounded-full mx-auto mb-3" />
 
                 {/* Clock */}
                 <div className="text-center mb-4">
-                  <div className="text-3xl font-black tracking-tight text-white/90">12:30</div>
-                  <div className="text-[10px] text-slate-400 font-medium">Today</div>
+                  <div className="text-3xl font-black tracking-tight text-white">12:30</div>
+                  <div className="text-[10px] text-slate-300 font-semibold">Today</div>
                 </div>
 
                 {/* Push Notification Card Mockup */}
-                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/15 shadow-lg space-y-2">
+                <div className="bg-white text-slate-900 rounded-2xl p-3 border border-slate-200 shadow-xl space-y-2 text-left">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-4 h-4 rounded-md object-contain bg-white p-0.5" />
-                      <span className="text-[10px] font-black text-white/80 uppercase tracking-wider truncate">FoodMaxx</span>
+                      <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-4 h-4 rounded-md object-contain bg-white p-0.5 border border-slate-200" />
+                      <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider truncate">FoodMaxx</span>
                     </div>
-                    <span className="text-[9px] text-slate-400 font-medium">now</span>
+                    <span className="text-[9px] text-slate-500 font-semibold">now</span>
                   </div>
 
-                  <div className="text-xs font-bold text-white leading-snug line-clamp-2">
+                  <div className="text-xs font-black text-slate-950 leading-snug line-clamp-2">
                     {title || 'Notification Title'}
                   </div>
-                  <div className="text-[11px] text-slate-300 font-medium leading-relaxed line-clamp-3">
+                  <div className="text-[11px] text-slate-700 font-bold leading-relaxed line-clamp-3">
                     {message || 'Notification description will appear here on your customer lock screen...'}
                   </div>
 
                   {/* Rich Photo Attachment Preview on Lock Screen */}
                   {imageUrl && imageUrl !== '/foodmaxx-logo.png' && (
-                    <div className="rounded-xl overflow-hidden mt-2 border border-white/10 max-h-32">
+                    <div className="rounded-xl overflow-hidden mt-2 border border-slate-200 max-h-32">
                       <img src={imageUrl} alt="Attached Media" className="w-full h-28 object-cover" />
                     </div>
                   )}
 
-                  <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-[#EA4C2A] font-bold">
+                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-[#EA4C2A] font-black">
                     <span>Touch to Open App 📲</span>
-                    <span className="text-slate-400">FoodMaxx Express</span>
+                    <span className="text-slate-500 font-bold">FoodMaxx Express</span>
                   </div>
                 </div>
 
                 {/* Home Indicator bar */}
-                <div className="w-24 h-1 bg-white/30 rounded-full mx-auto mt-6 mb-1" />
+                <div className="w-24 h-1 bg-white/40 rounded-full mx-auto mt-6 mb-1" />
               </div>
 
-              <p className="text-[11px] text-slate-400 text-center mt-4">
+              <p className="text-[11px] text-slate-300 text-center mt-4">
                 Touching notification forces the FoodMaxx App to open immediately. No website links are shown.
               </p>
             </div>

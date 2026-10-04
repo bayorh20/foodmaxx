@@ -4848,15 +4848,29 @@ function ProfileTab({
       {/* App Version Info & Live OTA Update */}
       <div className="text-center pt-1 pb-4 flex flex-col items-center gap-1.5">
         <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-          FoodMaxx v2.4.1 · Ibadan, Nigeria
+          FoodMaxx v2.5.0 · Ibadan, Nigeria
         </p>
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
+            try {
+              if (typeof toast === 'function') toast('Checking for latest updates... 🔄', 'info');
+              const res = await fetch('/version.json?t=' + Date.now());
+              if (res.ok) {
+                const info = await res.json();
+                if (info.version && info.version !== '2.5.0' && info.downloadUrl) {
+                  if (typeof toast === 'function') toast(`New APK version v${info.version} available! 📲`, 'info');
+                  window.open(info.downloadUrl, '_system');
+                  return;
+                }
+              }
+            } catch (e) {
+              console.log('Update check error', e);
+            }
             if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
               navigator.serviceWorker.getRegistration().then(reg => {
                 if (reg) reg.update();
-                if (typeof toast === 'function') toast('Checking for live updates... 🔄', 'info');
+                if (typeof toast === 'function') toast('App is up to date! (v2.5.0) ✨', 'success');
                 setTimeout(() => window.location.reload(), 600);
               });
             } else {
