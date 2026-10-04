@@ -47,6 +47,7 @@ pnpm-debug.log*
 
 # Local binaries and zip packages
 *.apk
+*.aab
 *.zip
 *.keystore
 

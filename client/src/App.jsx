@@ -53,6 +53,7 @@ import {
   isPermissionBlocked, 
   dispatchWebNotification 
 } from './services/webNotificationService';
+import { autoInitPushNotifications, installPushNotifications } from './services/pushNotificationService';
 import {
   NOTIFICATION_TONES,
   getSelectedToneId,
@@ -885,9 +886,13 @@ function CustomerPortal() {
     }
   });
 
+  useEffect(() => {
+    autoInitPushNotifications(user?.id);
+  }, [user?.id]);
+
   const handleEnableNotificationPermission = async () => {
     try {
-      const perm = await requestNotificationPermission();
+      const perm = await requestNotificationPermission(user?.id);
       if (perm === 'granted') {
         toast('Live order alerts enabled! 🔔', 'success');
       }
@@ -4169,12 +4174,12 @@ function ProfileTab({
         if (typeof toast === 'function') toast('Test alert dispatched! 🔔', 'success');
       } catch {}
     } else {
-      const res = await requestNotificationPermission();
+      const res = await requestNotificationPermission(user?.id);
       setNotifState(res);
       if (res === 'granted' && typeof toast === 'function') {
         toast('Push notifications enabled! 🔔', 'success');
       } else if (res === 'denied' && typeof toast === 'function') {
-        toast('Notifications are blocked in browser settings. Please allow FoodMaxx in site permissions.', 'warning');
+        toast('Notifications are blocked in device/browser settings. Please enable notifications for FoodMaxx.', 'warning');
       }
     }
   };

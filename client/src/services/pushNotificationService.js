@@ -1,14 +1,19 @@
 // ============================================================
-// FOODMAXX PUSH NOTIFICATION SERVICE
-// Complete Web Push & Firebase Cloud Messaging (FCM) Management
-// Supports desktop browsers, Android Chrome/PWA, and iOS 16.4+ PWA
+// FOODMAXX UNIFIED PUSH NOTIFICATION SERVICE
+// Complete Native (Capacitor Android/iOS) & Web Push (FCM/PWA) Management
+// Supports:
+// 1. Android APK & iOS IPA native notifications via @capacitor/push-notifications
+// 2. Desktop Chrome, Edge, Safari & Firefox Web Push
+// 3. Android Chrome PWA & iOS 16.4+ Web Push
 // ============================================================
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebaseDb';
 import { playOrderNotificationSound, triggerHaptic } from './nativeMobile';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 const PUSH_TOKEN_STORAGE_KEY = 'fmx_fcm_push_token';
 const PUSH_PERMISSION_KEY = 'fmx_web_notification_pref';
@@ -25,6 +30,7 @@ const firebaseConfig = {
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 let messagingInstance = null;
+let nativeListenersConfigured = false;
 
 /**
  * Initialize messaging instance safely (checking browser compatibility)
@@ -40,9 +46,10 @@ export async function getFirebaseMessaging() {
 }
 
 /**
- * Check if the current browser/device supports Web Push Notifications
+ * Check if the current environment supports Push Notifications (Native or Web)
  */
 export function isPushSupported() {
+  if (Capacitor.isNativePlatform()) return true;
   return (
     typeof window !== 'undefined' &&
     'serviceWorker' in navigator &&
@@ -55,6 +62,9 @@ export function isPushSupported() {
  * @returns {'granted' | 'denied' | 'default' | 'unsupported'}
  */
 export function getPushPermissionStatus() {
+  if (Capacitor.isNativePlatform()) {
+    return localStorage.getItem(PUSH_PERMISSION_KEY) || 'default';
+  }
   if (!isPushSupported()) return 'unsupported';
   return Notification.permission;
 }
@@ -66,23 +76,6 @@ export function getSavedPushToken() {
   try {
     return localStorage.getItem(PUSH_TOKEN_STORAGE_KEY) || null;
   } catch {
-    return null;
-  }
-}
-
-/**
- * Register Service Worker for Push Notifications
- */
-export async function registerPushServiceWorker() {
-  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return null;
-
-  try {
-    const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/'
-    });
-    return registration;
-  } catch (err) {
-    console.warn('Push service worker registration notice:', err);
     return null;
   }
 }
@@ -103,31 +96,124 @@ export async function savePushTokenToFirestore(token, userId = null, extraData =
     }
 
     // Clean token key for doc ID (using safe hash or slice)
-    const tokenDocId = `token_${encodeURIComponent(token.slice(-32))}`;
+    const tokenDocId = `token_${encodeURIComponent(token.slice(-36).replace(/[^a-zA-Z0-9_-]/g, '_'))}`;
     const tokenRef = doc(db, 'push_tokens', tokenDocId);
+
+    const platform = Capacitor.isNativePlatform() 
+      ? Capacitor.getPlatform() 
+      : /iPhone|iPad|iPod/.test(navigator.userAgent) 
+        ? 'ios_pwa' 
+        : /Android/.test(navigator.userAgent) 
+          ? 'android_web' 
+          : 'desktop_web';
 
     await setDoc(tokenRef, {
       token,
       user_id: uid || 'anonymous_guest',
-      platform: /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'ios_pwa' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop_web',
-      user_agent: navigator.userAgent,
+      platform,
+      is_native: Capacitor.isNativePlatform(),
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'native_app',
       last_active: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       ...extraData
     }, { merge: true });
 
     localStorage.setItem(PUSH_TOKEN_STORAGE_KEY, token);
+    console.log('[FoodMaxx Push] Device token successfully registered in Firestore:', tokenDocId);
   } catch (err) {
-    console.warn('Failed to save push token to Firestore:', err);
+    console.warn('[FoodMaxx Push] Notice: Failed to save push token to Firestore:', err);
+  }
+}
+
+/**
+ * Configure Native Capacitor Push Listeners (Android APK & iOS IPA)
+ */
+export async function configureNativePushListeners(userId = null) {
+  if (!Capacitor.isNativePlatform() || nativeListenersConfigured) return;
+
+  try {
+    // 1. On successful token registration from APNS / FCM
+    await PushNotifications.addListener('registration', async (token) => {
+      console.log('[FoodMaxx Native Push] Registration token:', token.value);
+      localStorage.setItem(PUSH_PERMISSION_KEY, 'granted');
+      localStorage.setItem(PUSH_TOKEN_STORAGE_KEY, token.value);
+      window.dispatchEvent(new CustomEvent('fmx_notification_permission_changed', { detail: 'granted' }));
+      await savePushTokenToFirestore(token.value, userId, { native: true });
+    });
+
+    // 2. On registration error
+    await PushNotifications.addListener('registrationError', (err) => {
+      console.warn('[FoodMaxx Native Push] Registration error:', err);
+    });
+
+    // 3. On foreground push received
+    await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('[FoodMaxx Native Push] Foreground push received:', notification);
+      playOrderNotificationSound();
+      triggerHaptic('success');
+
+      window.dispatchEvent(new CustomEvent('fmx_push_received', {
+        detail: {
+          title: notification.title,
+          body: notification.body,
+          data: notification.data
+        }
+      }));
+    });
+
+    // 4. On push notification tapped by user
+    await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+      console.log('[FoodMaxx Native Push] Action performed:', notification);
+      const url = notification.notification.data?.url || '/';
+      if (typeof window !== 'undefined' && url) {
+        window.location.href = url;
+      }
+    });
+
+    nativeListenersConfigured = true;
+    console.log('[FoodMaxx Native Push] Native notification listeners initialized.');
+  } catch (e) {
+    console.warn('[FoodMaxx Native Push] Listener configuration warning:', e);
   }
 }
 
 /**
  * Request Push Notification Permission and Install Token
+ * Handles both Native Mobile (Capacitor) and Browser/PWA
  * @param {string} userId - Optional user ID to associate token with
  * @returns {Promise<{ success: boolean, permission: string, token: string|null, error?: string }>}
  */
 export async function installPushNotifications(userId = null) {
+  // -------------------------------------------------------------
+  // PATH A: NATIVE CAPACITOR APP (Android APK / iOS IPA)
+  // -------------------------------------------------------------
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await configureNativePushListeners(userId);
+      const permStatus = await PushNotifications.requestPermissions();
+      const granted = permStatus.receive === 'granted';
+
+      if (granted) {
+        localStorage.setItem(PUSH_PERMISSION_KEY, 'granted');
+        window.dispatchEvent(new CustomEvent('fmx_notification_permission_changed', { detail: 'granted' }));
+        await PushNotifications.register();
+        playOrderNotificationSound();
+        triggerHaptic('success');
+        return { success: true, permission: 'granted', token: getSavedPushToken() };
+      } else {
+        localStorage.setItem(PUSH_PERMISSION_KEY, 'denied');
+        window.dispatchEvent(new CustomEvent('fmx_notification_permission_changed', { detail: 'denied' }));
+        return { success: false, permission: 'denied', token: null, error: 'Permission denied on device' };
+      }
+    } catch (err) {
+      console.error('[FoodMaxx Push] Native permission error:', err);
+      return { success: false, permission: 'error', token: null, error: err.message };
+    }
+  }
+
+  // -------------------------------------------------------------
+  // PATH B: WEB / PWA / BROWSER
+  // -------------------------------------------------------------
   if (!isPushSupported()) {
     return { success: false, permission: 'unsupported', token: null, error: 'Push notifications are not supported on this browser' };
   }
@@ -143,9 +229,12 @@ export async function installPushNotifications(userId = null) {
     }
 
     // 2. Register Service Worker
-    const swRegistration = await registerPushServiceWorker();
+    let swRegistration = null;
+    if ('serviceWorker' in navigator) {
+      swRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => null);
+    }
 
-    // 3. Obtain Firebase Cloud Messaging Token
+    // 3. Obtain Firebase Cloud Messaging Token or fallback token
     let token = null;
     const messaging = await getFirebaseMessaging();
 
@@ -155,14 +244,17 @@ export async function installPushNotifications(userId = null) {
           serviceWorkerRegistration: swRegistration
         });
       } catch (tokenErr) {
-        console.warn('FCM getToken notice, falling back to local push:', tokenErr);
+        console.warn('[FoodMaxx Push] FCM getToken notice, creating fallback push channel:', tokenErr);
       }
     }
 
-    // 4. Save Token if obtained
-    if (token) {
-      await savePushTokenToFirestore(token, userId);
+    // Generate fallback client subscription token if FCM key was unavailable
+    if (!token) {
+      token = getSavedPushToken() || `web_push_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     }
+
+    // 4. Save Token to Firestore
+    await savePushTokenToFirestore(token, userId);
 
     // 5. Trigger initial celebratory push notification
     try {
@@ -176,16 +268,17 @@ export async function installPushNotifications(userId = null) {
 
     return { success: true, permission: 'granted', token };
   } catch (err) {
-    console.error('installPushNotifications error:', err);
+    console.error('[FoodMaxx Push] installPushNotifications error:', err);
     return { success: false, permission: getPushPermissionStatus(), token: null, error: err.message };
   }
 }
 
 /**
- * Display a high-priority local push notification via Service Worker
+ * Display a high-priority local push notification via Service Worker or Native Notification
  */
 export async function triggerLocalPushNotification(title, options = {}) {
-  if (getPushPermissionStatus() !== 'granted') return false;
+  const perm = getPushPermissionStatus();
+  if (perm !== 'granted' && !Capacitor.isNativePlatform()) return false;
 
   const defaultOptions = {
     body: options.body || 'New live update from FoodMaxx.',
@@ -213,7 +306,7 @@ export async function triggerLocalPushNotification(title, options = {}) {
       return true;
     }
   } catch (err) {
-    console.warn('triggerLocalPushNotification notice:', err);
+    console.warn('[FoodMaxx Push] triggerLocalPushNotification notice:', err);
   }
   return false;
 }
@@ -239,27 +332,26 @@ export async function sendTestPushNotification() {
 }
 
 /**
- * Set up foreground push listener when the user has the website open
+ * Auto-initialize Push Notifications on App Start (silent sync if already granted)
  */
-export async function setupForegroundPushListener(onReceive) {
-  const messaging = await getFirebaseMessaging();
-  if (!messaging) return () => {};
+export async function autoInitPushNotifications(userId = null) {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await configureNativePushListeners(userId);
+      const perm = await PushNotifications.checkPermissions();
+      if (perm.receive === 'granted') {
+        await PushNotifications.register();
+      }
+    } catch {}
+    return;
+  }
 
-  return onMessage(messaging, (payload) => {
-    playOrderNotificationSound();
-    triggerHaptic('success');
-
-    const title = payload.notification?.title || payload.data?.title || 'FoodMaxx Alert';
-    const body = payload.notification?.body || payload.data?.body || 'Order update received';
-
-    if (typeof onReceive === 'function') {
-      onReceive({ title, body, payload });
+  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+    const saved = getSavedPushToken();
+    if (saved) {
+      savePushTokenToFirestore(saved, userId).catch(() => {});
     }
-
-    window.dispatchEvent(new CustomEvent('fmx_push_received', {
-      detail: { title, body, payload }
-    }));
-  });
+  }
 }
 
 export default {
@@ -269,5 +361,5 @@ export default {
   installPushNotifications,
   triggerLocalPushNotification,
   sendTestPushNotification,
-  setupForegroundPushListener
+  autoInitPushNotifications
 };

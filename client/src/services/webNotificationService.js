@@ -5,6 +5,7 @@
 // ============================================================
 
 import { playOrderNotificationSound } from './nativeMobile';
+import { installPushNotifications, autoInitPushNotifications } from './pushNotificationService';
 
 const IN_APP_NOTIFICATIONS_KEY = 'fmx_inapp_notifications';
 const PERMISSION_KEY = 'fmx_web_notification_pref';
@@ -101,28 +102,23 @@ export function flashTabTitle(alertText, durationMs = 12000) {
  * Request notification permission from the user
  * @returns {Promise<'granted' | 'denied' | 'default' | 'unsupported'>}
  */
-export async function requestNotificationPermission() {
-  if (!isNotificationSupported()) return 'unsupported';
-  
+export async function requestNotificationPermission(userId = null) {
   try {
-    const permission = await Notification.requestPermission();
-    localStorage.setItem(PERMISSION_KEY, permission);
-    window.dispatchEvent(new CustomEvent('fmx_notification_permission_changed', { detail: permission }));
-    
-    // If granted, immediately send a test welcome notification so the user confirms it works
-    if (permission === 'granted') {
-      try {
-        await dispatchWebNotification('🔔 FoodMaxx Notifications Active!', {
-          body: 'You will receive live tracking alerts when your food is cooking and on the way.',
-          tag: 'fmx_welcome_notif'
-        });
-      } catch {}
-    }
-
-    return permission;
+    const pushResult = await installPushNotifications(userId);
+    return pushResult.permission || (isNotificationSupported() ? Notification.permission : 'unsupported');
   } catch (err) {
-    console.warn('Notification permission request error:', err);
-    return Notification.permission;
+    console.warn('Push notification installation warning, fallback to direct browser prompt:', err);
+    if (isNotificationSupported()) {
+      try {
+        const permission = await Notification.requestPermission();
+        localStorage.setItem(PERMISSION_KEY, permission);
+        window.dispatchEvent(new CustomEvent('fmx_notification_permission_changed', { detail: permission }));
+        return permission;
+      } catch {
+        return Notification.permission;
+      }
+    }
+    return 'unsupported';
   }
 }
 

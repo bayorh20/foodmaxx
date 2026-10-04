@@ -1,8 +1,13 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "com.foodmaxx.app",
-        "sha256_cert_fingerprints": ["D5:D0:78:00:FC:AA:2E:0D:77:39:86:F6:D8:9D:8A:D1:04:ED:6A:5E:0E:90:9C:FE:37:15:07:53:2F:38:9C:D0"]
-      }
-    }]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.foodmaxx.app",
+      "sha256_cert_fingerprints": [
+        "5D:41:3D:86:32:95:B6:CC:4C:20:44:15:19:1D:B9:99:17:56:06:A3:89:B3:C5:18:89:33:C7:A3:4C:0E:4A:03",
+        "D5:D0:78:00:FC:AA:2E:0D:77:39:86:F6:D8:9D:8A:D1:04:ED:6A:5E:0E:90:9C:FE:37:15:07:53:2F:38:9C:D0"
+      ]
+    }
+  }
+]
