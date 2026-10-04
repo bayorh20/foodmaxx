@@ -53,7 +53,11 @@ import {
   isPermissionBlocked, 
   dispatchWebNotification 
 } from './services/webNotificationService';
-import { autoInitPushNotifications, installPushNotifications } from './services/pushNotificationService';
+import { 
+  autoInitPushNotifications, 
+  installPushNotifications, 
+  subscribeToIncomingBroadcasts 
+} from './services/pushNotificationService';
 import {
   NOTIFICATION_TONES,
   getSelectedToneId,
@@ -886,15 +890,41 @@ function CustomerPortal() {
     }
   });
 
+  const [activeBroadcastBanner, setActiveBroadcastBanner] = useState(null);
+
   useEffect(() => {
     autoInitPushNotifications(user?.id);
+
+    // Real-time Push Broadcast Receiver across all devices (Native APK + Web)
+    const unsub = subscribeToIncomingBroadcasts((broadcast) => {
+      setActiveBroadcastBanner(broadcast);
+      setTimeout(() => {
+        setActiveBroadcastBanner(prev => prev?.id === broadcast.id ? null : prev);
+      }, 10000);
+    });
+
+    const handleCustomBroadcastEvent = (e) => {
+      if (e.detail) {
+        setActiveBroadcastBanner(e.detail);
+        setTimeout(() => {
+          setActiveBroadcastBanner(prev => prev?.id === e.detail.id ? null : prev);
+        }, 10000);
+      }
+    };
+    window.addEventListener('fmx_broadcast_received', handleCustomBroadcastEvent);
+
+    return () => {
+      unsub();
+      window.removeEventListener('fmx_broadcast_received', handleCustomBroadcastEvent);
+    };
   }, [user?.id]);
 
   const handleEnableNotificationPermission = async () => {
     try {
+      await installPushNotifications(user?.id);
       const perm = await requestNotificationPermission(user?.id);
       if (perm === 'granted') {
-        toast('Live order alerts enabled! 🔔', 'success');
+        toast('Live order & marketing alerts enabled! 🔔', 'success');
       }
     } catch {}
     setShowNotificationPrompt(false);
@@ -1829,6 +1859,59 @@ function CustomerPortal() {
               )}
             </motion.div>
           </div>
+
+          {/* Live In-App Broadcast Slide-Down Alert Banner */}
+          {activeBroadcastBanner && (
+            <div className="fixed top-3 left-3 right-3 sm:left-auto sm:right-6 sm:w-96 z-[999999] pointer-events-auto">
+              <div className="bg-[#12151E]/95 backdrop-blur-xl border-2 border-[#EA4C2A]/60 text-white p-4 rounded-2xl shadow-2xl shadow-black/60 flex items-start gap-3">
+                <img
+                  src={activeBroadcastBanner.imageUrl || activeBroadcastBanner.image_url || '/foodmaxx-logo.png'}
+                  alt="FoodMaxx"
+                  className="w-10 h-10 rounded-xl object-contain bg-white p-1 shrink-0 border border-white/20 shadow-sm"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1 mb-0.5">
+                    <span className="text-[10px] font-black text-[#EA4C2A] uppercase tracking-wider">FoodMaxx Special</span>
+                    <button
+                      onClick={() => setActiveBroadcastBanner(null)}
+                      className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                      title="Dismiss"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <h4 className="text-xs sm:text-sm font-black text-white leading-snug line-clamp-2">
+                    {activeBroadcastBanner.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-300 font-medium line-clamp-2 mt-1 leading-relaxed">
+                    {activeBroadcastBanner.message}
+                  </p>
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const dest = activeBroadcastBanner.url || '/';
+                        setActiveBroadcastBanner(null);
+                        if (dest.includes('tab=')) {
+                          const tabParam = new URLSearchParams(dest.split('?')[1]).get('tab');
+                          if (tabParam) setActiveTab(tabParam);
+                        } else if (dest.startsWith('/')) {
+                          window.history.pushState(null, '', dest);
+                          window.dispatchEvent(new PopStateEvent('popstate'));
+                        } else {
+                          window.location.href = dest;
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-[#EA4C2A] hover:bg-[#d83f1d] active:scale-95 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>Check It Out 🛵</span>
+                    </button>
+                    <span className="text-[10px] text-slate-400 font-medium">Just now</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Simple & Clean Web Notification Permission Prompt on App Open */}
           {showNotificationPrompt && appStage === 'ready' && (

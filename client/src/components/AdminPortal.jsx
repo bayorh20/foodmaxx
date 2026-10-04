@@ -4753,7 +4753,10 @@ function AdminPortal() {
               className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-contain bg-white p-1 border border-slate-300 shadow-sm shrink-0"
             />
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-black tracking-tight">
+              <h1 
+                className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight"
+                style={{ color: currentAdminTheme.id === 'saas' || currentAdminTheme.id === 'light' ? '#0F172A' : '#F8FAFC' }}
+              >
                 {activeSection === 'overview' ? 'Dashboard' :
                  activeSection === 'orders' ? 'Orders' :
                  activeSection === 'products' ? 'Menu' :
@@ -4766,7 +4769,10 @@ function AdminPortal() {
                  activeSection === 'group_orders' ? 'Group Orders' :
                  activeSection === 'settings' ? 'Settings' : 'Dashboard'}
               </h1>
-              <p className="text-sm sm:text-base text-black font-bold mt-0.5">
+              <p 
+                className="text-sm sm:text-base font-bold mt-0.5"
+                style={{ color: currentAdminTheme.id === 'saas' || currentAdminTheme.id === 'light' ? '#475569' : '#CBD5E1' }}
+              >
                 Welcome back! Here's what's happening at FoodMaxx.
               </p>
             </div>
@@ -4785,19 +4791,19 @@ function AdminPortal() {
               }`}
             >
               <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${settings.is_open !== false ? 'bg-emerald-600 animate-pulse' : 'bg-rose-600'}`} />
-              <span className="text-black font-black">
+              <span className={`font-black ${settings.is_open !== false ? 'text-emerald-950' : 'text-rose-950'}`}>
                 {settings.is_open !== false ? 'Open for Orders' : 'Close for Orders'}
               </span>
-              <span className="text-xs font-black text-black bg-white/90 px-2 py-0.5 rounded-md border border-slate-300">
+              <span className={`text-xs font-black px-2 py-0.5 rounded-md border ${settings.is_open !== false ? 'bg-emerald-100/90 text-emerald-950 border-emerald-300' : 'bg-rose-100/90 text-rose-950 border-rose-300'}`}>
                 {settings.is_open !== false ? 'Tap to Close' : 'Tap to Open'}
               </span>
             </button>
 
             {/* Restaurant Profile Pill */}
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 rounded-full shadow-xs">
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-full shadow-xs">
               <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-7 h-7 rounded-full object-cover border border-slate-200" />
-              <span className="text-sm font-black text-black">FoodMaxx</span>
-              <ChevronDown size={15} className="text-black" />
+              <span className="text-sm font-black text-slate-900 dark:text-white">FoodMaxx</span>
+              <ChevronDown size={15} className="text-slate-600 dark:text-slate-300" />
             </div>
 
             {/* Quick Loud Chime Audio Bell */}
@@ -4816,12 +4822,12 @@ function AdminPortal() {
               }}
               className={`p-2 rounded-full border text-xs font-bold transition-all cursor-pointer shadow-xs ${
                 orderSoundEnabled
-                  ? 'bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200'
-                  : 'bg-slate-100 border-slate-300 text-black'
+                  ? 'bg-amber-100 border-amber-400 text-amber-900 hover:bg-amber-200'
+                  : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200'
               }`}
               title={orderSoundEnabled ? 'Kitchen Chime Active (Tap to Mute)' : 'Chime Muted (Tap to Enable)'}
             >
-              <Bell size={15} className={orderSoundEnabled ? 'fill-amber-600 text-amber-800' : 'text-black'} />
+              <Bell size={15} className={orderSoundEnabled ? 'fill-amber-600 text-amber-900' : 'text-slate-700 dark:text-slate-200'} />
             </button>
 
             {/* Theme Picker */}

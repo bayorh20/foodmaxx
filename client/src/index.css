@@ -669,7 +669,10 @@ button, [role="button"] {
 .admin-portal-dark .bg-white h4,
 .admin-portal-dark .bg-white h5,
 .admin-portal-dark .bg-white h6,
-.admin-portal-dark .text-black,
+.admin-portal-dark .bg-white .text-black,
+.admin-portal-dark [class*="bg-white"] .text-black,
+.admin-portal-dark .bg-slate-50 .text-black,
+.admin-portal-dark .bg-slate-100 .text-black,
 .admin-portal-dark .admin-light-override {
   color: #000000 !important;
 }
