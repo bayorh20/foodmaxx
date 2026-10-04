@@ -24,6 +24,7 @@ import { getStoredPaystackConfig, savePaystackConfig } from '../services/paystac
 import { getAppContent, saveAppContent, resetAppContent, fetchLiveAppContent, subscribeLiveAppContent, getCopy, DEFAULT_APP_CONTENT } from '../services/appContent';
 import { getStoreDetails, updateStoreDetails, DEFAULT_STORE_DETAILS } from '../config/storeDetails';
 import NotificationToneModal from './NotificationToneModal';
+import PushNotificationManager from './PushNotificationManager';
 import { HAPPY_FEMALE_AVATARS, HAPPY_MALE_AVATARS } from '../utils/avatarUtils';
 import { useAuth, useToast, useWS, useTheme, fmt, statusLabel, statusColor, getStatusEmoji, getStatusNotificationInfo, compressImageFile, getItemSizeAndExtras } from '../App';
 
@@ -4005,6 +4006,13 @@ function AdminPortal() {
   }
 
   function handleNavChange(section) {
+    if (section === 'group_orders') {
+      setActiveSection('orders');
+      setOrderFilterStatus('group_orders');
+      setMobileNavOpen(false);
+      loadSection('orders');
+      return;
+    }
     setActiveSection(section);
     setMobileNavOpen(false);
     loadSection(section);
@@ -4510,6 +4518,7 @@ function AdminPortal() {
     { id: 'reports', icon: BarChart2, label: 'Reports' },
     { id: 'zones', icon: MapPin, label: 'Delivery Areas' },
     { id: 'promotions', icon: Tag, label: 'Discounts' },
+    { id: 'notifications', icon: Bell, label: 'Push Notifications' },
     { id: 'settings', icon: Settings, label: 'Settings' },
   ];
 
@@ -4753,6 +4762,8 @@ function AdminPortal() {
                  activeSection === 'reports' ? 'Reports' :
                  activeSection === 'zones' ? 'Delivery Areas' :
                  activeSection === 'promotions' ? 'Discounts' :
+                 activeSection === 'notifications' ? 'Push Notifications' :
+                 activeSection === 'group_orders' ? 'Group Orders' :
                  activeSection === 'settings' ? 'Settings' : 'Dashboard'}
               </h1>
               <p className="text-sm sm:text-base text-black font-bold mt-0.5">
@@ -9584,6 +9595,13 @@ function AdminPortal() {
               </button>
             </div>
           </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB 10: PUSH NOTIFICATIONS MANAGEMENT */}
+        {/* ============================================================ */}
+        {activeSection === 'notifications' && (
+          <PushNotificationManager toast={toast} />
         )}
       </main>
 

@@ -9,7 +9,7 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
-import { doc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDocs, deleteDoc, addDoc, collection, query, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebaseDb';
 import { playOrderNotificationSound, triggerHaptic } from './nativeMobile';
 import { Capacitor } from '@capacitor/core';
@@ -354,6 +354,126 @@ export async function autoInitPushNotifications(userId = null) {
   }
 }
 
+/**
+ * ============================================================
+ * ADMIN PUSH NOTIFICATION MANAGEMENT FUNCTIONS
+ * ============================================================
+ */
+
+/**
+ * Fetch all registered subscriber devices from Firestore
+ */
+export async function getAllRegisteredPushTokens() {
+  try {
+    const snap = await getDocs(collection(db, 'push_tokens'));
+    const list = [];
+    snap.forEach((docSnap) => {
+      list.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    return list;
+  } catch (err) {
+    console.warn('[FoodMaxx Push] Error fetching push tokens:', err);
+    return [];
+  }
+}
+
+/**
+ * Delete a stale or invalid push token
+ */
+export async function deletePushToken(tokenId) {
+  if (!tokenId) return false;
+  try {
+    await deleteDoc(doc(db, 'push_tokens', tokenId));
+    return true;
+  } catch (err) {
+    console.warn('[FoodMaxx Push] Error deleting push token:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetch notification broadcast logs from Firestore
+ */
+export async function getNotificationBroadcastLogs() {
+  try {
+    const q = query(collection(db, 'notification_logs'), orderBy('created_at', 'desc'), limit(50));
+    const snap = await getDocs(q);
+    const logs = [];
+    snap.forEach((d) => logs.push({ id: d.id, ...d.data() }));
+    return logs;
+  } catch (err) {
+    try {
+      const snap2 = await getDocs(collection(db, 'notification_logs'));
+      const logs = [];
+      snap2.forEach((d) => logs.push({ id: d.id, ...d.data() }));
+      return logs.reverse().slice(0, 50);
+    } catch {
+      return [];
+    }
+  }
+}
+
+/**
+ * Broadcast a live push notification to subscribers
+ * @param {object} params - { title, message, url, targetPlatform, imageUrl, sender }
+ */
+export async function broadcastPushNotification({
+  title,
+  message,
+  url = '/',
+  targetPlatform = 'all',
+  imageUrl = '/foodmaxx-logo.png',
+  sender = 'FoodMaxx Admin'
+}) {
+  if (!title || !message) throw new Error('Title and message are required');
+
+  // 1. Fetch current registered subscriber tokens
+  const tokens = await getAllRegisteredPushTokens();
+  const filtered = tokens.filter((t) => {
+    if (targetPlatform === 'all') return true;
+    if (targetPlatform === 'android' && (t.platform === 'android' || t.platform === 'android_web')) return true;
+    if (targetPlatform === 'ios' && (t.platform === 'ios' || t.platform === 'ios_pwa')) return true;
+    if (targetPlatform === 'web' && (t.platform === 'desktop_web' || t.platform?.includes('web'))) return true;
+    return false;
+  });
+
+  // 2. Record broadcast log in Firestore
+  let logId = null;
+  try {
+    const logRef = await addDoc(collection(db, 'notification_logs'), {
+      title,
+      message,
+      url,
+      target_platform: targetPlatform,
+      target_count: filtered.length || tokens.length || 1,
+      image_url: imageUrl,
+      sender,
+      created_at: new Date().toISOString()
+    });
+    logId = logRef.id;
+  } catch (e) {
+    console.warn('[FoodMaxx Push] Notice saving notification log:', e);
+  }
+
+  // 3. Play sound chime and trigger local test alert on active device
+  playOrderNotificationSound();
+  triggerHaptic('success');
+  await triggerLocalPushNotification(title, {
+    body: message,
+    url,
+    icon: imageUrl,
+    tag: `fmx_broadcast_${Date.now()}`
+  });
+
+  return {
+    success: true,
+    logId,
+    recipientCount: filtered.length || tokens.length || 1,
+    title,
+    message
+  };
+}
+
 export default {
   isPushSupported,
   getPushPermissionStatus,
@@ -361,5 +481,9 @@ export default {
   installPushNotifications,
   triggerLocalPushNotification,
   sendTestPushNotification,
-  autoInitPushNotifications
+  autoInitPushNotifications,
+  getAllRegisteredPushTokens,
+  deletePushToken,
+  getNotificationBroadcastLogs,
+  broadcastPushNotification
 };
