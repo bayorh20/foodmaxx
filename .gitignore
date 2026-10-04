@@ -43,6 +43,11 @@ pnpm-debug.log*
 **/ios/App/Pods/
 **/ios/App/.symlinks/
 **/ios/App/Pods.xcodeproj
-**/ios/App/App.xcarchive/
 **/ios/App/*.ipa
+
+# Local binaries and zip packages
+*.apk
+*.zip
+*.keystore
+
 
