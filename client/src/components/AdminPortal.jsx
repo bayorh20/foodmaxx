@@ -2908,7 +2908,7 @@ function AdminPortal() {
 
   const [adminThemeKey, setAdminThemeKey] = useState(() => {
     const saved = localStorage.getItem('fmx_admin_theme');
-    return saved === 'saas' || !saved || saved === 'foodtech' ? 'saas' : saved;
+    return saved || 'foodtech';
   });
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const currentAdminTheme = ADMIN_THEMES[adminThemeKey] || ADMIN_THEMES.saas;
@@ -4528,10 +4528,10 @@ function AdminPortal() {
 
   return (
     <div 
-      className={`min-h-screen flex flex-col md:flex-row antialiased font-sans selection:bg-[#EA4C2A] selection:text-white transition-colors duration-200 ${currentAdminTheme.id === 'saas' || currentAdminTheme.id === 'light' ? 'bg-[#F8F9FA] text-black font-semibold' : 'admin-portal-dark dark'}`}
+      className={`min-h-screen flex flex-col md:flex-row antialiased font-sans selection:bg-[#EA4C2A] selection:text-white transition-colors duration-200 ${currentAdminTheme.id === 'saas' || currentAdminTheme.id === 'light' ? 'admin-portal-light bg-[#F8F9FA] text-slate-900 font-semibold' : 'admin-portal-dark dark'}`}
       style={{
         backgroundColor: currentAdminTheme.bg,
-        color: currentAdminTheme.id === 'saas' ? '#000000' : currentAdminTheme.text
+        color: currentAdminTheme.id === 'saas' || currentAdminTheme.id === 'light' ? '#0F172A' : currentAdminTheme.text
       }}
     >
       {/* Mobile Top Header */}
@@ -6183,7 +6183,7 @@ function AdminPortal() {
                               className="text-[11px] font-black px-2.5 py-0.5 rounded-full border"
                               style={{
                                 backgroundColor: (statusColor[order.order_status] || '#EF4444') + '22',
-                                color: '#000000',
+                                color: statusColor[order.order_status] || '#EF4444',
                                 borderColor: statusColor[order.order_status] || '#EF4444'
                               }}
                             >

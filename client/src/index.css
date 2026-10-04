@@ -631,67 +631,296 @@ button, [role="button"] {
 }
 
 /* ============================================================
-   ADMIN SUITE DARK TYPOGRAPHY CONTRAST SAFEGUARDS
-   Ensures headings, labels, table cells, and dropdown options
-   always render with bright, legible contrast against dark surfaces
-   regardless of OS/browser light/dark mode preference.
+   FOODMAXX ADMIN SEMANTIC THEME SYSTEM
+   Provides theme-aware contrast variables for the Admin Dashboard.
    ============================================================ */
+:root {
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --surface: #FFFFFF;
+  --surface-elevated: #F8FAFC;
+  --surface-card: #FFFFFF;
+  --border: #E2E8F0;
+  --border-subtle: #F1F5F9;
+  --accent: #EA4C2A;
+}
+
+/* Light mode overrides (only when explicitly in light theme) */
+.admin-theme-light,
+.admin-portal-light {
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --surface: #FFFFFF;
+  --surface-elevated: #F8FAFC;
+  --surface-card: #FFFFFF;
+  --border: #E2E8F0;
+  --border-subtle: #F1F5F9;
+  --accent: #EA4C2A;
+}
+
+/* ------------------------------------------------------------
+   ADMIN DARK THEME RULES (.admin-portal-dark / .dark)
+   Applied whenever dark mode is active on the Admin Dashboard
+   ------------------------------------------------------------ */
 .admin-portal-dark,
-.admin-portal-dark.dark {
-  color: #F8FAFC !important;
+.admin-portal-dark.dark,
+.admin-portal-dark [class*="dark"] {
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+  --surface: #111520;
+  --surface-elevated: #181D2A;
+  --surface-card: #151A26;
+  --border: #232B3C;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --accent: #EA4C2A;
+
+  color: var(--text-primary);
 }
 
-/* Headings in dark admin default to crisp light text UNLESS inside a light container */
-.admin-portal-dark h1:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *),
-.admin-portal-dark h2:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *),
-.admin-portal-dark h3:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *),
-.admin-portal-dark h4:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *),
-.admin-portal-dark h5:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *),
-.admin-portal-dark h6:not(.bg-white *):not([class*="bg-white"] *):not([class*="bg-[#FFF"] *):not([class*="bg-[#F0F"] *):not([class*="bg-[#EFF"] *):not([class*="bg-[#FAF"] *):not([class*="bg-[#ECF"] *):not(.bg-slate-50 *):not(.bg-slate-100 *) {
-  color: #F8FAFC !important;
+/* 1. Primary Text: Headings, titles, numbers, bold values */
+.admin-portal-dark .text-black,
+.admin-portal-dark .text-slate-900,
+.admin-portal-dark .text-gray-900,
+.admin-portal-dark .text-zinc-900,
+.admin-portal-dark [class*="text-black"],
+.admin-portal-dark h1,
+.admin-portal-dark h2,
+.admin-portal-dark h3,
+.admin-portal-dark h4,
+.admin-portal-dark h5,
+.admin-portal-dark h6,
+.admin-portal-dark strong,
+.admin-portal-dark b {
+  color: var(--text-primary) !important;
 }
 
-/* Any light card, light table, or light badge inside dark admin MUST retain dark text */
-.admin-portal-dark .bg-white,
-.admin-portal-dark .bg-white *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-amber-5"]):not([class*="bg-purple-6"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
-.admin-portal-dark [class*="bg-\[\#FFF"] *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
-.admin-portal-dark [class*="bg-\[\#F0F"] *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
-.admin-portal-dark [class*="bg-\[\#EFF"] *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
-.admin-portal-dark [class*="bg-\[\#FAF"] *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
-.admin-portal-dark [class*="bg-\[\#ECF"] *:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-[#EA4C2A]"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#EF4444]"]),
-.admin-portal-dark .bg-slate-50 *,
-.admin-portal-dark .bg-slate-100 *,
-.admin-portal-dark .bg-gray-50 *,
-.admin-portal-dark .bg-gray-100 *,
-.admin-portal-dark .bg-white h1,
-.admin-portal-dark .bg-white h2,
-.admin-portal-dark .bg-white h3,
-.admin-portal-dark .bg-white h4,
-.admin-portal-dark .bg-white h5,
-.admin-portal-dark .bg-white h6,
-.admin-portal-dark .bg-white .text-black,
-.admin-portal-dark [class*="bg-white"] .text-black,
-.admin-portal-dark .bg-slate-50 .text-black,
-.admin-portal-dark .bg-slate-100 .text-black,
-.admin-portal-dark .admin-light-override {
-  color: #000000 !important;
+/* 2. Secondary Text: Subtitles, descriptions, form labels */
+.admin-portal-dark .text-slate-800,
+.admin-portal-dark .text-slate-700,
+.admin-portal-dark .text-gray-800,
+.admin-portal-dark .text-gray-700,
+.admin-portal-dark label,
+.admin-portal-dark .form-label {
+  color: var(--text-secondary) !important;
 }
 
-/* Native select dropdown and option contrast */
-.admin-portal-dark select option,
-select option {
-  background-color: #0F172A !important;
-  color: #F8FAFC !important;
+/* 3. Muted Text: Timestamps, hints, footers */
+.admin-portal-dark .text-slate-600,
+.admin-portal-dark .text-slate-500,
+.admin-portal-dark .text-slate-400,
+.admin-portal-dark .text-gray-600,
+.admin-portal-dark .text-gray-500,
+.admin-portal-dark .text-gray-400 {
+  color: var(--text-muted) !important;
 }
 
-/* Light theme exception inside admin when executive_light is selected */
-.admin-theme-light h1,
-.admin-theme-light h2,
-.admin-theme-light h3,
-.admin-theme-light h4,
-.admin-theme-light h5,
-.admin-theme-light h6 {
-  color: #0F172A !important;
+/* 4. Card Surfaces & Backgrounds */
+.admin-portal-dark .bg-white:not([data-keep-light]):not(.keep-white) {
+  background-color: var(--surface-card) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+.admin-portal-dark .bg-slate-50:not([data-keep-light]),
+.admin-portal-dark .bg-slate-100:not([data-keep-light]),
+.admin-portal-dark .bg-gray-50:not([data-keep-light]),
+.admin-portal-dark .bg-gray-100:not([data-keep-light]) {
+  background-color: var(--surface-elevated) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+.admin-portal-dark .border-slate-200,
+.admin-portal-dark .border-slate-200\/80,
+.admin-portal-dark .border-slate-300,
+.admin-portal-dark .border-gray-200,
+.admin-portal-dark .border-gray-300 {
+  border-color: var(--border) !important;
+}
+
+/* 5. Inputs, Textareas, Selects & Placeholders */
+.admin-portal-dark input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+.admin-portal-dark textarea,
+.admin-portal-dark select {
+  background-color: var(--surface-elevated) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+.admin-portal-dark input:focus,
+.admin-portal-dark textarea:focus,
+.admin-portal-dark select:focus {
+  border-color: var(--accent) !important;
+  background-color: var(--surface-card) !important;
+}
+
+.admin-portal-dark input::placeholder,
+.admin-portal-dark textarea::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 1 !important;
+}
+
+.admin-portal-dark select option {
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
+}
+
+/* 6. Tables: Header, Cells, Borders & Alternating States */
+.admin-portal-dark table {
+  color: var(--text-primary) !important;
+}
+
+.admin-portal-dark thead,
+.admin-portal-dark thead tr,
+.admin-portal-dark thead th {
+  background-color: var(--surface-elevated) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border) !important;
+}
+
+.admin-portal-dark tbody tr {
+  border-color: var(--border) !important;
+}
+
+.admin-portal-dark tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+.admin-portal-dark tbody td {
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+.admin-portal-dark tbody td .font-mono {
+  color: var(--text-primary) !important;
+}
+
+.admin-portal-dark .divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border) !important;
+}
+
+/* 7. Modals & Dialogs */
+.admin-portal-dark [role="dialog"],
+.admin-portal-dark .fixed .bg-white {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+.admin-portal-dark [role="dialog"] label,
+.admin-portal-dark [role="dialog"] p {
+  color: var(--text-secondary) !important;
+}
+
+/* 8. Tabs, Navigation & Filter Pills */
+.admin-portal-dark nav button:not(.active):not([class*="bg-\[\#202534\]"]) {
+  color: var(--text-secondary);
+}
+
+.admin-portal-dark nav button:hover {
+  color: var(--text-primary);
+}
+
+.admin-portal-dark button.bg-slate-100,
+.admin-portal-dark button.bg-slate-200,
+.admin-portal-dark button.bg-gray-100 {
+  background-color: var(--surface-elevated) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border) !important;
+}
+
+.admin-portal-dark button.bg-slate-100:hover,
+.admin-portal-dark button.bg-slate-200:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-primary) !important;
+}
+
+/* 9. Buttons with Explicit Accent Backgrounds Keep Crisp White Text */
+.admin-portal-dark button[class*="bg-\[\#EA4C2A\]"],
+.admin-portal-dark button[class*="bg-emerald"],
+.admin-portal-dark button[class*="bg-rose"],
+.admin-portal-dark button[class*="bg-red"],
+.admin-portal-dark button[class*="bg-blue"],
+.admin-portal-dark button[class*="bg-purple"],
+.admin-portal-dark button[class*="bg-indigo"],
+.admin-portal-dark button[class*="bg-amber-6"],
+.admin-portal-dark button[class*="bg-amber-7"],
+.admin-portal-dark [class*="bg-\[\#EA4C2A\]"] span,
+.admin-portal-dark [class*="bg-emerald-6"] span,
+.admin-portal-dark [class*="bg-rose-6"] span,
+.admin-portal-dark [class*="bg-blue-6"] span {
+  color: #FFFFFF !important;
+}
+
+/* 10. Links */
+.admin-portal-dark a.text-blue-700,
+.admin-portal-dark button.text-blue-700,
+.admin-portal-dark a.text-blue-600 {
+  color: #60A5FA !important;
+}
+
+/* 11. Overview Metric Stat Cards on Dark Surface */
+.admin-portal-dark .bg-\[\#FFF5F5\],
+.admin-portal-dark [class*="bg-\[\#FFF5F5\]"] {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.28) !important;
+}
+.admin-portal-dark .bg-\[\#F0FDF4\],
+.admin-portal-dark [class*="bg-\[\#F0FDF4\]"] {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.28) !important;
+}
+.admin-portal-dark .bg-\[\#EFF6FF\],
+.admin-portal-dark [class*="bg-\[\#EFF6FF\]"] {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+  border-color: rgba(59, 130, 246, 0.28) !important;
+}
+.admin-portal-dark .bg-\[\#FFFBEB\],
+.admin-portal-dark [class*="bg-\[\#FFFBEB\]"] {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(245, 158, 11, 0.28) !important;
+}
+.admin-portal-dark .bg-\[\#FAF5FF\],
+.admin-portal-dark [class*="bg-\[\#FAF5FF\]"] {
+  background-color: rgba(168, 85, 247, 0.12) !important;
+  border-color: rgba(168, 85, 247, 0.28) !important;
+}
+
+/* 12. Status Badges & Pills in Dark Mode */
+.admin-portal-dark .bg-\[\#FEF3C7\],
+.admin-portal-dark .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+  color: #FCD34D !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+.admin-portal-dark .bg-\[\#E0F2FE\],
+.admin-portal-dark .bg-sky-100 {
+  background-color: rgba(14, 165, 233, 0.18) !important;
+  color: #7DD3FC !important;
+  border-color: rgba(14, 165, 233, 0.35) !important;
+}
+.admin-portal-dark .bg-\[\#DCFCE7\],
+.admin-portal-dark .bg-emerald-100,
+.admin-portal-dark .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.18) !important;
+  color: #6EE7B7 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+.admin-portal-dark .bg-\[\#FEE2E2\],
+.admin-portal-dark .bg-rose-100,
+.admin-portal-dark .bg-rose-50 {
+  background-color: rgba(239, 68, 68, 0.18) !important;
+  color: #FCA5A5 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+.admin-portal-dark .bg-\[\#F3E8FF\],
+.admin-portal-dark .bg-purple-100 {
+  background-color: rgba(168, 85, 247, 0.18) !important;
+  color: #D8B4FE !important;
+  border-color: rgba(168, 85, 247, 0.35) !important;
 }
 
 /* ============================================================
