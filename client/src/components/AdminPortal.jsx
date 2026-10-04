@@ -63,40 +63,40 @@ function AdminCategoryModal({ open, onClose, category, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={onClose}>
-      <div className="w-full max-w-md bg-[#121318] border border-[#262A36] rounded-3xl p-6 shadow-2xl text-white relative" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between pb-3 border-b border-[#262A36] mb-4">
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl text-slate-900 relative" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+          <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
             <span>{category ? 'Edit Menu Category' : 'Add New Category'}</span>
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] cursor-pointer">
+          <button onClick={onClose} className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 cursor-pointer">
             <X size={15} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-200 mb-1.5">Category Name *</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Category Name *</label>
             <input
               type="text"
               placeholder="e.g. Seafood & Fisherman Soup"
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-[#EA4C2A] font-medium"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-600 font-medium focus:outline-none focus:border-[#EA4C2A] font-medium"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-200 mb-1.5">Category Icon / Emoji</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Category Icon / Emoji</label>
             <div className="flex items-center gap-2 mb-2">
               <input
                 type="text"
                 value={icon}
                 onChange={e => setIcon(e.target.value)}
-                className="w-14 text-center text-lg bg-[#1A1C23] border border-[#262A36] rounded-xl px-2 py-1.5 focus:outline-none focus:border-[#EA4C2A]"
+                className="w-14 text-center text-lg bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 focus:outline-none focus:border-[#EA4C2A]"
               />
-              <span className="text-[11px] text-slate-300 font-medium">Pick an emoji or type your own</span>
+              <span className="text-[11px] text-slate-600 font-medium">Pick an emoji or type your own</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {['🍔', '🍚', '🍲', '🍗', '🍝', '🌯', '🍨', '🍹', '🍕', '🥗', '🥩', '🧁', '🥓', '🍣', '🥞'].map(em => (
@@ -105,7 +105,7 @@ function AdminCategoryModal({ open, onClose, category, onSave }) {
                   type="button"
                   onClick={() => setIcon(em)}
                   className={`w-8 h-8 rounded-xl text-sm flex items-center justify-center transition-all cursor-pointer ${
-                    icon === em ? 'bg-[#EA4C2A] text-white shadow-md shadow-[#EA4C2A]/40 scale-105' : 'bg-[#1A1C23] text-slate-300 hover:bg-[#232734] border border-[#262A36]'
+                    icon === em ? 'bg-[#EA4C2A] text-white shadow-md shadow-[#EA4C2A]/40 scale-105' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >
                   {em}
@@ -114,10 +114,10 @@ function AdminCategoryModal({ open, onClose, category, onSave }) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3.5 bg-[#1A1C23] rounded-xl border border-[#262A36]">
+          <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200">
             <div>
-              <div className="text-xs font-bold text-white">Category Active</div>
-              <div className="text-[11px] text-slate-300">Visible to customers ordering on FoodMaxx</div>
+              <div className="text-xs font-bold text-slate-900">Category Active</div>
+              <div className="text-[11px] text-slate-600">Visible to customers ordering on FoodMaxx</div>
             </div>
             <input
               type="checkbox"
@@ -131,7 +131,7 @@ function AdminCategoryModal({ open, onClose, category, onSave }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl bg-[#1A1C23] hover:bg-[#232734] text-slate-200 border border-[#262A36] text-xs font-bold transition-colors cursor-pointer"
+              className="flex-1 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -335,11 +335,11 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={onClose}>
-      <div className="bg-[#121318] border border-[#262A36] text-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl p-6 relative animate-scale-up" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" onClick={onClose}>
+      <div className="bg-white border border-slate-200 text-slate-900 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl p-6 relative animate-scale-up" onClick={e => e.stopPropagation()}>
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
         >
           <X size={18} />
         </button>
@@ -349,32 +349,32 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
             🍲
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">
+            <h2 className="text-xl font-black text-slate-900">
               {product ? 'Edit Menu Dish' : 'Add New Dish to Menu'}
             </h2>
-            <p className="text-xs text-slate-400">FoodMaxx · Single Merchant Control</p>
+            <p className="text-xs text-slate-600">FoodMaxx · Single Merchant Control</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs mt-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-medium text-slate-200 mb-1">Dish Name *</label>
+              <label className="block font-medium text-slate-700 mb-1">Dish Name *</label>
               <input
                 type="text"
                 placeholder="e.g. Smoky Firewood Jollof & Asun"
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-[#EA4C2A]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 placeholder:text-slate-600 font-medium focus:outline-none focus:border-[#EA4C2A]"
                 required
               />
             </div>
             <div>
-              <label className="block font-medium text-slate-200 mb-1">Category *</label>
+              <label className="block font-medium text-slate-700 mb-1">Category *</label>
               <select
                 value={formData.category}
                 onChange={e => setFormData({ ...formData, category: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2.5 text-xs text-white font-semibold focus:outline-none focus:border-[#EA4C2A]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#EA4C2A]"
               >
                 {categories && categories.length > 0 ? (
                   categories.map(c => (
@@ -399,7 +399,7 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block font-medium text-slate-200 mb-1">Price (₦) *</label>
+              <label className="block font-medium text-slate-700 mb-1">Price (₦) *</label>
               <input
                 type="number"
                 min="100"
@@ -407,49 +407,49 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                 placeholder="4800"
                 value={formData.price}
                 onChange={e => setFormData({ ...formData, price: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2.5 text-xs font-bold text-[#EA4C2A] focus:outline-none focus:border-[#EA4C2A]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-[#EA4C2A] focus:outline-none focus:border-[#EA4C2A]"
                 required
               />
             </div>
             <div>
-              <label className="block font-medium text-slate-200 mb-1">Prep Time (m)</label>
+              <label className="block font-medium text-slate-700 mb-1">Prep Time (m)</label>
               <input
                 type="number"
                 min="5"
                 max="120"
                 value={formData.prep_time_min}
                 onChange={e => setFormData({ ...formData, prep_time_min: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#EA4C2A]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-[#EA4C2A]"
               />
             </div>
             <div>
-              <label className="block font-medium text-slate-200 mb-1">Daily Stock</label>
+              <label className="block font-medium text-slate-700 mb-1">Daily Stock</label>
               <input
                 type="number"
                 min="0"
                 value={formData.stock_quantity}
                 onChange={e => setFormData({ ...formData, stock_quantity: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#EA4C2A]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-[#EA4C2A]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block font-medium text-slate-200 mb-1">Description</label>
+            <label className="block font-medium text-slate-700 mb-1">Description</label>
             <textarea
               rows={2}
               placeholder="Rich party jollof cooked with authentic firewood taste, spicy goat meat, and ripe dodo."
               value={formData.description}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
-              className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-[#EA4C2A]"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-600 font-medium focus:outline-none focus:border-[#EA4C2A]"
             />
           </div>
 
           {/* PORTION SIZES & PRICING (ADMIN EDITABLE) */}
-          <div className="bg-[#181A20] border border-[#262A36] rounded-2xl p-3.5 space-y-3">
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <label className="font-bold text-white text-xs flex items-center gap-1.5">
+                <label className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                   <span>⚖️ Portion Sizes & Variations</span>
                   {hasPortionSizes && (
                     <span className="bg-[#EA4C2A]/20 text-[#EA4C2A] text-[9.5px] px-2 py-0.5 rounded-full font-extrabold border border-[#EA4C2A]/30">
@@ -457,7 +457,7 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                     </span>
                   )}
                 </label>
-                <p className="text-[10px] text-slate-400 mt-0.5">
+                <p className="text-[10px] text-slate-600 mt-0.5">
                   {hasPortionSizes
                     ? 'Customers pick one portion on dish tap. Set base (₦0) and price additions.'
                     : 'Optional: Enable if this meal has multiple portion sizes (Regular, Large, Jumbo, etc.)'}
@@ -510,9 +510,9 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                 {/* List of Portion Cards */}
                 <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
                   {portionSizes.map((ps, idx) => (
-                    <div key={idx} className="bg-[#121318] border border-[#262A36] rounded-xl p-2.5 space-y-2">
+                    <div key={idx} className="bg-white border border-slate-200 rounded-xl p-2.5 space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-extrabold flex items-center justify-center shrink-0">
+                        <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-600 text-[10px] font-extrabold flex items-center justify-center shrink-0">
                           {idx + 1}
                         </span>
                         <div className="flex-1">
@@ -528,12 +528,12 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                                 return c;
                               });
                             }}
-                            className="w-full bg-[#1A1C23] border border-[#262A36] rounded-lg px-2.5 py-1 text-xs text-white font-semibold focus:outline-none focus:border-[#EA4C2A]"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#EA4C2A]"
                             required
                           />
                         </div>
                         <div className="w-28 relative">
-                          <span className="absolute left-2 top-1.5 text-[10px] font-bold text-slate-400">₦+</span>
+                          <span className="absolute left-2 top-1.5 text-[10px] font-bold text-slate-600">₦+</span>
                           <input
                             type="number"
                             min="0"
@@ -548,7 +548,7 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                                 return c;
                               });
                             }}
-                            className="w-full bg-[#1A1C23] border border-[#262A36] rounded-lg pl-7 pr-2 py-1 text-xs text-[#EA4C2A] font-bold focus:outline-none focus:border-[#EA4C2A]"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-2 py-1 text-xs text-[#EA4C2A] font-bold focus:outline-none focus:border-[#EA4C2A]"
                           />
                         </div>
                         <button
@@ -578,7 +578,7 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                               return c;
                             });
                           }}
-                          className="flex-1 bg-[#1A1C23] border border-[#262A36] rounded-lg px-2.5 py-1 text-[11px] text-slate-300 placeholder-slate-400 focus:outline-none focus:border-[#EA4C2A]"
+                          className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] text-slate-600 placeholder-slate-400 focus:outline-none focus:border-[#EA4C2A]"
                         />
 
                         {/* Portion Photo Uploader / Thumbnail Preview */}
@@ -602,7 +602,7 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                               </button>
                             </div>
                           ) : (
-                            <label className="cursor-pointer px-2 py-1 bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] hover:border-[#EA4C2A]/50 rounded-lg text-[10px] text-slate-300 flex items-center gap-1 transition-colors">
+                            <label className="cursor-pointer px-2 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-[#EA4C2A]/50 rounded-lg text-[10px] text-slate-600 flex items-center gap-1 transition-colors">
                               <Camera size={11} className="text-[#EA4C2A]" />
                               <span>{uploadingPortionIdx === idx ? '...' : 'Add Photo'}</span>
                               <input
@@ -626,27 +626,27 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
             )}
 
             {!hasPortionSizes && (
-              <div className="p-2.5 rounded-xl bg-black/20 border border-white/5 text-center">
-                <span className="text-[11px] text-slate-400">
-                  ✨ This dish sells at the single standard price of <strong className="text-white">₦{Number(formData.price || 0).toLocaleString()}</strong> without requiring customers to pick a portion.
+              <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-center">
+                <span className="text-[11px] text-slate-600">
+                  ✨ This dish sells at the single standard price of <strong className="text-slate-900 font-bold">₦{Number(formData.price || 0).toLocaleString()}</strong> without requiring customers to pick a portion.
                 </span>
               </div>
             )}
           </div>
 
           {/* FLAVORS, SIDES & EXTRAS (ADMIN EDITABLE) */}
-          <div className="bg-[#181A20] border border-[#262A36] rounded-2xl p-3.5 space-y-3">
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <label className="font-bold text-white text-xs flex items-center gap-1.5">
+                <label className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                   <span>🌶️ Flavors, Extras & Preparation Options</span>
                   {flavors.length > 0 && (
-                    <span className="bg-amber-500/20 text-amber-400 text-[9.5px] px-2 py-0.5 rounded-full font-extrabold border border-amber-500/30">
+                    <span className="bg-amber-50 text-amber-800 text-[9.5px] px-2 py-0.5 rounded-full font-extrabold border border-amber-200">
                       {flavors.length} Active
                     </span>
                   )}
                 </label>
-                <p className="text-[10px] text-slate-400 mt-0.5">
+                <p className="text-[10px] text-slate-600 mt-0.5">
                   Add spice levels, flavor variations, or side options (e.g. Mild, Extra Spicy, Extra Dodo).
                 </p>
               </div>
@@ -656,7 +656,7 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                 onClick={() => {
                   setFlavors(prev => [...prev, { name: '', price: 0 }]);
                 }}
-                className="bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/40 text-[11px] font-bold px-2.5 py-1 rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 text-[11px] font-bold px-2.5 py-1 rounded-xl transition-all cursor-pointer flex items-center gap-1"
               >
                 <Plus size={12} /> Add Flavor/Extra
               </button>
@@ -665,8 +665,8 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
             {flavors.length > 0 && (
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {flavors.map((flv, idx) => (
-                  <div key={idx} className="bg-[#121318] border border-[#262A36] rounded-xl p-2 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-extrabold flex items-center justify-center shrink-0">
+                  <div key={idx} className="bg-white border border-slate-200 rounded-xl p-2 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-600 text-[10px] font-extrabold flex items-center justify-center shrink-0">
                       {idx + 1}
                     </span>
                     <input
@@ -681,10 +681,10 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                           return c;
                         });
                       }}
-                      className="flex-1 bg-[#1A1C23] border border-[#262A36] rounded-lg px-2.5 py-1 text-xs text-white font-medium focus:outline-none focus:border-amber-500"
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-900 font-medium focus:outline-none focus:border-amber-500"
                     />
                     <div className="w-24 relative">
-                      <span className="absolute left-2 top-1.5 text-[10px] font-bold text-slate-400">₦+</span>
+                      <span className="absolute left-2 top-1.5 text-[10px] font-bold text-slate-600">₦+</span>
                       <input
                         type="number"
                         min="0"
@@ -699,7 +699,7 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                             return c;
                           });
                         }}
-                        className="w-full bg-[#1A1C23] border border-[#262A36] rounded-lg pl-7 pr-2 py-1 text-xs text-amber-400 font-bold focus:outline-none focus:border-amber-500"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-2 py-1 text-xs text-slate-900 font-bold focus:outline-none focus:border-[#EA4C2A]"
                       />
                     </div>
                     <button
@@ -719,11 +719,11 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
           {/* DISH PHOTO UPLOAD */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block font-medium text-slate-200 text-xs">Dish Photo</label>
+              <label className="block font-medium text-slate-700 text-xs">Dish Photo</label>
               <button
                 type="button"
                 onClick={() => setShowUrlInput(!showUrlInput)}
-                className="text-[11px] text-slate-400 hover:text-slate-200 underline cursor-pointer"
+                className="text-[11px] text-slate-600 hover:text-slate-700 underline cursor-pointer"
               >
                 {showUrlInput ? 'Switch to file upload' : 'Paste web link instead'}
               </button>
@@ -735,10 +735,10 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                 placeholder="https://images.unsplash.com/..."
                 value={formData.image_url}
                 onChange={e => setFormData({ ...formData, image_url: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-[#EA4C2A]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 placeholder:text-slate-600 font-medium focus:outline-none focus:border-[#EA4C2A]"
               />
             ) : formData.image_url ? (
-              <div className="relative rounded-2xl overflow-hidden border border-[#262A36] bg-[#1A1C23] group h-36 flex items-center justify-center">
+              <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 group h-36 flex items-center justify-center">
                 <img
                   src={formData.image_url}
                   alt="Dish Preview"
@@ -758,21 +758,21 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, image_url: '' })}
-                    className="bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] text-slate-200 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                    className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
                   >
                     Remove
                   </button>
                 </div>
               </div>
             ) : (
-              <label className="border-2 border-dashed border-[#262A36] hover:border-[#EA4C2A]/60 rounded-2xl p-5 bg-[#1A1C23] flex flex-col items-center justify-center cursor-pointer transition-colors group">
-                <div className="w-10 h-10 rounded-full bg-[#121318] border border-[#262A36] flex items-center justify-center text-slate-400 group-hover:text-[#EA4C2A] transition-colors mb-2">
+              <label className="border-2 border-dashed border-slate-200 hover:border-[#EA4C2A]/60 rounded-2xl p-5 bg-slate-50 flex flex-col items-center justify-center cursor-pointer transition-colors group">
+                <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 group-hover:text-[#EA4C2A] transition-colors mb-2">
                   {uploadingImage ? <RefreshCw size={20} className="animate-spin text-[#EA4C2A]" /> : <Upload size={20} />}
                 </div>
-                <span className="text-xs font-bold text-slate-200 group-hover:text-white">
+                <span className="text-xs font-bold text-slate-700 group-hover:text-[#EA4C2A]">
                   {uploadingImage ? 'Optimizing & compressing photo...' : 'Click or tap to upload dish photo'}
                 </span>
-                <span className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, WEBP — auto-optimized for fast load</span>
+                <span className="text-[10px] text-slate-600 mt-0.5">PNG, JPG, WEBP — auto-optimized for fast load</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -785,17 +785,17 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
           </div>
 
           {/* Product Tag (Optional) & Stock Availability */}
-          <div className="space-y-2.5 pt-2 border-t border-[#262A36]">
+          <div className="space-y-2.5 pt-2 border-t border-slate-200">
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                   <span>🏷️ Product Tag (Optional)</span>
                   {formData.badge ? (
                     <span className="bg-[#EA4C2A] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-xs">
                       Active: {formData.badge}
                     </span>
                   ) : (
-                    <span className="bg-emerald-500/20 text-emerald-400 text-[9px] font-semibold px-2 py-0.5 rounded-full border border-emerald-500/30">
+                    <span className="bg-emerald-50 text-emerald-800 text-[9px] font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
                       Clean Card (No Tag)
                     </span>
                   )}
@@ -819,15 +819,15 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                   value={formData.badge}
                   onChange={e => setFormData({ ...formData, badge: e.target.value })}
                   placeholder="e.g. Bestseller, Spicy, Chef's Special..."
-                  className="flex-1 bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#EA4C2A]"
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-600 font-medium focus:outline-none focus:border-[#EA4C2A]"
                 />
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, badge: '' })}
                   className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer shrink-0 ${
                     !formData.badge 
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                      : 'bg-[#1A1C23] hover:bg-red-500/15 text-slate-300 hover:text-red-400 border-[#262A36]'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                      : 'bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border-slate-200'
                   }`}
                   title={!formData.badge ? 'Card is clean without any tag' : 'Clear tag to make card clean'}
                 >
@@ -855,7 +855,7 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                         isSelected
                           ? 'bg-[#EA4C2A] text-white shadow-xs scale-102'
-                          : 'bg-[#1A1C23] text-slate-300 hover:bg-[#232734] border border-[#262A36]'
+                          : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
                       }`}
                     >
                       {preset}
@@ -865,7 +865,7 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-[#1A1C23] rounded-xl border border-[#262A36]">
+            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -874,7 +874,7 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
                   onChange={e => setFormData({ ...formData, is_available: e.target.checked })}
                   className="w-4 h-4 accent-[#EA4C2A] rounded-md cursor-pointer"
                 />
-                <label htmlFor="admin_dish_is_avail" className="text-xs font-medium text-slate-200 cursor-pointer select-none">
+                <label htmlFor="admin_dish_is_avail" className="text-xs font-medium text-slate-700 cursor-pointer select-none">
                   {formData.is_available ? '🟢 In Stock (Available for ordering)' : '🔴 Sold Out (Temporarily unavailable)'}
                 </label>
               </div>
@@ -885,7 +885,7 @@ function AdminProductModal({ open, onClose, product, onSaved, categories = [] })
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -986,11 +986,11 @@ function AdminAddonModal({ open, onClose, addon, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={onClose}>
-      <div className="bg-[#121318] border border-[#262A36] text-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl p-6 relative animate-scale-up" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" onClick={onClose}>
+      <div className="bg-white border border-slate-200 text-slate-900 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl p-6 relative animate-scale-up" onClick={e => e.stopPropagation()}>
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
         >
           <X size={18} />
         </button>
@@ -1000,33 +1000,33 @@ function AdminAddonModal({ open, onClose, addon, onSaved }) {
             ✨
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">
+            <h2 className="text-xl font-black text-slate-900">
               {addon ? 'Edit Add-on / Extra' : 'Create New Add-on'}
             </h2>
-            <p className="text-xs text-slate-400">Upload custom photo, set price in ₦, and configure cart extras</p>
+            <p className="text-xs text-slate-600">Upload custom photo, set price in ₦, and configure cart extras</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-5">
           <div>
-            <label className="block text-xs font-semibold text-slate-200 mb-1">Add-on Name *</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Add-on Name *</label>
             <input
               type="text"
               required
               placeholder="e.g. Cold Chapman, Fried Sweet Dodo, Peppered Turkey"
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
-              className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-400 outline-none focus:border-[#EA4C2A] font-medium"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-600 font-medium outline-none focus:border-[#EA4C2A] font-medium"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-200 mb-1">Category *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Category *</label>
               <select
                 value={formData.category}
                 onChange={e => setFormData({ ...formData, category: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#EA4C2A] font-semibold"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-[#EA4C2A] font-semibold"
               >
                 <option value="Sides">Sides</option>
                 <option value="Drinks">Drinks</option>
@@ -1036,7 +1036,7 @@ function AdminAddonModal({ open, onClose, addon, onSaved }) {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-200 mb-1">Price (₦) *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Price (₦) *</label>
               <input
                 type="number"
                 required
@@ -1044,52 +1044,52 @@ function AdminAddonModal({ open, onClose, addon, onSaved }) {
                 placeholder="e.g. 800"
                 value={formData.price}
                 onChange={e => setFormData({ ...formData, price: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3.5 py-2.5 text-xs text-[#EA4C2A] outline-none focus:border-[#EA4C2A] font-bold"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-[#EA4C2A] outline-none focus:border-[#EA4C2A] font-bold"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-200 mb-1">Short Description</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Short Description</label>
             <input
               type="text"
               placeholder="e.g. Chilled classic cocktail drink with cucumber & lime"
               value={formData.description}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
-              className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-400 outline-none focus:border-[#EA4C2A]"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-600 font-medium outline-none focus:border-[#EA4C2A]"
             />
           </div>
 
           {/* Photo Upload Area */}
           <div>
-            <label className="block text-xs font-semibold text-slate-200 mb-1.5">Add-on Photo</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Add-on Photo</label>
 
             {formData.image_url ? (
-              <div className="p-3.5 bg-[#1A1C23] border border-[#262A36] rounded-2xl flex items-center justify-between gap-3">
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <img
                     onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; }}
                     src={formData.image_url}
                     alt="Preview"
-                    className="w-16 h-16 rounded-xl object-cover border border-[#262A36] shrink-0 shadow-xs"
+                    className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs"
                   />
                   <div className="min-w-0">
-                    <p className="font-bold text-xs text-white">Add-on Photo Uploaded</p>
-                    <p className="text-slate-400 text-[11px] mt-0.5">High-resolution photography for customer cart upsell</p>
+                    <p className="font-bold text-xs text-slate-900">Add-on Photo Uploaded</p>
+                    <p className="text-slate-600 text-[11px] mt-0.5">High-resolution photography for customer cart upsell</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
                   <label
                     htmlFor="addon_file_upload"
-                    className="px-3 py-1.5 rounded-xl bg-[#262A36] hover:bg-[#323646] text-slate-200 text-xs font-bold transition-colors cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold transition-colors cursor-pointer"
                   >
                     Change Photo
                   </label>
                   <button
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, image_url: '' }))}
-                    className="p-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs transition-colors cursor-pointer border border-red-500/20"
+                    className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs transition-colors cursor-pointer border border-rose-200"
                     title="Remove Photo"
                   >
                     <Trash2 size={15} />
@@ -1100,23 +1100,23 @@ function AdminAddonModal({ open, onClose, addon, onSaved }) {
               <div className="space-y-2">
                 <label
                   htmlFor="addon_file_upload"
-                  className="w-full flex flex-col items-center justify-center p-5 border-2 border-dashed border-[#262A36] hover:border-[#EA4C2A] bg-[#1A1C23] rounded-2xl cursor-pointer transition-all group"
+                  className="w-full flex flex-col items-center justify-center p-5 border-2 border-dashed border-slate-200 hover:border-[#EA4C2A] bg-slate-50 rounded-2xl cursor-pointer transition-all group"
                 >
                   <div className="w-10 h-10 rounded-xl bg-[#EA4C2A]/15 text-[#EA4C2A] flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <Upload size={18} />
                   </div>
-                  <span className="text-xs font-bold text-slate-200 group-hover:text-white">Click to Upload Add-on Photo</span>
-                  <span className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, WEBP up to 5MB</span>
+                  <span className="text-xs font-bold text-slate-700 group-hover:text-[#EA4C2A]">Click to Upload Add-on Photo</span>
+                  <span className="text-[10px] text-slate-600 mt-0.5">PNG, JPG, WEBP up to 5MB</span>
                 </label>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] uppercase font-bold text-slate-400">Or URL:</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-600">Or URL:</span>
                   <input
                     type="url"
                     placeholder="Paste direct image link..."
                     value={formData.image_url}
                     onChange={e => setFormData({ ...formData, image_url: e.target.value })}
-                    className="flex-1 bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-[#EA4C2A]"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-600 font-medium outline-none focus:border-[#EA4C2A]"
                   />
                 </div>
               </div>
@@ -1139,7 +1139,7 @@ function AdminAddonModal({ open, onClose, addon, onSaved }) {
               onChange={e => setFormData({ ...formData, is_available: e.target.checked })}
               className="w-4 h-4 rounded text-[#EA4C2A] accent-[#EA4C2A] cursor-pointer"
             />
-            <label htmlFor="addon_available" className="text-xs text-slate-200 font-medium cursor-pointer">
+            <label htmlFor="addon_available" className="text-xs text-slate-700 font-medium cursor-pointer">
               Available in Stock (Visible to customers in cart)
             </label>
           </div>
@@ -1148,7 +1148,7 @@ function AdminAddonModal({ open, onClose, addon, onSaved }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -1291,14 +1291,14 @@ function AdminSectionIconsModal({ open, onClose, categories = [], onIconsUpdated
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" onClick={onClose}>
       <div 
-        className="bg-[#121318] border border-[#262A36] text-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 relative animate-scale-up" 
+        className="bg-white border border-slate-200 text-slate-900 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 relative animate-scale-up" 
         onClick={e => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
         >
           <X size={18} />
         </button>
@@ -1309,24 +1309,24 @@ function AdminSectionIconsModal({ open, onClose, categories = [], onIconsUpdated
             🎨
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight">
               Section & Navigation Icons Manager
             </h2>
-            <p className="text-xs text-slate-200">
+            <p className="text-xs text-slate-700">
               Customize or upload brand new icons for bottom navigation tabs and food categories
             </p>
           </div>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex gap-2 p-1 bg-[#1A1C23] rounded-2xl border border-[#262A36] mb-5">
+        <div className="flex gap-2 p-1 bg-slate-50 rounded-2xl border border-slate-200 mb-5">
           <button
             type="button"
             onClick={() => setActiveSubTab('nav')}
             className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeSubTab === 'nav'
                 ? 'bg-[#EA4C2A] text-white shadow-md'
-                : 'text-slate-300 hover:text-white'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             📱 Bottom Nav Bar Icons (5 Tabs)
@@ -1337,7 +1337,7 @@ function AdminSectionIconsModal({ open, onClose, categories = [], onIconsUpdated
             className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeSubTab === 'categories'
                 ? 'bg-[#EA4C2A] text-white shadow-md'
-                : 'text-slate-300 hover:text-white'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             🍲 Food Category Sections ({allCategorySections.length})
@@ -1354,11 +1354,11 @@ function AdminSectionIconsModal({ open, onClose, categories = [], onIconsUpdated
               return (
                 <div 
                   key={item.id}
-                  className="p-3.5 bg-[#1A1C23] border border-[#262A36] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="flex items-center gap-3">
                     {/* Icon Preview Box */}
-                    <div className="w-12 h-12 rounded-xl bg-[#121318] border border-[#262A36] flex items-center justify-center p-2 shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center p-2 shrink-0">
                       {currentCustom ? (
                         <img 
                           src={currentCustom} 
@@ -1378,18 +1378,18 @@ function AdminSectionIconsModal({ open, onClose, categories = [], onIconsUpdated
 
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-white">{item.label}</span>
+                        <span className="font-bold text-sm text-slate-900">{item.label}</span>
                         {currentCustom ? (
-                          <span className="bg-emerald-500/20 text-emerald-300 text-[9px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">
+                          <span className="bg-emerald-50 text-emerald-800 text-[9px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
                             Custom Uploaded
                           </span>
                         ) : (
-                          <span className="bg-white/10 text-slate-300 text-[9px] font-medium px-2 py-0.5 rounded-full">
+                          <span className="bg-white/10 text-slate-600 text-[9px] font-medium px-2 py-0.5 rounded-full">
                             System Default
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-300 mt-0.5">{item.desc}</p>
+                      <p className="text-[11px] text-slate-600 mt-0.5">{item.desc}</p>
                     </div>
                   </div>
 
@@ -1411,7 +1411,7 @@ function AdminSectionIconsModal({ open, onClose, categories = [], onIconsUpdated
                       <button
                         type="button"
                         onClick={() => handleResetNavIcon(item.id)}
-                        className="px-2.5 py-1.5 rounded-xl bg-[#121318] hover:bg-[#252834] border border-[#262A36] text-slate-300 hover:text-red-400 text-xs font-bold transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-red-400 text-xs font-bold transition-colors cursor-pointer"
                         title="Reset back to system default"
                       >
                         Reset
@@ -1435,10 +1435,10 @@ function AdminSectionIconsModal({ open, onClose, categories = [], onIconsUpdated
               return (
                 <div 
                   key={cat.id}
-                  className="p-3.5 bg-[#1A1C23] border border-[#262A36] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-[#121318] border border-[#262A36] overflow-hidden shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 overflow-hidden shrink-0">
                       <img 
                         onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&q=80'; }}
                         src={displayImage} 
@@ -1449,14 +1449,14 @@ function AdminSectionIconsModal({ open, onClose, categories = [], onIconsUpdated
 
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-white">{cat.name}</span>
+                        <span className="font-bold text-sm text-slate-900">{cat.name}</span>
                         {currentCustom && (
-                          <span className="bg-emerald-500/20 text-emerald-300 text-[9px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">
+                          <span className="bg-emerald-50 text-emerald-800 text-[9px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
                             Custom Photo
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-300 mt-0.5">Section Key: {cat.id}</p>
+                      <p className="text-[11px] text-slate-600 mt-0.5">Section Key: {cat.id}</p>
                     </div>
                   </div>
 
@@ -1477,7 +1477,7 @@ function AdminSectionIconsModal({ open, onClose, categories = [], onIconsUpdated
                       <button
                         type="button"
                         onClick={() => handleResetCatIcon(cat.id)}
-                        className="px-2.5 py-1.5 rounded-xl bg-[#121318] hover:bg-[#252834] border border-[#262A36] text-slate-300 hover:text-red-400 text-xs font-bold transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-red-400 text-xs font-bold transition-colors cursor-pointer"
                         title="Reset to default category photo"
                       >
                         Reset
@@ -1491,11 +1491,11 @@ function AdminSectionIconsModal({ open, onClose, categories = [], onIconsUpdated
         )}
 
         {/* Footer Actions */}
-        <div className="flex gap-2 pt-3 border-t border-[#262A36]">
+        <div className="flex gap-2 pt-3 border-t border-slate-200">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2.5 bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+            className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -1589,25 +1589,25 @@ function AdminCreatePromoModal({ open, onClose, onCreated, initialData }) {
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
-      <div className="bg-[#12161F] border border-slate-800 text-white rounded-3xl w-full max-w-lg shadow-2xl p-6 relative animate-scale-up">
+      <div className="bg-white border border-slate-200 text-slate-900 rounded-3xl w-full max-w-lg shadow-2xl p-6 relative animate-scale-up">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 cursor-pointer"
         >
           <X size={18} />
         </button>
 
-        <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+        <h2 className="text-xl font-black mb-1 flex items-center gap-2 text-slate-900">
           <Tag size={20} className="text-[#EA4C2A]" />
           <span>Create Promotional Campaign</span>
         </h2>
-        <p className="text-xs text-slate-400 mb-4">Set up a high-converting customer discount or flash delivery promo</p>
+        <p className="text-xs text-slate-600 mb-4">Set up a high-converting customer discount or flash delivery promo</p>
 
         {/* Quick Promo Idea Presets */}
-        <div className="mb-4 p-3.5 bg-[#1A1C23] rounded-2xl border border-[#262A36]">
-          <div className="text-[10.5px] font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+        <div className="mb-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+          <div className="text-[10.5px] font-bold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <span>💡 1-Tap Promo Ideas:</span>
-            <span className="text-[10px] text-slate-300 lowercase font-normal">(click to auto-fill)</span>
+            <span className="text-[10px] text-slate-600 lowercase font-normal">(click to auto-fill)</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {PRESET_IDEAS.map(idea => (
@@ -1629,7 +1629,7 @@ function AdminCreatePromoModal({ open, onClose, onCreated, initialData }) {
                 className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all border cursor-pointer ${
                   form.code === idea.code
                     ? 'bg-[#EA4C2A] text-white border-[#EA4C2A] shadow-xs'
-                    : 'bg-[#121318] text-slate-200 border-[#262A36] hover:border-[#EA4C2A]/50 hover:text-white'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-[#EA4C2A] hover:text-[#EA4C2A]'
                 }`}
               >
                 {idea.label}
@@ -1641,24 +1641,24 @@ function AdminCreatePromoModal({ open, onClose, onCreated, initialData }) {
         <form onSubmit={handleCreate} className="space-y-3.5 text-xs">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-200 mb-1">Promo Code *</label>
+              <label className="block font-bold text-slate-700 mb-1">Promo Code *</label>
               <input
                 type="text"
                 placeholder="e.g. IBADANFEAST"
                 value={form.code}
                 onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs uppercase font-mono font-bold tracking-wider text-[#EA4C2A] outline-none focus:border-[#EA4C2A]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase font-mono font-bold tracking-wider text-[#EA4C2A] outline-none focus:border-[#EA4C2A]"
                 required
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-200 mb-1">Campaign Title *</label>
+              <label className="block font-bold text-slate-700 mb-1">Campaign Title *</label>
               <input
                 type="text"
                 placeholder="e.g. 20% Weekend Special"
                 value={form.title}
                 onChange={e => setForm({ ...form, title: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-white font-medium placeholder-slate-400"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-slate-900 font-medium placeholder-slate-400"
                 required
               />
             </div>
@@ -1666,11 +1666,11 @@ function AdminCreatePromoModal({ open, onClose, onCreated, initialData }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-200 mb-1">Discount Type</label>
+              <label className="block font-bold text-slate-700 mb-1">Discount Type</label>
               <select
                 value={form.discount_type}
                 onChange={e => setForm({ ...form, discount_type: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] font-semibold text-white"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] font-semibold text-slate-900"
               >
                 <option value="percentage">Percentage Off (%)</option>
                 <option value="fixed">Fixed Amount Off (₦)</option>
@@ -1679,13 +1679,13 @@ function AdminCreatePromoModal({ open, onClose, onCreated, initialData }) {
             </div>
 
             <div>
-              <label className="block font-bold text-slate-200 mb-1">Discount Value</label>
+              <label className="block font-bold text-slate-700 mb-1">Discount Value</label>
               <input
                 type="number"
                 placeholder={form.discount_type === 'percentage' ? '20 (%)' : '1000 (₦)'}
                 value={form.discount_value}
                 onChange={e => setForm({ ...form, discount_value: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] font-bold text-emerald-400 placeholder-slate-500"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] font-bold text-slate-900 placeholder-slate-400"
                 required={form.discount_type !== 'free_delivery'}
               />
             </div>
@@ -1693,30 +1693,30 @@ function AdminCreatePromoModal({ open, onClose, onCreated, initialData }) {
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block font-bold text-slate-200 mb-1">Min Order (₦)</label>
+              <label className="block font-bold text-slate-700 mb-1">Min Order (₦)</label>
               <input
                 type="number"
                 value={form.min_order}
                 onChange={e => setForm({ ...form, min_order: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-white"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-slate-900"
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-200 mb-1">Max Cap (₦)</label>
+              <label className="block font-bold text-slate-700 mb-1">Max Cap (₦)</label>
               <input
                 type="number"
                 value={form.max_discount}
                 onChange={e => setForm({ ...form, max_discount: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-white"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-slate-900"
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-200 mb-1">Max Uses</label>
+              <label className="block font-bold text-slate-700 mb-1">Max Uses</label>
               <input
                 type="number"
                 value={form.usage_limit}
                 onChange={e => setForm({ ...form, usage_limit: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-white font-mono"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-slate-900 font-mono"
               />
             </div>
           </div>
@@ -1725,7 +1725,7 @@ function AdminCreatePromoModal({ open, onClose, onCreated, initialData }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] text-slate-200 font-bold rounded-xl text-xs cursor-pointer"
+              className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
             >
               Cancel
             </button>
@@ -1753,11 +1753,11 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
   const [customMessage, setCustomMessage] = useState('');
 
   const STATUS_PRESETS = [
-    { id: 'CONFIRMED', label: 'Order Placed', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-    { id: 'PREPARING', label: 'Cooking in Kitchen', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
-    { id: 'ON_THE_WAY', label: 'Dispatched / On Way', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-    { id: 'DELIVERED', label: 'Delivered', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-    { id: 'CANCELLED', label: 'Cancelled', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30' }
+    { id: 'CONFIRMED', label: 'Order Placed', color: 'bg-amber-50 text-amber-800 border-amber-200' },
+    { id: 'PREPARING', label: 'Cooking in Kitchen', color: 'bg-orange-50 text-orange-800 border-orange-200' },
+    { id: 'ON_THE_WAY', label: 'Dispatched / On Way', color: 'bg-blue-50 text-blue-800 border-blue-200' },
+    { id: 'DELIVERED', label: 'Delivered', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+    { id: 'CANCELLED', label: 'Cancelled', color: 'bg-rose-50 text-rose-800 border-rose-200' }
   ];
 
   const NOTIFICATION_TEMPLATES = {
@@ -1837,14 +1837,14 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" onClick={onClose}>
       <div
-        className="bg-[#121318] border border-[#1F222C] text-white rounded-3xl w-full max-w-lg shadow-2xl p-6 relative animate-scale-up"
+        className="bg-white border border-slate-200 text-slate-900 rounded-3xl w-full max-w-lg shadow-2xl p-6 relative animate-scale-up"
         onClick={e => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#1A1C23] hover:bg-[#232631] flex items-center justify-center text-slate-400 hover:text-white border border-[#262A36] cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-900 border border-slate-200 cursor-pointer"
         >
           <X size={16} />
         </button>
@@ -1853,16 +1853,16 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
           <div className="w-8 h-8 rounded-xl bg-[#EA4C2A]/20 text-[#EA4C2A] flex items-center justify-center">
             <Zap size={16} />
           </div>
-          <h2 className="text-lg font-bold text-white">Update Status & Diner Notification</h2>
+          <h2 className="text-lg font-black text-slate-900">Update Status & Diner Notification</h2>
         </div>
-        <p className="text-xs text-slate-400 mb-4">
+        <p className="text-xs text-slate-600 mb-4">
           Order #{order.order_reference || order.id?.slice(0, 8)} · {order.customer_name || 'Customer'} ({order.delivery_zone || 'Ibadan'})
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           {/* Status Selection Buttons */}
           <div>
-            <label className="block font-bold text-slate-300 uppercase tracking-wider text-[10px] mb-2">
+            <label className="block font-bold text-slate-600 uppercase tracking-wider text-[10px] mb-2">
               Select New Order Status
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -1878,7 +1878,7 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
                   className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-left flex flex-col gap-0.5 cursor-pointer ${
                     selectedStatus === st.id
                       ? 'bg-[#EA4C2A] text-white border-[#EA4C2A] shadow-lg shadow-[#EA4C2A]/25 ring-2 ring-[#EA4C2A]/30'
-                      : 'bg-[#1A1C23] text-slate-300 border-[#262A36] hover:border-slate-700'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-700'
                   }`}
                 >
                   <span className="truncate">{st.label}</span>
@@ -1891,7 +1891,7 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
           {/* Quick Notification Templates */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block font-bold text-slate-300 uppercase tracking-wider text-[10px]">
+              <label className="block font-bold text-slate-600 uppercase tracking-wider text-[10px]">
                 1-Tap Notification Templates
               </label>
               <span className="text-[10px] text-[#EA4C2A]">Click to insert</span>
@@ -1902,7 +1902,7 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
                   key={idx}
                   type="button"
                   onClick={() => setCustomMessage(msg)}
-                  className="px-2.5 py-1 rounded-lg bg-[#1A1C23] hover:bg-[#232631] border border-[#262A36] text-[11px] text-slate-300 hover:text-white transition-colors text-left cursor-pointer active:scale-98"
+                  className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[11px] text-slate-700 hover:text-slate-900 font-semibold transition-colors text-left cursor-pointer active:scale-98"
                 >
                   {msg.length > 45 ? msg.slice(0, 45) + '...' : msg}
                 </button>
@@ -1912,7 +1912,7 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
 
           {/* Custom Notification Message Textarea */}
           <div>
-            <label className="block font-bold text-slate-300 uppercase tracking-wider text-[10px] mb-1">
+            <label className="block font-bold text-slate-600 uppercase tracking-wider text-[10px] mb-1">
               Custom Notification Message (Visible to Customer)
             </label>
             <textarea
@@ -1920,17 +1920,17 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
               value={customMessage}
               onChange={e => setCustomMessage(e.target.value)}
               placeholder="Enter custom note or instructions sent in real-time to the diner..."
-              className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl p-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#EA4C2A] leading-relaxed transition-colors"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder:text-slate-600 font-medium outline-none focus:border-[#EA4C2A] leading-relaxed transition-colors"
               required
             />
           </div>
 
           {/* Live Preview Strip */}
-          <div className="p-3 rounded-xl bg-[#0B0C0E] border border-[#1F222C] flex items-start gap-2.5">
+          <div className="p-3 rounded-xl bg-[#0B0C0E] border border-slate-200 flex items-start gap-2.5">
             <span className="text-base">📱</span>
             <div className="min-w-0 flex-1">
-              <div className="text-[10px] text-slate-400 font-semibold uppercase">Customer Live Banner Preview:</div>
-              <div className="text-[11px] text-slate-200 mt-0.5 italic">
+              <div className="text-[10px] text-slate-600 font-semibold uppercase">Customer Live Banner Preview:</div>
+              <div className="text-[11px] text-slate-700 mt-0.5 italic">
                 "{customMessage || 'No custom message'}"
               </div>
             </div>
@@ -1941,7 +1941,7 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-base">📲</span>
-                <span className="font-bold text-emerald-400 text-xs">WhatsApp Customer Notification API</span>
+                <span className="font-bold text-emerald-800 text-xs">WhatsApp Customer Notification API</span>
               </div>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
@@ -1950,7 +1950,7 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
                   onChange={e => setSendWhatsApp(e.target.checked)}
                   className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
                 />
-                <span className="text-[11px] text-slate-300 font-semibold">Auto-send WhatsApp</span>
+                <span className="text-[11px] text-slate-600 font-semibold">Auto-send WhatsApp</span>
               </label>
             </div>
             <button
@@ -1960,9 +1960,9 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
                 if (!res) toast('No phone number on this order for WhatsApp', 'warning');
                 else toast('WhatsApp notification opened! 📲', 'success');
               }}
-              className="py-1.5 px-3 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-emerald-500/30"
+              className="py-1.5 px-3 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-emerald-300"
             >
-              <MessageCircle size={14} className="text-emerald-400" />
+              <MessageCircle size={14} className="text-emerald-700" />
               <span>Preview & Send WhatsApp Message Now</span>
             </button>
           </div>
@@ -1972,7 +1972,7 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-base">💬</span>
-                <span className="font-bold text-blue-400 text-xs">SMS Notification SDK (Termii / GSM)</span>
+                <span className="font-bold text-blue-800 text-xs">SMS Notification SDK (Termii / GSM)</span>
               </div>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
@@ -1981,7 +1981,7 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
                   onChange={e => setSendSms(e.target.checked)}
                   className="w-4 h-4 accent-blue-500 rounded cursor-pointer"
                 />
-                <span className="text-[11px] text-slate-300 font-semibold">Auto-send SMS</span>
+                <span className="text-[11px] text-slate-600 font-semibold">Auto-send SMS</span>
               </label>
             </div>
             <button
@@ -1995,7 +1995,7 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
                   else toast('No phone number on this order for SMS', 'warning');
                 }
               }}
-              className="py-1.5 px-3 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-blue-500/30"
+              className="py-1.5 px-3 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-blue-300"
             >
               <span>Preview & Launch Device SMS</span>
             </button>
@@ -2006,7 +2006,7 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 bg-[#1A1C23] hover:bg-[#232631] text-slate-300 font-bold rounded-xl text-xs border border-[#262A36] transition-colors cursor-pointer"
+              className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl text-xs border border-slate-200 transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -2072,25 +2072,25 @@ function AdminCreateZoneModal({ open, onClose, onCreated }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" onClick={onClose}>
       <div
-        className="bg-[#121318] border border-[#1F222C] text-white rounded-3xl w-full max-w-sm shadow-2xl p-6 relative animate-scale-up"
+        className="bg-white border border-slate-200 text-slate-900 rounded-3xl w-full max-w-sm shadow-2xl p-6 relative animate-scale-up"
         onClick={e => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#1A1C23] hover:bg-[#232631] flex items-center justify-center text-slate-400 hover:text-white border border-[#262A36] cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-900 border border-slate-200 cursor-pointer"
         >
           <X size={16} />
         </button>
 
         <div className="flex items-center gap-2 mb-1">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center">
             <MapPin size={16} />
           </div>
-          <h2 className="text-lg font-bold text-white">Add Delivery Location</h2>
+          <h2 className="text-lg font-black text-slate-900">Add Delivery Location</h2>
         </div>
-        <p className="text-xs text-slate-400 mb-3">Add a new coverage area & fee for Ibadan diners</p>
+        <p className="text-xs text-slate-600 mb-3">Add a new coverage area & fee for Ibadan diners</p>
 
         {/* Quick Suggestions */}
         <div className="mb-3">
@@ -2101,7 +2101,7 @@ function AdminCreateZoneModal({ open, onClose, onCreated }) {
                 key={s}
                 type="button"
                 onClick={() => setForm(f => ({ ...f, name: s }))}
-                className="px-2 py-0.5 rounded-lg bg-[#1A1C23] hover:bg-[#232631] text-[10px] text-slate-300 hover:text-white border border-[#262A36] cursor-pointer"
+                className="px-2 py-0.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-[10px] text-slate-700 hover:text-slate-900 font-semibold border border-slate-200 cursor-pointer"
               >
                 {s}
               </button>
@@ -2111,48 +2111,48 @@ function AdminCreateZoneModal({ open, onClose, onCreated }) {
 
         <form onSubmit={handleCreate} className="space-y-3 text-xs">
           <div>
-            <label className="block font-medium text-slate-300 mb-1">Location / Zone Name</label>
+            <label className="block font-medium text-slate-600 mb-1">Location / Zone Name</label>
             <input
               type="text"
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
               placeholder="e.g. Akobo, Moniya, Olodo..."
-              className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-[#EA4C2A] font-bold"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-600 font-medium outline-none focus:border-[#EA4C2A] font-bold"
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-medium text-slate-300 mb-1">Delivery Fee (₦)</label>
+              <label className="block font-medium text-slate-600 mb-1">Delivery Fee (₦)</label>
               <input
                 type="number"
                 value={form.delivery_fee}
                 onChange={e => setForm({ ...form, delivery_fee: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs text-[#EA4C2A] font-bold outline-none focus:border-[#EA4C2A]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-[#EA4C2A] font-bold outline-none focus:border-[#EA4C2A]"
                 required
               />
             </div>
             <div>
-              <label className="block font-medium text-slate-300 mb-1">Min Order (₦)</label>
+              <label className="block font-medium text-slate-600 mb-1">Min Order (₦)</label>
               <input
                 type="number"
                 value={form.min_order}
                 onChange={e => setForm({ ...form, min_order: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs text-white font-bold outline-none focus:border-[#EA4C2A]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block font-medium text-slate-300 mb-1">Estimated Delivery Time</label>
+            <label className="block font-medium text-slate-600 mb-1">Estimated Delivery Time</label>
             <input
               type="text"
               value={form.estimated_delivery_time}
               onChange={e => setForm({ ...form, estimated_delivery_time: e.target.value })}
               placeholder="e.g. 25-35 min"
-              className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-[#EA4C2A]"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-600 font-medium outline-none focus:border-[#EA4C2A]"
               required
             />
           </div>
@@ -2161,7 +2161,7 @@ function AdminCreateZoneModal({ open, onClose, onCreated }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 bg-[#1A1C23] hover:bg-[#232631] text-slate-300 font-bold rounded-xl text-xs border border-[#262A36] cursor-pointer"
+              className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl text-xs border border-slate-200 cursor-pointer"
             >
               Cancel
             </button>
@@ -2228,68 +2228,68 @@ function AdminEditZoneModal({ open, onClose, zone, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" onClick={onClose}>
       <div
-        className="bg-[#121318] border border-[#1F222C] text-white rounded-3xl w-full max-w-sm shadow-2xl p-6 relative animate-scale-up"
+        className="bg-white border border-slate-200 text-slate-900 rounded-3xl w-full max-w-sm shadow-2xl p-6 relative animate-scale-up"
         onClick={e => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#1A1C23] hover:bg-[#232631] flex items-center justify-center text-slate-400 hover:text-white border border-[#262A36] cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-900 border border-slate-200 cursor-pointer"
         >
           <X size={16} />
         </button>
 
-        <h2 className="text-lg font-bold mb-1 text-white">Edit Delivery Location</h2>
-        <p className="text-xs text-slate-400 mb-4">{zone.city || 'Ibadan'} · Fast Dispatch Zone</p>
+        <h2 className="text-lg font-black mb-1 text-slate-900">Edit Delivery Location</h2>
+        <p className="text-xs text-slate-600 mb-4">{zone.city || 'Ibadan'} · Fast Dispatch Zone</p>
 
         <form onSubmit={handleSave} className="space-y-3 text-xs">
           <div>
-            <label className="block font-medium text-slate-300 mb-1">Location Name</label>
+            <label className="block font-medium text-slate-600 mb-1">Location Name</label>
             <input
               type="text"
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
-              className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#EA4C2A] font-bold"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:border-[#EA4C2A] font-bold"
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-medium text-slate-300 mb-1">Delivery Fee (₦)</label>
+              <label className="block font-medium text-slate-600 mb-1">Delivery Fee (₦)</label>
               <input
                 type="number"
                 value={form.delivery_fee}
                 onChange={e => setForm({ ...form, delivery_fee: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-[#EA4C2A] font-bold"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-[#EA4C2A] font-bold"
                 required
               />
             </div>
             <div>
-              <label className="block font-medium text-slate-300 mb-1">Min Order (₦)</label>
+              <label className="block font-medium text-slate-600 mb-1">Min Order (₦)</label>
               <input
                 type="number"
                 value={form.min_order}
                 onChange={e => setForm({ ...form, min_order: e.target.value })}
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] font-bold text-white"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] font-bold text-slate-900"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block font-medium text-slate-300 mb-1">Estimated Delivery Time</label>
+            <label className="block font-medium text-slate-600 mb-1">Estimated Delivery Time</label>
             <input
               type="text"
               value={form.estimated_delivery_time}
               onChange={e => setForm({ ...form, estimated_delivery_time: e.target.value })}
-              className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-white"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-[#EA4C2A] text-slate-900"
               required
             />
           </div>
 
-          <div className="flex items-center gap-2.5 bg-[#1A1C23] p-2.5 rounded-xl border border-[#262A36]">
+          <div className="flex items-center gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
             <input
               type="checkbox"
               id="zone_active_toggle"
@@ -2297,7 +2297,7 @@ function AdminEditZoneModal({ open, onClose, zone, onSaved }) {
               onChange={e => setForm({ ...form, is_active: e.target.checked })}
               className="w-4 h-4 accent-[#EA4C2A] rounded-md cursor-pointer"
             />
-            <label htmlFor="zone_active_toggle" className="text-xs font-medium text-slate-200 cursor-pointer">
+            <label htmlFor="zone_active_toggle" className="text-xs font-medium text-slate-700 cursor-pointer">
               {form.is_active ? '🟢 Location Active for Orders' : '🔴 Location Paused'}
             </label>
           </div>
@@ -2306,7 +2306,7 @@ function AdminEditZoneModal({ open, onClose, zone, onSaved }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 bg-[#1A1C23] hover:bg-[#232631] text-slate-300 font-bold rounded-xl text-xs border border-[#262A36] cursor-pointer"
+              className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl text-xs border border-slate-200 cursor-pointer"
             >
               Cancel
             </button>
@@ -2388,26 +2388,26 @@ function AdminRiderAssignModal({ open, onClose, order, riders, onAssigned }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={onClose}>
-      <div className="bg-[#121318] border border-[#262A36] text-white rounded-3xl w-full max-w-md shadow-2xl p-6 relative animate-scale-up" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" onClick={onClose}>
+      <div className="bg-white border border-slate-200 text-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 relative animate-scale-up" onClick={e => e.stopPropagation()}>
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
         >
           <X size={18} />
         </button>
 
-        <h2 className="text-xl font-bold mb-1 text-white">Assign Dispatch Rider</h2>
-        <p className="text-xs text-slate-400 mb-4">
+        <h2 className="text-xl font-black mb-1 text-slate-900">Assign Dispatch Rider</h2>
+        <p className="text-xs text-slate-600 mb-4">
           Order #{order.order_reference} · Destination: {order.delivery_zone || 'Ibadan'}
         </p>
 
         <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
           {riderList.length === 0 ? (
-            <div className="text-center py-8 px-4 bg-[#1A1C23] border border-[#262A36] rounded-2xl">
+            <div className="text-center py-8 px-4 bg-slate-50 border border-slate-200 rounded-2xl">
               <div className="text-3xl mb-2">🛵</div>
-              <div className="font-bold text-sm text-white mb-1">No Riders Available</div>
-              <p className="text-xs text-slate-400">
+              <div className="font-bold text-sm text-slate-900 mb-1">No Riders Available</div>
+              <p className="text-xs text-slate-600">
                 Register couriers in the Delivery Riders section or check your connection.
               </p>
             </div>
@@ -2419,24 +2419,24 @@ function AdminRiderAssignModal({ open, onClose, order, riders, onAssigned }) {
               return (
                 <div
                   key={r.id}
-                  className="bg-[#1A1C23] border border-[#262A36] rounded-2xl p-3.5 flex items-center justify-between gap-3 hover:border-[#EA4C2A]/40 transition-colors"
+                  className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between gap-3 hover:border-[#EA4C2A]/40 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="relative shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-[#121318] border border-[#262A36] flex items-center justify-center font-bold text-sm text-[#EA4C2A]">
+                      <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center font-bold text-sm text-[#EA4C2A]">
                         {initial}
                       </div>
                       <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#121318] ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} />
                     </div>
                     <div className="min-w-0">
-                      <div className="font-bold text-xs text-white truncate">{riderName}</div>
-                      <div className="text-[11px] text-slate-300">
+                      <div className="font-bold text-xs text-slate-900 truncate">{riderName}</div>
+                      <div className="text-[11px] text-slate-600">
                         {r.vehicle_type || 'Motorcycle'} {r.plate_number ? `· ${r.plate_number}` : ''}
                       </div>
-                      <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5 font-medium">
+                      <div className="text-[10px] text-slate-600 flex items-center gap-2 mt-0.5 font-medium">
                         <span>⭐ {r.rating || 4.9}</span>
                         <span>📦 {r.total_deliveries ?? 45} trips</span>
-                        <span className={r.status === 'busy' ? 'text-amber-400' : 'text-emerald-400'}>
+                        <span className={r.status === 'busy' ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'}>
                           • {r.status || 'available'}
                         </span>
                       </div>
@@ -2490,27 +2490,27 @@ function AdminVerifyOtpModal({ open, onClose, order, onVerified }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={onClose}>
-      <div className="bg-[#121318] border border-[#262A36] text-white rounded-3xl w-full max-w-sm shadow-2xl p-6 relative animate-scale-up text-center" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" onClick={onClose}>
+      <div className="bg-white border border-slate-200 text-slate-900 rounded-3xl w-full max-w-sm shadow-2xl p-6 relative animate-scale-up text-center" onClick={e => e.stopPropagation()}>
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
         >
           <X size={18} />
         </button>
 
-        <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-2xl mx-auto mb-3">
+        <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center text-2xl mx-auto mb-3">
           🔑
         </div>
 
-        <h2 className="text-xl font-bold mb-1 text-white">Verify Delivery OTP</h2>
-        <p className="text-xs text-slate-300 mb-4">
-          Customer: <strong className="text-white">{order.customer?.full_name}</strong>
+        <h2 className="text-xl font-black mb-1 text-slate-900">Verify Delivery OTP</h2>
+        <p className="text-xs text-slate-600 mb-4">
+          Customer: <strong className="text-slate-900 font-bold">{order.customer?.full_name}</strong>
         </p>
 
-        <div className="bg-[#1A1C23] p-3 rounded-2xl border border-[#262A36] mb-4">
-          <div className="text-[11px] text-slate-400 font-medium mb-1">Order Security OTP:</div>
-          <div className="text-2xl font-mono font-bold tracking-widest text-emerald-400">
+        <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 mb-4">
+          <div className="text-[11px] text-slate-600 font-medium mb-1">Order Security OTP:</div>
+          <div className="text-2xl font-mono font-black tracking-widest text-emerald-700">
             {order.delivery_otp}
           </div>
         </div>
@@ -2522,7 +2522,7 @@ function AdminVerifyOtpModal({ open, onClose, order, onVerified }) {
             placeholder="Enter 4-digit code"
             value={inputOtp}
             onChange={e => setInputOtp(e.target.value)}
-            className="w-full text-center text-xl font-mono font-bold tracking-widest bg-[#1A1C23] border border-[#262A36] rounded-xl py-2.5 text-white outline-none focus:border-emerald-500"
+            className="w-full text-center text-xl font-mono font-bold tracking-widest bg-slate-50 border border-slate-200 rounded-xl py-2.5 text-slate-900 outline-none focus:border-emerald-500"
           />
         </div>
 
@@ -2540,7 +2540,7 @@ function AdminVerifyOtpModal({ open, onClose, order, onVerified }) {
             type="button"
             disabled={loading}
             onClick={() => handleVerify(true)}
-            className="w-full py-2.5 bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] text-slate-300 hover:text-white rounded-xl text-[11px] font-bold transition-all cursor-pointer"
+            className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 font-semibold rounded-xl text-[11px] font-bold transition-all cursor-pointer"
           >
             ⚡ 1-Tap Direct Delivery Bypass
           </button>
@@ -2654,7 +2654,7 @@ function AdminKitchenSlipModal({ open, onClose, order, settings }) {
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 font-black rounded-xl text-xs cursor-pointer"
+            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border border-slate-300 font-black rounded-xl text-xs cursor-pointer"
           >
             Close
           </button>
@@ -2818,42 +2818,42 @@ function AdminDeleteCustomerModal({ open, onClose, customer, onDeleted }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={onClose}>
-      <div className="bg-[#121318] border border-[#262A36] text-white rounded-3xl w-full max-w-md shadow-2xl p-6 relative animate-scale-up" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" onClick={onClose}>
+      <div className="bg-white border border-slate-200 text-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 relative animate-scale-up" onClick={e => e.stopPropagation()}>
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#1A1C23] hover:bg-[#232734] border border-[#262A36] flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
         >
           <X size={18} />
         </button>
 
-        <div className="w-14 h-14 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center text-2xl mx-auto mb-4">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center text-2xl mx-auto mb-4">
           <Trash2 size={28} />
         </div>
 
-        <h2 className="text-xl font-black text-center mb-1 text-white">Delete Customer Account</h2>
-        <p className="text-xs text-rose-300/90 text-center mb-5 font-medium">
+        <h2 className="text-xl font-black text-center mb-1 text-slate-900">Delete Customer Account</h2>
+        <p className="text-xs text-rose-700 text-center mb-5 font-medium">
           Warning: This action permanently removes this customer profile and credentials from FoodMaxx.
         </p>
 
-        <div className="bg-[#1A1C23] p-4 rounded-2xl border border-[#262A36] mb-5 space-y-2.5 text-xs">
-          <div className="flex items-center justify-between pb-2 border-b border-[#262A36]/60">
-            <span className="text-slate-400 font-medium">Customer Name</span>
-            <span className="font-bold text-white text-sm">{customer.full_name || customer.name || 'Unnamed Customer'}</span>
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-5 space-y-2.5 text-xs">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+            <span className="text-slate-600 font-medium">Customer Name</span>
+            <span className="font-bold text-slate-900 text-sm">{customer.full_name || customer.name || 'Unnamed Customer'}</span>
           </div>
-          <div className="flex items-center justify-between pb-2 border-b border-[#262A36]/60">
-            <span className="text-slate-400 font-medium">Phone Number</span>
-            <span className="font-mono font-bold text-white">{customer.phone || 'No phone'}</span>
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+            <span className="text-slate-600 font-medium">Phone Number</span>
+            <span className="font-mono font-bold text-slate-900">{customer.phone || 'No phone'}</span>
           </div>
           {customer.email && (
-            <div className="flex items-center justify-between pb-2 border-b border-[#262A36]/60">
-              <span className="text-slate-400 font-medium">Email Address</span>
-              <span className="font-mono text-slate-300 truncate max-w-[200px]">{customer.email}</span>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+              <span className="text-slate-600 font-medium">Email Address</span>
+              <span className="font-mono text-slate-600 truncate max-w-[200px]">{customer.email}</span>
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-slate-400 font-medium">Account ID</span>
-            <span className="font-mono text-[11px] text-slate-400 truncate max-w-[180px]">{customer.id}</span>
+            <span className="text-slate-600 font-medium">Account ID</span>
+            <span className="font-mono text-[11px] text-slate-600 truncate max-w-[180px]">{customer.id}</span>
           </div>
         </div>
 
@@ -2862,7 +2862,7 @@ function AdminDeleteCustomerModal({ open, onClose, customer, onDeleted }) {
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-black transition-colors"
+            className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-700 text-xs font-black transition-colors"
           >
             Cancel
           </button>
@@ -4449,35 +4449,37 @@ function AdminPortal() {
 
   if (!isSuperAdmin) {
     return (
-      <div className="min-h-screen bg-[#0B0C0E] text-white flex items-center justify-center p-4 admin-portal-dark dark">
-        <div className="w-full max-w-md bg-[#121318] border border-[#1F222C] rounded-3xl p-6 sm:p-8 shadow-2xl">
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center p-4 antialiased font-sans">
+        <div className="w-full max-w-md bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-200/50">
           <div className="text-center mb-6">
-            <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-16 h-16 rounded-2xl mx-auto mb-3 shadow-md border border-[#EA4C2A]/30 object-cover" />
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">FoodMaxx Admin Portal</h2>
-            <p className="text-xs text-slate-400 mt-1">Single-merchant operations & store control</p>
+            <div className="w-16 h-16 rounded-2xl mx-auto mb-3.5 bg-orange-50 border border-orange-200 flex items-center justify-center p-1.5 shadow-xs">
+              <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-full h-full object-contain" />
+            </div>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900">FoodMaxx Admin Portal</h2>
+            <p className="text-xs font-semibold text-slate-600 mt-1">Single-merchant operations &amp; store control</p>
           </div>
 
-          <form onSubmit={handleAdminSignIn} className="space-y-3.5">
+          <form onSubmit={handleAdminSignIn} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Admin Email</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Admin Email</label>
               <input
                 type="email"
                 value={adminEmail}
                 onChange={e => setAdminEmail(e.target.value)}
                 placeholder="admin@foodmaxx.ng"
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#EA4C2A] font-medium transition-colors"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium outline-none focus:bg-white focus:border-[#EA4C2A] focus:ring-2 focus:ring-[#EA4C2A]/20 transition-all placeholder:text-slate-400"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Password</label>
               <input
                 type="password"
                 value={adminPassword}
                 onChange={e => setAdminPassword(e.target.value)}
                 placeholder="Enter admin password"
-                className="w-full bg-[#1A1C23] border border-[#262A36] rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#EA4C2A] font-medium transition-colors"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium outline-none focus:bg-white focus:border-[#EA4C2A] focus:ring-2 focus:ring-[#EA4C2A]/20 transition-all placeholder:text-slate-400"
                 required
               />
             </div>
@@ -4485,22 +4487,22 @@ function AdminPortal() {
             <button
               type="submit"
               disabled={adminLoggingIn}
-              className="w-full bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-98 text-white py-3 rounded-xl font-bold text-xs transition-all shadow-lg shadow-[#EA4C2A]/25 cursor-pointer disabled:opacity-50"
+              className="w-full bg-[#EA4C2A] hover:bg-[#D93D1B] active:scale-98 text-white py-3 rounded-xl font-black text-xs transition-all shadow-md shadow-[#EA4C2A]/25 cursor-pointer disabled:opacity-50"
             >
-              {adminLoggingIn ? 'Verifying Credentials...' : 'Sign In to Admin Portal'}
+              {adminLoggingIn ? 'Verifying Credentials...' : 'Sign In to Admin Portal →'}
             </button>
           </form>
 
-          <div className="mt-5 pt-4 border-t border-[#1F222C] flex flex-col gap-2">
+          <div className="mt-6 pt-4 border-t border-slate-200 flex flex-col gap-2">
             <button
               type="button"
               onClick={() => {
                 window.history.pushState(null, '', '/');
                 window.dispatchEvent(new PopStateEvent('popstate'));
               }}
-              className="w-full bg-[#1A1C23] hover:bg-[#232631] text-slate-300 border border-[#262A36] py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer text-center"
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-200 py-2.5 rounded-xl text-xs transition-all cursor-pointer text-center"
             >
-              ← Back to Customer App
+              ← Back to Customer Store
             </button>
           </div>
         </div>
@@ -4581,7 +4583,7 @@ function AdminPortal() {
             }`}
           >
             <span className={`w-2 h-2 rounded-full shrink-0 ${settings.is_open !== false ? 'bg-emerald-600 animate-pulse' : 'bg-rose-600'}`} />
-            <span className="text-black font-black">{settings.is_open !== false ? 'Open for Orders' : 'Close for Orders'}</span>
+            <span className={`font-black ${settings.is_open !== false ? 'text-emerald-950' : 'text-rose-950'}`}>{settings.is_open !== false ? 'Open for Orders' : 'Close for Orders'}</span>
           </button>
           <button
             onClick={() => {
@@ -4729,7 +4731,7 @@ function AdminPortal() {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-white truncate">{user?.full_name || 'FoodMaxx Admin'}</p>
-              <p className="text-xs text-slate-300 truncate">Store Manager</p>
+              <p className="text-xs text-slate-400 truncate">Store Manager</p>
             </div>
           </div>
           <button
@@ -4845,7 +4847,7 @@ function AdminPortal() {
                 const nextIdx = (keys.indexOf(adminThemeKey) + 1) % keys.length;
                 selectAdminTheme(keys[nextIdx]);
               }}
-              className="p-2 rounded-full bg-white border border-slate-300 text-black hover:bg-slate-50 transition-colors shadow-xs cursor-pointer font-bold"
+              className="p-2 rounded-full bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs cursor-pointer font-bold"
               title={`Cycle Theme (Current: ${currentAdminTheme.name})`}
             >
               <Palette size={14} style={{ color: currentAdminTheme.accent }} />
@@ -4866,10 +4868,10 @@ function AdminPortal() {
                     ⏱️
                   </div>
                   <div>
-                    <h3 className="font-black text-sm text-black">
+                    <h3 className="font-black text-sm text-rose-950">
                       {delayedOrdersCount} Orders Running Late (&gt;25 mins)
                     </h3>
-                    <p className="text-xs text-black font-semibold">
+                    <p className="text-xs text-rose-900 font-semibold">
                       Kitchen queue is taking longer than expected. Assign courier or notify customer.
                     </p>
                   </div>
@@ -4886,14 +4888,14 @@ function AdminPortal() {
             {/* Top Statistic Cards with Daily App Visit Tracker */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
               {/* Card 1: Total Orders */}
-              <div className="bg-[#FFF5F5] border border-rose-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-black text-black mb-1">Total Orders</p>
-                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Total Orders</p>
+                  <h3 className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
                     {orders.length || overview?.totalOrders || 0}
                   </h3>
                   <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1">
-                    <span className="text-black font-bold">All time orders</span>
+                    <span className="text-slate-600 font-semibold">All time completed</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#EF4444] text-white flex items-center justify-center shadow-md shadow-rose-500/25 shrink-0">
@@ -4902,14 +4904,14 @@ function AdminPortal() {
               </div>
 
               {/* Card 2: Total Revenue */}
-              <div className="bg-[#F0FDF4] border border-emerald-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-black text-black mb-1">Today's Revenue</p>
-                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Today's Revenue</p>
+                  <h3 className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
                     ₦{Number(todayRevenue).toLocaleString()}
                   </h3>
                   <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1">
-                    <span className="text-black font-bold">Paid orders today</span>
+                    <span className="text-slate-600 font-semibold">Paid orders today</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#10B981] text-white flex items-center justify-center shadow-md shadow-emerald-500/25 shrink-0 font-black text-2xl">
@@ -4918,14 +4920,14 @@ function AdminPortal() {
               </div>
 
               {/* Card 3: New Customers */}
-              <div className="bg-[#EFF6FF] border border-blue-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-black text-black mb-1">Total Customers</p>
-                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Total Customers</p>
+                  <h3 className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
                     {customers.length || overview?.totalCustomers || 0}
                   </h3>
                   <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1">
-                    <span className="text-black font-bold">Registered accounts</span>
+                    <span className="text-slate-600 font-semibold">Registered customers</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#3B82F6] text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
@@ -4934,14 +4936,14 @@ function AdminPortal() {
               </div>
 
               {/* Card 4: Active Riders */}
-              <div className="bg-[#FFFBEB] border border-amber-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-black text-black mb-1">Active Riders</p>
-                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Active Riders</p>
+                  <h3 className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
                     {riders.filter(r => r.status === 'active' || r.is_active).length || 0}
                   </h3>
                   <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1">
-                    <span className="text-black font-bold">Online now</span>
+                    <span className="text-emerald-700 font-bold">Online and ready</span>
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#F59E0B] text-white flex items-center justify-center shadow-md shadow-amber-500/25 shrink-0">
@@ -4950,10 +4952,10 @@ function AdminPortal() {
               </div>
 
               {/* Card 5: Today's App Visits */}
-              <div className="bg-[#FAF5FF] border border-purple-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-black text-black mb-1">Today's Visits</p>
-                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Today's Visits</p>
+                  <h3 className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
                     {dailyVisitsData?.todayVisits ?? 0}
                   </h3>
                   <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1">
@@ -4973,7 +4975,7 @@ function AdminPortal() {
                 {/* Recent Orders Card */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-lg sm:text-xl font-black text-black">Recent Orders</h2>
+                    <h2 className="text-lg sm:text-xl font-black text-slate-900">Recent Orders</h2>
                     <button
                       onClick={() => handleNavChange('orders')}
                       className="text-sm font-black text-blue-700 hover:text-blue-900 transition-colors cursor-pointer"
@@ -4985,13 +4987,13 @@ function AdminPortal() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
-                        <tr className="border-b border-slate-300 text-sm font-black text-black uppercase tracking-wider">
-                          <th className="pb-3 pl-1 font-black text-black">#</th>
-                          <th className="pb-3 font-black text-black">Customer</th>
-                          <th className="pb-3 font-black text-black">Items</th>
-                          <th className="pb-3 font-black text-black">Amount</th>
-                          <th className="pb-3 font-black text-black">Status</th>
-                          <th className="pb-3 pr-1 text-right font-black text-black">Time</th>
+                        <tr className="border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                          <th className="pb-3 pl-1 font-bold text-xs text-slate-600 uppercase tracking-wider">#</th>
+                          <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Customer</th>
+                          <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Items</th>
+                          <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Amount</th>
+                          <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Status</th>
+                          <th className="pb-3 pr-1 text-right font-bold text-xs text-slate-600 uppercase tracking-wider">Time</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-sm">
@@ -5032,16 +5034,16 @@ function AdminPortal() {
                               onClick={() => setSlipOrder(order)}
                               className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
                             >
-                              <td className="py-3.5 pl-1 font-black text-black font-mono text-sm">
+                              <td className="py-3.5 pl-1 font-bold text-slate-900 font-mono text-sm">
                                 #{order.order_reference?.slice(-4) || order.id?.slice(0, 4)}
                               </td>
-                              <td className="py-3.5 font-black text-black text-sm">
+                              <td className="py-3.5 font-bold text-slate-900 text-sm">
                                 {order.customer?.full_name || 'Customer'}
                               </td>
-                              <td className="py-3.5 font-bold text-black text-sm">
+                              <td className="py-3.5 font-bold text-slate-900 text-sm">
                                 {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
                               </td>
-                              <td className="py-3.5 font-black text-black text-base font-mono">
+                              <td className="py-3.5 font-mono font-bold text-slate-900 text-base">
                                 ₦{Number(order.total_amount || 0).toLocaleString()}
                               </td>
                               <td className="py-3.5">
@@ -5049,7 +5051,7 @@ function AdminPortal() {
                                   {badgeLabel}
                                 </span>
                               </td>
-                              <td className="py-3.5 pr-1 text-right font-black text-black font-mono text-sm">
+                              <td className="py-3.5 pr-1 text-right font-bold text-slate-900 font-mono text-sm">
                                 {timeFormatted}
                               </td>
                             </tr>
@@ -5058,7 +5060,7 @@ function AdminPortal() {
 
                         {orders.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="py-8 text-center text-black font-bold text-sm">
+                            <td colSpan={6} className="py-8 text-center text-slate-900 font-bold text-sm">
                               No customer orders placed yet.
                             </td>
                           </tr>
@@ -5071,7 +5073,7 @@ function AdminPortal() {
                 {/* Popular Menu Items Card (Matching Reference Image) */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-lg sm:text-xl font-black text-black">Popular Menu Items</h2>
+                    <h2 className="text-lg font-black text-slate-900">Popular Menu Items</h2>
                     <button
                       onClick={() => handleNavChange('products')}
                       className="text-sm font-black text-blue-700 hover:text-blue-900 transition-colors cursor-pointer"
@@ -5083,20 +5085,20 @@ function AdminPortal() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
-                        <tr className="border-b border-slate-300 text-sm font-black text-black uppercase tracking-wider">
-                          <th className="pb-3 pl-1 font-black text-black">#</th>
-                          <th className="pb-3 font-black text-black">Item</th>
-                          <th className="pb-3 font-black text-black">Price</th>
-                          <th className="pb-3 font-black text-black">Orders</th>
-                          <th className="pb-3 font-black text-black">Status</th>
-                          <th className="pb-3 pr-1 text-right font-black text-black">Action</th>
+                        <tr className="border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                          <th className="pb-3 pl-1 font-bold text-xs text-slate-600 uppercase tracking-wider">#</th>
+                          <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Item</th>
+                          <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Price</th>
+                          <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Orders</th>
+                          <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Status</th>
+                          <th className="pb-3 pr-1 text-right font-bold text-xs text-slate-600 uppercase tracking-wider">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-sm">
                         {products.slice(0, 5).map((dish, idx) => {
                           return (
                             <tr key={dish.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="py-3.5 pl-1 font-mono font-black text-black text-sm">{idx + 1}</td>
+                              <td className="py-3.5 pl-1 font-mono font-bold text-slate-900 text-sm">{idx + 1}</td>
                               <td className="py-3.5">
                                 <div className="flex items-center gap-3">
                                   <img
@@ -5105,15 +5107,15 @@ function AdminPortal() {
                                     className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
                                     onError={(e) => { e.target.onerror = null; e.target.src = '/foodmaxx-logo.png'; }}
                                   />
-                                  <span className="font-black text-black truncate max-w-[190px] text-sm">
+                                  <span className="font-black text-slate-900 truncate max-w-[190px] text-sm">
                                     {dish.name}
                                   </span>
                                 </div>
                               </td>
-                              <td className="py-3.5 font-black text-black text-base font-mono">
+                              <td className="py-3.5 font-mono font-bold text-slate-900 text-base">
                                 ₦{Number(dish.price || 0).toLocaleString()}
                               </td>
-                              <td className="py-3.5 text-black font-black text-sm font-mono">
+                              <td className="py-3.5 font-mono font-bold text-slate-900 text-sm">
                                 {dish.orders_count ?? 0}
                               </td>
                               <td className="py-3.5">
@@ -5129,7 +5131,7 @@ function AdminPortal() {
                                       setEditingProduct(dish);
                                       setProductModalOpen(true);
                                     }}
-                                    className="px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-black text-xs font-black rounded-lg transition-colors cursor-pointer shadow-xs"
+                                    className="px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 text-xs font-black rounded-lg transition-colors cursor-pointer shadow-xs"
                                   >
                                     Edit
                                   </button>
@@ -5141,7 +5143,7 @@ function AdminPortal() {
 
                         {products.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="py-8 text-center text-black font-bold text-sm">
+                            <td colSpan={6} className="py-8 text-center text-slate-900 font-bold text-sm">
                               No menu items added yet. Click Add Menu Item below.
                             </td>
                           </tr>
@@ -5157,14 +5159,14 @@ function AdminPortal() {
                 {/* Today's Sales Card */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-lg sm:text-xl font-black text-black">Today's Sales</h2>
+                    <h2 className="text-lg font-black text-slate-900">Today's Sales</h2>
                   </div>
 
-                  <h3 className="text-3xl sm:text-4xl font-black text-black tracking-tight mt-3">
+                  <h3 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mt-3">
                     ₦{Number(todayRevenue).toLocaleString()}
                   </h3>
                   <p className="text-xs sm:text-sm font-bold text-slate-500 flex items-center gap-1 mt-1 mb-6">
-                    <span className="text-black font-bold">Revenue from paid orders</span>
+                    <span className="text-slate-600 font-semibold">Revenue from paid orders</span>
                   </p>
 
                   {/* Real hourly bar chart from today's orders */}
@@ -5195,7 +5197,7 @@ function AdminPortal() {
                             </div>
                           ))}
                         </div>
-                        <div className="flex justify-between text-xs text-black font-black pt-2">
+                        <div className="flex justify-between text-xs text-slate-600 font-bold pt-2">
                           {displayHours.map(h => (
                             <span key={h}>{h < 12 ? `${h}AM` : h === 12 ? '12PM' : `${h - 12}PM`}</span>
                           ))}
@@ -5210,7 +5212,7 @@ function AdminPortal() {
 
                 {/* Quick Actions Card (2x2 Grid matching reference image) */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
-                  <h2 className="text-lg sm:text-xl font-black text-black mb-4">Quick Actions</h2>
+                  <h2 className="text-lg font-black text-slate-900 mb-4">Quick Actions</h2>
                   <div className="grid grid-cols-2 gap-3.5">
                     {/* Action 1: Add Menu Item */}
                     <button
@@ -5224,7 +5226,7 @@ function AdminPortal() {
                       <div className="w-9 h-9 rounded-full bg-[#10B981] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
                         <Plus size={18} strokeWidth={3} />
                       </div>
-                      <span className="text-sm font-black text-black text-center">Add Menu Item</span>
+                      <span className="text-sm font-bold text-slate-900 text-center">Add Menu Item</span>
                     </button>
 
                     {/* Action 2: Manage Orders */}
@@ -5236,7 +5238,7 @@ function AdminPortal() {
                       <div className="w-9 h-9 rounded-xl bg-[#3B82F6] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
                         <ClipboardList size={18} />
                       </div>
-                      <span className="text-sm font-black text-black text-center">Manage Orders</span>
+                      <span className="text-sm font-bold text-slate-900 text-center">Manage Orders</span>
                     </button>
 
                     {/* Action 3: Update Inventory */}
@@ -5248,7 +5250,7 @@ function AdminPortal() {
                       <div className="w-9 h-9 rounded-xl bg-[#F59E0B] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
                         <Package size={18} />
                       </div>
-                      <span className="text-sm font-black text-black text-center">Update Inventory</span>
+                      <span className="text-sm font-bold text-slate-900 text-center">Update Inventory</span>
                     </button>
 
                     {/* Action 4: Restaurant Settings */}
@@ -5260,7 +5262,7 @@ function AdminPortal() {
                       <div className="w-9 h-9 rounded-xl bg-[#A855F7] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
                         <Settings size={18} />
                       </div>
-                      <span className="text-sm font-black text-black text-center">Restaurant Settings</span>
+                      <span className="text-sm font-bold text-slate-900 text-center">Restaurant Settings</span>
                     </button>
                   </div>
                 </div>
@@ -5278,8 +5280,8 @@ function AdminPortal() {
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
                 <div>
-                  <h2 className="text-lg font-black text-black">Inventory & Stock Control</h2>
-                  <p className="text-xs text-black font-semibold mt-0.5">
+                  <h2 className="text-lg font-black text-slate-900">Inventory & Stock Control</h2>
+                  <p className="text-xs text-slate-600 font-medium mt-0.5">
                     Monitor dish stock counts, trigger quick restocks, and manage food availability.
                   </p>
                 </div>
@@ -5295,13 +5297,13 @@ function AdminPortal() {
               <div className="overflow-x-auto mt-4">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="border-b border-slate-200 text-xs font-black text-black uppercase tracking-wider">
-                      <th className="pb-3 pl-1 font-black text-black">Dish</th>
-                      <th className="pb-3 font-black text-black">Category</th>
-                      <th className="pb-3 font-black text-black">Current Stock</th>
-                      <th className="pb-3 font-black text-black">Status</th>
-                      <th className="pb-3 font-black text-black">Quick Restock</th>
-                      <th className="pb-3 pr-1 text-right font-black text-black">Availability</th>
+                    <tr className="border-b border-slate-200 text-xs font-black text-slate-900 uppercase tracking-wider">
+                      <th className="pb-3 pl-1 font-bold text-xs text-slate-600 uppercase tracking-wider">Dish</th>
+                      <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Category</th>
+                      <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Current Stock</th>
+                      <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Status</th>
+                      <th className="pb-3 font-bold text-xs text-slate-600 uppercase tracking-wider">Quick Restock</th>
+                      <th className="pb-3 pr-1 text-right font-bold text-xs text-slate-600 uppercase tracking-wider">Availability</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
@@ -5321,17 +5323,17 @@ function AdminPortal() {
                                 onError={(e) => { e.target.onerror = null; e.target.src = '/foodmaxx-logo.png'; }}
                               />
                               <div>
-                                <span className="font-black text-black block truncate max-w-[190px] text-xs">{p.name}</span>
-                                <span className="text-xs text-black font-black font-mono">₦{Number(p.price || 0).toLocaleString()}</span>
+                                <span className="font-black text-slate-900 block truncate max-w-[190px] text-xs">{p.name}</span>
+                                <span className="text-xs text-slate-900 font-black font-mono">₦{Number(p.price || 0).toLocaleString()}</span>
                               </div>
                             </div>
                           </td>
-                          <td className="py-3.5 text-black font-bold">
+                          <td className="py-3.5 text-slate-900 font-bold">
                             {p.category || 'Meals'}
                           </td>
                           <td className="py-3.5">
-                            <span className="font-black text-black font-mono text-sm">{stock}</span>
-                            <span className="text-black font-bold text-xs ml-1">portions</span>
+                            <span className="font-bold text-slate-900 font-mono text-sm">{stock}</span>
+                            <span className="text-slate-900 font-bold text-xs ml-1">portions</span>
                           </td>
                           <td className="py-3.5">
                             <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black border ${
@@ -5356,7 +5358,7 @@ function AdminPortal() {
                                     toast(`Restocked ${p.name} by +${addQty}! (Total: ${nextStock}) 📦`, 'success');
                                     loadSection('products');
                                   }}
-                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-xs font-black text-black transition-colors cursor-pointer shadow-xs"
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-xs font-black text-slate-900 transition-colors cursor-pointer shadow-xs"
                                 >
                                   +{addQty}
                                 </button>
@@ -5375,7 +5377,7 @@ function AdminPortal() {
                               className={`px-3 py-1.5 rounded-lg text-xs font-black border transition-all cursor-pointer shadow-xs ${
                                 p.is_available !== false
                                   ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                                  : 'bg-slate-100 text-black border-slate-300 hover:bg-slate-200'
+                                  : 'bg-slate-100 text-slate-900 border-slate-300 hover:bg-slate-200'
                               }`}
                             >
                               {p.is_available !== false ? 'In Menu' : 'Hidden'}
@@ -5465,7 +5467,7 @@ function AdminPortal() {
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-200">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-black text-black">Customer Directory</h2>
+                    <h2 className="text-lg font-black text-slate-900">Customer Directory</h2>
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                       Real-Time Live
@@ -5791,13 +5793,13 @@ function AdminPortal() {
                       <Activity size={20} />
                     </span>
                     <div>
-                      <h2 className="font-black text-base text-black flex items-center gap-2">
+                      <h2 className="font-black text-base text-slate-900 flex items-center gap-2">
                         Daily App Visits & Traffic Analytics
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 tracking-wide uppercase">
                           Live Sync
                         </span>
                       </h2>
-                      <p className="text-xs text-black font-semibold mt-0.5">
+                      <p className="text-xs text-slate-600 font-medium mt-0.5">
                         Track unique visitors, active diner sessions, and daily growth trends across Ibadan.
                       </p>
                     </div>
@@ -5939,7 +5941,7 @@ function AdminPortal() {
               {/* Table of Daily Records */}
               <div className="mt-4 pt-3 border-t border-slate-100">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-black text-black uppercase tracking-wider">
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
                     Recent Daily Breakdown Log
                   </h4>
                   <span className="text-[11px] font-mono text-slate-700 font-bold">
@@ -6006,8 +6008,8 @@ function AdminPortal() {
               <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h2 className="font-black text-base text-black">Orders in the Last 7 Days</h2>
-                    <p className="text-xs text-black font-semibold mt-0.5">Total customer orders fulfilled each day across Ibadan</p>
+                    <h2 className="font-black text-base text-slate-900">Orders in the Last 7 Days</h2>
+                    <p className="text-xs text-slate-600 font-medium mt-0.5">Total customer orders fulfilled each day across Ibadan</p>
                   </div>
                 </div>
 
@@ -6017,14 +6019,14 @@ function AdminPortal() {
                     const pct = Math.max(12, (d.orders / maxOrders) * 100);
                     return (
                       <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                        <div className="text-xs font-black text-black group-hover:text-emerald-700 transition-colors">
+                        <div className="text-xs font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
                           {d.orders}
                         </div>
                         <div
                           className="w-full bg-[#EA4C2A] hover:bg-[#D43B1B] rounded-t-xl transition-all"
                           style={{ height: `${pct}%` }}
                         />
-                        <div className="text-xs text-black font-black font-mono">
+                        <div className="text-xs text-slate-900 font-black font-mono">
                           {d.date.slice(5)}
                         </div>
                       </div>
@@ -6038,15 +6040,15 @@ function AdminPortal() {
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 mb-4">
                 <div>
-                  <h3 className="font-black text-base text-black flex items-center gap-2">
+                  <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
                     <Download size={18} className="text-emerald-700" />
                     <span>Download Data & Spreadsheets</span>
                   </h3>
-                  <p className="text-xs text-black font-semibold mt-0.5">
+                  <p className="text-xs text-slate-600 font-medium mt-0.5">
                     Download clean spreadsheets you can open in Microsoft Excel or Google Sheets.
                   </p>
                 </div>
-                <span className="text-xs font-mono font-black text-black uppercase bg-slate-100 px-3 py-1 rounded-lg border border-slate-300 shrink-0">
+                <span className="text-xs font-mono font-black text-slate-900 uppercase bg-slate-100 px-3 py-1 rounded-lg border border-slate-300 shrink-0">
                   ⚡ CSV / Excel
                 </span>
               </div>
@@ -6058,10 +6060,10 @@ function AdminPortal() {
                   className="p-4 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-2xl text-left transition-all cursor-pointer group shadow-xs"
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-black text-black group-hover:text-emerald-700 transition-colors">Orders List (CSV)</span>
-                    <Download size={15} className="text-black group-hover:text-emerald-700 transition-colors" />
+                    <span className="text-xs font-black text-slate-900 group-hover:text-emerald-700 transition-colors">Orders List (CSV)</span>
+                    <Download size={15} className="text-slate-900 group-hover:text-emerald-700 transition-colors" />
                   </div>
-                  <p className="text-xs text-black font-semibold">All customer orders with items, addresses, and delivery status.</p>
+                  <p className="text-xs text-rose-900 font-semibold">All customer orders with items, addresses, and delivery status.</p>
                 </button>
 
                 <button
@@ -6070,10 +6072,10 @@ function AdminPortal() {
                   className="p-4 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-2xl text-left transition-all cursor-pointer group shadow-xs"
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-black text-black group-hover:text-emerald-700 transition-colors">Daily Sales & Profit (CSV)</span>
-                    <Download size={15} className="text-black group-hover:text-emerald-700 transition-colors" />
+                    <span className="text-xs font-black text-slate-900 group-hover:text-emerald-700 transition-colors">Daily Sales & Profit (CSV)</span>
+                    <Download size={15} className="text-slate-900 group-hover:text-emerald-700 transition-colors" />
                   </div>
-                  <p className="text-xs text-black font-semibold">Daily revenue, estimated food costs, and profits for the past 7 days.</p>
+                  <p className="text-xs text-rose-900 font-semibold">Daily revenue, estimated food costs, and profits for the past 7 days.</p>
                 </button>
               </div>
             </div>
@@ -6132,7 +6134,7 @@ function AdminPortal() {
                   placeholder="Search order ref, customer, phone..."
                   value={orderSearch}
                   onChange={e => setOrderSearch(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-xs text-[#111827] font-bold outline-none focus:border-[#EA4C2A] focus:bg-white transition-colors placeholder:text-slate-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 font-semibold outline-none focus:border-[#EA4C2A] focus:ring-2 focus:ring-[#EA4C2A]/20 focus:bg-white transition-colors placeholder:text-slate-500"
                 />
               </div>
             </div>
@@ -6181,18 +6183,21 @@ function AdminPortal() {
                           <div className="flex flex-wrap items-center gap-2">
                             <span
                               onClick={() => setSlipOrder(order)}
-                              className="font-mono font-black text-sm sm:text-base text-black hover:text-[#EA4C2A] cursor-pointer transition-colors"
+                              className="font-mono font-black text-sm sm:text-base text-slate-900 hover:text-[#EA4C2A] cursor-pointer transition-colors"
                               title="Click to view full order slip and receipt"
                             >
                               #{order.order_reference}
                             </span>
                             <span
                               className="text-[11px] font-black px-2.5 py-0.5 rounded-full border"
-                              style={{
-                                backgroundColor: (statusColor[order.order_status] || '#EF4444') + '22',
-                                color: statusColor[order.order_status] || '#EF4444',
-                                borderColor: statusColor[order.order_status] || '#EF4444'
-                              }}
+                              className={`text-[11px] font-black px-2.5 py-0.5 rounded-full border ${
+  order.order_status === 'DELIVERED' ? 'bg-emerald-50 text-emerald-900 border-emerald-300' :
+  order.order_status === 'PREPARING' ? 'bg-amber-50 text-amber-900 border-amber-300' :
+  order.order_status === 'READY_FOR_PICKUP' ? 'bg-purple-50 text-purple-900 border-purple-300' :
+  order.order_status === 'ON_THE_WAY' ? 'bg-indigo-50 text-indigo-900 border-indigo-300' :
+  order.order_status === 'CANCELLED' ? 'bg-rose-50 text-rose-900 border-rose-300' :
+  'bg-blue-50 text-blue-900 border-blue-300'
+}`}
                             >
                               {order.order_status === 'ORDER_PLACED' || order.order_status === 'CONFIRMED' ? 'New Order' :
                                order.order_status === 'PREPARING' ? 'Cooking' :
@@ -6213,7 +6218,7 @@ function AdminPortal() {
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-black mt-0.5 font-bold">
+                          <div className="text-xs text-slate-900 mt-0.5 font-bold">
                             Placed at {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {new Date(order.created_at).toLocaleDateString()}
                           </div>
                         </div>
@@ -6231,7 +6236,7 @@ function AdminPortal() {
                         )}
                         <button
                           onClick={() => setSlipOrder(order)}
-                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black transition-colors cursor-pointer text-xs flex items-center gap-1.5 font-black shadow-xs"
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-900 transition-colors cursor-pointer text-xs flex items-center gap-1.5 font-black shadow-xs"
                           title="Print Kitchen Slip"
                         >
                           <Printer size={13} />
@@ -6244,11 +6249,11 @@ function AdminPortal() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
                       {/* Customer Info & Direct Contacts */}
                       <div className="bg-slate-50/90 p-3.5 rounded-xl border border-slate-200">
-                        <div className="text-xs font-black text-black uppercase tracking-wider mb-1.5">
+                        <div className="text-xs font-black text-slate-900 uppercase tracking-wider mb-1.5">
                           Customer & Contact
                         </div>
-                        <div className="font-black text-sm text-black">{order.customer?.full_name || order.customer_name || 'Customer'}</div>
-                        <div className="text-black font-black font-mono mt-0.5">{order.customer?.phone || order.customer_phone || 'No phone provided'}</div>
+                        <div className="font-black text-sm text-slate-900">{order.customer?.full_name || order.customer_name || 'Customer'}</div>
+                        <div className="text-slate-900 font-black font-mono mt-0.5">{order.customer?.phone || order.customer_phone || 'No phone provided'}</div>
 
                         <div className="flex gap-2 mt-2.5 pt-2 border-t border-slate-200">
                           {(order.customer?.phone || order.customer_phone) && (
@@ -6274,10 +6279,10 @@ function AdminPortal() {
 
                       {/* Delivery Destination */}
                       <div className="bg-slate-50/90 p-3.5 rounded-xl border border-slate-200">
-                        <div className="text-xs font-black text-black uppercase tracking-wider mb-1.5">
+                        <div className="text-xs font-black text-slate-900 uppercase tracking-wider mb-1.5">
                           Delivery Address {order.delivery_zone ? `(${order.delivery_zone})` : ''}
                         </div>
-                        <div className="font-bold text-black line-clamp-2">{order.delivery_address}</div>
+                        <div className="font-bold text-slate-900 line-clamp-2">{order.delivery_address}</div>
                         {order.delivery_landmark && (
                           <div className="mt-1.5 text-xs font-black text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-300 inline-block">
                             📍 Landmark: {order.delivery_landmark}
@@ -6293,16 +6298,16 @@ function AdminPortal() {
                       {/* Order Value & Items Summary */}
                       <div className="bg-slate-50/90 p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between">
                         <div>
-                          <div className="text-xs font-black text-black uppercase tracking-wider mb-1.5">
+                          <div className="text-xs font-black text-slate-900 uppercase tracking-wider mb-1.5">
                             Ordered Dishes
                           </div>
                           <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
                             {(order.items || []).map((item, idx) => (
-                              <div key={idx} className="flex justify-between text-xs font-bold text-black">
+                              <div key={idx} className="flex justify-between text-xs font-bold text-slate-900">
                                 <span className="truncate pr-2">
                                   <strong className="text-[#EA4C2A] font-black">{item.qty || item.quantity || 1}x</strong> {item.name || item.product_name}
                                 </span>
-                                <span className="font-black text-black shrink-0 font-mono">
+                                <span className="font-black text-slate-900 shrink-0 font-mono">
                                   ₦{((item.price || 0) * (item.qty || item.quantity || 1)).toLocaleString()}
                                 </span>
                               </div>
@@ -6311,8 +6316,8 @@ function AdminPortal() {
                         </div>
 
                         <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between">
-                          <span className="text-xs text-black uppercase font-bold">Total ({order.payment_method || 'Online'})</span>
-                          <span className="text-base font-black text-black">₦{(Number(order.total || order.total_amount || 0)).toLocaleString()}</span>
+                          <span className="text-xs text-slate-900 uppercase font-bold">Total ({order.payment_method || 'Online'})</span>
+                          <span className="text-base font-black text-slate-900">₦{(Number(order.total || order.total_amount || 0)).toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
@@ -6320,18 +6325,18 @@ function AdminPortal() {
                     {/* Rider & Delivery OTP Row */}
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-black">🛵 Courier Rider:</span>
+                        <span className="font-black text-slate-900">🛵 Courier Rider:</span>
                         {order.assigned_rider ? (
-                          <span className="font-black text-black">
+                          <span className="font-black text-slate-900">
                             {order.assigned_rider.full_name} ({order.assigned_rider.phone})
                           </span>
                         ) : (
-                          <span className="text-black font-semibold italic">No rider assigned yet</span>
+                          <span className="text-slate-900 font-semibold italic">No rider assigned yet</span>
                         )}
                       </div>
 
                       <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-xl border border-slate-300">
-                        <span className="text-xs font-bold text-black">Delivery OTP:</span>
+                        <span className="text-xs font-bold text-slate-900">Delivery OTP:</span>
                         <span className="font-mono font-black text-emerald-700 text-sm">{order.delivery_otp}</span>
                       </div>
                     </div>
@@ -6340,7 +6345,7 @@ function AdminPortal() {
                     {(order.custom_notification_message || order.status_notes) && (
                       <div className="text-xs text-[#EA4C2A] bg-orange-50 border border-orange-300 rounded-xl px-3 py-1.5 flex items-center gap-1.5 w-fit">
                         <span className="font-black">💬 Customer Notification:</span>
-                        <span className="font-bold text-black">"{order.custom_notification_message || order.status_notes}"</span>
+                        <span className="font-bold text-slate-900">"{order.custom_notification_message || order.status_notes}"</span>
                       </div>
                     )}
 
@@ -6350,7 +6355,7 @@ function AdminPortal() {
                       <button
                         type="button"
                         onClick={() => setStatusModalOrder(order)}
-                        className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                        className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border border-slate-300 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
                         title="Change order status and send custom notification message"
                       >
                         <span>⚡</span>
@@ -6424,10 +6429,10 @@ function AdminPortal() {
               })}
 
             {orders.length === 0 && (
-              <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center text-black font-bold">
-                <Package size={36} className="mx-auto mb-2 text-black" />
-                <div className="font-black text-base text-black">No orders found</div>
-                <div className="text-xs text-black font-semibold mt-1">Customer orders placed online will appear here live.</div>
+              <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center text-slate-900 font-bold">
+                <Package size={36} className="mx-auto mb-2 text-slate-900" />
+                <div className="font-black text-base text-slate-900">No orders found</div>
+                <div className="text-xs text-slate-600 font-medium mt-1">Customer orders placed online will appear here live.</div>
               </div>
             )}
           </div>
@@ -6497,20 +6502,20 @@ function AdminPortal() {
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between shadow-xs">
                   <div className="flex flex-wrap gap-2 items-center flex-1">
                     <div className="relative min-w-[200px] flex-1">
-                      <Search size={14} className="absolute left-3 top-2.5 text-black" />
+                      <Search size={14} className="absolute left-3 top-2.5 text-slate-900" />
                       <input
                         type="text"
                         placeholder="Search dishes..."
                         value={productSearch}
                         onChange={e => setProductSearch(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-black font-bold placeholder-slate-500 outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 font-bold placeholder-slate-500 outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
                     </div>
 
                     <select
                       value={productFilterCat}
                       onChange={e => setProductFilterCat(e.target.value)}
-                      className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-black font-black outline-none focus:border-[#EA4C2A]"
+                      className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 font-black outline-none focus:border-[#EA4C2A]"
                     >
                       <option value="all">All Categories ({products.length})</option>
                       {categories.map(c => (
@@ -6572,17 +6577,17 @@ function AdminPortal() {
                             </button>
 
                             {product.badge && (
-                              <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-amber-500 text-black text-[10px] font-black uppercase tracking-wider">
+                              <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider">
                                 {product.badge}
                               </span>
                             )}
                           </div>
 
-                          <h3 className="font-black text-sm text-black line-clamp-1 mb-1">
+                          <h3 className="font-black text-sm text-slate-900 line-clamp-1 mb-1">
                             {product.name}
                           </h3>
                           {product.description && (
-                            <p className="text-xs text-black font-medium line-clamp-2 mb-2">
+                            <p className="text-xs text-slate-600 font-medium line-clamp-2 mb-2">
                               {product.description}
                             </p>
                           )}
@@ -6591,7 +6596,7 @@ function AdminPortal() {
                             <span className="font-black text-base text-[#EA4C2A]">
                               ₦{Number(product.price || 0).toLocaleString()}
                             </span>
-                            <div className="flex items-center gap-2 text-black text-[11px] font-black">
+                            <div className="flex items-center gap-2 text-slate-900 text-[11px] font-black">
                               <span>⏱️ {product.prep_time_min || 20}m</span>
                               <span>📦 {product.stock_quantity || 50} left</span>
                             </div>
@@ -6610,7 +6615,7 @@ function AdminPortal() {
                             if (!pSizes || pSizes.length === 0) return null;
                             return (
                               <div className="mt-2 pt-1.5 border-t border-slate-100 flex flex-wrap items-center gap-1">
-                                <span className="text-[10px] text-black font-black tracking-tight">⚖️ Portions:</span>
+                                <span className="text-[10px] text-slate-900 font-black tracking-tight">⚖️ Portions:</span>
                                 {pSizes.map((ps, idx) => (
                                   <span key={idx} className="text-[9.5px] font-black bg-amber-50 text-amber-950 px-1.5 py-0.5 rounded-md border border-amber-300">
                                     {ps.name.replace(/\s*\(.*\)/, '')}: {ps.price_adjustment === 0 ? 'Base' : `+₦${Number(ps.price_adjustment).toLocaleString()}`}
@@ -6628,7 +6633,7 @@ function AdminPortal() {
                             onClick={() => toggleProductAvailability(product)}
                             className={`px-2.5 py-1 rounded-xl text-xs font-black transition-all cursor-pointer ${
                               product.is_available
-                                ? 'bg-slate-100 hover:bg-rose-50 text-black hover:text-rose-700 border border-slate-300'
+                                ? 'bg-slate-100 hover:bg-rose-50 text-slate-900 hover:text-rose-700 border border-slate-300'
                                 : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300'
                             }`}
                           >
@@ -6651,7 +6656,7 @@ function AdminPortal() {
                                 setEditingProduct(product);
                                 setProductModalOpen(true);
                               }}
-                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black transition-colors cursor-pointer border border-slate-300"
+                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold transition-colors cursor-pointer border border-slate-300"
                               title="Edit Dish"
                             >
                               <Edit size={14} />
@@ -6664,7 +6669,7 @@ function AdminPortal() {
                                   loadSection('products');
                                 }
                               }}
-                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-black hover:text-rose-700 transition-colors cursor-pointer border border-slate-300"
+                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 transition-colors cursor-pointer border border-slate-300"
                               title="Delete Dish"
                             >
                               <Trash2 size={14} />
@@ -6682,10 +6687,10 @@ function AdminPortal() {
               <div className="space-y-4">
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 flex items-center justify-between shadow-xs">
                   <div>
-                    <h2 className="text-sm font-black text-black">Menu Categories</h2>
-                    <p className="text-xs text-black font-semibold mt-0.5">Organize food items into discoverable menu groups.</p>
+                    <h2 className="text-sm font-black text-slate-900">Menu Categories</h2>
+                    <p className="text-xs text-slate-600 font-medium mt-0.5">Organize food items into discoverable menu groups.</p>
                   </div>
-                  <span className="text-xs font-black text-black bg-slate-100 px-3 py-1 rounded-xl border border-slate-300">
+                  <span className="text-xs font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-xl border border-slate-300">
                     {categories.filter(c => c.is_active !== false).length} Active / {categories.length} Total
                   </span>
                 </div>
@@ -6706,10 +6711,10 @@ function AdminPortal() {
                             {cat.icon || '🍲'}
                           </span>
                           <div className="min-w-0">
-                            <h3 className="font-black text-xs sm:text-sm text-black truncate">{cat.name}</h3>
+                            <h3 className="font-black text-xs sm:text-sm text-slate-900 truncate">{cat.name}</h3>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[11px] text-black font-bold">{dishCount} {dishCount === 1 ? 'dish' : 'dishes'}</span>
-                              <span className="text-xs text-black font-black">•</span>
+                              <span className="text-[11px] text-slate-900 font-bold">{dishCount} {dishCount === 1 ? 'dish' : 'dishes'}</span>
+                              <span className="text-xs text-slate-900 font-black">•</span>
                               <button
                                 type="button"
                                 onClick={() => handleToggleCategory(cat)}
@@ -6730,7 +6735,7 @@ function AdminPortal() {
                               setEditingCategory(cat);
                               setCategoryModalOpen(true);
                             }}
-                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black transition-colors cursor-pointer border border-slate-300"
+                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold transition-colors cursor-pointer border border-slate-300"
                             title="Edit Category"
                           >
                             <Edit size={14} />
@@ -6738,7 +6743,7 @@ function AdminPortal() {
                           <button
                             type="button"
                             onClick={() => handleDeleteCategory(cat)}
-                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-black hover:text-rose-700 transition-colors cursor-pointer border border-slate-300"
+                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 transition-colors cursor-pointer border border-slate-300"
                             title="Delete Category"
                           >
                             <Trash2 size={14} />
@@ -6757,19 +6762,19 @@ function AdminPortal() {
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-sm font-black text-black">Homepage Section Editor</h2>
+                      <h2 className="text-sm font-black text-slate-900">Homepage Section Editor</h2>
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-950 border border-emerald-300">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                         Live Firestore Sync
                       </span>
                     </div>
-                    <p className="text-xs text-black font-semibold mt-0.5">Reorder, rename, filter, or toggle curated rows on the customer mobile home screen in real time.</p>
+                    <p className="text-xs text-slate-600 font-medium mt-0.5">Reorder, rename, filter, or toggle curated rows on the customer mobile home screen in real time.</p>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
                       type="button"
                       onClick={handleResetHomepageSections}
-                      className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-black rounded-xl text-xs font-black border border-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-900 rounded-xl text-xs font-black border border-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer"
                       title="Reset to default sections"
                     >
                       <RotateCw size={13} />
@@ -6778,7 +6783,7 @@ function AdminPortal() {
                     <button
                       type="button"
                       onClick={handleAddCustomSection}
-                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-black rounded-xl text-xs font-black border border-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs font-black border border-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <Plus size={14} />
                       <span>Add Section</span>
@@ -6806,7 +6811,7 @@ function AdminPortal() {
 
                 {homepageSections.length === 0 ? (
                   <div className="bg-white border border-slate-200/80 rounded-2xl p-8 text-center shadow-xs">
-                    <p className="text-sm font-bold text-black mb-3">No homepage sections configured.</p>
+                    <p className="text-sm font-bold text-slate-600 mb-3">No homepage sections configured.</p>
                     <button
                       type="button"
                       onClick={handleResetHomepageSections}
@@ -6832,7 +6837,7 @@ function AdminPortal() {
                                 type="button"
                                 disabled={idx === 0}
                                 onClick={() => handleMoveSection(idx, -1)}
-                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-black disabled:cursor-not-allowed cursor-pointer transition-colors border border-slate-300"
+                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-900 disabled:cursor-not-allowed cursor-pointer transition-colors border border-slate-300"
                                 title="Move Up"
                               >
                                 <ArrowUp size={12} />
@@ -6841,7 +6846,7 @@ function AdminPortal() {
                                 type="button"
                                 disabled={idx === homepageSections.length - 1}
                                 onClick={() => handleMoveSection(idx, 1)}
-                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-black disabled:cursor-not-allowed cursor-pointer transition-colors border border-slate-300"
+                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-900 disabled:cursor-not-allowed cursor-pointer transition-colors border border-slate-300"
                                 title="Move Down"
                               >
                                 <ArrowDown size={12} />
@@ -6850,14 +6855,14 @@ function AdminPortal() {
 
                             <div className="flex-1 space-y-2 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-black px-2.5 py-0.5 rounded-md bg-slate-100 text-black border border-slate-300 uppercase shrink-0">
+                                <span className="text-xs font-black px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-900 border border-slate-300 uppercase shrink-0">
                                   Row #{idx + 1}
                                 </span>
                                 <input
                                   type="text"
                                   value={sec.title}
                                   onChange={e => handleUpdateSection(sec.id, e.target.value, sec.subtitle)}
-                                  className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-black text-black focus:outline-none focus:border-[#EA4C2A] focus:bg-white flex-1 min-w-[180px] max-w-sm"
+                                  className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-black text-slate-900 focus:outline-none focus:border-[#EA4C2A] focus:bg-white flex-1 min-w-[180px] max-w-sm"
                                   placeholder="Section Title"
                                 />
                               </div>
@@ -6865,7 +6870,7 @@ function AdminPortal() {
                                 type="text"
                                 value={sec.subtitle}
                                 onChange={e => handleUpdateSection(sec.id, sec.title, e.target.value)}
-                                className="w-full max-w-md bg-slate-50 border border-slate-300 rounded-lg px-3 py-1 text-xs font-bold text-black focus:outline-none focus:border-slate-400 focus:bg-white"
+                                className="w-full max-w-md bg-slate-50 border border-slate-300 rounded-lg px-3 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:border-slate-400 focus:bg-white"
                                 placeholder="Subtitle Description (e.g. Curated popular items)"
                               />
                             </div>
@@ -6875,13 +6880,13 @@ function AdminPortal() {
                           <div className="flex items-center gap-2 flex-wrap shrink-0 self-end lg:self-center">
                             {/* Section Icon Selector */}
                             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1">
-                              <span className="text-xs text-black font-black">Icon:</span>
+                              <span className="text-xs text-slate-900 font-black">Icon:</span>
                               <select
                                 value={sec.icon || 'Sparkles'}
                                 onChange={e => {
                                   handleUpdateSection(sec.id, { icon: e.target.value });
                                 }}
-                                className="bg-transparent text-xs font-black text-black focus:outline-none cursor-pointer"
+                                className="bg-transparent text-xs font-black text-slate-900 focus:outline-none cursor-pointer"
                               >
                                 <option value="Sparkles">✨ Sparkles</option>
                                 <option value="Flame">🔥 Flame (Hot)</option>
@@ -6898,13 +6903,13 @@ function AdminPortal() {
 
                             {/* Filter Type Dropdown */}
                             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1">
-                              <span className="text-xs text-black font-black">Filter:</span>
+                              <span className="text-xs text-slate-900 font-black">Filter:</span>
                               <select
                                 value={sec.filter_type || 'bestseller'}
                                 onChange={e => {
                                   handleUpdateSection(sec.id, { filter_type: e.target.value });
                                 }}
-                                className="bg-transparent text-xs font-black text-black focus:outline-none cursor-pointer"
+                                className="bg-transparent text-xs font-black text-slate-900 focus:outline-none cursor-pointer"
                               >
                                 <option value="bestseller">⭐ Bestsellers</option>
                                 <option value="popular">🔥 Trending</option>
@@ -6922,13 +6927,13 @@ function AdminPortal() {
 
                             {/* Display Limit */}
                             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1">
-                              <span className="text-xs text-black font-black">Max:</span>
+                              <span className="text-xs text-slate-900 font-black">Max:</span>
                               <select
                                 value={sec.display_limit || 6}
                                 onChange={e => {
                                   handleUpdateSection(sec.id, { display_limit: Number(e.target.value) });
                                 }}
-                                className="bg-transparent text-xs font-black text-black focus:outline-none cursor-pointer"
+                                className="bg-transparent text-xs font-black text-slate-900 focus:outline-none cursor-pointer"
                               >
                                 <option value={4}>4 items</option>
                                 <option value={6}>6 items</option>
@@ -6944,7 +6949,7 @@ function AdminPortal() {
                               className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                                 sec.enabled
                                   ? 'bg-emerald-50 text-emerald-950 border border-emerald-300 hover:bg-emerald-100'
-                                  : 'bg-slate-100 text-black border border-slate-300 hover:bg-slate-200'
+                                  : 'bg-slate-100 text-slate-900 border border-slate-300 hover:bg-slate-200'
                               }`}
                             >
                               {sec.enabled ? '🟢 Visible on Home' : '🔴 Hidden on Home'}
@@ -6954,7 +6959,7 @@ function AdminPortal() {
                             <button
                               type="button"
                               onClick={() => handleDeleteSection(sec.id)}
-                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-black hover:text-rose-700 transition-colors cursor-pointer border border-slate-300"
+                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 transition-colors cursor-pointer border border-slate-300"
                               title="Delete section"
                             >
                               <Trash2 size={13} />
@@ -6979,11 +6984,11 @@ function AdminPortal() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-300 p-5 rounded-2xl shadow-xs">
               <div>
-                <h3 className="text-xl sm:text-2xl font-black text-black flex items-center gap-2">
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
                   <Tag size={20} className="text-[#EA4C2A]" />
                   <span>Discount Codes & Promos</span>
                 </h3>
-                <p className="text-sm font-bold text-black mt-0.5">Create discounts your customers can apply during checkout</p>
+                <p className="text-sm font-medium text-slate-600 mt-0.5">Create discounts your customers can apply during checkout</p>
               </div>
               <button
                 onClick={() => setPromoModalOpen(true)}
@@ -6997,13 +7002,13 @@ function AdminPortal() {
             <div className="bg-white border border-slate-300 rounded-2xl p-5 sm:p-6 shadow-xs">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h4 className="text-sm font-black text-black uppercase tracking-wider flex items-center gap-1.5">
+                  <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles size={16} className="text-amber-500" />
                     <span>Popular Promo Ideas (1-Tap Setup)</span>
                   </h4>
-                  <p className="text-xs font-bold text-black mt-0.5">Click any promo to turn it on for your store</p>
+                  <p className="text-xs font-medium text-slate-600 mt-0.5">Click any promo to turn it on for your store</p>
                 </div>
-                <span className="text-xs font-black text-black bg-slate-100 px-3 py-1 rounded-lg border border-slate-300">
+                <span className="text-xs font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-lg border border-slate-300">
                   Ready to Use
                 </span>
               </div>
@@ -7019,17 +7024,17 @@ function AdminPortal() {
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-2xl">{idea.icon}</span>
-                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white text-black border border-slate-300">
+                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white text-slate-900 border border-slate-300">
                             {idea.badge}
                           </span>
                         </div>
                         <div className="font-mono font-black text-base text-[#EA4C2A] tracking-wide">{idea.code}</div>
-                        <div className="font-black text-sm text-black mt-1">{idea.title}</div>
-                        <p className="text-xs font-bold text-black mt-1 line-clamp-2">{idea.description}</p>
+                        <div className="font-black text-sm text-slate-900 mt-1">{idea.title}</div>
+                        <p className="text-xs font-bold text-slate-600 mt-1 line-clamp-2">{idea.description}</p>
                       </div>
 
                       <div className="mt-3.5 pt-3 border-t border-slate-300 flex items-center justify-between">
-                        <span className="text-xs font-black text-black">Min: ₦{Number(idea.min_order).toLocaleString()}</span>
+                        <span className="text-xs font-black text-slate-900">Min: ₦{Number(idea.min_order).toLocaleString()}</span>
                         <button
                           type="button"
                           disabled={alreadyExists}
@@ -7054,7 +7059,7 @@ function AdminPortal() {
                           }}
                           className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
                             alreadyExists
-                              ? 'bg-slate-200 text-black cursor-not-allowed opacity-75'
+                              ? 'bg-slate-200 text-slate-800 font-bold cursor-not-allowed opacity-75'
                               : 'bg-orange-50 hover:bg-[#EA4C2A] text-[#EA4C2A] hover:text-white border border-orange-300'
                           }`}
                         >
@@ -7069,42 +7074,42 @@ function AdminPortal() {
 
             {/* Active Store Codes */}
             <div>
-              <div className="text-xs font-black text-black uppercase tracking-wider px-1 mb-3">
+              <div className="text-xs font-black text-slate-900 uppercase tracking-wider px-1 mb-3">
                 Active Codes on Your Store ({promotions.length})
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {promotions.map(p => (
                   <div key={p.id} className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-3 shadow-xs">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono font-black text-base text-black tracking-wider">
+                      <span className="font-mono font-black text-base text-slate-900 tracking-wider">
                         {p.code}
                       </span>
                       <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                        p.is_active ? 'bg-emerald-50 text-emerald-950 border border-emerald-300' : 'bg-slate-100 text-black border border-slate-300'
+                        p.is_active ? 'bg-emerald-50 text-emerald-950 border border-emerald-300' : 'bg-slate-100 text-slate-900 border border-slate-300'
                       }`}>
                         {p.is_active ? '🟢 Active' : '⚪ Turned Off'}
                       </span>
                     </div>
 
                     <div>
-                      <div className="font-black text-sm text-black">{p.title}</div>
-                      <div className="text-xs text-black font-semibold mt-0.5">{p.description}</div>
+                      <div className="font-black text-sm text-slate-900">{p.title}</div>
+                      <div className="text-xs text-slate-600 font-medium mt-0.5">{p.description}</div>
                     </div>
 
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1.5">
-                      <div className="flex justify-between text-black font-bold">
+                      <div className="flex justify-between text-slate-900 font-bold">
                         <span>Discount:</span>
-                        <span className="font-black text-black">
+                        <span className="font-black text-slate-900">
                           {p.discount_type === 'percentage' ? `${p.discount_value}% Off` : `₦${Number(p.discount_value).toLocaleString()} Off`}
                         </span>
                       </div>
-                      <div className="flex justify-between text-black font-bold">
+                      <div className="flex justify-between text-slate-900 font-bold">
                         <span>Minimum Spend:</span>
-                        <span className="font-black text-black">₦{Number(p.min_order || 0).toLocaleString()}</span>
+                        <span className="font-black text-slate-900">₦{Number(p.min_order || 0).toLocaleString()}</span>
                       </div>
-                      <div className="flex justify-between text-black font-bold">
+                      <div className="flex justify-between text-slate-900 font-bold">
                         <span>Times Used:</span>
-                        <span className="font-mono text-black font-black">{p.used_count || 0} times</span>
+                        <span className="font-mono text-slate-900 font-black">{p.used_count || 0} times</span>
                       </div>
                     </div>
                   </div>
@@ -7122,16 +7127,16 @@ function AdminPortal() {
             {/* Top Bar */}
             <div className="bg-white border border-slate-200/80 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
               <div>
-                <h3 className="text-base font-black text-black flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                   <MapPin size={18} className="text-[#EA4C2A]" />
                   <span>Delivery Areas & Fees (Ibadan)</span>
                 </h3>
-                <p className="text-xs text-black font-semibold mt-0.5">
+                <p className="text-xs text-slate-600 font-medium mt-0.5">
                   Set delivery charges and minimum order amounts for areas in Ibadan or add new locations.
                 </p>
               </div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="text-xs font-mono font-black text-black bg-slate-100 px-3 py-2 rounded-xl border border-slate-300 shrink-0">
+                <span className="text-xs font-mono font-black text-slate-900 bg-slate-100 px-3 py-2 rounded-xl border border-slate-300 shrink-0">
                   📍 {zones.length} Zones Listed
                 </span>
                 <button
@@ -7153,20 +7158,20 @@ function AdminPortal() {
             }`}>
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl shrink-0 ${
-                  rainSurgeActive ? 'bg-amber-200 text-amber-900' : 'bg-slate-100 text-black'
+                  rainSurgeActive ? 'bg-amber-200 text-amber-900' : 'bg-slate-100 text-slate-900'
                 }`}>
                   🌧️
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-black">Heavy Rain & Rush Hour Extra Fee (+₦200)</span>
+                    <span className="text-xs font-black text-slate-900">Heavy Rain & Rush Hour Extra Fee (+₦200)</span>
                     <span className={`text-[9.5px] font-black uppercase px-2 py-0.5 rounded-full ${
-                      rainSurgeActive ? 'bg-amber-400 text-black font-black' : 'bg-slate-100 text-black font-bold'
+                      rainSurgeActive ? 'bg-amber-400 text-slate-900 font-black' : 'bg-slate-100 text-slate-900 font-bold'
                     }`}>
                       {rainSurgeActive ? 'ACTIVE NOW (+₦200)' : 'NORMAL RATES'}
                     </span>
                   </div>
-                  <p className="text-[11px] text-black font-semibold mt-0.5">
+                  <p className="text-[11px] text-slate-600 font-medium mt-0.5">
                     Temporarily adds ₦200 extra to each delivery fee so riders stay motivated during heavy rain and Mokola/Challenge rush hour traffic.
                   </p>
                 </div>
@@ -7177,8 +7182,8 @@ function AdminPortal() {
                 onClick={toggleRainSurge}
                 className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs ${
                   rainSurgeActive
-                    ? 'bg-amber-500 hover:bg-amber-600 text-black'
-                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
+                    ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 font-black'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-900'
                 }`}
               >
                 {rainSurgeActive ? 'Turn Off Extra Fee' : '⚡ Turn On +₦200 Extra Fee'}
@@ -7193,19 +7198,19 @@ function AdminPortal() {
                   <div key={z.id} className="bg-white border border-slate-200/80 hover:border-slate-300 rounded-2xl p-5 flex flex-col justify-between transition-all shadow-xs">
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <div className="font-black text-base text-black">{z.name}</div>
+                        <div className="font-black text-base text-slate-900">{z.name}</div>
                         <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                          z.is_active ? 'bg-emerald-50 text-emerald-950 border border-emerald-300' : 'bg-slate-100 text-black border border-slate-300'
+                          z.is_active ? 'bg-emerald-50 text-emerald-950 border border-emerald-300' : 'bg-slate-100 text-slate-900 border border-slate-300'
                         }`}>
                           {z.is_active ? 'Active' : 'Paused'}
                         </span>
                       </div>
-                      <div className="text-xs text-black font-bold">
+                      <div className="text-xs text-slate-900 font-bold">
                         {z.city || 'Ibadan'} · ⏱️ {z.estimated_delivery_time || '25-40 mins'}
                       </div>
 
                       <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 mt-3 space-y-1.5 text-xs">
-                        <div className="flex justify-between items-center text-black font-bold">
+                        <div className="flex justify-between items-center text-slate-900 font-bold">
                           <span>Delivery Fee:</span>
                           <div className="text-right">
                             <span className="font-black text-[#EA4C2A] text-sm">₦{effectiveFee.toLocaleString()}</span>
@@ -7214,9 +7219,9 @@ function AdminPortal() {
                             )}
                           </div>
                         </div>
-                        <div className="flex justify-between items-center pt-1.5 border-t border-slate-200 text-black font-bold">
+                        <div className="flex justify-between items-center pt-1.5 border-t border-slate-200 text-slate-900 font-bold">
                           <span>Minimum Order:</span>
-                          <span className="font-black text-black">₦{Number(z.min_order || 0).toLocaleString()}</span>
+                          <span className="font-black text-slate-900">₦{Number(z.min_order || 0).toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
@@ -7225,14 +7230,14 @@ function AdminPortal() {
                       <button
                         type="button"
                         onClick={() => setEditingZone(z)}
-                        className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-black rounded-xl text-xs transition-colors cursor-pointer text-center"
+                        className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-black rounded-xl text-xs transition-colors cursor-pointer text-center"
                       >
                         Edit Fee & Time
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteZone(z.id, z.name)}
-                        className="p-2 bg-slate-100 hover:bg-rose-50 text-black hover:text-rose-700 border border-slate-300 rounded-xl transition-all cursor-pointer"
+                        className="p-2 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-300 rounded-xl transition-all cursor-pointer"
                         title="Delete Location"
                       >
                         <Trash2 size={14} />
@@ -7254,11 +7259,11 @@ function AdminPortal() {
             <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-black flex items-center gap-2.5">
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
                     <Settings className="text-[#EA4C2A]" size={24} />
                     <span>Restaurant Settings & Operations</span>
                   </h2>
-                  <p className="text-sm font-bold text-black mt-0.5">
+                  <p className="text-sm font-medium text-slate-600 mt-0.5">
                     Configure store operating schedule, pricing & fees, settlement bank account, audio chimes, and POS hardware.
                   </p>
                 </div>
@@ -7344,14 +7349,14 @@ function AdminPortal() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="text-base font-black text-black">Store Ordering Status:</h4>
+                          <h4 className="text-base font-black text-slate-900">Store Ordering Status:</h4>
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase ${
                             settings.is_open !== false ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
                           }`}>
                             {settings.is_open !== false ? 'Open for Orders' : 'Closed for Orders'}
                           </span>
                         </div>
-                        <p className="text-xs sm:text-sm font-bold text-black mt-0.5">
+                        <p className="text-xs sm:text-sm font-medium text-slate-600 mt-0.5">
                           {settings.is_open !== false
                             ? 'Customers across Ibadan can currently place orders for delivery.'
                             : 'Ordering is temporarily paused. Customers see a Friendly Kitchen Closed banner.'}
@@ -7375,118 +7380,118 @@ function AdminPortal() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-black text-black mb-1.5">Restaurant / Store Name</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-1.5">Restaurant / Store Name</label>
                       <input
                         type="text"
                         value={settings.store_name || 'FoodMaxx Kitchen & Grills'}
                         onChange={e => setSettings({ ...settings, store_name: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-black outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 font-black outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-black text-black mb-1.5">Brand Tagline</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-1.5">Brand Tagline</label>
                       <input
                         type="text"
                         value={settings.tagline || 'Fastest Fresh Food Delivery in Ibadan'}
                         onChange={e => setSettings({ ...settings, tagline: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-black text-black mb-1.5">Kitchen Phone Line</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-1.5">Kitchen Phone Line</label>
                       <input
                         type="text"
                         value={settings.phone || ''}
                         placeholder="e.g. +234 802 345 6789"
                         onChange={e => setSettings({ ...settings, phone: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-black text-black mb-1.5">WhatsApp Dispatch Hotline</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-1.5">WhatsApp Dispatch Hotline</label>
                       <input
                         type="text"
                         value={settings.whatsapp_dispatch || ''}
                         placeholder="e.g. +234 812 345 6789"
                         onChange={e => setSettings({ ...settings, whatsapp_dispatch: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="sm:col-span-2">
-                      <label className="block text-sm font-black text-black mb-1.5">Kitchen Physical Address</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-1.5">Kitchen Physical Address</label>
                       <input
                         type="text"
                         value={settings.address || ''}
                         placeholder="Enter kitchen physical address"
                         onChange={e => setSettings({ ...settings, address: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-black text-black mb-1.5">City & State</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-1.5">City & State</label>
                       <input
                         type="text"
                         value={settings.city || ''}
                         placeholder="e.g. Ibadan, Oyo State"
                         onChange={e => setSettings({ ...settings, city: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
                     </div>
                   </div>
 
                   {/* Daily Hours & Prep Buffer */}
                   <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-4">
-                    <h4 className="font-black text-sm text-black flex items-center gap-2">
+                    <h4 className="font-black text-sm text-slate-900 flex items-center gap-2">
                       <Clock size={16} className="text-[#EA4C2A]" />
                       <span>Daily Operating Hours & Cooking Buffer</span>
                     </h4>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-black text-black mb-1">Opening Time</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Opening Time</label>
                         <input
                           type="time"
                           value={settings.opening_time || '08:00'}
                           onChange={e => setSettings({ ...settings, opening_time: e.target.value })}
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-black text-black mb-1">Closing Time</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Closing Time</label>
                         <input
                           type="time"
                           value={settings.closing_time || '23:00'}
                           onChange={e => setSettings({ ...settings, closing_time: e.target.value })}
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-black text-black mb-1">Kitchen Prep Buffer (Minutes)</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Kitchen Prep Buffer (Minutes)</label>
                         <input
                           type="number"
                           min={5}
                           max={90}
                           value={settings.prep_time_minutes ?? 20}
                           onChange={e => setSettings({ ...settings, prep_time_minutes: Number(e.target.value) })}
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                         />
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-black text-black mb-1.5">Store Announcement Banner</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Store Announcement Banner</label>
                     <textarea
                       rows={2}
                       value={settings.announcement || ''}
                       onChange={e => setSettings({ ...settings, announcement: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                       placeholder="e.g. ⚡ Fresh firewood party jollof & gourmet grills ready for immediate delivery!"
                     />
                   </div>
@@ -7501,61 +7506,61 @@ function AdminPortal() {
               <div className="space-y-5">
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
                   <div>
-                    <h3 className="text-lg font-black text-black">Ordering Rules, Surcharges & Limits</h3>
-                    <p className="text-sm font-bold text-black mt-0.5">Control minimum order spend, packaging fees, and automated kitchen workflows.</p>
+                    <h3 className="text-lg font-black text-slate-900">Ordering Rules, Surcharges & Limits</h3>
+                    <p className="text-sm font-medium text-slate-600 mt-0.5">Control minimum order spend, packaging fees, and automated kitchen workflows.</p>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-300">
-                      <label className="block text-xs font-black text-black mb-1">Minimum Order Spend (₦)</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Minimum Order Spend (₦)</label>
                       <input
                         type="number"
                         min={0}
                         step={100}
                         value={settings.min_order_amount ?? 1500}
                         onChange={e => setSettings({ ...settings, min_order_amount: Number(e.target.value) })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                       />
-                      <span className="text-xs text-black font-semibold mt-1 block">Checkout disabled below this value.</span>
+                      <span className="text-xs text-slate-600 font-medium mt-1 block">Checkout disabled below this value.</span>
                     </div>
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-300">
-                      <label className="block text-xs font-black text-black mb-1">Packaging / Takeaway Pack (₦)</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Packaging / Takeaway Pack (₦)</label>
                       <input
                         type="number"
                         min={0}
                         step={50}
                         value={settings.packaging_fee ?? 300}
                         onChange={e => setSettings({ ...settings, packaging_fee: Number(e.target.value) })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                       />
-                      <span className="text-xs text-black font-semibold mt-1 block">Added to every takeout order.</span>
+                      <span className="text-xs text-slate-600 font-medium mt-1 block">Added to every takeout order.</span>
                     </div>
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-300">
-                      <label className="block text-xs font-black text-black mb-1">Platform Service Fee (₦)</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Platform Service Fee (₦)</label>
                       <input
                         type="number"
                         min={0}
                         step={50}
                         value={settings.service_fee ?? 150}
                         onChange={e => setSettings({ ...settings, service_fee: Number(e.target.value) })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                       />
-                      <span className="text-xs text-black font-semibold mt-1 block">Fixed order processing fee.</span>
+                      <span className="text-xs text-slate-600 font-medium mt-1 block">Fixed order processing fee.</span>
                     </div>
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-300">
-                      <label className="block text-xs font-black text-black mb-1">Free Delivery Spend (₦)</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Free Delivery Spend (₦)</label>
                       <input
                         type="number"
                         min={0}
                         step={500}
                         value={settings.free_delivery_threshold ?? 15000}
                         onChange={e => setSettings({ ...settings, free_delivery_threshold: Number(e.target.value) })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                       />
-                      <span className="text-xs text-black font-semibold mt-1 block">Cart threshold for ₦0 delivery.</span>
+                      <span className="text-xs text-slate-600 font-medium mt-1 block">Cart threshold for ₦0 delivery.</span>
                     </div>
                   </div>
 
@@ -7563,8 +7568,8 @@ function AdminPortal() {
                   <div className="space-y-3 pt-2 border-t border-slate-200">
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-sm font-black text-black">Auto-Confirm Paid Orders</div>
-                        <div className="text-xs font-bold text-black mt-0.5">
+                        <div className="text-sm font-black text-slate-900">Auto-Confirm Paid Orders</div>
+                        <div className="text-xs font-medium text-slate-600 mt-0.5">
                           Automatically transition Paystack-verified paid orders to "Confirmed / Cooking" without waiting for kitchen tap.
                         </div>
                       </div>
@@ -7578,8 +7583,8 @@ function AdminPortal() {
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-sm font-black text-black">Allow Scheduled Pre-Orders</div>
-                        <div className="text-xs font-bold text-black mt-0.5">
+                        <div className="text-sm font-black text-slate-900">Allow Scheduled Pre-Orders</div>
+                        <div className="text-xs font-medium text-slate-600 mt-0.5">
                           Allow customers to select delivery times for later today or tomorrow during checkout.
                         </div>
                       </div>
@@ -7593,8 +7598,8 @@ function AdminPortal() {
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-sm font-black text-black">Kitchen Order Queue Cap</div>
-                        <div className="text-xs font-bold text-black mt-0.5">
+                        <div className="text-sm font-black text-slate-900">Kitchen Order Queue Cap</div>
+                        <div className="text-xs font-medium text-slate-600 mt-0.5">
                           Maximum active orders cook line can handle simultaneously before temporarily pacing orders.
                         </div>
                       </div>
@@ -7605,9 +7610,9 @@ function AdminPortal() {
                           max={100}
                           value={settings.max_active_orders ?? 40}
                           onChange={e => setSettings({ ...settings, max_active_orders: Number(e.target.value) })}
-                          className="w-20 bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-sm text-black font-black text-center"
+                          className="w-20 bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-sm text-slate-900 font-black text-center"
                         />
-                        <span className="text-xs font-bold text-black">orders</span>
+                        <span className="text-xs font-bold text-slate-900">orders</span>
                       </div>
                     </div>
 
@@ -7615,7 +7620,7 @@ function AdminPortal() {
                     <div className="pt-6 border-t border-slate-200">
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <h4 className="text-base font-black text-black flex items-center gap-2">
+                          <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
                             <Users size={18} className="text-[#EA4C2A]" />
                             <span>Group Ordering & "Order with Friends" Controls</span>
                           </h4>
@@ -7624,7 +7629,7 @@ function AdminPortal() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-black">{settings.enable_group_ordering !== false ? '🟢 Active' : '🔴 Paused'}</span>
+                          <span className="text-xs font-bold text-slate-900">{settings.enable_group_ordering !== false ? '🟢 Active' : '🔴 Paused'}</span>
                           <input
                             type="checkbox"
                             checked={settings.enable_group_ordering !== false}
@@ -7636,40 +7641,40 @@ function AdminPortal() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                          <label className="block text-xs font-black text-black mb-1">Group Min Spend (₦)</label>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Group Min Spend (₦)</label>
                           <input
                             type="number"
                             min={1000}
                             step={500}
                             value={settings.group_order_min_spend ?? 3000}
                             onChange={e => setSettings({ ...settings, group_order_min_spend: Number(e.target.value) })}
-                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                           />
                           <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Min total group cart to place order.</span>
                         </div>
 
                         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                          <label className="block text-xs font-black text-black mb-1">Max People per Group</label>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Max People per Group</label>
                           <input
                             type="number"
                             min={2}
                             max={50}
                             value={settings.group_order_max_members ?? 15}
                             onChange={e => setSettings({ ...settings, group_order_max_members: Number(e.target.value) })}
-                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                           />
                           <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Maximum members in one order session.</span>
                         </div>
 
                         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                          <label className="block text-xs font-black text-black mb-1">Group Special Discount (%)</label>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Group Special Discount (%)</label>
                           <input
                             type="number"
                             min={0}
                             max={30}
                             value={settings.group_order_discount_percent ?? 0}
                             onChange={e => setSettings({ ...settings, group_order_discount_percent: Number(e.target.value) })}
-                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                           />
                           <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Automatic discount for groups (0% to disable).</span>
                         </div>
@@ -7678,7 +7683,7 @@ function AdminPortal() {
                       <div className="mt-3 space-y-2">
                         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                           <div>
-                            <p className="text-xs font-black text-black">Individual Meal Name Labeling</p>
+                            <p className="text-xs font-black text-slate-600">Individual Meal Name Labeling</p>
                             <p className="text-[11px] text-slate-500">Instruct kitchen printer and chef to label each pack with member's name.</p>
                           </div>
                           <input
@@ -7691,7 +7696,7 @@ function AdminPortal() {
 
                         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                           <div>
-                            <p className="text-xs font-black text-black">Allow Guests to Join via Link</p>
+                            <p className="text-xs font-black text-slate-600">Allow Guests to Join via Link</p>
                             <p className="text-[11px] text-slate-500">Friends can add meals without needing to create an account first.</p>
                           </div>
                           <input
@@ -7719,7 +7724,7 @@ function AdminPortal() {
                     <div>
                       <div className="flex items-center gap-2">
                         <Users size={22} className="text-[#EA4C2A]" />
-                        <h3 className="text-lg font-black text-black">Group Ordering & "Order with Friends" Master Switch</h3>
+                        <h3 className="text-lg font-black text-slate-900">Group Ordering & "Order with Friends" Master Switch</h3>
                       </div>
                       <p className="text-xs font-bold text-slate-600 mt-1">
                         Control collaborative real-time ordering across campuses, offices, hostels, and student rooms.
@@ -7744,7 +7749,7 @@ function AdminPortal() {
 
                   {/* Pause Custom Message */}
                   <div>
-                    <label className="block text-xs font-black text-black mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       Storefront Customer Pause Banner Notice
                     </label>
                     <input
@@ -7752,7 +7757,7 @@ function AdminPortal() {
                       placeholder="e.g. Notice: Group ordering is currently paused by store manager during peak rush hours."
                       value={settings.group_order_pause_message ?? 'Group ordering is temporarily paused by the manager during peak rush hours.'}
                       onChange={e => setSettings({ ...settings, group_order_pause_message: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                     />
                     <span className="text-[11px] text-slate-500 font-semibold mt-1 block">
                       Displayed to customers on top of the sheet when group ordering is turned off.
@@ -7763,7 +7768,7 @@ function AdminPortal() {
                 {/* 2. ORDER CONSTRAINTS, CAPACITY & MINIMUMS */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-5 shadow-xs">
                   <div>
-                    <h3 className="text-base font-black text-black flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                       <SlidersHorizontal size={18} className="text-[#EA4C2A]" />
                       <span>Capacity & Spending Thresholds</span>
                     </h3>
@@ -7774,53 +7779,53 @@ function AdminPortal() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                      <label className="block text-xs font-black text-black mb-1">Group Min Spend (₦)</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Group Min Spend (₦)</label>
                       <input
                         type="number"
                         min={1000}
                         step={500}
                         value={settings.group_order_min_spend ?? 3000}
                         onChange={e => setSettings({ ...settings, group_order_min_spend: Number(e.target.value) })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                       />
                       <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Minimum combined cart total to checkout.</span>
                     </div>
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                      <label className="block text-xs font-black text-black mb-1">Max People per Group</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Max People per Group</label>
                       <input
                         type="number"
                         min={2}
                         max={50}
                         value={settings.group_order_max_members ?? 15}
                         onChange={e => setSettings({ ...settings, group_order_max_members: Number(e.target.value) })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                       />
                       <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Maximum friends in one room session.</span>
                     </div>
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                      <label className="block text-xs font-black text-black mb-1">Max Items per Member</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Max Items per Member</label>
                       <input
                         type="number"
                         min={1}
                         max={30}
                         value={settings.group_order_max_items_per_member ?? 10}
                         onChange={e => setSettings({ ...settings, group_order_max_items_per_member: Number(e.target.value) })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                       />
                       <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Limits kitchen congestion per person.</span>
                     </div>
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                      <label className="block text-xs font-black text-black mb-1">Free Group Delivery Above (₦)</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Free Group Delivery Above (₦)</label>
                       <input
                         type="number"
                         min={5000}
                         step={1000}
                         value={settings.group_order_free_delivery_threshold ?? 15000}
                         onChange={e => setSettings({ ...settings, group_order_free_delivery_threshold: Number(e.target.value) })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                       />
                       <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Free delivery bonus when group spends above this.</span>
                     </div>
@@ -7830,7 +7835,7 @@ function AdminPortal() {
                 {/* 3. GROUP DISCOUNT & INCENTIVES */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-4 shadow-xs">
                   <div>
-                    <h3 className="text-base font-black text-black flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                       <Percent size={18} className="text-[#EA4C2A]" />
                       <span>Group Discount Incentives</span>
                     </h3>
@@ -7841,27 +7846,27 @@ function AdminPortal() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                      <label className="block text-xs font-black text-black mb-1">Group Discount (%)</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Group Discount (%)</label>
                       <input
                         type="number"
                         min={0}
                         max={35}
                         value={settings.group_order_discount_percent ?? 0}
                         onChange={e => setSettings({ ...settings, group_order_discount_percent: Number(e.target.value) })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                       />
                       <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Automatic discount on meal subtotal (0% to disable).</span>
                     </div>
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                      <label className="block text-xs font-black text-black mb-1">Min People to Unlock Discount</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Min People to Unlock Discount</label>
                       <input
                         type="number"
                         min={2}
                         max={20}
                         value={settings.group_order_discount_min_people ?? 3}
                         onChange={e => setSettings({ ...settings, group_order_discount_min_people: Number(e.target.value) })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                       />
                       <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Discount triggers when this many friends join.</span>
                     </div>
@@ -7871,7 +7876,7 @@ function AdminPortal() {
                 {/* 4. KITCHEN PACKAGING & GUEST ACCESS */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-4 shadow-xs">
                   <div>
-                    <h3 className="text-base font-black text-black flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                       <Package size={18} className="text-[#EA4C2A]" />
                       <span>Kitchen Packaging & Guest Access Policies</span>
                     </h3>
@@ -7880,7 +7885,7 @@ function AdminPortal() {
                   <div className="space-y-3">
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-black text-black">Individual Meal Name Labeling</p>
+                        <p className="text-xs font-black text-slate-600">Individual Meal Name Labeling</p>
                         <p className="text-[11px] text-slate-500">Instruct chef and kitchen packing line to label every container with the member's name.</p>
                       </div>
                       <input
@@ -7893,7 +7898,7 @@ function AdminPortal() {
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-black text-black">Allow Anonymous Friends to Join via Deep Link</p>
+                        <p className="text-xs font-black text-slate-600">Allow Anonymous Friends to Join via Deep Link</p>
                         <p className="text-[11px] text-slate-500">Invited friends can add meals immediately with just their name (no mandatory account creation).</p>
                       </div>
                       <input
@@ -7906,7 +7911,7 @@ function AdminPortal() {
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-black text-black">Enable Random Happy Avatars for Customers</p>
+                        <p className="text-xs font-black text-slate-600">Enable Random Happy Avatars for Customers</p>
                         <p className="text-[11px] text-slate-500">Assigns delightful smiling male and female customer avatars to every group member.</p>
                       </div>
                       <input
@@ -7922,7 +7927,7 @@ function AdminPortal() {
                 {/* 5. HAPPY CUSTOMER AVATARS SHOWCASE */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-4 shadow-xs">
                   <div>
-                    <h3 className="text-base font-black text-black flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                       <Sparkles size={18} className="text-[#EA4C2A]" />
                       <span>Happy Customer Avatars Palette</span>
                     </h3>
@@ -7933,7 +7938,7 @@ function AdminPortal() {
 
                   <div className="space-y-3">
                     <div>
-                      <span className="text-[11px] font-black uppercase tracking-wider text-[#EC4899] block mb-2">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-pink-700 block mb-2">
                         👩 Happy Female Customer Avatars
                       </span>
                       <div className="flex items-center gap-3 overflow-x-auto pb-2">
@@ -7953,7 +7958,7 @@ function AdminPortal() {
                     </div>
 
                     <div>
-                      <span className="text-[11px] font-black uppercase tracking-wider text-[#0AA5FF] block mb-2">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-sky-700 block mb-2">
                         👨 Happy Male Customer Avatars
                       </span>
                       <div className="flex items-center gap-3 overflow-x-auto pb-2">
@@ -7978,7 +7983,7 @@ function AdminPortal() {
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-4 shadow-xs">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-base font-black text-black flex items-center gap-2">
+                      <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                         <Activity size={18} className="text-emerald-500" />
                         <span>Live Active Group Order Rooms ({activeGroupOrders.length})</span>
                       </h3>
@@ -7991,7 +7996,7 @@ function AdminPortal() {
                   {activeGroupOrders.length === 0 ? (
                     <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300">
                       <p className="text-xs font-bold text-slate-500">No group orders yet</p>
-                      <p className="text-[11px] text-slate-400 mt-1">When customers create group orders, they will appear here live.</p>
+                      <p className="text-[11px] text-slate-600 font-medium mt-1">When customers create group orders, they will appear here live.</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -8031,7 +8036,7 @@ function AdminPortal() {
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <h4 className="font-black text-base text-black">
+                                  <h4 className="font-black text-base text-slate-900">
                                     {group.name || group.id}
                                   </h4>
                                   <span className="px-2 py-0.5 rounded-lg bg-[#EA4C2A] text-white text-[11px] font-mono font-bold">
@@ -8039,7 +8044,7 @@ function AdminPortal() {
                                   </span>
                                 </div>
                                 <p className="text-xs text-slate-600 font-semibold mt-1">
-                                  👑 Creator: <strong className="text-black">{group.creator_name || group.organizer_name || 'Host'}</strong> ({group.creator_phone || 'No phone'})
+                                  👑 Creator: <strong className="text-slate-900">{group.creator_name || group.organizer_name || 'Host'}</strong> ({group.creator_phone || 'No phone'})
                                 </p>
                               </div>
 
@@ -8062,19 +8067,19 @@ function AdminPortal() {
                             {/* Summary Badges: Participants, Paid, Pending, Location, Window */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-bold">
                               <div className="p-2.5 bg-white rounded-xl border border-slate-200">
-                                <span className="text-[10px] text-slate-400 block font-normal">Participants</span>
+                                <span className="text-[10px] text-slate-600 block font-semibold">Participants</span>
                                 <span className="text-slate-900 text-sm font-black">{participantsList.length} people</span>
                               </div>
                               <div className="p-2.5 bg-white rounded-xl border border-slate-200">
-                                <span className="text-[10px] text-slate-400 block font-normal">Paid Orders</span>
+                                <span className="text-[10px] text-slate-600 block font-semibold">Paid Orders</span>
                                 <span className="text-emerald-700 text-sm font-black">✅ {paidOrders.length} Paid</span>
                               </div>
                               <div className="p-2.5 bg-white rounded-xl border border-slate-200">
-                                <span className="text-[10px] text-slate-400 block font-normal">Pending Orders</span>
+                                <span className="text-[10px] text-slate-600 block font-semibold">Pending Orders</span>
                                 <span className="text-amber-700 text-sm font-black">⏳ {pendingOrders.length} Pending</span>
                               </div>
                               <div className="p-2.5 bg-white rounded-xl border border-slate-200">
-                                <span className="text-[10px] text-slate-400 block font-normal">Delivery Window</span>
+                                <span className="text-[10px] text-slate-600 block font-semibold">Delivery Window</span>
                                 <span className="text-slate-900 text-xs font-black truncate block">{group.delivery_window || 'Standard Window'}</span>
                               </div>
                             </div>
@@ -8136,7 +8141,7 @@ function AdminPortal() {
                               {isExpanded && (
                                 <div className="mt-3 space-y-2 pt-2 border-t border-dashed border-slate-200">
                                   {participantsList.length === 0 ? (
-                                    <p className="text-xs text-slate-400">Waiting for participants to join...</p>
+                                    <p className="text-xs text-slate-600 font-medium">Waiting for participants to join...</p>
                                   ) : (
                                     participantsList.map((p, idx) => {
                                       const isPPaid = p.payment_status === 'PAID';
@@ -8147,7 +8152,7 @@ function AdminPortal() {
                                           <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2">
                                               <strong className="text-slate-900 font-black">{p.name}</strong>
-                                              <span className="text-slate-400 text-[11px]">({p.phone || 'No phone'})</span>
+                                              <span className="text-slate-600 text-[11px] font-medium">({p.phone || 'No phone'})</span>
                                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                                 isPPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                                               }`}>
@@ -8165,7 +8170,7 @@ function AdminPortal() {
                                               ₦{Number(p.total || 0).toLocaleString()}
                                             </span>
                                             {p.paystack_ref && (
-                                              <span className="text-[9px] text-slate-400 font-mono block">
+                                              <span className="text-[9px] text-slate-600 font-mono font-medium block">
                                                 Ref: {p.paystack_ref.slice(0, 14)}...
                                               </span>
                                             )}
@@ -8193,8 +8198,8 @@ function AdminPortal() {
               <div className="space-y-5">
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
                   <div>
-                    <h3 className="text-lg font-black text-black">Merchant Payouts & Payment Gateways</h3>
-                    <p className="text-sm font-bold text-black mt-0.5">Manage bank account for daily settlements and Paystack keys.</p>
+                    <h3 className="text-lg font-black text-slate-900">Merchant Payouts & Payment Gateways</h3>
+                    <p className="text-sm font-medium text-slate-600 mt-0.5">Manage bank account for daily settlements and Paystack keys.</p>
                   </div>
 
                   {/* PAYOUT SETTLEMENT BANK ACCOUNT */}
@@ -8202,8 +8207,8 @@ function AdminPortal() {
                     <div className="flex items-center gap-2.5">
                       <span className="text-2xl">🏦</span>
                       <div>
-                        <h4 className="font-black text-sm text-black">Merchant Settlement Bank Account</h4>
-                        <p className="text-xs text-black font-bold mt-0.5">
+                        <h4 className="font-black text-sm text-slate-900">Merchant Settlement Bank Account</h4>
+                        <p className="text-xs text-slate-600 font-bold mt-0.5">
                           Disbursement destination for your daily earnings, online orders, and customer transfers.
                         </p>
                       </div>
@@ -8211,34 +8216,34 @@ function AdminPortal() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-black text-black mb-1">Bank Name</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Bank Name</label>
                         <input
                           type="text"
                           value={settings.payout_bank_name || DEFAULT_STORE_DETAILS.payout_bank_name || 'Moniepoint'}
                           onChange={e => setSettings({ ...settings, payout_bank_name: e.target.value })}
                           placeholder="e.g. Moniepoint"
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-black text-black mb-1">Account Number (10-Digit NUBAN)</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Account Number (10-Digit NUBAN)</label>
                         <input
                           type="text"
                           maxLength={10}
                           value={settings.payout_account_number || DEFAULT_STORE_DETAILS.payout_account_number || '8166004281'}
                           onChange={e => setSettings({ ...settings, payout_account_number: e.target.value.replace(/\D/g, '') })}
                           placeholder="10-digit NUBAN"
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-mono font-black outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-black text-black mb-1">Account Beneficiary Name</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Account Beneficiary Name</label>
                         <input
                           type="text"
                           value={settings.payout_account_name || DEFAULT_STORE_DETAILS.payout_account_name || 'Foodmaxx Restaurant'}
                           onChange={e => setSettings({ ...settings, payout_account_name: e.target.value })}
                           placeholder="e.g. Foodmaxx Restaurant"
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                         />
                       </div>
                     </div>
@@ -8250,7 +8255,7 @@ function AdminPortal() {
                       <div className="flex items-center gap-2.5">
                         <span className="text-2xl">⚡</span>
                         <div>
-                          <h4 className="font-black text-sm text-black">Paystack Payment Gateway (Cards, Transfer, USSD)</h4>
+                          <h4 className="font-black text-sm text-slate-900">Paystack Payment Gateway (Cards, Transfer, USSD)</h4>
                           <p className="text-xs text-emerald-800 font-bold flex items-center gap-1 mt-0.5">
                             <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse inline-block" />
                             Active & Ready for Checkout
@@ -8267,7 +8272,7 @@ function AdminPortal() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-black text-black mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         Paystack Public Key (pk_live_... or pk_test_...)
                       </label>
                       <input
@@ -8275,12 +8280,12 @@ function AdminPortal() {
                         value={settings.paystack_public_key || getStoredPaystackConfig().publicKey || 'pk_live_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a'}
                         onChange={e => setSettings({ ...settings, paystack_public_key: e.target.value })}
                         placeholder="pk_live_xxxx or pk_test_xxxx"
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-mono font-bold outline-none focus:border-[#EA4C2A]"
                       />
                     </div>
 
                     <div className="flex items-center justify-between pt-2">
-                      <span className="text-xs text-black font-bold">Switch Gateway Environment:</span>
+                      <span className="text-xs text-slate-900 font-bold">Switch Gateway Environment:</span>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -8291,7 +8296,7 @@ function AdminPortal() {
                             toast('Paystack saved as Live Active! 🟢', 'success');
                           }}
                           className={`px-3.5 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
-                            settings.paystack_is_live !== false ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-black'
+                            settings.paystack_is_live !== false ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-800 font-bold'
                           }`}
                         >
                           🟢 Live Production
@@ -8305,7 +8310,7 @@ function AdminPortal() {
                             toast('Paystack set to Test Mode ⚡', 'info');
                           }}
                           className={`px-3.5 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
-                            settings.paystack_is_live === false ? 'bg-amber-600 text-white' : 'bg-slate-200 text-black'
+                            settings.paystack_is_live === false ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-800 font-bold'
                           }`}
                         >
                           ⚡ Test Mode
@@ -8316,13 +8321,13 @@ function AdminPortal() {
 
                   {/* Customer Payment Methods Toggle */}
                   <div className="space-y-3 pt-2 border-t border-slate-200">
-                    <h4 className="font-black text-sm text-black">Customer Payment Methods Allowed</h4>
+                    <h4 className="font-black text-sm text-slate-900">Customer Payment Methods Allowed</h4>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between">
                         <div>
-                          <div className="text-xs font-black text-black">💳 Online Card & USSD</div>
-                          <div className="text-[11px] font-bold text-black">Paystack instant charge</div>
+                          <div className="text-xs font-black text-slate-900">💳 Online Card & USSD</div>
+                          <div className="text-[11px] font-bold text-slate-900">Paystack instant charge</div>
                         </div>
                         <input
                           type="checkbox"
@@ -8334,8 +8339,8 @@ function AdminPortal() {
 
                       <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between">
                         <div>
-                          <div className="text-xs font-black text-black">🏦 Direct Bank Transfer</div>
-                          <div className="text-[11px] font-bold text-black">Customer transfers to NUBAN</div>
+                          <div className="text-xs font-black text-slate-900">🏦 Direct Bank Transfer</div>
+                          <div className="text-[11px] font-bold text-slate-900">Customer transfers to NUBAN</div>
                         </div>
                         <input
                           type="checkbox"
@@ -8347,8 +8352,8 @@ function AdminPortal() {
 
                       <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between">
                         <div>
-                          <div className="text-xs font-black text-black">💵 Cash on Delivery (COD)</div>
-                          <div className="text-[11px] font-bold text-black">Pay cash to rider upon arrival</div>
+                          <div className="text-xs font-black text-slate-900">💵 Cash on Delivery (COD)</div>
+                          <div className="text-[11px] font-bold text-slate-900">Pay cash to rider upon arrival</div>
                         </div>
                         <input
                           type="checkbox"
@@ -8370,8 +8375,8 @@ function AdminPortal() {
               <div className="space-y-5">
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
                   <div>
-                    <h3 className="text-lg font-black text-black">Kitchen Audio Chimes & Automated WhatsApp Alerts</h3>
-                    <p className="text-sm font-bold text-black mt-0.5">
+                    <h3 className="text-lg font-black text-slate-900">Kitchen Audio Chimes & Automated WhatsApp Alerts</h3>
+                    <p className="text-sm font-medium text-slate-600 mt-0.5">
                       Configure high-volume synthesized Web Audio order tones and customizable WhatsApp notification copy.
                     </p>
                   </div>
@@ -8382,8 +8387,8 @@ function AdminPortal() {
                       <div className="flex items-center gap-2.5">
                         <span className="text-2xl">🔊</span>
                         <div>
-                          <h4 className="font-black text-sm text-black">Instant Kitchen Chime Tone</h4>
-                          <p className="text-xs text-black font-bold">Plays immediately when customer places an order on FoodMaxx.</p>
+                          <h4 className="font-black text-sm text-slate-900">Instant Kitchen Chime Tone</h4>
+                          <p className="text-xs text-slate-600 font-bold">Plays immediately when customer places an order on FoodMaxx.</p>
                         </div>
                       </div>
 
@@ -8404,7 +8409,7 @@ function AdminPortal() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                       <div>
-                        <label className="block text-xs font-black text-black mb-1.5">Select Chime Tone (22 Synthesized Sounds)</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Select Chime Tone (22 Synthesized Sounds)</label>
                         <select
                           value={settings.notification_tone_id || 'chime_standard'}
                           onChange={e => {
@@ -8412,7 +8417,7 @@ function AdminPortal() {
                             setSettings({ ...settings, notification_tone_id: newTone });
                             handleTestTone(newTone);
                           }}
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                         >
                           {(NOTIFICATION_TONES || []).map(t => (
                             <option key={t.id} value={t.id}>
@@ -8423,7 +8428,7 @@ function AdminPortal() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-black text-black mb-1.5">
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
                           Chime Volume Level: {settings.kitchen_chime_volume ?? 85}%
                         </label>
                         <input
@@ -8443,10 +8448,10 @@ function AdminPortal() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <MessageSquare className="text-emerald-700" size={18} />
-                        <h4 className="font-black text-sm text-black">Automated WhatsApp Customer Templates</h4>
+                        <h4 className="font-black text-sm text-slate-900">Automated WhatsApp Customer Templates</h4>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-black">Enabled:</span>
+                        <span className="text-xs font-bold text-slate-900">Enabled:</span>
                         <input
                           type="checkbox"
                           checked={settings.whatsapp_notify_customer !== false}
@@ -8456,7 +8461,7 @@ function AdminPortal() {
                       </div>
                     </div>
 
-                    <div className="text-xs text-black font-bold bg-amber-50 p-2.5 rounded-xl border border-amber-300 flex items-center gap-2 flex-wrap">
+                    <div className="text-xs text-slate-900 font-bold bg-amber-50 p-2.5 rounded-xl border border-amber-300 flex items-center gap-2 flex-wrap">
                       <span>💡 Available merge tags:</span>
                       <code className="bg-white px-1.5 py-0.5 rounded border border-amber-300 font-black font-mono">{"{customer_name}"}</code>
                       <code className="bg-white px-1.5 py-0.5 rounded border border-amber-300 font-black font-mono">{"{order_ref}"}</code>
@@ -8468,32 +8473,32 @@ function AdminPortal() {
 
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-xs font-black text-black mb-1">1. Order Placed & Confirmed Message</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">1. Order Placed & Confirmed Message</label>
                         <textarea
                           rows={2}
                           value={settings.whatsapp_order_placed_msg || 'Hello {customer_name}! Your FoodMaxx order #{order_ref} for {amount} has been received and confirmed. Chef is prepping now! 🍳'}
                           onChange={e => setSettings({ ...settings, whatsapp_order_placed_msg: e.target.value })}
-                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-black text-black mb-1">2. Dispatch & Rider on Way Message</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">2. Dispatch & Rider on Way Message</label>
                         <textarea
                           rows={2}
                           value={settings.whatsapp_dispatched_msg || 'Hi {customer_name}! Rider {rider_name} ({rider_phone}) is on the way with your hot FoodMaxx meal! Delivery PIN: {delivery_pin}. 🛵'}
                           onChange={e => setSettings({ ...settings, whatsapp_dispatched_msg: e.target.value })}
-                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-black text-black mb-1">3. Meal Delivered & Rating Message</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">3. Meal Delivered & Rating Message</label>
                         <textarea
                           rows={2}
                           value={settings.whatsapp_delivered_msg || 'Order #{order_ref} delivered! Bon appétit from FoodMaxx Ibadan. Rate your experience: https://foodmaxxapp.web.app 🍔'}
                           onChange={e => setSettings({ ...settings, whatsapp_delivered_msg: e.target.value })}
-                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                         />
                       </div>
                     </div>
@@ -8506,7 +8511,7 @@ function AdminPortal() {
                         <span className="text-2xl">💬</span>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="font-black text-sm text-black">SMS Notification Gateway SDK</h4>
+                            <h4 className="font-black text-sm text-slate-900">SMS Notification Gateway SDK</h4>
                             {settings.sms_provider === 'sendchamp' ? (
                               settings.sendchamp_api_key ? (
                                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
@@ -8543,14 +8548,14 @@ function AdminPortal() {
                               )
                             )}
                           </div>
-                          <p className="text-xs text-black font-bold">
+                          <p className="text-xs text-slate-600 font-bold">
                             Direct GSM transactional SMS for Nigerian diners, courier assignment alerts & delivery OTPs.
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-black">Enabled:</span>
+                        <span className="text-xs font-bold text-slate-900">Enabled:</span>
                         <input
                           type="checkbox"
                           checked={settings.sms_notify_customer !== false}
@@ -8562,11 +8567,11 @@ function AdminPortal() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                       <div>
-                        <label className="block text-xs font-black text-black mb-1.5">SMS Gateway Provider</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">SMS Gateway Provider</label>
                         <select
                           value={settings.sms_provider || 'termii'}
                           onChange={e => setSettings({ ...settings, sms_provider: e.target.value })}
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                         >
                           <option value="termii">Termii Nigeria (Recommended: DND Bypass & ₦ GSM)</option>
                           <option value="sendchamp">Sendchamp Nigeria (Multi-Channel & DND Route)</option>
@@ -8576,25 +8581,25 @@ function AdminPortal() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-black text-black mb-1.5">Alphanumeric Sender ID</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Alphanumeric Sender ID</label>
                         <input
                           type="text"
                           maxLength={11}
                           value={settings.sms_sender_id || 'FoodMaxx'}
                           onChange={e => setSettings({ ...settings, sms_sender_id: e.target.value })}
                           placeholder="e.g. FoodMaxx"
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                         />
                         <p className="text-[10px] text-slate-500 font-medium mt-1">Max 11 characters (registered with Termii / Sendchamp / Twilio)</p>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-black text-black mb-1.5">Route Channel</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Route Channel</label>
                         {settings.sms_provider === 'sendchamp' ? (
                           <select
                             value={settings.sendchamp_route || 'dnd'}
                             onChange={e => setSettings({ ...settings, sendchamp_route: e.target.value })}
-                            className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                           >
                             <option value="dnd">dnd — DND Route (Bypasses Nigerian DND)</option>
                             <option value="non_dnd">non_dnd — Standard Non-DND Route</option>
@@ -8604,7 +8609,7 @@ function AdminPortal() {
                           <select
                             value={settings.termii_channel || 'generic'}
                             onChange={e => setSettings({ ...settings, termii_channel: e.target.value })}
-                            className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                           >
                             <option value="generic">Generic (Transactional OTP & DND Bypass)</option>
                             <option value="dnd">DND Priority Channel</option>
@@ -8617,7 +8622,7 @@ function AdminPortal() {
                     {settings.sms_provider === 'sendchamp' && (
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-black text-black">Sendchamp Secret / Live Access Key</label>
+                          <label className="block text-xs font-bold text-slate-700">Sendchamp Secret / Live Access Key</label>
                           <a
                             href="https://my.sendchamp.com"
                             target="_blank"
@@ -8632,7 +8637,7 @@ function AdminPortal() {
                           value={settings.sendchamp_api_key || ''}
                           onChange={e => setSettings({ ...settings, sendchamp_api_key: e.target.value })}
                           placeholder="sendchamp_live_... or test key (from Sendchamp APIs & Webhooks)"
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono font-bold outline-none focus:border-[#EA4C2A]"
                         />
                       </div>
                     )}
@@ -8640,7 +8645,7 @@ function AdminPortal() {
                     {(settings.sms_provider === 'termii' || !settings.sms_provider) && (
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-black text-black">Termii Secret API Key</label>
+                          <label className="block text-xs font-bold text-slate-700">Termii Secret API Key</label>
                           <a
                             href="https://termii.com"
                             target="_blank"
@@ -8655,7 +8660,7 @@ function AdminPortal() {
                           value={settings.termii_api_key || ''}
                           onChange={e => setSettings({ ...settings, termii_api_key: e.target.value })}
                           placeholder="TLxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (From termii.com dashboard)"
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono font-bold outline-none focus:border-[#EA4C2A]"
                         />
                       </div>
                     )}
@@ -8663,7 +8668,7 @@ function AdminPortal() {
                     {settings.sms_provider === 'twilio' && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-black text-black">Twilio API Credentials</label>
+                          <label className="text-xs font-bold text-slate-700">Twilio API Credentials</label>
                           <a
                             href="https://console.twilio.com"
                             target="_blank"
@@ -8681,7 +8686,7 @@ function AdminPortal() {
                               value={settings.twilio_account_sid || ''}
                               onChange={e => setSettings({ ...settings, twilio_account_sid: e.target.value })}
                               placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono font-bold outline-none focus:border-[#EA4C2A]"
                             />
                           </div>
                           <div>
@@ -8691,7 +8696,7 @@ function AdminPortal() {
                               value={settings.twilio_auth_token || ''}
                               onChange={e => setSettings({ ...settings, twilio_auth_token: e.target.value })}
                               placeholder="Auth Token / Secret"
-                              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono font-bold outline-none focus:border-[#EA4C2A]"
                             />
                           </div>
                           <div>
@@ -8701,7 +8706,7 @@ function AdminPortal() {
                               value={settings.twilio_from_number || ''}
                               onChange={e => setSettings({ ...settings, twilio_from_number: e.target.value })}
                               placeholder="+1XXXXXXXXXX (E.164)"
-                              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono font-bold outline-none focus:border-[#EA4C2A]"
                             />
                           </div>
                         </div>
@@ -8717,13 +8722,13 @@ function AdminPortal() {
                     {/* Test & Save SMS Gateway Strip */}
                     <div className="pt-2 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-2 flex-1 max-w-sm">
-                        <label className="text-xs font-black text-black shrink-0">Test Recipient:</label>
+                        <label className="text-xs font-bold text-slate-700 shrink-0">Test Recipient:</label>
                         <input
                           type="text"
                           value={testSmsPhone}
                           onChange={e => setTestSmsPhone(e.target.value)}
                           placeholder="080XXXXXXXX"
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-black font-mono font-bold outline-none"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 font-mono font-bold outline-none"
                         />
                       </div>
 
@@ -8794,7 +8799,7 @@ function AdminPortal() {
                         <span className="text-2xl">🔔</span>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="font-black text-sm text-black">Web Browser Background Alerts</h4>
+                            <h4 className="font-black text-sm text-slate-900">Web Browser Background Alerts</h4>
                             {adminWebNotificationPerm === 'granted' ? (
                               <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
                                 Enabled ✓
@@ -8809,7 +8814,7 @@ function AdminPortal() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-black font-bold">
+                          <p className="text-xs text-slate-600 font-bold">
                             Chimes, in-app banners & OS notifications when customers place live orders.
                           </p>
                         </div>
@@ -8901,8 +8906,8 @@ function AdminPortal() {
               <div className="space-y-5">
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
                   <div>
-                    <h3 className="text-lg font-black text-black">Thermal POS Receipt Printer & Hardware</h3>
-                    <p className="text-sm font-bold text-black mt-0.5">
+                    <h3 className="text-lg font-black text-slate-900">Thermal POS Receipt Printer & Hardware</h3>
+                    <p className="text-sm font-medium text-slate-600 mt-0.5">
                       Configure Bluetooth, USB, and network thermal slip printers (58mm pocket POS and 80mm desktop thermal).
                     </p>
                   </div>
@@ -8913,8 +8918,8 @@ function AdminPortal() {
                         🖨️
                       </div>
                       <div>
-                        <h4 className="font-black text-sm text-black">Test Hardware Print Dialog</h4>
-                        <p className="text-xs font-bold text-black mt-0.5">Send a simulated order ticket to verify roll width and print margins.</p>
+                        <h4 className="font-black text-sm text-slate-900">Test Hardware Print Dialog</h4>
+                        <p className="text-xs font-medium text-slate-600 mt-0.5">Send a simulated order ticket to verify roll width and print margins.</p>
                       </div>
                     </div>
 
@@ -8930,11 +8935,11 @@ function AdminPortal() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-black text-black mb-1.5">Paper Roll Size</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Paper Roll Size</label>
                       <select
                         value={settings.thermal_paper_size || '58mm'}
                         onChange={e => setSettings({ ...settings, thermal_paper_size: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                       >
                         <option value="58mm">58mm Standard Pocket POS (Most Common in Nigeria)</option>
                         <option value="80mm">80mm Wide Desktop Thermal Printer (Epson / Star)</option>
@@ -8943,8 +8948,8 @@ function AdminPortal() {
 
                     <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between">
                       <div>
-                        <div className="text-xs font-black text-black">Auto-Print on Acceptance</div>
-                        <div className="text-[11px] font-bold text-black">Open print dialog immediately when order confirmed</div>
+                        <div className="text-xs font-black text-slate-900">Auto-Print on Acceptance</div>
+                        <div className="text-[11px] font-bold text-slate-900">Open print dialog immediately when order confirmed</div>
                       </div>
                       <input
                         type="checkbox"
@@ -8957,23 +8962,23 @@ function AdminPortal() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-black text-black mb-1.5">Receipt Top Header Note</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Receipt Top Header Note</label>
                       <input
                         type="text"
                         value={settings.receipt_header_note || 'FOODMAXX IBD - FRESH & HOT'}
                         onChange={e => setSettings({ ...settings, receipt_header_note: e.target.value })}
                         placeholder="e.g. FOODMAXX IBD - FRESH & HOT"
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-black text-black mb-1.5">Receipt Footer Greeting</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Receipt Footer Greeting</label>
                       <input
                         type="text"
                         value={settings.receipt_footer_note || DEFAULT_STORE_DETAILS.receipt_footer_note || 'Thank you for ordering with FoodMaxx. ❤️'}
                         onChange={e => setSettings({ ...settings, receipt_footer_note: e.target.value })}
                         placeholder="e.g. Thank you for dining with FoodMaxx!"
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A] focus:bg-white"
                       />
                     </div>
                   </div>
@@ -8988,8 +8993,8 @@ function AdminPortal() {
               <div className="space-y-5">
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
                   <div>
-                    <h3 className="text-lg font-black text-black">Security, Staff Access & System Controls</h3>
-                    <p className="text-sm font-bold text-black mt-0.5">
+                    <h3 className="text-lg font-black text-slate-900">Security, Staff Access & System Controls</h3>
+                    <p className="text-sm font-medium text-slate-600 mt-0.5">
                       Store manager admin password, line cook PIN, courier verification rules, and cache tools.
                     </p>
                   </div>
@@ -8998,7 +9003,7 @@ function AdminPortal() {
                   <div className="p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-3">
                     <div className="flex items-center gap-2">
                       <Lock size={18} className="text-[#EA4C2A]" />
-                      <h4 className="font-black text-sm text-black">Store Manager Admin Password</h4>
+                      <h4 className="font-black text-sm text-slate-900">Store Manager Admin Password</h4>
                     </div>
 
                     <div>
@@ -9007,9 +9012,9 @@ function AdminPortal() {
                         value={settings.admin_password || 'admin'}
                         onChange={e => setSettings({ ...settings, admin_password: e.target.value })}
                         placeholder="Enter admin password"
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-black font-mono font-bold outline-none focus:border-[#EA4C2A]"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-mono font-bold outline-none focus:border-[#EA4C2A]"
                       />
-                      <p className="text-xs text-black font-bold mt-1.5">
+                      <p className="text-xs text-slate-600 font-bold mt-1.5">
                         Required to sign in to this Admin Operations Center. Keep this confidential.
                       </p>
                     </div>
@@ -9019,7 +9024,7 @@ function AdminPortal() {
                   <div className="p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-3">
                     <div className="flex items-center gap-2">
                       <Key size={18} className="text-amber-600" />
-                      <h4 className="font-black text-sm text-black">Kitchen Line Cook Quick PIN</h4>
+                      <h4 className="font-black text-sm text-slate-900">Kitchen Line Cook Quick PIN</h4>
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -9029,9 +9034,9 @@ function AdminPortal() {
                         value={settings.kitchen_staff_pin || '1234'}
                         onChange={e => setSettings({ ...settings, kitchen_staff_pin: e.target.value.replace(/\D/g, '') })}
                         placeholder="4 digits"
-                        className="w-32 bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-base text-black font-mono font-black text-center outline-none focus:border-[#EA4C2A]"
+                        className="w-32 bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-base text-slate-900 font-mono font-black text-center outline-none focus:border-[#EA4C2A]"
                       />
-                      <p className="text-xs text-black font-bold">
+                      <p className="text-xs text-slate-600 font-bold">
                         4-digit PIN for line cooks to accept and bump orders without full admin financial access.
                       </p>
                     </div>
@@ -9040,8 +9045,8 @@ function AdminPortal() {
                   {/* COURIER DELIVERY OTP ENFORCEMENT */}
                   <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-black text-black">Require 4-Digit Delivery Code from Customer</div>
-                      <div className="text-xs font-bold text-black mt-0.5">
+                      <div className="text-sm font-black text-slate-900">Require 4-Digit Delivery Code from Customer</div>
+                      <div className="text-xs font-medium text-slate-600 mt-0.5">
                         Prevents disputed deliveries. Rider must input customer OTP code before order marked Delivered.
                       </div>
                     </div>
@@ -9056,8 +9061,8 @@ function AdminPortal() {
                   {/* CACHE & STORAGE PURGE */}
                   <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-black text-black">Clear Local App Cache & Re-Sync</div>
-                      <div className="text-xs font-bold text-black mt-0.5">
+                      <div className="text-sm font-black text-slate-900">Clear Local App Cache & Re-Sync</div>
+                      <div className="text-xs font-medium text-slate-600 mt-0.5">
                         Forces a clean refresh from Firebase Firestore and resets local state cache.
                       </div>
                     </div>
@@ -9094,16 +9099,16 @@ function AdminPortal() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-xl font-black text-black">Special Late Delivery Apology Management</h3>
+                          <h3 className="text-xl font-black text-slate-900">Special Late Delivery Apology Management</h3>
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
                             settings.late_delivery_enabled !== false
                               ? 'bg-emerald-50 text-emerald-950 border border-emerald-300'
-                              : 'bg-slate-100 text-black border border-slate-300'
+                              : 'bg-slate-100 text-slate-900 border border-slate-300'
                           }`}>
                             {settings.late_delivery_enabled !== false ? '🟢 Active & Protecting Diners' : '⚪ System Paused'}
                           </span>
                         </div>
-                        <p className="text-sm font-bold text-black mt-1">
+                        <p className="text-sm font-bold text-slate-600 mt-1">
                           Proactively recover delayed diners across Ibadan. Auto-generate apology coupon codes and dispatch heartfelt WhatsApp messages with 1 click.
                         </p>
                       </div>
@@ -9157,12 +9162,12 @@ function AdminPortal() {
                   <div className="bg-white border border-slate-300 rounded-2xl p-6 space-y-5 shadow-xs">
                     <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
                       <Clock size={18} className="text-[#EA4C2A]" />
-                      <h4 className="font-black text-base text-black">Delay Triggers & SLA Rules</h4>
+                      <h4 className="font-black text-base text-slate-900">Delay Triggers & SLA Rules</h4>
                     </div>
 
                     {/* Delay Threshold Input */}
                     <div>
-                      <label className="block text-xs font-black text-black uppercase tracking-wider mb-2">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                         Late Delivery SLA Threshold (Minutes)
                       </label>
                       <div className="flex items-center gap-3">
@@ -9172,9 +9177,9 @@ function AdminPortal() {
                           max={120}
                           value={settings.late_delivery_threshold_mins || 35}
                           onChange={e => setSettings({ ...settings, late_delivery_threshold_mins: Math.max(10, Number(e.target.value)) })}
-                          className="w-28 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-base font-black font-mono text-black outline-none focus:border-[#EA4C2A] focus:bg-white text-center"
+                          className="w-28 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-base font-black font-mono text-slate-900 outline-none focus:border-[#EA4C2A] focus:bg-white text-center"
                         />
-                        <span className="text-sm font-black text-black">minutes after order placement</span>
+                        <span className="text-sm font-black text-slate-900">minutes after order placement</span>
                       </div>
                       <div className="flex gap-2 mt-2.5">
                         {[25, 35, 45, 60].map(mins => (
@@ -9185,14 +9190,14 @@ function AdminPortal() {
                             className={`px-3 py-1 rounded-lg text-xs font-black transition-colors cursor-pointer border ${
                               settings.late_delivery_threshold_mins === mins
                                 ? 'bg-[#EA4C2A] text-white border-[#EA4C2A]'
-                                : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border-slate-300'
                             }`}
                           >
                             {mins} mins
                           </button>
                         ))}
                       </div>
-                      <p className="text-xs text-black font-bold mt-2">
+                      <p className="text-xs text-slate-600 font-bold mt-2">
                         Orders active beyond this duration will be highlighted in bright rose on the Kitchen Display and Orders feed with a 1-tap WhatsApp apology trigger.
                       </p>
                     </div>
@@ -9200,8 +9205,8 @@ function AdminPortal() {
                     {/* Auto Register Promo in Database */}
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-sm font-black text-black">Auto-Activate Coupon in Store Checkout</div>
-                        <div className="text-xs font-bold text-black mt-0.5">
+                        <div className="text-sm font-black text-slate-900">Auto-Activate Coupon in Store Checkout</div>
+                        <div className="text-xs font-medium text-slate-600 mt-0.5">
                           Automatically creates and enables the generated coupon code in FoodMaxx so the diner can redeem it immediately.
                         </div>
                       </div>
@@ -9218,12 +9223,12 @@ function AdminPortal() {
                   <div className="bg-white border border-slate-300 rounded-2xl p-6 space-y-5 shadow-xs">
                     <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
                       <Gift size={18} className="text-[#EA4C2A]" />
-                      <h4 className="font-black text-base text-black">Customer Compensation Pack</h4>
+                      <h4 className="font-black text-base text-slate-900">Customer Compensation Pack</h4>
                     </div>
 
                     {/* Compensation Type Selector */}
                     <div>
-                      <label className="block text-xs font-black text-black uppercase tracking-wider mb-2">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                         Goodwill Compensation Type
                       </label>
                       <div className="grid grid-cols-2 gap-2">
@@ -9245,8 +9250,8 @@ function AdminPortal() {
                                   : 'bg-slate-50 hover:bg-slate-100 border-slate-300'
                               }`}
                             >
-                              <div className="text-xs font-black text-black">{comp.label}</div>
-                              <div className="text-[11px] font-bold text-black mt-0.5">{comp.desc}</div>
+                              <div className="text-xs font-black text-slate-900">{comp.label}</div>
+                              <div className="text-[11px] font-bold text-slate-900 mt-0.5">{comp.desc}</div>
                             </button>
                           );
                         })}
@@ -9256,7 +9261,7 @@ function AdminPortal() {
                     {/* Dynamic Value Input */}
                     {(settings.late_compensation_type === 'discount_code' || !settings.late_compensation_type) && (
                       <div>
-                        <label className="block text-xs font-black text-black mb-1.5">Discount Percentage (%)</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Discount Percentage (%)</label>
                         <div className="flex items-center gap-2">
                           <input
                             type="number"
@@ -9264,16 +9269,16 @@ function AdminPortal() {
                             max={50}
                             value={settings.late_discount_percent || 20}
                             onChange={e => setSettings({ ...settings, late_discount_percent: Number(e.target.value) })}
-                            className="w-28 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-black font-mono text-black outline-none focus:border-[#EA4C2A] text-center"
+                            className="w-28 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-black font-mono text-slate-900 outline-none focus:border-[#EA4C2A] text-center"
                           />
-                          <span className="text-sm font-black text-black">% discount applied to next meal</span>
+                          <span className="text-sm font-black text-slate-900">% discount applied to next meal</span>
                         </div>
                       </div>
                     )}
 
                     {settings.late_compensation_type === 'fixed_naira' && (
                       <div>
-                        <label className="block text-xs font-black text-black mb-1.5">Naira Discount Amount (₦)</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Naira Discount Amount (₦)</label>
                         <div className="flex items-center gap-2">
                           <input
                             type="number"
@@ -9281,24 +9286,24 @@ function AdminPortal() {
                             min={200}
                             value={settings.late_discount_amount || 500}
                             onChange={e => setSettings({ ...settings, late_discount_amount: Number(e.target.value) })}
-                            className="w-32 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-black font-mono text-black outline-none focus:border-[#EA4C2A] text-center"
+                            className="w-32 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-black font-mono text-slate-900 outline-none focus:border-[#EA4C2A] text-center"
                           />
-                          <span className="text-sm font-black text-black">₦ deduction on next order</span>
+                          <span className="text-sm font-black text-slate-900">₦ deduction on next order</span>
                         </div>
                       </div>
                     )}
 
                     {/* Coupon Prefix */}
                     <div>
-                      <label className="block text-xs font-black text-black mb-1.5">Voucher Code Prefix</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Voucher Code Prefix</label>
                       <input
                         type="text"
                         value={settings.late_promo_code_prefix || 'SORRY'}
                         onChange={e => setSettings({ ...settings, late_promo_code_prefix: e.target.value.toUpperCase() })}
-                        className="w-48 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-mono font-black text-black uppercase outline-none focus:border-[#EA4C2A]"
+                        className="w-48 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-mono font-black text-slate-900 uppercase outline-none focus:border-[#EA4C2A]"
                         placeholder="e.g. SORRY"
                       />
-                      <p className="text-xs text-black font-bold mt-1">
+                      <p className="text-xs text-slate-600 font-bold mt-1">
                         Will generate unique codes like: <span className="font-mono font-black text-[#EA4C2A]">{settings.late_promo_code_prefix || 'SORRY'}20-8492</span>
                       </p>
                     </div>
@@ -9306,7 +9311,7 @@ function AdminPortal() {
                     {/* Complimentary Kitchen Item */}
                     <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-black text-black flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-700 flex items-center gap-2">
                           <span>Include Free Kitchen Item in Bag</span>
                         </label>
                         <input
@@ -9321,7 +9326,7 @@ function AdminPortal() {
                           type="text"
                           value={settings.late_free_item_name || 'Complimentary Chilled Soft Drink / Extra Dodo'}
                           onChange={e => setSettings({ ...settings, late_free_item_name: e.target.value })}
-                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-black font-bold outline-none focus:border-[#EA4C2A]"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                           placeholder="e.g. Chilled Soft Drink / Extra Fried Plantain"
                         />
                       )}
@@ -9334,7 +9339,7 @@ function AdminPortal() {
                   <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                     <div className="flex items-center gap-2">
                       <MessageSquare size={18} className="text-[#EA4C2A]" />
-                      <h4 className="font-black text-base text-black">WhatsApp Apology Message & Tone</h4>
+                      <h4 className="font-black text-base text-slate-900">WhatsApp Apology Message & Tone</h4>
                     </div>
                     <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-300">
                       ⚡ 1-Tap Customer Dispatch
@@ -9343,7 +9348,7 @@ function AdminPortal() {
 
                   {/* Tone Presets Selector */}
                   <div>
-                    <label className="block text-xs font-black text-black uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                       Select Apology Tone (Click to Apply Preset)
                     </label>
                     <div className="flex flex-wrap gap-2.5">
@@ -9364,7 +9369,7 @@ function AdminPortal() {
                             className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border ${
                               active
                                 ? 'bg-[#EA4C2A] text-white border-[#EA4C2A] shadow-xs'
-                                : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border-slate-300'
                             }`}
                           >
                             <span>{tone.label}</span>
@@ -9378,15 +9383,15 @@ function AdminPortal() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     {/* Left: Template Editor */}
                     <div className="space-y-2">
-                      <label className="block text-xs font-black text-black">WhatsApp Message Template</label>
+                      <label className="block text-xs font-bold text-slate-700">WhatsApp Message Template</label>
                       <textarea
                         rows={6}
                         value={settings.late_whatsapp_template || APOLOGY_TONE_PRESETS.warm.template}
                         onChange={e => setSettings({ ...settings, late_whatsapp_template: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3.5 text-xs text-black font-medium outline-none focus:border-[#EA4C2A] focus:bg-white leading-relaxed resize-y"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3.5 text-xs text-slate-900 font-medium outline-none focus:border-[#EA4C2A] focus:bg-white leading-relaxed resize-y"
                       />
                       <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        <span className="text-[10px] text-black font-black uppercase mr-1">Insert Tags:</span>
+                        <span className="text-[10px] text-slate-900 font-black uppercase mr-1">Insert Tags:</span>
                         {[
                           '{customer_name}',
                           '{order_ref}',
@@ -9403,7 +9408,7 @@ function AdminPortal() {
                               const cur = settings.late_whatsapp_template || '';
                               setSettings({ ...settings, late_whatsapp_template: cur + ' ' + tag });
                             }}
-                            className="text-[11px] font-mono font-bold bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black px-2 py-0.5 rounded cursor-pointer transition-colors"
+                            className="text-[11px] font-mono font-bold bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-900 px-2 py-0.5 rounded cursor-pointer transition-colors"
                           >
                             {tag}
                           </button>
@@ -9413,7 +9418,7 @@ function AdminPortal() {
 
                     {/* Right: Authentic WhatsApp Message Preview Bubble */}
                     <div className="space-y-2">
-                      <label className="block text-xs font-black text-black flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-700 flex items-center justify-between">
                         <span>Customer WhatsApp Screen Preview</span>
                         <span className="text-[11px] text-emerald-800 font-bold">● Live rendering</span>
                       </label>
@@ -9423,7 +9428,7 @@ function AdminPortal() {
                             <span className="font-black text-xs text-emerald-800">FoodMaxx Kitchen Ibadan</span>
                             <span className="text-[10px] text-emerald-600 font-bold">✔ Verified</span>
                           </div>
-                          <p className="text-xs text-black dark:text-white font-medium leading-relaxed whitespace-pre-wrap">
+                          <p className="text-xs text-slate-600 dark:text-white font-medium leading-relaxed whitespace-pre-wrap">
                             {(settings.late_whatsapp_template || APOLOGY_TONE_PRESETS.warm.template)
                               .replace(/{customer_name}/g, 'Babajide Adeyemi')
                               .replace(/{order_ref}/g, 'FMX-9281')
@@ -9447,13 +9452,13 @@ function AdminPortal() {
                 <div className="bg-white border border-slate-300 rounded-2xl p-6 sm:p-7 space-y-5 shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
                     <div>
-                      <h4 className="font-black text-base text-black flex items-center gap-2">
+                      <h4 className="font-black text-base text-slate-900 flex items-center gap-2">
                         <span>⚡ Active Delayed Orders Radar</span>
-                        <span className="text-xs font-mono font-black px-2.5 py-0.5 rounded-full bg-slate-100 text-black border border-slate-300">
+                        <span className="text-xs font-mono font-black px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-900 border border-slate-300">
                           {delayedOrders.length} detected
                         </span>
                       </h4>
-                      <p className="text-xs font-bold text-black mt-0.5">
+                      <p className="text-xs font-medium text-slate-600 mt-0.5">
                         Orders exceeding your {settings.late_delivery_threshold_mins || 35}-minute SLA. Click dispatch to automatically generate the voucher and open customer WhatsApp.
                       </p>
                     </div>
@@ -9484,15 +9489,15 @@ function AdminPortal() {
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-mono font-black text-sm text-black">
+                                  <span className="font-mono font-black text-sm text-slate-900">
                                     #{order.order_reference || order.id?.slice(0, 8)}
                                   </span>
-                                  <span className="text-xs font-black text-black">· {order.customer_name || 'Customer'}</span>
+                                  <span className="text-xs font-black text-slate-900">· {order.customer_name || 'Customer'}</span>
                                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">
                                     +{overdueMins}m Overdue
                                   </span>
                                 </div>
-                                <div className="text-xs text-black font-bold mt-1">
+                                <div className="text-xs text-slate-900 font-bold mt-1">
                                   <span>{order.delivery_zone || 'Ibadan'}</span>
                                   <span className="mx-1.5">•</span>
                                   <span>Elapsed: <strong className="font-mono font-black text-rose-800">{elapsedMins} mins</strong></span>
@@ -9523,24 +9528,24 @@ function AdminPortal() {
                 <div className="bg-white border border-slate-300 rounded-2xl p-6 sm:p-7 space-y-4 shadow-xs">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                     <div>
-                      <h4 className="font-black text-base text-black flex items-center gap-2">
+                      <h4 className="font-black text-base text-slate-900 flex items-center gap-2">
                         <CheckCircle size={18} className="text-emerald-700" />
                         <span>Recent Apologies & Vouchers Issued</span>
                       </h4>
-                      <p className="text-xs font-bold text-black mt-0.5">Audit log of apology compensation sent to customers.</p>
+                      <p className="text-xs font-medium text-slate-600 mt-0.5">Audit log of apology compensation sent to customers.</p>
                     </div>
-                    <span className="text-xs font-mono font-black text-black bg-slate-100 px-3 py-1 rounded-lg border border-slate-300">
+                    <span className="text-xs font-mono font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-lg border border-slate-300">
                       {apologyHistory.length} Recorded
                     </span>
                   </div>
 
                   {apologyHistory.length === 0 ? (
-                    <p className="text-xs text-black font-bold py-4 text-center">No apologies have been dispatched yet.</p>
+                    <p className="text-xs text-slate-600 font-bold py-4 text-center">No apologies have been dispatched yet.</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs">
                         <thead>
-                          <tr className="border-b border-slate-200 text-black uppercase font-black tracking-wider">
+                          <tr className="border-b border-slate-200 text-slate-900 uppercase font-black tracking-wider">
                             <th className="pb-2.5 pl-1">Order Ref</th>
                             <th className="pb-2.5">Customer</th>
                             <th className="pb-2.5">Voucher Code</th>
@@ -9552,18 +9557,18 @@ function AdminPortal() {
                         <tbody className="divide-y divide-slate-100">
                           {apologyHistory.map(item => (
                             <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="py-3 pl-1 font-mono font-black text-black">#{item.orderRef}</td>
-                              <td className="py-3 font-bold text-black">
+                              <td className="py-3 pl-1 font-mono font-black text-slate-900">#{item.orderRef}</td>
+                              <td className="py-3 font-bold text-slate-900">
                                 <div>{item.customerName}</div>
-                                <div className="text-[11px] font-mono text-black">{item.phone}</div>
+                                <div className="text-[11px] font-mono text-slate-900">{item.phone}</div>
                               </td>
                               <td className="py-3">
                                 <span className="font-mono font-black text-xs text-[#EA4C2A] bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
                                   {item.code}
                                 </span>
                               </td>
-                              <td className="py-3 font-black text-black">{item.compensation}</td>
-                              <td className="py-3 text-black font-bold">
+                              <td className="py-3 font-black text-slate-900">{item.compensation}</td>
+                              <td className="py-3 text-slate-900 font-bold">
                                 {new Date(item.sentAt).toLocaleDateString()} {new Date(item.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </td>
                               <td className="py-3 pr-1 text-right">

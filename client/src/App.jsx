@@ -2072,7 +2072,7 @@ function CustomerPortal() {
             >
               {/* MAIN NATIVE WEB APP HEADER (HOME TAB) */}
               {activeTab === 'home' && (
-            <header className="px-4 sm:px-6 lg:px-8 pt-4 pb-3.5 space-y-3.5 max-w-7xl mx-auto w-full">
+            <header className="px-4 sm:px-6 lg:px-8 pt-6 sm:pt-7 lg:pt-8 pt-[max(1.75rem,calc(env(safe-area-inset-top,0px)+1.25rem))] pb-5 sm:pb-6 space-y-4 sm:space-y-5 max-w-7xl mx-auto w-full">
               {/* Top Row: Brand Logo + Greeting with Name (Left) & Actions (Right) */}
               <div className="flex items-center justify-between gap-3">
                 {/* Brand Logo + Greeting with Customer Name */}
@@ -2160,14 +2160,14 @@ function CustomerPortal() {
               </div>
 
               {/* Row 2: Headline - "What do you crave for today?" (Reduced font size) */}
-              <div className="pt-0.5">
+              <div className="pt-1">
                 <h1 className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 tracking-tight leading-tight">
                   What do you crave for today?
                 </h1>
               </div>
 
               {/* Search Bar Row (Clean, balanced moderate spacing) */}
-              <div className="relative flex items-center bg-slate-100 dark:bg-[#1A1D24] text-slate-900 dark:text-white rounded-2xl px-4 py-2.5 sm:py-3 border border-slate-200/60 dark:border-white/5 focus-within:border-[#EA4C2A]/60 focus-within:bg-white dark:focus-within:bg-[#1A1D24] transition-all shadow-xs">
+              <div className="relative flex items-center bg-slate-100 dark:bg-[#1A1D24] text-slate-900 dark:text-white rounded-2xl px-4 py-3 sm:py-3.5 border border-slate-200/60 dark:border-white/5 focus-within:border-[#EA4C2A]/60 focus-within:bg-white dark:focus-within:bg-[#1A1D24] transition-all shadow-xs">
                 <Search size={18} className="text-slate-400 shrink-0" />
                 <input
                   type="text"
