@@ -2352,6 +2352,7 @@ function CustomerPortal() {
           <CheckoutModal
             key="checkout-modal"
             open={checkoutOpen}
+            onClose={() => setCheckoutOpen(false)}
             onOpenGroupOrder={() => {
               setCheckoutOpen(false);
               setGroupOrderSheetOpen(true);
@@ -8584,6 +8585,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
     const txRef = `FMX_PSTK_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
     const effectiveEmail = activeUser?.email || orderData.customer_email || 'customer@foodmaxx.ng';
     const effectiveName = activeUser?.full_name || orderData.customer_name || 'FoodMaxx Customer';
+    const effectivePhone = activeUser?.phone || orderData.customer_phone || contactPhone || '';
     pendingOrderDataRef.current = orderData;
     triggerHaptic('impact');
 
@@ -8883,6 +8885,12 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
 
   if (!open) return null;
 
+  const handleClose = () => {
+    if (typeof onClose === 'function') {
+      onClose();
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -8890,7 +8898,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <motion.div
         initial={{ y: '100%', opacity: 0.95 }}
@@ -8912,7 +8920,7 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => { triggerHaptic('selection'); onClose(); }}
+              onClick={() => { triggerHaptic('selection'); handleClose(); }}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 cursor-pointer ${
                 isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-slate-100 text-slate-800'
               }`}
