@@ -670,7 +670,7 @@ function PortalSwitcher({ activePortal, setActivePortal }) {
   ];
 
   return (
-    <div className="shrink-0 w-full z-50 bg-gray-900 text-white shadow-md border-b border-gray-800 hidden md:block">
+    <div className="shrink-0 w-full z-50 bg-slate-900 text-white shadow-md border-b border-slate-800">
       <div className="flex items-center gap-0 overflow-x-auto hide-scrollbar">
         <div className="flex items-center gap-1 px-3 py-2 border-r border-gray-700 shrink-0">
           <span className="text-sm font-bold tracking-tight text-red-400">🍔 FOODMAXX</span>
@@ -4834,7 +4834,41 @@ function ProfileTab({
         </div>
       </div>
 
-      {/* 7. SIGN OUT (When Logged In) */}
+      {/* 7. MANAGEMENT & ADMIN PORTAL */}
+      <div>
+        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2">
+          Management & Operations
+        </div>
+        <div className={`rounded-2xl border overflow-hidden ${
+          isDark ? 'bg-[#151922] border-white/10' : 'bg-white border-slate-100 shadow-xs'
+        }`}>
+          <button
+            onClick={() => {
+              window.history.pushState(null, '', '/admin');
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            }}
+            className="w-full flex items-center justify-between p-3.5 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#EA4C2A]/10 text-[#EA4C2A] flex items-center justify-center font-black text-sm">
+                🍔
+              </div>
+              <div>
+                <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 block">FoodMaxx Admin Portal</span>
+                <span className="text-[10px] text-slate-400">Orders, Kitchen, Catalog & Analytics</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EA4C2A]/10 text-[#EA4C2A]">
+                STAFF
+              </span>
+              <ChevronRight size={15} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* 8. SIGN OUT (When Logged In) */}
       {user && (
         <button
           onClick={onLogout}
@@ -11690,11 +11724,11 @@ export default function App() {
                   <CustomerPortal />
                 </div>
               ) : (
-                <div className="flex-1 min-h-0 w-full overflow-y-auto bg-[#0B0F19] admin-portal-dark dark">
+                <div className="flex-1 min-h-0 w-full overflow-y-auto bg-[#F8FAFC]">
                   <Suspense fallback={
-                    <div className="h-full w-full min-h-[400px] flex flex-col items-center justify-center p-8 text-white font-medium">
+                    <div className="h-full w-full min-h-[400px] flex flex-col items-center justify-center p-8 text-slate-800 font-medium">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#EA4C2A] mb-3"></div>
-                      <p className="text-slate-400 text-sm">Loading FoodMaxx Admin Suite...</p>
+                      <p className="text-slate-500 text-sm">Loading FoodMaxx Admin Suite...</p>
                     </div>
                   }>
                     <AdminPortal />
