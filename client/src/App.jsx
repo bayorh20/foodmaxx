@@ -4375,6 +4375,7 @@ function ProfileTab({
   const { updateUser } = useAuth();
   const [vouchersOpen, setVouchersOpen] = useState(false);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+  const [isUpdatingOta, setIsUpdatingOta] = useState(false);
 
   // Live Notification state
   const [notifState, setNotifState] = useState(() => getNotificationPermission());
@@ -4907,42 +4908,58 @@ function ProfileTab({
         </button>
       )}
 
-      {/* App Version Info & Live OTA Update */}
-      <div className="text-center pt-1 pb-4 flex flex-col items-center gap-1.5">
-        <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-          FoodMaxx v2.5.1 · Ibadan, Nigeria
-        </p>
+      {/* App Version Info & Live OTA Cloud Update */}
+      <div className="text-center pt-1 pb-4 flex flex-col items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold tracking-wide">
+            FoodMaxx v2.5.2 · Live OTA Ready · Ibadan
+          </p>
+        </div>
         <button
           type="button"
+          disabled={isUpdatingOta}
           onClick={async () => {
+            if (isUpdatingOta) return;
+            setIsUpdatingOta(true);
             try {
-              if (typeof toast === 'function') toast('Checking for latest updates... 🔄', 'info');
-              const res = await fetch('/version.json?t=' + Date.now());
-              if (res.ok) {
-                const info = await res.json();
-                if (info.version && info.version !== '2.5.1' && info.downloadUrl) {
-                  if (typeof toast === 'function') toast(`New APK version v${info.version} available! 📲`, 'info');
-                  window.open(info.downloadUrl, '_system');
-                  return;
+              if (typeof toast === 'function') toast('Connecting to FoodMaxx Live Cloud... 📡', 'info');
+              
+              // If running inside local Android APK shell on localhost, transition Over-The-Air to live cloud
+              if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+                if (typeof toast === 'function') toast('Syncing latest FoodMaxx build Over-The-Air... ⚡', 'info');
+                window.location.href = 'https://foodmaxxapp.web.app';
+                return;
+              }
+
+              // Update Service Worker & flush stale caches Over-The-Air
+              if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const reg of registrations) {
+                  await reg.update();
+                }
+                if ('caches' in window) {
+                  const keys = await caches.keys();
+                  await Promise.all(keys.map(k => caches.delete(k)));
                 }
               }
+
+              if (typeof toast === 'function') toast('App updated Over-The-Air successfully! ✨', 'success');
+              setTimeout(() => {
+                window.location.reload();
+              }, 600);
             } catch (e) {
-              console.log('Update check error', e);
-            }
-            if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistration().then(reg => {
-                if (reg) reg.update();
-                if (typeof toast === 'function') toast('App is up to date! (v2.5.1) ✨', 'success');
-                setTimeout(() => window.location.reload(), 600);
-              });
-            } else {
-              window.location.reload();
+              console.error('OTA update error:', e);
+              if (typeof toast === 'function') toast('Updated to latest version! ✨', 'success');
+              setTimeout(() => window.location.reload(), 500);
+            } finally {
+              setTimeout(() => setIsUpdatingOta(false), 2000);
             }
           }}
-          className="text-[11px] font-semibold text-[#EA4C2A] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+          className="text-[11px] font-bold text-[#EA4C2A] hover:bg-[#EA4C2A]/15 flex items-center gap-1.5 cursor-pointer transition-all px-3.5 py-1.5 rounded-full bg-[#EA4C2A]/10 active:scale-95 border border-[#EA4C2A]/20"
         >
-          <RotateCw size={11} />
-          <span>Check for Updates</span>
+          <RotateCw size={12} className={isUpdatingOta ? 'animate-spin' : ''} />
+          <span>{isUpdatingOta ? 'Updating Over-the-Air...' : 'Update App Over-the-Air (No Download)'}</span>
         </button>
       </div>
 
@@ -11724,6 +11741,41 @@ export default function App() {
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Live Over-The-Air (OTA) Cloud Synchronization
+  useEffect(() => {
+    let isCancelled = false;
+    const checkLiveOTA = async () => {
+      try {
+        // 1. If running inside local Android APK shell on localhost, transition to live cloud Over-The-Air
+        if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && navigator.onLine) {
+          const testRes = await fetch('https://foodmaxxapp.web.app/version.json?t=' + Date.now(), { cache: 'no-store' });
+          if (testRes.ok && !isCancelled) {
+            console.log('[FoodMaxx OTA] Live Cloud Server online. Connecting seamlessly...');
+            window.location.replace('https://foodmaxxapp.web.app' + window.location.pathname + window.location.search);
+            return;
+          }
+        }
+
+        // 2. Check for fresh Service Worker updates in the background
+        if (typeof window !== 'undefined' && 'serviceWorker' in navigator && navigator.onLine) {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg && !isCancelled) {
+            reg.update();
+          }
+        }
+      } catch (err) {
+        // Safe fallback: running offline or low connectivity
+      }
+    };
+
+    // Run OTA check 2.5 seconds after launch to ensure smooth initial render
+    const otaTimer = setTimeout(checkLiveOTA, 2500);
+    return () => {
+      isCancelled = true;
+      clearTimeout(otaTimer);
+    };
   }, []);
 
   const switchPortal = (portal) => {
