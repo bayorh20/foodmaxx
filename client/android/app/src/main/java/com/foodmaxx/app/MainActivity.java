@@ -27,6 +27,17 @@ public class MainActivity extends BridgeActivity {
 
         super.onCreate(savedInstanceState);
 
+        // Ensure status bar is solid and opaque (Option A: dedicated status bar, no transparent overlay)
+        try {
+            android.view.Window window = getWindow();
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            window.setStatusBarColor(android.graphics.Color.parseColor("#EA4C2A"));
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, true);
+        } catch (Throwable t) {
+            Log.w(TAG, "StatusBar solid config notice: " + t.getMessage());
+        }
+
         // Lock down WebView settings with complete crash protection
         try {
             if (getBridge() != null && getBridge().getWebView() != null) {

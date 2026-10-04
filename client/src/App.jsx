@@ -1193,6 +1193,34 @@ function CustomerPortal() {
     notifsOpen, toneModalOpen, transitionModalOpen, trackingOrder, activeTab
   ]);
 
+  // Native Solid Status Bar (Option A: Dedicated Opaque System Bar, No Transparent Overlay)
+  useEffect(() => {
+    let isSubscribed = true;
+    const initSolidStatusBar = async () => {
+      try {
+        const { StatusBar, Style } = await import('@capacitor/status-bar');
+        if (!isSubscribed) return;
+        // Completely disable transparent overlay so status bar has its own solid canvas
+        await StatusBar.setOverlaysWebView({ overlay: false });
+
+        if (isDark) {
+          await StatusBar.setStyle({ style: Style.Dark });
+          await StatusBar.setBackgroundColor({ color: '#0D0F14' });
+        } else {
+          // FoodMaxx Brand Red solid status bar with crisp white battery and network icons
+          await StatusBar.setStyle({ style: Style.Dark });
+          await StatusBar.setBackgroundColor({ color: '#EA4C2A' });
+        }
+      } catch (e) {
+        // Pure web browser or Capacitor StatusBar plugin not active
+      }
+    };
+    initSolidStatusBar();
+    return () => {
+      isSubscribed = false;
+    };
+  }, [isDark]);
+
   useEffect(() => {
     const handleIconsUpdated = (e) => {
       if (e.detail?.nav_icons) setCustomNavIcons(e.detail.nav_icons);
