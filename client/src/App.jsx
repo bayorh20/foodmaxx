@@ -5189,7 +5189,7 @@ function ProfileTab({
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <p className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold tracking-wide">
-            FoodMaxx v2.5.2 · Live OTA Ready · Ibadan
+            FoodMaxx v2.5.3 · Live OTA Updated · Ibadan
           </p>
         </div>
         <button
