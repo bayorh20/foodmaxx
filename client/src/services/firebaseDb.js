@@ -32,16 +32,16 @@ const firebaseConfig = {
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore with IndexedDB Offline Persistence across tabs
+// Standard high-speed Firestore instance
 let dbInstance;
 try {
-  dbInstance = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager()
-    })
-  });
-} catch {
   dbInstance = getFirestore(app);
+} catch (e) {
+  try {
+    dbInstance = initializeFirestore(app, {});
+  } catch (err) {
+    dbInstance = getFirestore(app);
+  }
 }
 export const db = dbInstance;
 
@@ -2187,17 +2187,17 @@ const COLL_HERO_SLIDES = 'hero_slides';
 export const DEFAULT_HERO_SLIDES = [
   {
     id: 'slide_default_1',
-    title: 'Fresh Meals, Fast Delivery',
-    subtitle: 'Hot & delicious Nigerian meals delivered to your doorstep in Ibadan.',
-    badge: 'SPECIAL OFFER',
-    badge_bg: '#EA4C2A',
-    image_url: 'https://images.unsplash.com/photo-1576107223932-3580a13346e4?w=800&auto=format&fit=crop&q=80',
-    banner_type: 'split',
-    fit_mode: 'contain',
-    hide_text: false,
+    title: 'Super Delicious Asun Pasta Combo',
+    subtitle: 'Pasta + Plantain + Fried Chicken starting from ₦3,500.',
+    badge: 'HOT & SPICY',
+    badge_bg: '#E51A24',
+    image_url: '/asun-pasta-combo-banner.png',
+    banner_type: 'full',
+    fit_mode: 'cover',
+    hide_text: true,
     cta_text: 'Order Now →',
-    cta_link: 'all',
-    gradient: 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]',
+    cta_link: 'pasta',
+    gradient: 'from-[#990000] via-[#C5110E] to-[#E51A24]',
     active: true,
     sort_order: 1
   },

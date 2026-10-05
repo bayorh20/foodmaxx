@@ -9,14 +9,16 @@ import { Capacitor } from '@capacitor/core';
 import { initSentry } from './services/sentryService.js';
 import { initAnalytics } from './services/analyticsService.js';
 
-// Initialize Sentry crash reporting & performance monitoring
-initSentry();
-
-// Initialize Google Analytics 4 / Firebase Analytics
-initAnalytics();
-
 // Initialize Speed SDK for Core Web Vitals, 120 FPS rendering, and zero touch delay
 initSpeedSDK();
+
+// Initialize Sentry and Analytics asynchronously so they never block react mount
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    try { initSentry(); } catch (e) {}
+    try { initAnalytics(); } catch (e) {}
+  }, 100);
+}
 
 // ============================================================
 // FOODMAXX INSTANT LIVE OVER-THE-AIR (OTA) AUTO-UPDATE ENGINE

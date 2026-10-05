@@ -3614,6 +3614,216 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
   );
 }
 
+function ParfaitShowcaseCard({ item, inCartQty = 0, onSelect, onQuickAdd, isFavorite, onToggleFavorite, isDark }) {
+  const isAvailable = item.is_available !== false;
+  const { addItem, updateQty } = useCart();
+
+  const handleAdd = (e) => {
+    e.stopPropagation();
+    if (!isAvailable) return;
+    trigger3dCartDrop(e, item);
+    if (typeof onQuickAdd === 'function') {
+      onQuickAdd(item);
+    } else {
+      addItem(item, 1);
+    }
+  };
+
+  const handleMinus = (e) => {
+    e.stopPropagation();
+    if (inCartQty <= 1) {
+      updateQty(item.id, 0);
+    } else {
+      updateQty(item.id, inCartQty - 1);
+    }
+  };
+
+  const handlePlus = (e) => {
+    e.stopPropagation();
+    if (inCartQty === 0) {
+      handleAdd(e);
+    } else {
+      updateQty(item.id, inCartQty + 1);
+    }
+  };
+
+  const displayPrice = fmt(item.price || 3500);
+  const rawImage = item?.image_url || item?.image || item?.img || item?.photo_url || item?.picture || item?.thumbnail;
+  const itemImage = (rawImage && typeof rawImage === 'string' && rawImage.trim().length > 0)
+    ? rawImage.trim()
+    : 'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=400&q=80';
+
+  return (
+    <div
+      onClick={() => onSelect(item)}
+      className={`fmx-product-card group relative w-[190px] sm:w-[220px] shrink-0 cursor-pointer flex flex-col select-none p-3 rounded-3xl border transition-all duration-200 ${
+        isDark
+          ? 'bg-[#181B26] border-white/10 hover:border-pink-500/30'
+          : 'bg-white border-slate-200/90 hover:border-pink-300 shadow-sm'
+      }`}
+    >
+      {/* Top Media Container */}
+      <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-rose-50 dark:bg-rose-950/20 shrink-0">
+        <OptimizedProductImage
+          src={itemImage}
+          alt={item.name}
+          isAvailable={isAvailable}
+          width={360}
+          quality={80}
+        />
+
+        {/* Chilled Badge Pill */}
+        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-rose-600/90 backdrop-blur-xs text-white text-[9.5px] font-black uppercase tracking-wider shadow-xs">
+          🍧 Chilled
+        </div>
+
+        {/* Favorite Heart Button */}
+        {onToggleFavorite && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(item.id);
+            }}
+            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-xs flex items-center justify-center text-white active:scale-90 transition-transform cursor-pointer z-10"
+            title={isFavorite ? 'Remove from favorites' : 'Save to favorites'}
+          >
+            <Heart size={13} className={isFavorite ? 'fill-rose-500 stroke-rose-500' : 'stroke-white'} />
+          </button>
+        )}
+
+        {!isAvailable && (
+          <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
+            <span className="bg-red-600 text-white font-black text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-lg">
+              Sold Out
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Details Section */}
+      <div className="mt-2.5 flex-1 flex flex-col justify-between">
+        <div>
+          <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-snug line-clamp-2">
+            {item.name}
+          </h3>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1 mt-0.5">
+            {item.description || 'Artisan Greek yogurt & crisp granola'}
+          </p>
+        </div>
+
+        {/* Price & Action Row */}
+        <div className="mt-2.5 flex items-center justify-between gap-1">
+          <div className="font-black text-xs sm:text-sm text-[#E51A24] dark:text-[#FF4A40] tracking-tight">
+            {displayPrice}
+          </div>
+
+          <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+            {inCartQty === 0 ? (
+              <button
+                type="button"
+                disabled={!isAvailable}
+                onClick={handleAdd}
+                className="w-8 h-8 rounded-full bg-[#E51A24] hover:bg-[#D41721] active:scale-90 disabled:opacity-40 text-white flex items-center justify-center cursor-pointer transition-transform shadow-xs"
+                title="Add to cart"
+              >
+                <Plus size={16} className="stroke-[3]" />
+              </button>
+            ) : (
+              <div className="bg-[#E51A24] text-white rounded-full p-0.5 flex items-center gap-1 h-8">
+                <button
+                  type="button"
+                  onClick={handleMinus}
+                  className="w-6 h-6 rounded-full bg-black/15 hover:bg-black/25 active:scale-85 text-white flex items-center justify-center cursor-pointer"
+                  title="Decrease"
+                >
+                  <Minus size={11} className="stroke-[3]" />
+                </button>
+                <span className="font-black text-xs min-w-[14px] text-center select-none text-white">
+                  {inCartQty}
+                </span>
+                <button
+                  type="button"
+                  onClick={handlePlus}
+                  className="w-6 h-6 rounded-full bg-black/15 hover:bg-black/25 active:scale-85 text-white flex items-center justify-center cursor-pointer"
+                  title="Increase"
+                >
+                  <Plus size={11} className="stroke-[3]" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ParfaitShowcaseSection({ menuItems = [], onSelectItem, onQuickAdd, onSeeAll, favorites, onToggleFavorite, isDark }) {
+  const { cart } = useCart();
+
+  const cartQtyMap = useMemo(() => {
+    const map = {};
+    (cart?.items || []).forEach(ci => {
+      if (ci.id) map[String(ci.id)] = (map[String(ci.id)] || 0) + ci.qty;
+      if (ci.name) map[ci.name.trim().toLowerCase()] = (map[ci.name.trim().toLowerCase()] || 0) + ci.qty;
+    });
+    return map;
+  }, [cart?.items]);
+
+  // Extract parfait items, or fallback to delicious dessert/parfait items
+  const parfaitItems = useMemo(() => {
+    const list = (menuItems || []).filter(item => {
+      const name = (item.name || '').toLowerCase();
+      const desc = (item.description || '').toLowerCase();
+      const cat = (item.category || '').toLowerCase();
+      return name.includes('parfait') || desc.includes('parfait') || name.includes('yogurt') || cat.includes('dessert');
+    });
+    return list.length > 0 ? list : [];
+  }, [menuItems]);
+
+  if (parfaitItems.length === 0) return null;
+
+  return (
+    <div className="mb-7 sm:mb-9">
+      {/* Header */}
+      <div className="flex justify-between items-center px-4 sm:px-0 mb-3 sm:mb-3.5">
+        <div>
+          <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-1.5">
+            <span className="text-xl">🍧</span>
+            <span>Artisan Parfaits &amp; Chilled Bowls</span>
+          </h2>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+            Layered Greek yogurt, fresh fruits, organic honey &amp; crunchy granola
+          </p>
+        </div>
+        <button
+          onClick={onSeeAll}
+          className="bg-yellow-400 hover:bg-yellow-500 text-black text-[11px] sm:text-xs font-black px-3 py-1 rounded-full transition-all active:scale-95 cursor-pointer shadow-xs shrink-0"
+        >
+          See all
+        </button>
+      </div>
+
+      {/* Horizontal Scrolling Food Cards */}
+      <div className="flex items-stretch gap-3 overflow-x-auto no-scrollbar pb-2 px-4 sm:px-0 scroll-smooth">
+        {parfaitItems.map((item, idx) => (
+          <ParfaitShowcaseCard
+            key={item.id || `parfait_${idx}`}
+            item={item}
+            inCartQty={cartQtyMap[String(item.id)] || (item.name ? cartQtyMap[item.name.trim().toLowerCase()] : 0) || 0}
+            onSelect={onSelectItem}
+            onQuickAdd={onQuickAdd}
+            isFavorite={favorites?.includes(item.id)}
+            onToggleFavorite={onToggleFavorite}
+            isDark={isDark}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ============================================================
 // FAVORITES TAB (BOOKMARKED CRAVINGS)
 // ============================================================
@@ -4029,6 +4239,17 @@ function HomeTab({
         </div>
       ) : (
         <div className="pt-2 sm:pt-4">
+          {/* Parfait Showcase - Horizontal Scrolling Food Cards */}
+          <ParfaitShowcaseSection
+            menuItems={menuItems}
+            onSelectItem={onSelectItem}
+            onQuickAdd={onQuickAdd}
+            onSeeAll={onGoToMenu}
+            favorites={favorites}
+            onToggleFavorite={onToggleFavorite}
+            isDark={isDark}
+          />
+
           {processedSections.map((sec, sIdx) => {
             const sectionItems = sec.items || [];
 
