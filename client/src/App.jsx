@@ -10,6 +10,7 @@ const triggerConfetti = (opts) => {
   }).catch(() => {});
 };
 import { doc, onSnapshot } from 'firebase/firestore';
+import { Network } from '@capacitor/network';
 import { api, FMXWebSocket, getStoredProducts, getStoredZones, subscribeToLiveHeroSlides, DEFAULT_HERO_SLIDES } from './services/api';
 import { db, DEFAULT_ADDONS } from './services/firebaseDb';
 import { launchRealPaystack, getStoredPaystackConfig, savePaystackConfig, isValidPaystackKey } from './services/paystack';
@@ -22,7 +23,7 @@ import {
   BarChart2, Users, Store, Map as MapIcon, Zap, Shield, Coffee, ArrowRight, ArrowUpDown,
   RefreshCw, AlertCircle, Phone, MessageSquare, Tag, Percent,
   TrendingUp, DollarSign, Activity, Eye, Edit, Trash2,
-  Power, Navigation, CheckCircle, XCircle, Filter, MoreVertical,
+  Power, Navigation, CheckCircle, XCircle, Filter, MoreVertical, WifiOff,
   Send, Download, Upload, Globe, Award, Layers,
   Moon, Sun, Gift, Calendar, QrCode, MessageCircle, Share2, Bookmark, Sparkles, PhoneCall,
   CreditCard, Flame, ShieldCheck, Utensils, SlidersHorizontal, UserCheck, Printer,
@@ -850,6 +851,56 @@ function CustomerPortal() {
       try { localStorage.setItem('fmx_favs', JSON.stringify(next)); } catch {}
       return next;
     });
+  }, []);
+
+  // Offline mode state using @capacitor/network with browser fallback
+  const [isOffline, setIsOffline] = useState(() => {
+    if (typeof navigator !== 'undefined' && 'onLine' in navigator) {
+      return !navigator.onLine;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    let networkHandle = null;
+
+    // 1. Check initial status via Capacitor Network
+    Network.getStatus().then((status) => {
+      setIsOffline(!status.connected);
+    }).catch(() => {
+      if (typeof navigator !== 'undefined' && 'onLine' in navigator) {
+        setIsOffline(!navigator.onLine);
+      }
+    });
+
+    // 2. Listen to live connection transitions (Wi-Fi, Cellular, Airplane mode)
+    Network.addListener('networkStatusChange', (status) => {
+      setIsOffline(!status.connected);
+      if (!status.connected) {
+        triggerHaptic('warning');
+      } else {
+        triggerHaptic('success');
+      }
+    }).then(h => {
+      networkHandle = h;
+    }).catch(() => {});
+
+    // 3. Fallback web listeners
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => {
+      setIsOffline(true);
+      triggerHaptic('warning');
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      if (networkHandle && typeof networkHandle.remove === 'function') {
+        networkHandle.remove();
+      }
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const [zones, setZones] = useState(() => getStoredZones());
@@ -2089,6 +2140,31 @@ function CustomerPortal() {
                     <X size={14} />
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Offline Mode Indicator Banner */}
+          {isOffline && (
+            <div className="px-4 sm:px-6 pt-2 pb-1 max-w-2xl mx-auto w-full animate-fadeIn">
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-900/95 dark:bg-[#0B0D13]/95 border border-amber-500/40 text-amber-200 flex items-center justify-between gap-3 text-xs shadow-lg backdrop-blur-md">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0">
+                    <WifiOff size={16} className="animate-pulse" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-extrabold text-xs text-amber-300 flex items-center gap-1.5">
+                      <span>Offline Mode Active</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                    </div>
+                    <div className="text-[11px] text-slate-300 truncate">
+                      Browsing saved menu &amp; cart from offline cache
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                  Cached
+                </span>
               </div>
             </div>
           )}

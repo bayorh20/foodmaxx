@@ -3,34 +3,73 @@
  * Haptic feedback, Web Audio synthesizer, PWA install prompt, Web Share
  */
 
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { Capacitor } from '@capacitor/core';
+
 // -------------------------------------------------------------
-// 1. HAPTIC FEEDBACK (Vibration API)
+// 1. HAPTIC FEEDBACK (@capacitor/haptics + Vibration API fallback)
 // -------------------------------------------------------------
-export function triggerHaptic(type = 'selection') {
-  if (typeof window === 'undefined' || !navigator.vibrate) return;
+export async function triggerHaptic(type = 'selection') {
+  if (typeof window === 'undefined') return;
+
   try {
-    switch (type) {
-      case 'selection':
-      case 'light':
-        navigator.vibrate(12);
-        break;
-      case 'medium':
-        navigator.vibrate(25);
-        break;
-      case 'heavy':
-        navigator.vibrate(40);
-        break;
-      case 'success':
-        navigator.vibrate([15, 40, 25]);
-        break;
-      case 'warning':
-      case 'error':
-        navigator.vibrate([35, 50, 35]);
-        break;
-      default:
-        navigator.vibrate(15);
+    if (Capacitor.isNativePlatform()) {
+      switch (type) {
+        case 'selection':
+          await Haptics.selectionStart();
+          await Haptics.selectionChanged();
+          return;
+        case 'light':
+          await Haptics.impact({ style: ImpactStyle.Light });
+          return;
+        case 'medium':
+          await Haptics.impact({ style: ImpactStyle.Medium });
+          return;
+        case 'heavy':
+          await Haptics.impact({ style: ImpactStyle.Heavy });
+          return;
+        case 'success':
+          await Haptics.notification({ type: NotificationType.Success });
+          return;
+        case 'warning':
+          await Haptics.notification({ type: NotificationType.Warning });
+          return;
+        case 'error':
+          await Haptics.notification({ type: NotificationType.Error });
+          return;
+        default:
+          await Haptics.impact({ style: ImpactStyle.Light });
+          return;
+      }
     }
-  } catch (e) {}
+  } catch {}
+
+  // Web Browser Vibration Fallback
+  if (navigator.vibrate) {
+    try {
+      switch (type) {
+        case 'selection':
+        case 'light':
+          navigator.vibrate(12);
+          break;
+        case 'medium':
+          navigator.vibrate(25);
+          break;
+        case 'heavy':
+          navigator.vibrate(40);
+          break;
+        case 'success':
+          navigator.vibrate([15, 40, 25]);
+          break;
+        case 'warning':
+        case 'error':
+          navigator.vibrate([35, 50, 35]);
+          break;
+        default:
+          navigator.vibrate(15);
+      }
+    } catch {}
+  }
 }
 
 // -------------------------------------------------------------

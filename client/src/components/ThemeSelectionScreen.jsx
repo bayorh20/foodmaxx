@@ -18,54 +18,18 @@ export default function ThemeSelectionScreen({ onSelectTheme }) {
       {/* Top spacing / ambient background element */}
       <div className="w-full flex-1 flex flex-col items-center justify-center max-w-sm mx-auto my-auto py-6">
         
-        {/* BRAND ICON (Red Squircle with FoodMaxx Takeout Box) */}
+        {/* BRAND ICON (Exact uploaded FoodMaxx logo) */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0, y: -20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 300, delay: 0.1 }}
-          className="w-32 h-32 sm:w-36 sm:h-36 rounded-[2.2rem] bg-gradient-to-b from-[#EF2320] via-[#E51D24] to-[#C91310] shadow-2xl shadow-red-500/30 flex items-center justify-center p-4 relative group"
+          className="w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center p-1 relative group"
         >
-          {/* Subtle inner reflection ring */}
-          <div className="absolute inset-0 rounded-[2.2rem] ring-1 ring-white/25 pointer-events-none" />
-          
-          {/* Authentic Vector FoodMaxx Box with Logo */}
-          <svg viewBox="0 0 120 120" className="w-20 h-20 fill-none" xmlns="http://www.w3.org/2000/svg">
-            {/* Box Handle / Trapezoid Roof */}
-            <path
-              d="M 24 44 L 38 18 L 82 18 L 96 44 Z"
-              fill="white"
-            />
-            {/* Cutout handle pill */}
-            <rect x="46" y="25" width="28" height="6.5" rx="3.25" fill="#E51D24" />
-            {/* Main Box Body */}
-            <rect x="18" y="44" width="84" height="64" rx="8" fill="white" />
-            {/* Text FOOD */}
-            <text
-              x="60"
-              y="72"
-              textAnchor="middle"
-              fill="#E51D24"
-              fontSize="16.5"
-              fontWeight="900"
-              fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-              letterSpacing="0.8"
-            >
-              FOOD
-            </text>
-            {/* Text MAXX */}
-            <text
-              x="60"
-              y="94"
-              textAnchor="middle"
-              fill="#E51D24"
-              fontSize="16.5"
-              fontWeight="900"
-              fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-              letterSpacing="0.8"
-            >
-              MAXX
-            </text>
-          </svg>
+          <img
+            src="/foodmaxx-logo.png"
+            alt="FoodMaxx"
+            className="w-full h-full object-contain drop-shadow-xl"
+          />
         </motion.div>
 
         {/* HEADINGS */}

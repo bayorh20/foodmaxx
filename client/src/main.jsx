@@ -6,26 +6,14 @@ import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import { initSpeedSDK } from './services/speedOptimizer.js'
 import { Capacitor } from '@capacitor/core';
+import { initSentry } from './services/sentryService.js';
+import { initAnalytics } from './services/analyticsService.js';
 
-// Initialize Lenis Smooth Scroll SDK ONLY for desktop mouse wheel
-// Touch devices use 100% native hardware-composited 120Hz scrolling for instant responsiveness
-if (typeof window !== 'undefined') {
-  const isTouchScreen = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-  if (!isTouchScreen) {
-    const lenis = new Lenis({
-      duration: 0.9,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-      syncTouch: false
-    });
-    function raf(time) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-    requestAnimationFrame(raf);
-    window.lenis = lenis;
-  }
-}
+// Initialize Sentry crash reporting & performance monitoring
+initSentry();
+
+// Initialize Google Analytics 4 / Firebase Analytics
+initAnalytics();
 
 // Initialize Speed SDK for Core Web Vitals, 120 FPS rendering, and zero touch delay
 initSpeedSDK();

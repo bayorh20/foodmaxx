@@ -338,10 +338,31 @@ export async function configureNativePushListeners(userId = null) {
       console.warn('[FoodMaxx Native Push] Registration error:', err);
     });
 
-    // 3. On foreground push received
-    await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    // 3. On foreground push received - trigger Android system heads-up notification too!
+    await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
       playOrderNotificationSound(true);
       triggerHaptic('success');
+
+      // Schedule real Android system pop-in notification so it appears in the OS status bar / heads-up banner
+      try {
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: Math.floor(Math.random() * 1000000) + 1,
+              title: notification.title || 'FoodMaxx Update 🔔',
+              body: notification.body || '',
+              channelId: 'foodmaxx_orders',
+              sound: 'default',
+              smallIcon: 'ic_stat_onesignal_default',
+              extra: {
+                url: notification.data?.url || '/'
+              }
+            }
+          ]
+        });
+      } catch (locErr) {
+        console.warn('[FoodMaxx Push] LocalNotifications pop-in notice:', locErr);
+      }
 
       window.dispatchEvent(new CustomEvent('fmx_push_received', {
         detail: {
@@ -416,6 +437,7 @@ export async function triggerLocalPushNotification(title, options = {}) {
               body: cleanBody,
               channelId: 'foodmaxx_orders',
               sound: 'default',
+              smallIcon: 'ic_stat_onesignal_default',
               extra: {
                 url: options.url || '/'
               }

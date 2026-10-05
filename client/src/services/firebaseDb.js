@@ -1,5 +1,7 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   getFirestore,
   collection,
   doc,
@@ -29,7 +31,19 @@ const firebaseConfig = {
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+
+// Initialize Firestore with IndexedDB Offline Persistence across tabs
+let dbInstance;
+try {
+  dbInstance = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+} catch {
+  dbInstance = getFirestore(app);
+}
+export const db = dbInstance;
 
 // COLLECTIONS
 const COLL_PRODUCTS = 'menu_items';
