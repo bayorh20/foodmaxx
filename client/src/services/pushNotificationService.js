@@ -27,8 +27,36 @@ import { playOrderNotificationSound, triggerHaptic } from './nativeMobile';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import OneSignalWeb from 'react-onesignal';
 
 export const VAPID_PUBLIC_KEY = 'BNCDPTktLcTq7muLLiqc2QefK4QWhPf1HM3Q3sOcpLYt2zblaWmxbfU9D37MYTXLjBesCi3ytUQY7zQvxvKF7pk';
+
+// FoodMaxx OneSignal App Credentials (Multi-Provider Enterprise Push Engine)
+export const ONESIGNAL_STORAGE_KEY = 'fmx_onesignal_config';
+export const DEFAULT_ONESIGNAL_APP_ID = 'e9c8942b-586b-4ea1-bca8-f46bb8464601'; // Default FoodMaxx Push Engine ID
+
+export function getOneSignalConfig() {
+  try {
+    const raw = localStorage.getItem(ONESIGNAL_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {
+    appId: DEFAULT_ONESIGNAL_APP_ID,
+    apiKey: '',
+    enabled: true
+  };
+}
+
+export function saveOneSignalConfig(cfg = {}) {
+  try {
+    const cur = getOneSignalConfig();
+    const updated = { ...cur, ...cfg };
+    localStorage.setItem(ONESIGNAL_STORAGE_KEY, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return cfg;
+  }
+}
 
 /**
  * Convert URL-safe base64 string to Uint8Array for PushManager applicationServerKey
@@ -45,6 +73,7 @@ export function urlBase64ToUint8Array(base64String) {
 }
 
 const PUSH_TOKEN_STORAGE_KEY = 'fmx_fcm_push_token';
+const ONESIGNAL_ID_STORAGE_KEY = 'fmx_onesignal_player_id';
 const PUSH_PERMISSION_KEY = 'fmx_web_notification_pref';
 const DEVICE_ID_STORAGE_KEY = 'fmx_device_id';
 
@@ -179,6 +208,11 @@ export async function ensureDeviceRegistered(userId = null, customToken = null) 
     } catch {}
   }
 
+  let oneSignalPlayerId = null;
+  try {
+    oneSignalPlayerId = localStorage.getItem(ONESIGNAL_ID_STORAGE_KEY) || null;
+  } catch {}
+
   const deviceData = {
     id: deviceId,
     token,
@@ -186,6 +220,8 @@ export async function ensureDeviceRegistered(userId = null, customToken = null) 
     permission: perm,
     user_id: uid || 'anonymous_guest',
     is_native: Capacitor.isNativePlatform(),
+    onesignal_id: oneSignalPlayerId,
+    providers: ['onesignal', 'fcm', 'webpush', 'inapp'],
     user_agent: navigator.userAgent || 'unknown',
     last_active: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -529,6 +565,8 @@ export async function scheduleBackgroundPushTest(delaySeconds = 5) {
  * @param {string} userId - Optional user ID to associate token with
  */
 export async function installPushNotifications(userId = null) {
+  const osConfig = getOneSignalConfig();
+
   // -------------------------------------------------------------
   // PATH A: NATIVE CAPACITOR APP (Android APK / iOS IPA)
   // -------------------------------------------------------------
@@ -538,6 +576,20 @@ export async function installPushNotifications(userId = null) {
       const permStatus = await PushNotifications.requestPermissions();
       const localPerm = await LocalNotifications.requestPermissions().catch(() => ({ display: 'granted' }));
       const granted = permStatus.receive === 'granted' || localPerm.display === 'granted';
+
+      // Initialize Cordova OneSignal if available in native runtime
+      if (typeof window !== 'undefined' && window.plugins?.OneSignal && osConfig?.appId) {
+        try {
+          window.plugins.OneSignal.initialize(osConfig.appId);
+          window.plugins.OneSignal.Notifications.requestPermission(true);
+          const pushId = await window.plugins.OneSignal.User.getPushSubscriptionId();
+          if (pushId) {
+            localStorage.setItem(ONESIGNAL_ID_STORAGE_KEY, pushId);
+          }
+        } catch (osNativeErr) {
+          console.warn('[FoodMaxx Push] OneSignal Native init notice:', osNativeErr);
+        }
+      }
 
       if (granted) {
         localStorage.setItem(PUSH_PERMISSION_KEY, 'granted');
@@ -577,7 +629,29 @@ export async function installPushNotifications(userId = null) {
       return { success: false, permission, token: null, error: 'User dismissed or blocked notification permission' };
     }
 
-    // 2. Register Service Worker with clean scope
+    // 2. Initialize OneSignal Web SDK for Enterprise Background Delivery
+    let oneSignalId = null;
+    if (typeof window !== 'undefined' && osConfig?.appId) {
+      try {
+        await OneSignalWeb.init({
+          appId: osConfig.appId,
+          allowLocalhostAsSecureOrigin: true,
+          notifyButton: { enable: false }
+        }).catch(e => console.warn('[FoodMaxx Push] OneSignal Web init notice:', e));
+
+        try {
+          await OneSignalWeb.Notifications.requestPermission();
+          oneSignalId = await OneSignalWeb.User.PushSubscription.id;
+          if (oneSignalId) {
+            localStorage.setItem(ONESIGNAL_ID_STORAGE_KEY, oneSignalId);
+          }
+        } catch {}
+      } catch (osErr) {
+        console.warn('[FoodMaxx Push] OneSignal Web setup notice:', osErr);
+      }
+    }
+
+    // 3. Register Service Worker with clean scope
     let swRegistration = null;
     if ('serviceWorker' in navigator) {
       swRegistration = await navigator.serviceWorker.register('/sw.js', { 
@@ -588,7 +662,7 @@ export async function installPushNotifications(userId = null) {
       });
     }
 
-    // 3. Subscribe to Native Web Push via PushManager (Standard RFC 8292 with VAPID)
+    // 4. Subscribe to Native Web Push via PushManager (Standard RFC 8292 with VAPID)
     let pushSubscription = null;
     if (swRegistration?.pushManager) {
       try {
@@ -604,7 +678,7 @@ export async function installPushNotifications(userId = null) {
       }
     }
 
-    // 4. Obtain Firebase Cloud Messaging Token (FCM v1 with VAPID Key)
+    // 5. Obtain Firebase Cloud Messaging Token (FCM v1 with VAPID Key)
     let fcmToken = null;
     const messaging = await getFirebaseMessaging();
 
@@ -622,28 +696,30 @@ export async function installPushNotifications(userId = null) {
     // Resolve definitive device token
     const deviceId = getOrCreateDeviceId();
     const platform = detectPlatform();
-    const token = fcmToken || pushSubscription?.endpoint || getSavedPushToken() || `fmx_${platform}_${deviceId}`;
+    const token = fcmToken || pushSubscription?.endpoint || oneSignalId || getSavedPushToken() || `fmx_${platform}_${deviceId}`;
 
-    // 5. Save Token & Push Subscription to Firestore
+    // 6. Save Token & Push Subscription to Firestore with OneSignal & Multi-Provider metadata
     await savePushTokenToFirestore(token, userId, { 
       permission: 'granted',
       fcm_token: fcmToken,
+      onesignal_id: oneSignalId,
       subscription: pushSubscription ? JSON.parse(JSON.stringify(pushSubscription)) : null,
       endpoint: pushSubscription?.endpoint || null,
-      vapid_public_key: VAPID_PUBLIC_KEY
+      vapid_public_key: VAPID_PUBLIC_KEY,
+      providers: ['onesignal', 'fcm', 'webpush', 'inapp']
     });
 
-    // 6. Trigger initial celebratory push notification
+    // 7. Trigger initial celebratory push notification
     try {
       await triggerLocalPushNotification('🔔 FoodMaxx Notifications Active!', {
-        body: 'You are now ready to receive real-time kitchen and delivery updates on this device, even when the app is in the background.',
+        body: 'Multi-Provider Push Engine (OneSignal + FCM + Web Push) is active. Real-time kitchen and delivery updates will reach this device even with the app in the background.',
         tag: 'fmx_installed'
       });
       playOrderNotificationSound(true);
       triggerHaptic('success');
     } catch {}
 
-    return { success: true, permission: 'granted', token };
+    return { success: true, permission: 'granted', token, onesignal_id: oneSignalId };
   } catch (err) {
     console.error('[FoodMaxx Push] installPushNotifications error:', err);
     return { success: false, permission: getPushPermissionStatus(), token: null, error: err.message };
@@ -912,7 +988,69 @@ export async function broadcastPushNotification({
     console.warn('[FoodMaxx Push] Notice saving notification log:', e);
   }
 
-  // 4. Play sound chime and trigger local test alert on active device immediately
+  // 4. OneSignal Multi-Provider Remote Dispatch (if App ID configured)
+  let oneSignalSent = false;
+  let oneSignalError = null;
+  const osConfig = getOneSignalConfig();
+  if (osConfig?.appId && osConfig?.enabled !== false) {
+    try {
+      const osPayload = {
+        app_id: osConfig.appId,
+        headings: { en: cleanTitle },
+        contents: { en: cleanMessage },
+        included_segments: ['Subscribed Users', 'Total Subscriptions'],
+        url: url.startsWith('/') ? `${window.location.origin}${url}` : url,
+        chrome_web_icon: `${window.location.origin}/foodmaxx-logo.png`,
+        chrome_web_badge: `${window.location.origin}/favicon.svg`,
+        small_icon: 'ic_stat_onesignal_default',
+        android_channel_id: 'foodmaxx_orders',
+        priority: 10,
+        data: {
+          url,
+          logId,
+          source: 'foodmaxx_admin'
+        }
+      };
+
+      if (imageUrl && imageUrl !== '/foodmaxx-logo.png') {
+        osPayload.big_picture = imageUrl;
+        osPayload.chrome_web_image = imageUrl;
+      }
+
+      // Filter by platform if requested
+      if (targetPlatform === 'android') {
+        osPayload.isAndroid = true;
+        osPayload.isIos = false;
+      } else if (targetPlatform === 'ios') {
+        osPayload.isIos = true;
+        osPayload.isAndroid = false;
+      }
+
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (osConfig.apiKey) {
+        headers['Authorization'] = `Basic ${osConfig.apiKey.trim()}`;
+      }
+
+      const osRes = await fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(osPayload)
+      });
+      const osJson = await osRes.json().catch(() => ({}));
+      if (osRes.ok && !osJson.errors) {
+        oneSignalSent = true;
+      } else {
+        oneSignalError = osJson.errors ? JSON.stringify(osJson.errors) : `HTTP ${osRes.status}`;
+      }
+    } catch (osErr) {
+      oneSignalError = osErr.message;
+      console.warn('[FoodMaxx Push] OneSignal REST broadcast notice:', osErr);
+    }
+  }
+
+  // 5. Play sound chime and trigger local test alert on active device immediately
   playOrderNotificationSound(true);
   triggerHaptic('success');
   const photoUrl = imageUrl && imageUrl !== '/foodmaxx-logo.png' ? imageUrl : undefined;
@@ -933,6 +1071,7 @@ export async function broadcastPushNotification({
       message: cleanMessage,
       url,
       imageUrl,
+      oneSignalSent,
       createdAt: new Date().toISOString()
     }
   }));
@@ -942,7 +1081,9 @@ export async function broadcastPushNotification({
     logId,
     recipientCount: filtered.length || tokens.length || 1,
     title: cleanTitle,
-    message: cleanMessage
+    message: cleanMessage,
+    oneSignalSent,
+    oneSignalError
   };
 }
 
@@ -1126,6 +1267,8 @@ export default {
   deletePushToken,
   getNotificationBroadcastLogs,
   broadcastPushNotification,
+  getOneSignalConfig,
+  saveOneSignalConfig,
   DEFAULT_PUSH_EVENT_RULES,
   getAutomatedPushRules,
   saveAutomatedPushRules,

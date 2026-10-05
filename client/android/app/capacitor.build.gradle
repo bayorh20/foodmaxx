@@ -9,6 +9,7 @@ android {
 
 apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"
 dependencies {
+    implementation project(':capacitor-community-http')
     implementation project(':capacitor-app')
     implementation project(':capacitor-local-notifications')
     implementation project(':capacitor-push-notifications')
@@ -16,7 +17,7 @@ dependencies {
     implementation project(':capacitor-status-bar')
 
 }
-
+apply from: "../../node_modules/onesignal-cordova-plugin/build-extras-onesignal.gradle"
 
 if (hasProperty('postBuildExtras')) {
   postBuildExtras()
