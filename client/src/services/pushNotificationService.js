@@ -33,7 +33,7 @@ export const VAPID_PUBLIC_KEY = 'BNCDPTktLcTq7muLLiqc2QefK4QWhPf1HM3Q3sOcpLYt2zb
 
 // FoodMaxx OneSignal App Credentials (Multi-Provider Enterprise Push Engine)
 export const ONESIGNAL_STORAGE_KEY = 'fmx_onesignal_config';
-export const DEFAULT_ONESIGNAL_APP_ID = 'e9c8942b-586b-4ea1-bca8-f46bb8464601'; // Default FoodMaxx Push Engine ID
+export const DEFAULT_ONESIGNAL_APP_ID = 'c00090a8-c198-49a2-8e83-1f0a29e5b929'; // User Provided OneSignal App ID
 
 export function getOneSignalConfig() {
   try {
@@ -775,6 +775,21 @@ export async function autoInitPushNotifications(userId = null) {
     const saved = getSavedPushToken();
     if (saved) {
       savePushTokenToFirestore(saved, userId, { permission: 'granted' }).catch(() => {});
+    }
+
+    const osConfig = getOneSignalConfig();
+    if (osConfig?.appId) {
+      OneSignalWeb.init({
+        appId: osConfig.appId,
+        allowLocalhostAsSecureOrigin: true,
+        notifyButton: { enable: false }
+      }).then(async () => {
+        const pId = await OneSignalWeb.User.PushSubscription.id;
+        if (pId) {
+          localStorage.setItem(ONESIGNAL_ID_STORAGE_KEY, pId);
+          await ensureDeviceRegistered(userId, pId);
+        }
+      }).catch(e => console.warn('[FoodMaxx Push] Auto-init OneSignal notice:', e));
     }
   }
 }
