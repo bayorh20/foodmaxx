@@ -1,4 +1,4 @@
-const CACHE_NAME = 'foodmaxx-pwa-v28-live';
+const CACHE_NAME = 'foodmaxx-pwa-v29-live';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -141,7 +141,10 @@ self.addEventListener('push', (event) => {
     icon: data.icon || '/foodmaxx-logo.png',
     badge: data.badge || '/favicon.svg',
     image: data.image || data.imageUrl || data.image_url || undefined,
-    vibrate: [200, 100, 200],
+    tag: data.tag || `fmx_order_${Date.now()}`,
+    renotify: true,
+    requireInteraction: true,
+    vibrate: [200, 100, 200, 100, 200],
     data: {
       url: data.url || '/',
       timestamp: Date.now()

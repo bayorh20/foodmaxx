@@ -229,6 +229,33 @@ export async function configureNativePushListeners(userId = null) {
   if (!Capacitor.isNativePlatform() || nativeListenersConfigured) return;
 
   try {
+    // 0. Ensure Android High-Importance Notification Channels exist for background delivery
+    if (Capacitor.getPlatform() === 'android') {
+      await PushNotifications.createChannel({
+        id: 'foodmaxx_orders',
+        name: 'FoodMaxx Orders & Updates',
+        description: 'Live order tracking, kitchen status, and rider updates',
+        importance: 5, // 5 = IMPORTANCE_HIGH (Pop-up on lockscreen and heads-up banner)
+        visibility: 1, // 1 = VISIBILITY_PUBLIC (Shows on lockscreen)
+        sound: 'default',
+        vibration: true,
+        lights: true,
+        lightColor: '#EA4C2A'
+      }).catch(e => console.warn('[FoodMaxx Push] Channel creation notice:', e));
+
+      await PushNotifications.createChannel({
+        id: 'fcm_fallback_notification_channel',
+        name: 'FoodMaxx Announcements',
+        description: 'FoodMaxx promotional updates and news',
+        importance: 5,
+        visibility: 1,
+        sound: 'default',
+        vibration: true,
+        lights: true,
+        lightColor: '#EA4C2A'
+      }).catch(e => console.warn('[FoodMaxx Push] Fallback channel notice:', e));
+    }
+
     // 1. On successful token registration from APNS / FCM
     await PushNotifications.addListener('registration', async (token) => {
       localStorage.setItem(PUSH_PERMISSION_KEY, 'granted');
