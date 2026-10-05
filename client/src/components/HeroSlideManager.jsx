@@ -30,7 +30,7 @@ export const HERO_PHOTO_PRESETS = [
   {
     name: 'Crispy Fries & Chicken Wings',
     category: 'Fast Bites',
-    url: 'https://images.unsplash.com/photo-1576107223932-3580a13346e4?w=800&auto=format&fit=crop&q=80'
+    url: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=800&auto=format&fit=crop&q=80'
   },
   {
     name: 'Gourmet Loaded Burger',
@@ -685,7 +685,17 @@ export default function HeroSlideManager({ toast }) {
                             }`}
                             title={p.name}
                           >
-                            <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
+                            <img 
+                              src={p.url} 
+                              alt={p.name} 
+                              className="w-full h-full object-cover" 
+                              loading="eager"
+                              decoding="async"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&q=75';
+                              }}
+                            />
                             {isSelected && (
                               <div className="absolute inset-0 bg-[#EA4C2A]/30 flex items-center justify-center">
                                 <Check size={14} className="text-white stroke-[3]" />
