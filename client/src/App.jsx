@@ -13,6 +13,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { Network } from '@capacitor/network';
 import { api, FMXWebSocket, getStoredProducts, getStoredZones, subscribeToLiveHeroSlides, DEFAULT_HERO_SLIDES } from './services/api';
 import { db, DEFAULT_ADDONS } from './services/firebaseDb';
+import { DEFAULT_PARFAIT_ITEMS } from './services/mockData';
 import { launchRealPaystack, getStoredPaystackConfig, savePaystackConfig, isValidPaystackKey } from './services/paystack';
 import { triggerHaptic, playNativeSound, playOrderNotificationSound, shareNative, isStandaloneMode, isIosDevice } from './services/nativeMobile';
 import { getAppContent, saveAppContent, resetAppContent, fetchLiveAppContent, subscribeLiveAppContent, getCopy, DEFAULT_APP_CONTENT } from './services/appContent';
@@ -3614,6 +3615,27 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
   );
 }
 
+function ModernParfaitIcon({ className = "w-4 h-4 text-[#EA4C2A]" }) {
+  return (
+    <span className="inline-flex items-center justify-center w-7 h-7 rounded-xl bg-gradient-to-tr from-rose-500/15 via-[#EA4C2A]/15 to-amber-500/15 border border-[#EA4C2A]/25 shadow-xs shrink-0">
+      <svg 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        className={className} 
+        strokeWidth="2" 
+        stroke="currentColor" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+      >
+        <path d="M5.5 3h13l-1.8 12a3 3 0 0 1-2.95 2.5H10.25a3 3 0 0 1-2.95-2.5L5.5 3z" />
+        <path d="M6.8 7.5h10.4" strokeWidth="1.5" strokeDasharray="1.5 1.5" />
+        <path d="M7.8 12h8.4" strokeWidth="1.5" />
+        <circle cx="12" cy="1.6" r="1.3" fill="currentColor" stroke="none" />
+      </svg>
+    </span>
+  );
+}
+
 function ParfaitShowcaseCard({ item, inCartQty = 0, onSelect, onQuickAdd, isFavorite, onToggleFavorite, isDark }) {
   const isAvailable = item.is_available !== false;
   const { addItem, updateQty } = useCart();
@@ -3673,8 +3695,9 @@ function ParfaitShowcaseCard({ item, inCartQty = 0, onSelect, onQuickAdd, isFavo
         />
 
         {/* Chilled Badge Pill */}
-        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-rose-600/90 backdrop-blur-xs text-white text-[9.5px] font-black uppercase tracking-wider shadow-xs">
-          🍧 Chilled
+        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#EA4C2A] to-rose-600 backdrop-blur-xs text-white text-[9.5px] font-black uppercase tracking-wider shadow-xs flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          <span>Fresh Parfait</span>
         </div>
 
         {/* Favorite Heart Button */}
@@ -3771,15 +3794,22 @@ function ParfaitShowcaseSection({ menuItems = [], onSelectItem, onQuickAdd, onSe
     return map;
   }, [cart?.items]);
 
-  // Extract parfait items, or fallback to delicious dessert/parfait items
+  // Extract parfait items merged with DEFAULT_PARFAIT_ITEMS to guarantee rich demo showcase
   const parfaitItems = useMemo(() => {
     const list = (menuItems || []).filter(item => {
       const name = (item.name || '').toLowerCase();
       const desc = (item.description || '').toLowerCase();
       const cat = (item.category || '').toLowerCase();
-      return name.includes('parfait') || desc.includes('parfait') || name.includes('yogurt') || cat.includes('dessert');
+      return name.includes('parfait') || desc.includes('parfait') || name.includes('yogurt');
     });
-    return list.length > 0 ? list : [];
+
+    const existingNames = new Set(list.map(i => (i.name || '').trim().toLowerCase()));
+    const existingIds = new Set(list.map(i => String(i.id || '').toLowerCase()));
+    const extras = (DEFAULT_PARFAIT_ITEMS || []).filter(d => 
+      !existingIds.has(String(d.id).toLowerCase()) && 
+      !existingNames.has((d.name || '').trim().toLowerCase())
+    );
+    return [...list, ...extras];
   }, [menuItems]);
 
   if (parfaitItems.length === 0) return null;
@@ -3788,14 +3818,11 @@ function ParfaitShowcaseSection({ menuItems = [], onSelectItem, onQuickAdd, onSe
     <div className="mb-7 sm:mb-9">
       {/* Header */}
       <div className="flex justify-between items-center px-4 sm:px-0 mb-3 sm:mb-3.5">
-        <div>
-          <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-1.5">
-            <span className="text-xl">🍧</span>
-            <span>Artisan Parfaits &amp; Chilled Bowls</span>
+        <div className="flex items-center gap-2">
+          <ModernParfaitIcon className="w-4 h-4 text-[#EA4C2A]" />
+          <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-white tracking-tight">
+            Yogurt &amp; Parfait Cravings
           </h2>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-            Layered Greek yogurt, fresh fruits, organic honey &amp; crunchy granola
-          </p>
         </div>
         <button
           onClick={onSeeAll}

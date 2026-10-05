@@ -310,6 +310,83 @@ export const FOODMAXX_MENU_ITEMS = [
     stock_quantity: 60
   },
   {
+    id: 'fmx_oreo_cookies_cream_parfait',
+    name: 'Oreo Cookies & Whipped Cream Parfait',
+    category: 'Desserts & Chilled',
+    description: 'Layers of thick vanilla Greek yogurt, crushed Oreo cookies, rich dark chocolate fudge, mini Oreos, and cocoa crunch.',
+    price: 3900,
+    rating: 4.9,
+    reviews_count: '1.7k',
+    prep_time_min: 10,
+    badge: 'popular',
+    is_bestseller: true,
+    image_url: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=360&auto=format&fit=crop&q=75',
+    is_available: true,
+    available: true,
+    stock_quantity: 80
+  },
+  {
+    id: 'fmx_caramel_biscoff_parfait',
+    name: 'Caramel Lotus Biscoff Crunch Parfait',
+    category: 'Desserts & Chilled',
+    description: 'Creamy Greek yogurt folded with authentic melted Biscoff spread, spiced speculoos biscuits, caramel pearls, and roasted pecans.',
+    price: 4500,
+    rating: 5.0,
+    reviews_count: '2.1k',
+    prep_time_min: 10,
+    badge: 'bestseller',
+    is_bestseller: true,
+    image_url: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=360&auto=format&fit=crop&q=75',
+    is_available: true,
+    available: true,
+    stock_quantity: 70
+  },
+  {
+    id: 'fmx_kiwi_honey_granola_parfait',
+    name: 'Kiwi, Honey & Roasted Granola Parfait',
+    category: 'Desserts & Chilled',
+    description: 'Farm-fresh probiotic yogurt with golden wildflower honey, crunchy cashew-almond granola, fresh kiwi wheels, and chia seeds.',
+    price: 3600,
+    rating: 4.8,
+    reviews_count: '840',
+    prep_time_min: 10,
+    badge: 'popular',
+    image_url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=360&auto=format&fit=crop&q=75',
+    is_available: true,
+    available: true,
+    stock_quantity: 95
+  },
+  {
+    id: 'fmx_red_velvet_parfait',
+    name: 'Red Velvet Supreme Cake Parfait',
+    category: 'Desserts & Chilled',
+    description: 'Velvety cream cheese yogurt layers with moist buttermilk red velvet cake crumble, raspberry coulis, and shaved white chocolate curls.',
+    price: 4400,
+    rating: 4.9,
+    reviews_count: '1.4k',
+    prep_time_min: 10,
+    badge: 'popular',
+    image_url: 'https://images.unsplash.com/photo-1587314168485-3236d6710814?w=360&auto=format&fit=crop&q=75',
+    is_available: true,
+    available: true,
+    stock_quantity: 65
+  },
+  {
+    id: 'fmx_pineapple_passion_parfait',
+    name: 'Pineapple & Passionfruit Glow Parfait',
+    category: 'Desserts & Chilled',
+    description: 'Zesty chilled Greek yogurt layered with ripe sweet pineapple compote, golden passionfruit glaze, toasted coconut, and pumpkin seeds.',
+    price: 3800,
+    rating: 4.8,
+    reviews_count: '760',
+    prep_time_min: 10,
+    badge: 'popular',
+    image_url: 'https://images.unsplash.com/photo-1590080875515-8a3a8dc5735e?w=360&auto=format&fit=crop&q=75',
+    is_available: true,
+    available: true,
+    stock_quantity: 85
+  },
+  {
     id: 'fmx_triple_icecream',
     name: 'Triple Scoop Artisan Gelato Bowl',
     category: 'Desserts & Chilled',
@@ -405,3 +482,7 @@ export const MOCK_FLAGSHIP_RESTAURANT = FOODMAXX_FLAGSHIP_RESTAURANT;
 export const MOCK_RESTAURANTS = FOODMAXX_RESTAURANTS;
 export const MOCK_USER = FOODMAXX_DEFAULT_USER;
 export const MOCK_WALLET = FOODMAXX_DEFAULT_WALLET;
+export const DEFAULT_PARFAIT_ITEMS = FOODMAXX_MENU_ITEMS.filter(item => 
+  (item.id && item.id.includes('parfait')) || (item.name && item.name.toLowerCase().includes('parfait'))
+);
+
