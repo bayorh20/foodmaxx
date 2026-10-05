@@ -624,19 +624,19 @@ export default function HeroSlideManager({ toast }) {
                   </div>
                 </div>
 
-                {/* Photo Upload & Presets Area */}
+                {/* Photo Upload Area */}
                 <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
                       <Upload size={14} className="text-[#EA4C2A]" />
-                      <span>1. Upload Photo or Select Preset</span>
+                      <span>1. Upload Food Photography</span>
                     </label>
                     <span className="text-[11px] font-semibold text-slate-500">
                       JPG, PNG, WebP (Auto-compressed)
                     </span>
                   </div>
 
-                  {/* Device File Upload Button */}
+                  {/* Device File Upload Button & URL input */}
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     <input
                       type="file"
@@ -665,47 +665,27 @@ export default function HeroSlideManager({ toast }) {
                     />
                   </div>
 
-                  {/* Curated Food Photography Library */}
-                  <div>
-                    <p className="text-[11px] font-bold text-slate-600 mb-2">
-                      Or Choose from Curated Nigerian Food Photography:
-                    </p>
-                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                      {HERO_PHOTO_PRESETS.map((p, pIdx) => {
-                        const isSelected = form.image_url === p.url;
-                        return (
-                          <button
-                            key={pIdx}
-                            type="button"
-                            onClick={() => setForm(prev => ({ ...prev, image_url: p.url }))}
-                            className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all cursor-pointer group ${
-                              isSelected
-                                ? 'border-[#EA4C2A] ring-2 ring-orange-500/40 scale-105'
-                                : 'border-slate-200 hover:border-slate-400'
-                            }`}
-                            title={p.name}
-                          >
-                            <img 
-                              src={p.url} 
-                              alt={p.name} 
-                              className="w-full h-full object-cover" 
-                              loading="eager"
-                              decoding="async"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&q=75';
-                              }}
-                            />
-                            {isSelected && (
-                              <div className="absolute inset-0 bg-[#EA4C2A]/30 flex items-center justify-center">
-                                <Check size={14} className="text-white stroke-[3]" />
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
+                  {form.image_url && (
+                    <div className="flex items-center justify-between bg-white p-2.5 px-3 rounded-xl border border-slate-200 text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <img 
+                          src={form.image_url} 
+                          alt="Selected" 
+                          className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0" 
+                        />
+                        <span className="text-slate-700 font-semibold truncate">
+                          {form.image_url.startsWith('data:') ? 'Custom photo uploaded from device' : form.image_url}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, image_url: '' }))}
+                        className="text-rose-600 hover:text-rose-700 font-bold text-[11px] ml-2 shrink-0 cursor-pointer"
+                      >
+                        Clear Photo
+                      </button>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Text Information */}
