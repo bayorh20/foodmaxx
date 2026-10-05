@@ -12301,6 +12301,15 @@ export default function App() {
 
   const [activePortal, setActivePortal] = useState(getInitialPortal);
 
+  // Instantly mark mounted and dismiss splash screen container
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.__FOODMAXX_MOUNTED__ = true;
+      const splash = document.getElementById('fmx-splash');
+      if (splash) splash.remove();
+    }
+  }, []);
+
   // Sync portal with URL changes & browser back/forward buttons
   useEffect(() => {
     const handlePopState = () => {

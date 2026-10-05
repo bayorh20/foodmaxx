@@ -1,13 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 export default function SplashScreen({ onFinish, isQuick = false }) {
+  const onFinishRef = useRef(onFinish);
+  useEffect(() => {
+    onFinishRef.current = onFinish;
+  }, [onFinish]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (typeof onFinish === 'function') onFinish();
+      if (typeof onFinishRef.current === 'function') onFinishRef.current();
     }, isQuick ? 350 : 700);
     return () => clearTimeout(timer);
-  }, [onFinish, isQuick]);
+  }, [isQuick]);
 
   const easeOutCurve = [0.16, 1, 0.3, 1];
 
