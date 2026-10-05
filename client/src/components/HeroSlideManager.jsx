@@ -4,14 +4,17 @@ import {
   Sparkles, Plus, Edit3, Trash2, Eye, EyeOff, Upload,
   Image as ImageIcon, ArrowUp, ArrowDown, Check, X,
   RotateCw, ExternalLink, Tag, Flame, Palette, ChevronRight,
-  Layers, Smartphone, RefreshCw, AlertCircle, Maximize2
+  Layers, Smartphone, RefreshCw, AlertCircle, Maximize2,
+  Link2, Search, Utensils, Package
 } from 'lucide-react';
 import {
+  api,
   getLiveHeroSlides,
   subscribeToLiveHeroSlides,
   createLiveHeroSlide,
   updateLiveHeroSlide,
   deleteLiveHeroSlide,
+  getStoredProducts,
   DEFAULT_HERO_SLIDES
 } from '../services/api';
 
@@ -69,7 +72,7 @@ export const HERO_GRADIENT_PRESETS = [
   { id: 'midnight', name: 'Midnight Charcoal', class: 'from-[#1E293B] via-[#0F172A] to-[#020617]' }
 ];
 
-export default function HeroSlideManager({ toast }) {
+export default function HeroSlideManager({ toast, products: propsProducts = [] }) {
   const [slides, setSlides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -81,6 +84,36 @@ export default function HeroSlideManager({ toast }) {
   const [quickTargetSlideId, setQuickTargetSlideId] = useState(null);
   const [deleteConfirmSlide, setDeleteConfirmSlide] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+
+  // Live products state for direct dish links
+  const [products, setProducts] = useState(() => {
+    if (Array.isArray(propsProducts) && propsProducts.length > 0) return propsProducts;
+    try {
+      const stored = typeof getStoredProducts === 'function' ? getStoredProducts() : [];
+      if (Array.isArray(stored) && stored.length > 0) return stored;
+    } catch {}
+    return [];
+  });
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+
+  // Sync propsProducts when parent updates
+  useEffect(() => {
+    if (Array.isArray(propsProducts) && propsProducts.length > 0) {
+      setProducts(propsProducts);
+    }
+  }, [propsProducts]);
+
+  // Subscribe to live Firestore products
+  useEffect(() => {
+    const unsub = api.subscribeLiveProducts ? api.subscribeLiveProducts((liveProds) => {
+      if (Array.isArray(liveProds) && liveProds.length > 0) {
+        setProducts(liveProds);
+      }
+    }) : null;
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, []);
 
   // Form State
   const [form, setForm] = useState({
@@ -698,9 +731,27 @@ export default function HeroSlideManager({ toast }) {
                         {slide.subtitle || (isFull && slide.hide_text ? 'Whole graphic banner displayed edge-to-edge' : 'No subtitle provided')}
                       </p>
 
-                      <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-600 font-semibold">
+                      <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-600 font-semibold flex-wrap">
                         <span>CTA: <strong className="text-slate-900">{slide.cta_text || 'Order Now →'}</strong></span>
-                        <span>Target: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[#EA4C2A]">{slide.cta_link || 'all'}</code></span>
+                        {(() => {
+                          const link = slide.cta_link || 'all';
+                          if (link.startsWith('product:') || link.startsWith('item:')) {
+                            const pId = link.replace(/^(product|item):/, '').trim();
+                            const prod = products.find(p => String(p.id) === String(pId) || String(p._id) === String(pId));
+                            return (
+                              <span className="flex items-center gap-1">
+                                <span>Target:</span>
+                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                  <span>🍲</span>
+                                  <span>{prod ? `${prod.name} (₦${Number(prod.price || 0).toLocaleString()})` : `Dish #${pId}`}</span>
+                                </span>
+                              </span>
+                            );
+                          }
+                          return (
+                            <span>Target: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[#EA4C2A] font-bold">📂 {link}</code></span>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -1203,23 +1254,172 @@ export default function HeroSlideManager({ toast }) {
                     </div>
 
                   {/* Target Action / Destination */}
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">
-                      Click Action / Menu Filter
-                    </label>
-                    <select
-                      value={form.cta_link}
-                      onChange={(e) => setForm(prev => ({ ...prev, cta_link: e.target.value }))}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:border-[#EA4C2A]"
-                    >
-                      <option value="all">View Entire Menu (All)</option>
-                      <option value="jollof">Filter to Jollof & Rice</option>
-                      <option value="grills">Filter to Grills & Asun</option>
-                      <option value="swallow">Filter to Swallow & Soups</option>
-                      <option value="snacks">Filter to Fast Bites & Shawarma</option>
-                      <option value="drinks">Filter to Drinks & Parfait</option>
-                      <option value="vouchers">Open Vouchers Bottom Sheet</option>
-                    </select>
+                  <div className="sm:col-span-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                        <Link2 size={13} className="text-[#EA4C2A]" />
+                        <span>Click Navigation Action</span>
+                      </label>
+                      <span className="text-[10px] font-bold text-slate-500">
+                        {String(form.cta_link || '').startsWith('product:') ? '🍲 Specific Dish Link' : '📂 Category Filter'}
+                      </span>
+                    </div>
+
+                    {/* Mode Toggle: Menu Category vs Specific Dish */}
+                    <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (String(form.cta_link || '').startsWith('product:')) {
+                            setForm(prev => ({ ...prev, cta_link: 'all' }));
+                          }
+                        }}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          !String(form.cta_link || '').startsWith('product:')
+                            ? 'bg-white text-slate-900 shadow-xs'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        <span>📂</span>
+                        <span>Menu Category</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!String(form.cta_link || '').startsWith('product:')) {
+                            const firstProd = products[0];
+                            setForm(prev => ({ ...prev, cta_link: firstProd ? `product:${firstProd.id}` : 'product:1' }));
+                          }
+                        }}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          String(form.cta_link || '').startsWith('product:')
+                            ? 'bg-white text-[#EA4C2A] shadow-xs'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        <span>🍲</span>
+                        <span>Specific Product / Dish</span>
+                      </button>
+                    </div>
+
+                    {/* Category Mode */}
+                    {!String(form.cta_link || '').startsWith('product:') ? (
+                      <div>
+                        <select
+                          value={form.cta_link || 'all'}
+                          onChange={(e) => setForm(prev => ({ ...prev, cta_link: e.target.value }))}
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:border-[#EA4C2A]"
+                        >
+                          <option value="all">🍽️ View Entire Menu (All)</option>
+                          <option value="rice">🍚 Filter to Jollof & Rice</option>
+                          <option value="grills">🍗 Filter to Grills & Asun</option>
+                          <option value="swallow">🍲 Filter to Swallow & Soups</option>
+                          <option value="fast">🌯 Filter to Fast Bites & Shawarma</option>
+                          <option value="pasta">🍝 Filter to Pasta Bowls</option>
+                          <option value="drinks">🥤 Filter to Drinks & Parfait</option>
+                          <option value="vouchers">🎟️ Open Vouchers Bottom Sheet</option>
+                        </select>
+                        <p className="text-[11px] text-slate-500 font-medium mt-1">
+                          Tapping this slide opens the customer menu filtered to this category.
+                        </p>
+                      </div>
+                    ) : (
+                      /* Specific Product Mode */
+                      <div className="space-y-2 p-3 bg-orange-50/60 border border-orange-200/80 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-black text-slate-800">
+                            Choose Target Dish from FoodMaxx Catalog:
+                          </span>
+                          <span className="text-[10px] font-bold text-[#EA4C2A] bg-orange-100 px-2 py-0.5 rounded-full">
+                            {products.length} Dishes
+                          </span>
+                        </div>
+
+                        {/* Search Filter */}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="Search dishes (e.g. Jollof, Shawarma, Burger)..."
+                            value={productSearchQuery}
+                            onChange={(e) => setProductSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-hidden focus:border-[#EA4C2A]"
+                          />
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+                          {productSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setProductSearchQuery('')}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Select Product Dropdown */}
+                        <select
+                          value={String(form.cta_link || '').replace(/^product:/, '')}
+                          onChange={(e) => setForm(prev => ({ ...prev, cta_link: `product:${e.target.value}` }))}
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:border-[#EA4C2A]"
+                        >
+                          <option value="">-- Choose a Product --</option>
+                          {products
+                            .filter(p => !productSearchQuery || p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) || (p.category || '').toLowerCase().includes(productSearchQuery.toLowerCase()))
+                            .map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} — ₦{Number(p.price || 0).toLocaleString()} ({p.category || 'Specialty'})
+                              </option>
+                            ))
+                          }
+                        </select>
+
+                        {/* Selected Dish Card + 1-Click Copy Details */}
+                        {(() => {
+                          const pId = String(form.cta_link || '').replace(/^product:/, '').trim();
+                          const foundProd = products.find(p => String(p.id) === String(pId) || String(p._id) === String(pId));
+                          if (!foundProd) return null;
+                          return (
+                            <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-orange-200 shadow-2xs">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <img
+                                  src={foundProd.image_url || foundProd.image || HERO_PHOTO_PRESETS[0].url}
+                                  alt={foundProd.name}
+                                  className="w-10 h-10 rounded-lg object-cover border border-slate-100 shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-black text-slate-900 truncate">{foundProd.name}</p>
+                                  <p className="text-[11px] font-extrabold text-[#EA4C2A]">
+                                    ₦{Number(foundProd.price || 0).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setForm(prev => ({
+                                    ...prev,
+                                    title: foundProd.name,
+                                    subtitle: foundProd.description ? foundProd.description.slice(0, 80) : `Fresh gourmet ${foundProd.name} prepared fresh on order`,
+                                    image_url: foundProd.image_url || foundProd.image || prev.image_url,
+                                    cta_text: `Order for ₦${Number(foundProd.price || 0).toLocaleString()} →`
+                                  }));
+                                  toast(`Copied "${foundProd.name}" details to slide! ✨`, 'success');
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-orange-500/10 hover:bg-[#EA4C2A] text-[#EA4C2A] hover:text-white font-bold text-[10px] transition-colors cursor-pointer shrink-0"
+                                title="Auto-fill slide title, subtitle and photo from this dish"
+                              >
+                                ✨ Copy Dish Info to Slide
+                              </button>
+                            </div>
+                          );
+                        })()}
+                        <p className="text-[11px] text-slate-500 font-medium mt-1">
+                          When tapped by customers, this slide will immediately open the product description & customization modal for this dish!
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Display Order */}

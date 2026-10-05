@@ -1035,6 +1035,7 @@ function CustomerPortal() {
         localStorage.removeItem('fmx_last_name');
         localStorage.removeItem('fmx_last_phone');
         localStorage.removeItem('fmx_guest_name');
+        localStorage.removeItem('fmx_device_orders');
       } catch {}
     }
   }, [user?.id]);
@@ -1381,24 +1382,27 @@ function CustomerPortal() {
   // Firestore real-time customer orders subscription (strictly scoped to authenticated user or device orders)
   useEffect(() => {
     if (!user?.id) {
+      // Logged out: always start clean, never show a previous account's deliveries
+      setOrders([]);
+      setTrackingOrder(null);
+      setLiveStatusBanner(null);
+      setPlacedOrderSuccess(null);
+      prevOrderStatusesRef.current = new globalThis.Map();
+
       let deviceOrders = [];
       try {
         deviceOrders = JSON.parse(localStorage.getItem('fmx_device_orders') || '[]');
-        const lastOrd = localStorage.getItem('fmx_last_order_id');
-        if (lastOrd && !deviceOrders.includes(lastOrd)) deviceOrders.unshift(lastOrd);
       } catch {}
-      if (deviceOrders.length === 0) {
-        setOrders([]);
-        setTrackingOrder(null);
-        setLiveStatusBanner(null);
-      } else {
+      let cancelled = false;
+      if (Array.isArray(deviceOrders) && deviceOrders.length > 0) {
         api.getCustomerOrders(null).then(res => {
-          if (res?.data && res.data.length > 0) {
-            setOrders(res.data);
-          }
+          if (cancelled) return;
+          // Only anonymous orders (no linked account) may be shown while signed out
+          const guestOnly = (res?.data || []).filter(o => !String(o.customer_id || o.customer?.id || '').trim());
+          setOrders(guestOnly);
         }).catch(() => {});
       }
-      return;
+      return () => { cancelled = true; };
     }
 
     const subscriber = api.subscribeCustomerLiveOrders;
@@ -2920,7 +2924,7 @@ function LiveOrderBanner({ orders, onGoToOrders }) {
 // ============================================================
 // PROMO BANNER & LIVE HERO SLIDE CAROUSEL
 // ============================================================
-function PromoBanner({ onOrderNow, appCopy }) {
+function PromoBanner({ onOrderNow, appCopy, menuItems = [], onSelectItem }) {
   const [slides, setSlides] = useState(() => {
     try {
       const stored = localStorage.getItem('fmx_hero_slides');
@@ -2997,6 +3001,25 @@ function PromoBanner({ onOrderNow, appCopy }) {
   const handleCtaClick = (e) => {
     e.stopPropagation();
     const link = currentSlide.cta_link || 'all';
+
+    // 1. Direct product link: "product:<productId>" or "item:<productId>"
+    if (typeof link === 'string' && (link.startsWith('product:') || link.startsWith('item:'))) {
+      const prodId = link.replace(/^(product|item):/, '').trim();
+      const target = (menuItems || []).find(m => String(m.id) === String(prodId) || String(m._id) === String(prodId));
+      if (target && typeof onSelectItem === 'function') {
+        onSelectItem(target);
+        return;
+      }
+    }
+
+    // 2. Direct match with product ID
+    const directItem = (menuItems || []).find(m => String(m.id) === String(link));
+    if (directItem && typeof onSelectItem === 'function') {
+      onSelectItem(directItem);
+      return;
+    }
+
+    // 3. Category or general action
     try {
       window.dispatchEvent(new CustomEvent('fmx_select_category', { detail: link }));
     } catch {}
@@ -3488,7 +3511,7 @@ function TopPicksSection({ title = "Top picks on FoodMaxx", menuItems, onSelectI
   return (
     <div className="mb-7 sm:mb-9">
       <div className="flex justify-between items-center px-4 sm:px-0 mb-3 sm:mb-3.5">
-        <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">{title}</h2>
+        <h2 className="text-base sm:text-lg font-black text-slate-600 dark:text-slate-300 tracking-tight">{title}</h2>
         <button 
           onClick={onSeeAll}
           className="bg-yellow-400 hover:bg-yellow-500 text-black text-[11px] sm:text-xs font-black px-3 py-1 rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
@@ -3872,7 +3895,7 @@ function HomeTab({
   return (
     <div className="pb-8">
       {/* 1. Promo Banner */}
-      <PromoBanner onOrderNow={onGoToMenu} appCopy={appCopy} />
+      <PromoBanner onOrderNow={onGoToMenu} appCopy={appCopy} menuItems={menuItems} onSelectItem={onSelectItem} />
 
       {/* 2. Category Chips hidden per user preference */}
 
@@ -3888,7 +3911,7 @@ function HomeTab({
         /* Filtered View When Category Selected */
         <div className="px-4 space-y-4 pt-2 sm:pt-4">
           <div className="flex items-center justify-between pb-1 border-b border-gray-100 dark:border-white/5">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-slate-600 dark:text-slate-300 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#EA4C2A]"></span>
               <span>{FOOD_CATEGORIES.find(c => c.id === selectedHomeCat)?.name || 'Filtered'} Selection</span>
             </h2>
@@ -7312,7 +7335,7 @@ function FoodDetailModal({ restaurant, item, onClose, isFavorite: initialFavorit
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-xs p-0 sm:p-4"
+      className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-black/65 backdrop-blur-xs p-0 sm:p-4"
       onClick={onClose}
     >
       <motion.div
@@ -7320,7 +7343,7 @@ function FoodDetailModal({ restaurant, item, onClose, isFavorite: initialFavorit
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: '100%', opacity: 0.3, transition: { duration: 0.2, ease: 'easeIn' } }}
         transition={{ type: 'spring', damping: 30, stiffness: 450, mass: 0.6 }}
-        className={`w-full max-w-lg rounded-t-[28px] sm:rounded-[28px] border sm:border overflow-hidden flex flex-col shadow-2xl relative max-h-[90vh] ${
+        className={`w-full sm:max-w-lg h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[28px] border-0 sm:border overflow-hidden flex flex-col shadow-2xl relative ${
           isDark ? 'bg-[#13161F] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200'
         }`}
         onClick={e => e.stopPropagation()}
@@ -7351,11 +7374,8 @@ function FoodDetailModal({ restaurant, item, onClose, isFavorite: initialFavorit
             {/* Subtle Gradient for floating button contrast */}
             <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
 
-            {/* Mobile Sheet Drag Indicator */}
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-white/70 rounded-full sm:hidden z-10" />
-
-            {/* Floating Top Buttons */}
-            <div className="absolute top-3.5 inset-x-0 px-4 flex items-center justify-between z-20">
+            {/* Floating Top Buttons (respect status bar / notch on full-screen mobile) */}
+            <div className="absolute top-[max(0.875rem,env(safe-area-inset-top,0.875rem))] sm:top-3.5 inset-x-0 px-4 flex items-center justify-between z-20">
               <button
                 type="button"
                 onClick={() => { triggerHaptic('selection'); onClose(); }}
@@ -10850,13 +10870,13 @@ function TrackingModal({ order, onClose, onRefresh, user, isDark, appCopy }) {
   const userCustPhone = String(user?.phone || '').trim();
 
   const isAdmin = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'manager';
-  const isOwner = !user || (
+  const isOwner = !user ? !orderCustId : (
     (userCustId && orderCustId && userCustId === orderCustId) ||
     (userCustEmail && orderCustEmail && userCustEmail === orderCustEmail) ||
     (userCustPhone && orderCustPhone && userCustPhone === orderCustPhone)
   );
 
-  if (user && !isOwner && !isAdmin) {
+  if (!isOwner && !isAdmin) {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
         <div className={`w-full max-w-md p-6 rounded-3xl border text-center ${
@@ -11940,6 +11960,8 @@ function AuthProvider({ children }) {
       localStorage.removeItem('fmx_last_phone');
       localStorage.removeItem('fmx_guest_name');
       localStorage.removeItem('fmx_active_group_code');
+      localStorage.removeItem('fmx_device_orders');
+      localStorage.removeItem('fmx_last_order_ref');
       Object.keys(localStorage).forEach(k => {
         if (k.startsWith('fmx_last_order_') || k.startsWith('fmx_order_') || k.startsWith('fmx_user_') || k.startsWith('fmx_pid_')) {
           localStorage.removeItem(k);

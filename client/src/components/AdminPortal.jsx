@@ -9629,7 +9629,7 @@ function AdminPortal() {
         {/* TAB 11: HERO BANNERS & SLIDES MANAGEMENT */}
         {/* ============================================================ */}
         {activeSection === 'hero_banners' && (
-          <HeroSlideManager toast={toast} />
+          <HeroSlideManager toast={toast} products={products} />
         )}
       </main>
 
