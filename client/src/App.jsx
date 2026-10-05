@@ -3035,7 +3035,7 @@ function PromoBanner({ onOrderNow, appCopy }) {
 
   return (
     <div 
-      className="px-4 sm:px-0 mb-9 sm:mb-12 w-full select-none"
+      className="px-4 sm:px-0 mb-5 sm:mb-7 w-full select-none"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={handleTouchStart}
@@ -3045,14 +3045,14 @@ function PromoBanner({ onOrderNow, appCopy }) {
         onClick={handleCtaClick}
         className={`rounded-2xl relative overflow-hidden flex items-center shadow-lg shadow-orange-500/15 transition-all duration-500 group cursor-pointer ${
           isFullImage 
-            ? 'bg-slate-950 justify-start w-full min-h-[145px] xs:min-h-[160px] sm:min-h-[185px] md:min-h-[210px] max-h-[260px] aspect-[2.35/1] sm:aspect-[2.7/1]' 
-            : `bg-gradient-to-r ${gradientClass} px-4 py-3 sm:px-5 sm:py-3.5 justify-between min-h-[105px] sm:min-h-[120px] md:min-h-[135px]`
+            ? 'bg-slate-950 justify-start w-full min-h-[110px] xs:min-h-[120px] sm:min-h-[135px] md:min-h-[155px] max-h-[175px] aspect-[2.85/1] sm:aspect-[3.2/1]' 
+            : `bg-gradient-to-r ${gradientClass} px-4 py-2.5 sm:px-5 sm:py-3 justify-between min-h-[90px] sm:min-h-[105px] md:min-h-[120px] max-h-[145px]`
         }`}
       >
         {isFullImage ? (
           <>
-            {/* If fit_mode === 'contain': uncropped whole flyer with soft blurred ambient backdrop */}
-            {currentSlide.fit_mode === 'contain' ? (
+            {/* Default to contain (uncropped whole flyer with soft blurred ambient backdrop) */}
+            {currentSlide.fit_mode !== 'cover' ? (
               <>
                 <div 
                   className="absolute inset-0 bg-cover bg-center filter blur-lg opacity-40 scale-110 pointer-events-none"

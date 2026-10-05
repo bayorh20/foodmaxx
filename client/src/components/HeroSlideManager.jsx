@@ -457,12 +457,12 @@ export default function HeroSlideManager({ toast }) {
           <div className="max-w-xl mx-auto w-full">
             <div className={`rounded-2xl relative overflow-hidden flex items-center shadow-xl border border-white/15 transition-all ${
               previewSlide.banner_type === 'full_image'
-                ? 'bg-slate-950 justify-start w-full min-h-[145px] sm:min-h-[175px] md:min-h-[200px] aspect-[2.35/1] sm:aspect-[2.7/1]'
-                : `bg-gradient-to-r ${previewSlide.gradient || 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]'} px-5 py-4 justify-between min-h-[110px] sm:min-h-[125px]`
+                ? 'bg-slate-950 justify-start w-full min-h-[110px] sm:min-h-[135px] md:min-h-[155px] max-h-[175px] aspect-[2.85/1] sm:aspect-[3.2/1]'
+                : `bg-gradient-to-r ${previewSlide.gradient || 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]'} px-5 py-3.5 justify-between min-h-[95px] sm:min-h-[110px]`
             }`}>
               {previewSlide.banner_type === 'full_image' ? (
                 <>
-                  {previewSlide.fit_mode === 'contain' ? (
+                  {previewSlide.fit_mode !== 'cover' ? (
                     <>
                       {/* Ambient Blurred Backdrop */}
                       <div 
@@ -806,14 +806,14 @@ export default function HeroSlideManager({ toast }) {
                     </span>
                   </div>
 
-                  <div className={`rounded-2xl relative overflow-hidden flex items-center min-h-[96px] sm:min-h-[110px] shadow-md border border-slate-200 transition-all ${
+                  <div className={`rounded-2xl relative overflow-hidden flex items-center min-h-[85px] sm:min-h-[98px] shadow-md border border-slate-200 transition-all ${
                     form.banner_type === 'full_image'
                       ? 'bg-slate-900 justify-start'
-                      : `bg-gradient-to-r ${form.gradient || 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]'} px-4 py-3 justify-between`
+                      : `bg-gradient-to-r ${form.gradient || 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]'} px-4 py-2.5 justify-between`
                   }`}>
                     {form.banner_type === 'full_image' ? (
                       <>
-                        {form.fit_mode === 'contain' ? (
+                        {form.fit_mode !== 'cover' ? (
                           <>
                             {/* Ambient Blurred Backdrop */}
                             <div 
