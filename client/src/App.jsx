@@ -1883,17 +1883,17 @@ function CustomerPortal() {
                 openTrackingOrder(liveStatusBanner.order);
                 setLiveStatusBanner(null);
               }}
-              className="absolute top-3 left-3 right-3 z-[150] bg-slate-900/95 text-white p-3 sm:p-3.5 rounded-2xl shadow-2xl border border-white/20 backdrop-blur-xl cursor-pointer flex items-center gap-3 active:scale-[0.99] transition-transform"
+              className="absolute top-3 left-3 right-3 z-[150] bg-white/98 dark:bg-slate-900/95 text-slate-900 dark:text-white p-3 sm:p-3.5 rounded-2xl shadow-2xl border border-slate-200/90 dark:border-white/20 backdrop-blur-xl cursor-pointer flex items-center gap-3 active:scale-[0.99] transition-transform"
             >
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#EA4C2A] to-orange-500 flex items-center justify-center text-xl shrink-0 shadow-lg shadow-[#EA4C2A]/30">
                 {liveStatusBanner.icon || '🔔'}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
-                  <h4 className="font-extrabold text-xs text-white truncate">{liveStatusBanner.title}</h4>
-                  <span className="text-[10px] text-slate-400 font-mono">#{liveStatusBanner.order?.order_reference}</span>
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-white truncate">{liveStatusBanner.title}</h4>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">#{liveStatusBanner.order?.order_reference}</span>
                 </div>
-                <p className="text-[11px] text-slate-300 line-clamp-1 mt-0.5">{liveStatusBanner.desc}</p>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-1 mt-0.5">{liveStatusBanner.desc}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <span className="text-[10px] font-bold bg-[#EA4C2A] text-white px-2.5 py-1 rounded-lg shadow-xs">
@@ -1905,7 +1905,7 @@ function CustomerPortal() {
                     e.stopPropagation();
                     setLiveStatusBanner(null);
                   }}
-                  className="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white"
+                  className="w-6 h-6 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white"
                   title="Dismiss notification"
                 >
                   <X size={13} />
@@ -1990,34 +1990,34 @@ function CustomerPortal() {
           {/* Live In-App Broadcast Slide-Down Alert Banner */}
           {activeBroadcastBanner && (
             <div className="fixed top-3 left-3 right-3 sm:left-auto sm:right-6 sm:w-96 z-[999999] pointer-events-auto">
-              <div className="bg-[#12151E]/95 backdrop-blur-xl border-2 border-[#EA4C2A]/60 text-white p-4 rounded-2xl shadow-2xl shadow-black/60 flex items-start gap-3">
+              <div className="bg-white/98 dark:bg-[#12151E]/95 backdrop-blur-xl border-2 border-[#EA4C2A] text-slate-900 dark:text-white p-4 rounded-2xl shadow-2xl shadow-slate-900/15 dark:shadow-black/60 flex items-start gap-3">
                 <img
                   src={activeBroadcastBanner.imageUrl || activeBroadcastBanner.image_url || '/foodmaxx-logo.png'}
                   alt="FoodMaxx"
-                  className="w-10 h-10 rounded-xl object-contain bg-white p-1 shrink-0 border border-white/20 shadow-sm"
+                  className="w-10 h-10 object-contain shrink-0"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1 mb-0.5">
                     <span className="text-[10px] font-black text-[#EA4C2A] uppercase tracking-wider">FoodMaxx Special</span>
                     <button
                       onClick={() => setActiveBroadcastBanner(null)}
-                      className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                      className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
                       title="Dismiss"
                     >
                       <X size={14} />
                     </button>
                   </div>
-                  <h4 className="text-xs sm:text-sm font-black text-white leading-snug line-clamp-2">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-snug line-clamp-2">
                     {activeBroadcastBanner.title}
                   </h4>
-                  <p className="text-[11px] text-slate-300 font-medium line-clamp-2 mt-1 leading-relaxed">
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium line-clamp-2 mt-1 leading-relaxed">
                     {activeBroadcastBanner.message}
                   </p>
 
                   {/* Attached Picture / Photo Banner */}
                   {Boolean(activeBroadcastBanner.imageUrl || activeBroadcastBanner.image_url) &&
                     (activeBroadcastBanner.imageUrl || activeBroadcastBanner.image_url) !== '/foodmaxx-logo.png' && (
-                    <div className="my-2 rounded-xl overflow-hidden border border-white/15 bg-black/40 shadow-inner max-h-48 w-full">
+                    <div className="my-2 rounded-xl overflow-hidden border border-slate-200 dark:border-white/15 bg-slate-100 dark:bg-black/40 shadow-inner max-h-48 w-full">
                       <img
                         src={activeBroadcastBanner.imageUrl || activeBroadcastBanner.image_url}
                         alt="Notification Photo"
@@ -2113,7 +2113,7 @@ function CustomerPortal() {
                   <img
                     src="/foodmaxx-logo.png"
                     alt="FoodMaxx"
-                    className="w-10 h-10 rounded-2xl object-cover shadow-sm shrink-0 border border-red-500/15"
+                    className="w-10 h-10 object-contain shrink-0"
                   />
                   <div className="min-w-0">
                     {(() => {
@@ -10769,7 +10769,7 @@ function PwaInstallModal({ open, onClose, isDark, onTriggerNativeInstall, isInst
           <X size={16} />
         </button>
 
-        <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-16 h-16 rounded-2xl mx-auto mb-3 shadow-lg border border-[#EA4C2A]/30 object-cover" />
+        <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-16 h-16 mx-auto mb-3 object-contain" />
         <h3 className="font-bold text-lg">Install FoodMaxx App</h3>
         <p className="text-xs text-slate-400 mt-1 mb-4 leading-relaxed">
           Install FoodMaxx on your device for instant 1-tap ordering, real-time dispatch tracking, and zero load lag!

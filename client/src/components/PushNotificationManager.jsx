@@ -793,7 +793,7 @@ export default function PushNotificationManager({ toast }) {
                 <div className="bg-white text-slate-900 rounded-2xl p-3 border border-slate-200 shadow-xl space-y-2 text-left">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-4 h-4 rounded-md object-contain bg-white p-0.5 border border-slate-200" />
+                      <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-5 h-5 object-contain" />
                       <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider truncate">FoodMaxx</span>
                     </div>
                     <span className="text-[9px] text-slate-500 font-semibold">now</span>

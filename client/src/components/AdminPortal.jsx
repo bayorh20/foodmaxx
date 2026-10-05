@@ -4453,7 +4453,7 @@ function AdminPortal() {
       <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center p-4 antialiased font-sans">
         <div className="w-full max-w-md bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-200/50">
           <div className="text-center mb-6">
-            <div className="w-16 h-16 rounded-2xl mx-auto mb-3.5 bg-orange-50 border border-orange-200 flex items-center justify-center p-1.5 shadow-xs">
+            <div className="w-16 h-16 mx-auto mb-3.5 flex items-center justify-center">
               <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-full h-full object-contain" />
             </div>
             <h2 className="text-2xl font-black tracking-tight text-slate-900">FoodMaxx Admin Portal</h2>
@@ -4813,7 +4813,7 @@ function AdminPortal() {
 
             {/* Restaurant Profile Pill */}
             <div className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 rounded-full shadow-xs">
-              <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-7 h-7 rounded-full object-cover border border-slate-200" />
+              <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-7 h-7 object-contain" />
               <span className="text-sm font-black text-[#111827]">FoodMaxx</span>
               <ChevronDown size={15} className="text-[#475569]" />
             </div>
