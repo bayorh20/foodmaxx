@@ -2165,5 +2165,144 @@ export async function sendLiveOrderMessage(orderId, text, sender = 'customer') {
   return newMsg;
 }
 
+// ============================================================
+// HERO CAROUSEL SLIDES & BANNER MANAGEMENT
+// ============================================================
+const COLL_HERO_SLIDES = 'hero_slides';
+
+export const DEFAULT_HERO_SLIDES = [
+  {
+    id: 'slide_default_1',
+    title: 'Fresh Meals, Fast Delivery',
+    subtitle: 'Hot & delicious Nigerian meals delivered to your doorstep in Ibadan.',
+    badge: 'SPECIAL OFFER',
+    badge_bg: '#EA4C2A',
+    image_url: 'https://images.unsplash.com/photo-1576107223932-3580a13346e4?w=800&auto=format&fit=crop&q=80',
+    cta_text: 'Order Now →',
+    cta_link: 'all',
+    gradient: 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]',
+    active: true,
+    sort_order: 1
+  },
+  {
+    id: 'slide_default_2',
+    title: 'Smoky Firewood Jollof Feast',
+    subtitle: 'Authentic party jollof with crispy fried plantain and peppered beef.',
+    badge: 'CUSTOMER FAVORITE',
+    badge_bg: '#D97706',
+    image_url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80',
+    cta_text: 'Explore Jollof →',
+    cta_link: 'jollof',
+    gradient: 'from-[#D97706] via-[#EA580C] to-[#C2410C]',
+    active: true,
+    sort_order: 2
+  },
+  {
+    id: 'slide_default_3',
+    title: 'Peppered Asun & Suya Grills',
+    subtitle: 'Spicy, flame-grilled goat meat and beef seasoned with suya spices.',
+    badge: 'WEEKEND SPECIAL',
+    badge_bg: '#DC2626',
+    image_url: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800&auto=format&fit=crop&q=80',
+    cta_text: 'Get Grills →',
+    cta_link: 'grills',
+    gradient: 'from-[#B91C1C] via-[#991B1B] to-[#7F1D1D]',
+    active: true,
+    sort_order: 3
+  }
+];
+
+export async function getLiveHeroSlides() {
+  try {
+    const snap = await getDocs(collection(db, COLL_HERO_SLIDES));
+    if (snap.empty) {
+      return DEFAULT_HERO_SLIDES;
+    }
+    const slides = [];
+    snap.forEach(d => slides.push({ id: d.id, ...d.data() }));
+    slides.sort((a, b) => (Number(a.sort_order) || 99) - (Number(b.sort_order) || 99));
+    return slides.length > 0 ? slides : DEFAULT_HERO_SLIDES;
+  } catch (err) {
+    console.warn('getLiveHeroSlides error:', err);
+    try {
+      const stored = localStorage.getItem('fmx_hero_slides');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return DEFAULT_HERO_SLIDES;
+  }
+}
+
+export function subscribeToLiveHeroSlides(callback) {
+  try {
+    const q = query(collection(db, COLL_HERO_SLIDES));
+    return onSnapshot(q, (snapshot) => {
+      if (snapshot.empty) {
+        callback(DEFAULT_HERO_SLIDES);
+        return;
+      }
+      const slides = [];
+      snapshot.forEach(d => slides.push({ id: d.id, ...d.data() }));
+      slides.sort((a, b) => (Number(a.sort_order) || 99) - (Number(b.sort_order) || 99));
+      try {
+        localStorage.setItem('fmx_hero_slides', JSON.stringify(slides));
+      } catch {}
+      callback(slides.length > 0 ? slides : DEFAULT_HERO_SLIDES);
+    }, (err) => {
+      console.warn('subscribeToLiveHeroSlides snapshot error:', err);
+      callback(DEFAULT_HERO_SLIDES);
+    });
+  } catch (err) {
+    console.warn('subscribeToLiveHeroSlides catch error:', err);
+    callback(DEFAULT_HERO_SLIDES);
+    return () => {};
+  }
+}
+
+export async function createLiveHeroSlide(slideData) {
+  try {
+    const id = slideData.id || `slide_${Date.now()}`;
+    const docRef = doc(db, COLL_HERO_SLIDES, id);
+    const payload = {
+      ...slideData,
+      id,
+      active: slideData.active !== false,
+      sort_order: Number(slideData.sort_order) || 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    await setDoc(docRef, payload, { merge: true });
+    return payload;
+  } catch (err) {
+    console.error('createLiveHeroSlide error:', err);
+    throw err;
+  }
+}
+
+export async function updateLiveHeroSlide(slideId, updates) {
+  try {
+    const docRef = doc(db, COLL_HERO_SLIDES, slideId);
+    const payload = {
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
+    await setDoc(docRef, payload, { merge: true });
+    return { id: slideId, ...payload };
+  } catch (err) {
+    console.error('updateLiveHeroSlide error:', err);
+    throw err;
+  }
+}
+
+export async function deleteLiveHeroSlide(slideId) {
+  try {
+    const docRef = doc(db, COLL_HERO_SLIDES, slideId);
+    await deleteDoc(docRef);
+    return true;
+  } catch (err) {
+    console.error('deleteLiveHeroSlide error:', err);
+    throw err;
+  }
+}
+
 
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'foodmaxx-pwa-v29-live';
+const CACHE_NAME = 'foodmaxx-pwa-v30-live';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',

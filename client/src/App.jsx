@@ -10,7 +10,7 @@ const triggerConfetti = (opts) => {
   }).catch(() => {});
 };
 import { doc, onSnapshot } from 'firebase/firestore';
-import { api, FMXWebSocket, getStoredProducts, getStoredZones } from './services/api';
+import { api, FMXWebSocket, getStoredProducts, getStoredZones, subscribeToLiveHeroSlides, DEFAULT_HERO_SLIDES } from './services/api';
 import { db, DEFAULT_ADDONS } from './services/firebaseDb';
 import { launchRealPaystack, getStoredPaystackConfig, savePaystackConfig, isValidPaystackKey } from './services/paystack';
 import { triggerHaptic, playNativeSound, playOrderNotificationSound, shareNative, isStandaloneMode, isIosDevice } from './services/nativeMobile';
@@ -2918,60 +2918,215 @@ function LiveOrderBanner({ orders, onGoToOrders }) {
 }
 
 // ============================================================
-// PROMO BANNER (MATCHING MOCKUP)
+// PROMO BANNER & LIVE HERO SLIDE CAROUSEL
 // ============================================================
 function PromoBanner({ onOrderNow, appCopy }) {
-  const code = getCopy(appCopy, 'customer_hero', 'promo_banner_code', '');
-  const promoText = getCopy(appCopy, 'customer_hero', 'promo_banner_text', 'Fresh & Delicious Everyday');
-  const heroTitle = getCopy(appCopy, 'customer_hero', 'hero_title', 'Fresh Meals, Fast Delivery');
+  const [slides, setSlides] = useState(() => {
+    try {
+      const stored = localStorage.getItem('fmx_hero_slides');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return DEFAULT_HERO_SLIDES;
+  });
+
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const touchStartXRef = useRef(null);
+
+  // Subscribe to live Firestore hero slides collection
+  useEffect(() => {
+    const unsub = subscribeToLiveHeroSlides ? subscribeToLiveHeroSlides((liveSlides) => {
+      if (Array.isArray(liveSlides) && liveSlides.length > 0) {
+        setSlides(liveSlides);
+      }
+    }) : null;
+
+    const handleLocalUpdate = (e) => {
+      if (Array.isArray(e.detail) && e.detail.length > 0) {
+        setSlides(e.detail);
+      }
+    };
+    window.addEventListener('fmx_hero_slides_updated', handleLocalUpdate);
+
+    return () => {
+      if (typeof unsub === 'function') unsub();
+      window.removeEventListener('fmx_hero_slides_updated', handleLocalUpdate);
+    };
+  }, []);
+
+  // Filter for active slides (or fall back to DEFAULT_HERO_SLIDES if none active)
+  const activeSlides = useMemo(() => {
+    const list = (slides || []).filter(s => s.active !== false);
+    return list.length > 0 ? list : DEFAULT_HERO_SLIDES;
+  }, [slides]);
+
+  // Ensure currentIdx is always within bounds
+  useEffect(() => {
+    if (currentIdx >= activeSlides.length) {
+      setCurrentIdx(0);
+    }
+  }, [activeSlides.length, currentIdx]);
+
+  // Auto-advance carousel every 5.5 seconds unless user is hovering/touching
+  useEffect(() => {
+    if (activeSlides.length <= 1 || isPaused) return;
+    const interval = setInterval(() => {
+      setCurrentIdx(prev => (prev + 1) % activeSlides.length);
+    }, 5500);
+    return () => clearInterval(interval);
+  }, [activeSlides.length, isPaused]);
+
+  const currentSlide = activeSlides[currentIdx] || activeSlides[0] || {};
+
+  // Fallback defaults from CMS appCopy if slide has empty fields
+  const defaultCode = getCopy(appCopy, 'customer_hero', 'promo_banner_code', '');
+  const defaultPromoText = getCopy(appCopy, 'customer_hero', 'promo_banner_text', 'Fresh & Delicious Everyday');
+  const defaultHeroTitle = getCopy(appCopy, 'customer_hero', 'hero_title', 'Fresh Meals, Fast Delivery');
+
+  const title = currentSlide.title || defaultHeroTitle;
+  const subtitle = currentSlide.subtitle || defaultPromoText;
+  const badge = currentSlide.badge || (defaultCode ? `Code: ${defaultCode}` : 'SPECIAL OFFER');
+  const badgeBg = currentSlide.badge_bg || '#EA4C2A';
+  const ctaText = currentSlide.cta_text || 'Order Now →';
+  const gradientClass = currentSlide.gradient || 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]';
+  const imageUrl = currentSlide.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80';
+
+  const handleCtaClick = (e) => {
+    e.stopPropagation();
+    const link = currentSlide.cta_link || 'all';
+    try {
+      window.dispatchEvent(new CustomEvent('fmx_select_category', { detail: link }));
+    } catch {}
+    if (onOrderNow) onOrderNow(link);
+  };
+
+  const handlePrev = (e) => {
+    e.stopPropagation();
+    setCurrentIdx(prev => (prev - 1 + activeSlides.length) % activeSlides.length);
+  };
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    setCurrentIdx(prev => (prev + 1) % activeSlides.length);
+  };
+
+  const handleTouchStart = (e) => {
+    setIsPaused(true);
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    setIsPaused(false);
+    if (touchStartXRef.current === null) return;
+    const diff = touchStartXRef.current - e.changedTouches[0].clientX;
+    if (diff > 40) {
+      setCurrentIdx(prev => (prev + 1) % activeSlides.length);
+    } else if (diff < -40) {
+      setCurrentIdx(prev => (prev - 1 + activeSlides.length) % activeSlides.length);
+    }
+    touchStartXRef.current = null;
+  };
 
   return (
-    <div className="px-4 sm:px-0 mb-9 sm:mb-12 w-full">
-      <div className="bg-gradient-to-r from-[#FF5525] via-[#FF6036] to-[#EA4C2A] rounded-2xl px-4 py-2.5 sm:px-5 sm:py-3 relative overflow-hidden flex items-center justify-between min-h-[82px] sm:min-h-[92px] shadow-md shadow-orange-500/15">
-        <div className="relative z-10 max-w-[70%] sm:max-w-[75%] flex flex-col justify-center">
+    <div 
+      className="px-4 sm:px-0 mb-9 sm:mb-12 w-full select-none"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div 
+        className={`bg-gradient-to-r ${gradientClass} rounded-2xl px-4 py-3 sm:px-5 sm:py-3.5 relative overflow-hidden flex items-center justify-between min-h-[96px] sm:min-h-[104px] shadow-lg shadow-orange-500/15 transition-all duration-500 group`}
+      >
+        {/* Left Content */}
+        <div className="relative z-10 max-w-[68%] sm:max-w-[72%] flex flex-col justify-center">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {code ? (
-              <span className="bg-white/25 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
-                Code: {code}
-              </span>
-            ) : (
-              <span className="bg-white/25 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
-                Special Offer
+            <span 
+              className="text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs"
+              style={{ backgroundColor: badgeBg }}
+            >
+              {badge}
+            </span>
+            {subtitle && (
+              <span className="text-white/90 text-[10px] sm:text-[11px] font-medium hidden xs:inline truncate max-w-[200px]">
+                • {subtitle}
               </span>
             )}
-            <span className="text-white/90 text-[10px] sm:text-[11px] font-medium hidden xs:inline">
-              • {promoText}
-            </span>
           </div>
 
-          <h2 className="text-white text-sm sm:text-base md:text-lg font-black leading-tight mt-1 mb-1 truncate">
-            {heroTitle.replace('\n', ' ')}
+          <h2 className="text-white text-sm sm:text-base md:text-lg font-black leading-tight mt-1 mb-1 line-clamp-1">
+            {title.replace('\n', ' ')}
           </h2>
 
           <div className="flex items-center gap-2 mt-0.5">
             <button 
-              onClick={onOrderNow} 
-              className="bg-slate-950 hover:bg-black text-white text-[10px] sm:text-xs font-bold py-1 px-3 sm:px-4 rounded-full active:scale-95 transition-transform cursor-pointer shadow-xs"
+              onClick={handleCtaClick} 
+              className="bg-slate-950 hover:bg-black text-white text-[10px] sm:text-xs font-bold py-1 px-3.5 sm:px-4 rounded-full active:scale-95 transition-transform cursor-pointer shadow-sm hover:shadow"
             >
-              Order Now →
+              {ctaText}
             </button>
-            <span className="text-white/80 text-[10px] xs:hidden truncate">
-              {promoText}
-            </span>
+            {subtitle && (
+              <span className="text-white/80 text-[10px] xs:hidden truncate max-w-[120px]">
+                {subtitle}
+              </span>
+            )}
           </div>
         </div>
         
-        {/* Compact Appetizing Food Artwork */}
-        <div className="absolute -right-2 -bottom-2 w-24 h-24 sm:w-28 sm:h-28 rotate-[-6deg] pointer-events-none drop-shadow-xl shrink-0">
+        {/* Slide Photo Artwork */}
+        <div className="absolute -right-2 -bottom-2 w-28 h-28 sm:w-32 sm:h-32 rotate-[-4deg] pointer-events-none drop-shadow-xl shrink-0 transition-transform duration-500 group-hover:scale-105">
           <img 
-            onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&q=75'; }} 
-            src="https://images.unsplash.com/photo-1576107223932-3580a13346e4?w=240&auto=format&fit=crop&q=75" 
-            alt="Crispy Fries" 
-            className="w-full h-full object-cover rounded-2xl shadow-lg border border-white/20" 
+            key={imageUrl}
+            onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=240&q=75'; }} 
+            src={imageUrl} 
+            alt={title} 
+            className="w-full h-full object-cover rounded-2xl shadow-lg border border-white/20 animate-fade-in" 
             loading="eager"
             decoding="async"
           />
         </div>
+
+        {/* Carousel Navigation Arrows (Desktop / Hover) */}
+        {activeSlides.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={handlePrev}
+              aria-label="Previous slide"
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/30 hover:bg-black/60 text-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-pointer backdrop-blur-xs"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={handleNext}
+              aria-label="Next slide"
+              className="absolute right-28 sm:right-32 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/30 hover:bg-black/60 text-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-pointer backdrop-blur-xs"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </>
+        )}
+
+        {/* Dot Indicators */}
+        {activeSlides.length > 1 && (
+          <div className="absolute bottom-1.5 left-4 sm:left-5 flex items-center gap-1 z-20">
+            {activeSlides.map((slide, idx) => (
+              <button
+                key={slide.id || idx}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setCurrentIdx(idx); }}
+                aria-label={`Go to slide ${idx + 1}`}
+                className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                  currentIdx === idx ? 'w-5 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3817,6 +3972,14 @@ function MenuTab({
   const [selectedCat, setSelectedCat] = useState('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState('');
+
+  useEffect(() => {
+    const handleSetCat = (e) => {
+      if (e.detail) setSelectedCat(e.detail);
+    };
+    window.addEventListener('fmx_select_category', handleSetCat);
+    return () => window.removeEventListener('fmx_select_category', handleSetCat);
+  }, []);
 
   const cartQtyMap = useMemo(() => {
     const map = {};

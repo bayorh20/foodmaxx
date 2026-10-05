@@ -25,6 +25,7 @@ import { getAppContent, saveAppContent, resetAppContent, fetchLiveAppContent, su
 import { getStoreDetails, updateStoreDetails, DEFAULT_STORE_DETAILS } from '../config/storeDetails';
 import NotificationToneModal from './NotificationToneModal';
 import PushNotificationManager from './PushNotificationManager';
+import HeroSlideManager from './HeroSlideManager';
 import { HAPPY_FEMALE_AVATARS, HAPPY_MALE_AVATARS } from '../utils/avatarUtils';
 import { useAuth, useToast, useWS, useTheme, fmt, statusLabel, statusColor, getStatusEmoji, getStatusNotificationInfo, compressImageFile, getItemSizeAndExtras } from '../App';
 
@@ -4527,6 +4528,7 @@ function AdminPortal() {
     { id: 'reports', icon: BarChart2, label: 'Reports' },
     { id: 'zones', icon: MapPin, label: 'Delivery Areas' },
     { id: 'promotions', icon: Tag, label: 'Discounts' },
+    { id: 'hero_banners', icon: Sparkles, label: 'Hero Slides' },
     { id: 'notifications', icon: Bell, label: 'Push Notifications' },
     { id: 'settings', icon: Settings, label: 'Settings' },
   ];
@@ -4774,6 +4776,7 @@ function AdminPortal() {
                  activeSection === 'reports' ? 'Reports' :
                  activeSection === 'zones' ? 'Delivery Areas' :
                  activeSection === 'promotions' ? 'Discounts' :
+                 activeSection === 'hero_banners' ? 'Hero Banners & Slides' :
                  activeSection === 'notifications' ? 'Push Notifications' :
                  activeSection === 'group_orders' ? 'Group Orders' :
                  activeSection === 'settings' ? 'Settings' : 'Dashboard'}
@@ -9620,6 +9623,13 @@ function AdminPortal() {
         {/* ============================================================ */}
         {activeSection === 'notifications' && (
           <PushNotificationManager toast={toast} />
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB 11: HERO BANNERS & SLIDES MANAGEMENT */}
+        {/* ============================================================ */}
+        {activeSection === 'hero_banners' && (
+          <HeroSlideManager toast={toast} />
         )}
       </main>
 

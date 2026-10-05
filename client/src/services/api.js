@@ -57,6 +57,12 @@ import {
   updateLiveAddon,
   deleteLiveAddon,
   DEFAULT_ADDONS,
+  getLiveHeroSlides,
+  subscribeToLiveHeroSlides,
+  createLiveHeroSlide,
+  updateLiveHeroSlide,
+  deleteLiveHeroSlide,
+  DEFAULT_HERO_SLIDES,
   getLiveSupportTickets,
   subscribeToLiveSupportTickets,
   createLiveSupportTicket,
@@ -128,6 +134,15 @@ import {
 } from './smsNotificationSdk.js';
 import { generateAIAvatarForUser } from './aiAvatarService.js';
 import { dispatchOrderStatusPushNotification } from './pushNotificationService.js';
+
+export {
+  getLiveHeroSlides,
+  subscribeToLiveHeroSlides,
+  createLiveHeroSlide,
+  updateLiveHeroSlide,
+  deleteLiveHeroSlide,
+  DEFAULT_HERO_SLIDES
+};
 
 const memoryStore = {};
 export const safeStorage = {
