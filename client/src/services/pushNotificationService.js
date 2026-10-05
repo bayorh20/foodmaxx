@@ -26,6 +26,23 @@ import { db } from './firebaseDb';
 import { playOrderNotificationSound, triggerHaptic } from './nativeMobile';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { LocalNotifications } from '@capacitor/local-notifications';
+
+export const VAPID_PUBLIC_KEY = 'BNCDPTktLcTq7muLLiqc2QefK4QWhPf1HM3Q3sOcpLYt2zblaWmxbfU9D37MYTXLjBesCi3ytUQY7zQvxvKF7pk';
+
+/**
+ * Convert URL-safe base64 string to Uint8Array for PushManager applicationServerKey
+ */
+export function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 const PUSH_TOKEN_STORAGE_KEY = 'fmx_fcm_push_token';
 const PUSH_PERMISSION_KEY = 'fmx_web_notification_pref';
@@ -305,7 +322,7 @@ export async function configureNativePushListeners(userId = null) {
 }
 
 /**
- * Display a high-priority local push notification via Service Worker or Native Notification
+ * Display a high-priority local push notification via Service Worker or Native LocalNotifications
  * Touching the notification forces the app to open. No website links are shown.
  */
 export async function triggerLocalPushNotification(title, options = {}) {
@@ -319,7 +336,13 @@ export async function triggerLocalPushNotification(title, options = {}) {
     badge: options.badge || '/favicon.svg',
     image: options.image || options.imageUrl || options.image_url || undefined,
     tag: options.tag || `fmx_alert_${Date.now()}`,
-    vibrate: [200, 100, 200],
+    renotify: true,
+    requireInteraction: true,
+    vibrate: [300, 150, 300, 150, 300],
+    actions: [
+      { action: 'open', title: 'Open FoodMaxx 🛵' },
+      { action: 'close', title: 'Dismiss' }
+    ],
     data: {
       url: options.url || '/',
       timestamp: Date.now(),
@@ -328,6 +351,36 @@ export async function triggerLocalPushNotification(title, options = {}) {
   };
 
   try {
+    // ---------------------------------------------------------
+    // PATH 1: NATIVE CAPACITOR APP (Android APK / iOS IPA)
+    // ---------------------------------------------------------
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: Math.floor(Math.random() * 1000000) + 1,
+              title: title || 'FoodMaxx Update 🔔',
+              body: cleanBody,
+              channelId: 'foodmaxx_orders',
+              sound: 'default',
+              extra: {
+                url: options.url || '/'
+              }
+            }
+          ]
+        });
+        playOrderNotificationSound(true);
+        triggerHaptic('success');
+        return true;
+      } catch (nativeErr) {
+        console.warn('[FoodMaxx Push] Native LocalNotifications notice:', nativeErr);
+      }
+    }
+
+    // ---------------------------------------------------------
+    // PATH 2: WEB BROWSER / PWA / MOBILE CHROME
+    // ---------------------------------------------------------
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {
         try {
@@ -342,14 +395,29 @@ export async function triggerLocalPushNotification(title, options = {}) {
       }
     }
 
+    // Priority 1: Service Worker showNotification (works reliably in background tabs & minimized PWA)
     if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.ready.catch(() => null);
-      if (reg && reg.showNotification) {
-        await reg.showNotification(title, defaultOptions);
-        return true;
+      try {
+        const reg = await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 500))
+        ]).catch(async () => {
+          return navigator.serviceWorker.getRegistration ? await navigator.serviceWorker.getRegistration() : null;
+        });
+
+        if (reg && reg.showNotification) {
+          await reg.showNotification(title, defaultOptions);
+          playOrderNotificationSound(true);
+          triggerHaptic('success');
+          return true;
+        }
+      } catch (swErr) {
+        console.warn('[FoodMaxx Push] ServiceWorker showNotification notice:', swErr);
       }
     }
-    if ('Notification' in window && Notification.permission === 'granted') {
+
+    // Priority 2: Direct window Notification constructor
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
       const notif = new Notification(title, defaultOptions);
       notif.onclick = function(event) {
         event.preventDefault();
@@ -368,6 +436,8 @@ export async function triggerLocalPushNotification(title, options = {}) {
         }
         notif.close();
       };
+      playOrderNotificationSound(true);
+      triggerHaptic('success');
       return true;
     }
   } catch (err) {
@@ -377,8 +447,85 @@ export async function triggerLocalPushNotification(title, options = {}) {
 }
 
 /**
+ * Schedule a background notification test to verify background/lockscreen push
+ * Works even when the app is minimized or screen is locked!
+ * @param {number} delaySeconds - Seconds to wait before displaying notification
+ */
+export async function scheduleBackgroundPushTest(delaySeconds = 5) {
+  const perm = getPushPermissionStatus();
+  if (perm !== 'granted') {
+    const res = await installPushNotifications();
+    if (!res.success) return { success: false, error: 'Push permission not granted on device' };
+  }
+
+  const title = '🛵 FoodMaxx Kitchen Alert (Background Test)';
+  const body = `Chef Babajide has packed your order hot! Notification arrived while app was in background (${delaySeconds}s delay). Tap to open!`;
+  const url = '/?tab=orders';
+
+  // 1. Native Capacitor Android/iOS Background Schedule
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: Math.floor(Math.random() * 1000000) + 1,
+            title,
+            body,
+            channelId: 'foodmaxx_orders',
+            schedule: { at: new Date(Date.now() + delaySeconds * 1000) },
+            sound: 'default',
+            extra: { url }
+          }
+        ]
+      });
+      return { success: true, delaySeconds, type: 'native' };
+    } catch (e) {
+      console.warn('Native background schedule failed:', e);
+    }
+  }
+
+  // 2. Web PWA Service Worker Background Schedule
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready.catch(() => null) || 
+                  (navigator.serviceWorker.getRegistration ? await navigator.serviceWorker.getRegistration() : null);
+      if (reg && reg.active) {
+        reg.active.postMessage({
+          type: 'SCHEDULE_NOTIFICATION',
+          title,
+          options: {
+            body,
+            icon: '/foodmaxx-logo.png',
+            badge: '/favicon.svg',
+            requireInteraction: true,
+            renotify: true,
+            vibrate: [300, 150, 300, 150, 300],
+            data: { url, timestamp: Date.now() },
+            actions: [
+              { action: 'open', title: 'Open FoodMaxx 🛵' },
+              { action: 'close', title: 'Dismiss' }
+            ]
+          },
+          delayMs: delaySeconds * 1000
+        });
+        return { success: true, delaySeconds, type: 'service_worker' };
+      }
+    } catch (swErr) {
+      console.warn('SW schedule message notice:', swErr);
+    }
+  }
+
+  // 3. Fallback: browser timeout
+  setTimeout(() => {
+    triggerLocalPushNotification(title, { body, url });
+  }, delaySeconds * 1000);
+
+  return { success: true, delaySeconds, type: 'timer' };
+}
+
+/**
  * Request Push Notification Permission and Install Token
- * Handles both Native Mobile (Capacitor) and Browser/PWA
+ * Handles both Native Mobile (Capacitor) and Browser/PWA with VAPID Key
  * @param {string} userId - Optional user ID to associate token with
  */
 export async function installPushNotifications(userId = null) {
@@ -389,7 +536,8 @@ export async function installPushNotifications(userId = null) {
     try {
       await configureNativePushListeners(userId);
       const permStatus = await PushNotifications.requestPermissions();
-      const granted = permStatus.receive === 'granted';
+      const localPerm = await LocalNotifications.requestPermissions().catch(() => ({ display: 'granted' }));
+      const granted = permStatus.receive === 'granted' || localPerm.display === 'granted';
 
       if (granted) {
         localStorage.setItem(PUSH_PERMISSION_KEY, 'granted');
@@ -425,19 +573,45 @@ export async function installPushNotifications(userId = null) {
     localStorage.setItem(PUSH_PERMISSION_KEY, permission);
     window.dispatchEvent(new CustomEvent('fmx_notification_permission_changed', { detail: permission }));
 
-    // 2. Register Service Worker
-    let swRegistration = null;
-    if ('serviceWorker' in navigator) {
-      swRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => null);
+    if (permission !== 'granted') {
+      return { success: false, permission, token: null, error: 'User dismissed or blocked notification permission' };
     }
 
-    // 3. Obtain Firebase Cloud Messaging Token or fallback token
-    let token = null;
+    // 2. Register Service Worker with clean scope
+    let swRegistration = null;
+    if ('serviceWorker' in navigator) {
+      swRegistration = await navigator.serviceWorker.register('/sw.js', { 
+        scope: '/',
+        updateViaCache: 'none'
+      }).catch(async () => {
+        return navigator.serviceWorker.getRegistration ? await navigator.serviceWorker.getRegistration() : null;
+      });
+    }
+
+    // 3. Subscribe to Native Web Push via PushManager (Standard RFC 8292 with VAPID)
+    let pushSubscription = null;
+    if (swRegistration?.pushManager) {
+      try {
+        pushSubscription = await swRegistration.pushManager.getSubscription();
+        if (!pushSubscription) {
+          pushSubscription = await swRegistration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+          });
+        }
+      } catch (pushSubErr) {
+        console.warn('[FoodMaxx Push] PushManager subscribe notice:', pushSubErr);
+      }
+    }
+
+    // 4. Obtain Firebase Cloud Messaging Token (FCM v1 with VAPID Key)
+    let fcmToken = null;
     const messaging = await getFirebaseMessaging();
 
     if (messaging && swRegistration) {
       try {
-        token = await getToken(messaging, {
+        fcmToken = await getToken(messaging, {
+          vapidKey: VAPID_PUBLIC_KEY,
           serviceWorkerRegistration: swRegistration
         });
       } catch (tokenErr) {
@@ -445,29 +619,31 @@ export async function installPushNotifications(userId = null) {
       }
     }
 
-    // Fallback token
-    if (!token) {
-      const deviceId = getOrCreateDeviceId();
-      const platform = detectPlatform();
-      token = getSavedPushToken() || `fmx_${platform}_${deviceId}`;
-    }
+    // Resolve definitive device token
+    const deviceId = getOrCreateDeviceId();
+    const platform = detectPlatform();
+    const token = fcmToken || pushSubscription?.endpoint || getSavedPushToken() || `fmx_${platform}_${deviceId}`;
 
-    // 4. Save Token to Firestore
-    await savePushTokenToFirestore(token, userId, { permission });
+    // 5. Save Token & Push Subscription to Firestore
+    await savePushTokenToFirestore(token, userId, { 
+      permission: 'granted',
+      fcm_token: fcmToken,
+      subscription: pushSubscription ? JSON.parse(JSON.stringify(pushSubscription)) : null,
+      endpoint: pushSubscription?.endpoint || null,
+      vapid_public_key: VAPID_PUBLIC_KEY
+    });
 
-    if (permission === 'granted') {
-      // 5. Trigger initial celebratory push notification
-      try {
-        await triggerLocalPushNotification('🔔 FoodMaxx Notifications Active!', {
-          body: 'You are now ready to receive real-time kitchen and delivery updates on this device.',
-          tag: 'fmx_installed'
-        });
-        playOrderNotificationSound(true);
-        triggerHaptic('success');
-      } catch {}
-    }
+    // 6. Trigger initial celebratory push notification
+    try {
+      await triggerLocalPushNotification('🔔 FoodMaxx Notifications Active!', {
+        body: 'You are now ready to receive real-time kitchen and delivery updates on this device, even when the app is in the background.',
+        tag: 'fmx_installed'
+      });
+      playOrderNotificationSound(true);
+      triggerHaptic('success');
+    } catch {}
 
-    return { success: permission === 'granted', permission, token };
+    return { success: true, permission: 'granted', token };
   } catch (err) {
     console.error('[FoodMaxx Push] installPushNotifications error:', err);
     return { success: false, permission: getPushPermissionStatus(), token: null, error: err.message };

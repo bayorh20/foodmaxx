@@ -11,6 +11,7 @@ import {
   broadcastPushNotification, 
   getNotificationBroadcastLogs, 
   triggerLocalPushNotification,
+  scheduleBackgroundPushTest,
   ensureDeviceRegistered,
   installPushNotifications,
   getPushPermissionStatus,
@@ -19,7 +20,8 @@ import {
   getAutomatedPushRules,
   saveAutomatedPushRules,
   dispatchOrderStatusPushNotification,
-  DEFAULT_PUSH_EVENT_RULES
+  DEFAULT_PUSH_EVENT_RULES,
+  VAPID_PUBLIC_KEY
 } from '../services/pushNotificationService';
 import { playOrderNotificationSound, triggerHaptic } from '../services/nativeMobile';
 import { compressImageFile } from '../App';
@@ -327,6 +329,24 @@ export default function PushNotificationManager({ toast }) {
     if (toast) toast('Test notification fired on your screen! 🔔', 'success');
   };
 
+  const [testingBackground, setTestingBackground] = useState(false);
+
+  // Test Background Alert (Allows user to minimize app or lock screen for 5 seconds)
+  const handleTestBackground = async () => {
+    setTestingBackground(true);
+    if (toast) toast('📱 Lock your phone screen or switch apps NOW! Alert fires in 5 seconds...', 'info');
+    try {
+      const res = await scheduleBackgroundPushTest(5);
+      if (!res.success && toast) {
+        toast(res.error || 'Failed to schedule background notification', 'error');
+      }
+    } catch (e) {
+      if (toast) toast('Background schedule error: ' + (e.message || 'Error'), 'error');
+    } finally {
+      setTimeout(() => setTestingBackground(false), 5500);
+    }
+  };
+
   // Delete a token
   const handleDeleteToken = async (tokenId) => {
     const ok = window.confirm('Delete this registered push device?');
@@ -402,10 +422,20 @@ export default function PushNotificationManager({ toast }) {
           <button
             type="button"
             onClick={handleTestSelf}
-            className="px-4 py-2 rounded-xl bg-[#EA4C2A] hover:bg-[#d83f1d] active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-orange-500/25 transition-all cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-[#EA4C2A] hover:bg-[#d83f1d] active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-orange-500/25 transition-all cursor-pointer"
           >
             <Zap size={14} className="text-amber-300" />
             <span>Test My Device</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleTestBackground}
+            disabled={testingBackground}
+            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-black active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+            title="Schedules a 5-second test notification so you can minimize the app or lock screen to test background push"
+          >
+            <Clock size={14} className={testingBackground ? 'animate-spin text-amber-400' : 'text-amber-400'} />
+            <span>{testingBackground ? 'Fires in 5s... Lock screen!' : 'Test Closed App (5s)'}</span>
           </button>
         </div>
       </div>

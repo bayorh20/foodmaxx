@@ -4,7 +4,7 @@ import {
   Sparkles, Plus, Edit3, Trash2, Eye, EyeOff, Upload,
   Image as ImageIcon, ArrowUp, ArrowDown, Check, X,
   RotateCw, ExternalLink, Tag, Flame, Palette, ChevronRight,
-  Layers, Smartphone, RefreshCw, AlertCircle
+  Layers, Smartphone, RefreshCw, AlertCircle, Maximize2
 } from 'lucide-react';
 import {
   getLiveHeroSlides,
@@ -79,6 +79,8 @@ export default function HeroSlideManager({ toast }) {
   const fileInputRef = useRef(null);
   const quickFileInputRef = useRef(null);
   const [quickTargetSlideId, setQuickTargetSlideId] = useState(null);
+  const [deleteConfirmSlide, setDeleteConfirmSlide] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   // Form State
   const [form, setForm] = useState({
@@ -88,6 +90,7 @@ export default function HeroSlideManager({ toast }) {
     badge_bg: '#EA4C2A',
     image_url: HERO_PHOTO_PRESETS[0].url,
     banner_type: 'full_image', // 'full_image' (whole banner graphic) | 'split' (gradient + dish cutout)
+    fit_mode: 'contain', // 'contain' (whole flyer visible, zero crop) | 'cover' (fill entire box)
     hide_text: false,
     cta_text: 'Order Now →',
     cta_link: 'all',
@@ -118,6 +121,7 @@ export default function HeroSlideManager({ toast }) {
       badge_bg: '#EA4C2A',
       image_url: HERO_PHOTO_PRESETS[Math.floor(Math.random() * HERO_PHOTO_PRESETS.length)].url,
       banner_type: 'full_image',
+      fit_mode: 'contain',
       hide_text: false,
       cta_text: 'Order Now →',
       cta_link: 'all',
@@ -138,6 +142,7 @@ export default function HeroSlideManager({ toast }) {
       badge_bg: slide.badge_bg || '#EA4C2A',
       image_url: slide.image_url || HERO_PHOTO_PRESETS[0].url,
       banner_type: slide.banner_type || 'split',
+      fit_mode: slide.fit_mode || (slide.banner_type === 'full_image' ? 'contain' : 'cover'),
       hide_text: !!slide.hide_text,
       cta_text: slide.cta_text || 'Order Now →',
       cta_link: slide.cta_link || 'all',
@@ -196,7 +201,8 @@ export default function HeroSlideManager({ toast }) {
         try {
           await updateLiveHeroSlide(targetId, {
             image_url: compressedDataUrl,
-            banner_type: 'full_image'
+            banner_type: 'full_image',
+            fit_mode: 'contain'
           });
           if (typeof toast === 'function') toast('Whole banner image replaced and published live! 🚀', 'success');
         } catch (err) {
@@ -307,14 +313,30 @@ export default function HeroSlideManager({ toast }) {
     }
   };
 
-  // Delete slide
-  const handleDelete = async (slide) => {
-    if (!window.confirm(`Are you sure you want to delete the slide "${slide.title}"?`)) return;
+  // Open Delete confirmation dialog (replaces window.confirm)
+  const handleDeleteClick = (slide) => {
+    setDeleteConfirmSlide(slide);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmSlide) return;
+    const slide = deleteConfirmSlide;
+    setDeletingId(slide.id);
+
+    // Optimistically remove from UI state immediately!
+    setSlides(prev => prev.filter(s => s.id !== slide.id));
+
     try {
       await deleteLiveHeroSlide(slide.id);
-      if (typeof toast === 'function') toast('Hero slide deleted', 'info');
+      if (typeof toast === 'function') toast(`Slide "${slide.title}" deleted! 🗑️`, 'info');
     } catch (err) {
-      if (typeof toast === 'function') toast('Failed to delete slide', 'error');
+      console.error('Failed to delete slide:', err);
+      if (typeof toast === 'function') toast('Failed to delete slide from database', 'error');
+      // Revert if error
+      setSlides(prev => [...prev, slide]);
+    } finally {
+      setDeletingId(null);
+      setDeleteConfirmSlide(null);
     }
   };
 
@@ -337,8 +359,9 @@ export default function HeroSlideManager({ toast }) {
 
   // Reset to default FoodMaxx slides
   const handleResetDefaults = async () => {
-    if (!window.confirm('Reset hero slides to official FoodMaxx defaults?')) return;
     try {
+      localStorage.removeItem('fmx_deleted_hero_slides');
+      localStorage.removeItem('fmx_hero_slides_initialized');
       for (const d of DEFAULT_HERO_SLIDES) {
         await createLiveHeroSlide(d);
       }
@@ -432,25 +455,46 @@ export default function HeroSlideManager({ toast }) {
         {/* The Live Rendered Banner Card */}
         {previewSlide ? (
           <div className="max-w-xl mx-auto w-full">
-            <div className={`rounded-2xl relative overflow-hidden flex items-center min-h-[110px] sm:min-h-[125px] shadow-xl border border-white/15 transition-all ${
+            <div className={`rounded-2xl relative overflow-hidden flex items-center shadow-xl border border-white/15 transition-all ${
               previewSlide.banner_type === 'full_image'
-                ? 'bg-slate-900 justify-start'
-                : `bg-gradient-to-r ${previewSlide.gradient || 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]'} px-5 py-4 justify-between`
+                ? 'bg-slate-950 justify-start w-full min-h-[145px] sm:min-h-[175px] md:min-h-[200px] aspect-[2.35/1] sm:aspect-[2.7/1]'
+                : `bg-gradient-to-r ${previewSlide.gradient || 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]'} px-5 py-4 justify-between min-h-[110px] sm:min-h-[125px]`
             }`}>
               {previewSlide.banner_type === 'full_image' ? (
                 <>
-                  <img
-                    src={previewSlide.image_url}
-                    alt={previewSlide.title}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = HERO_PHOTO_PRESETS[0].url;
-                    }}
-                  />
+                  {previewSlide.fit_mode === 'contain' ? (
+                    <>
+                      {/* Ambient Blurred Backdrop */}
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center filter blur-lg opacity-40 scale-110 pointer-events-none"
+                        style={{ backgroundImage: `url(${previewSlide.image_url})` }}
+                      />
+                      {/* Whole Uncropped Graphic */}
+                      <img
+                        src={previewSlide.image_url}
+                        alt={previewSlide.title}
+                        className="relative z-10 w-full h-full object-contain pointer-events-none drop-shadow-md"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = HERO_PHOTO_PRESETS[0].url;
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <img
+                      src={previewSlide.image_url}
+                      alt={previewSlide.title}
+                      className="absolute inset-0 w-full h-full object-cover object-center"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = HERO_PHOTO_PRESETS[0].url;
+                      }}
+                    />
+                  )}
+
                   {!previewSlide.hide_text ? (
                     <>
-                      <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-transparent z-10" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-transparent z-15 pointer-events-none" />
                       <div className="relative z-20 max-w-[70%] sm:max-w-[75%] px-5 py-4 flex flex-col justify-center">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className="bg-white/25 backdrop-blur-xs text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-white/20">
@@ -479,7 +523,7 @@ export default function HeroSlideManager({ toast }) {
                   ) : (
                     <div className="absolute top-2 right-2 z-20 bg-black/75 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20 shadow-sm flex items-center gap-1.5">
                       <span>🖼️</span>
-                      <span>Whole Flyer Banner (No HTML Text Overlay)</span>
+                      <span>Whole Flyer Mode ({previewSlide.fit_mode === 'contain' ? 'Fit Whole' : 'Fill'} - No HTML Text)</span>
                     </div>
                   )}
                 </>
@@ -703,7 +747,7 @@ export default function HeroSlideManager({ toast }) {
                     {/* Delete Button */}
                     <button
                       type="button"
-                      onClick={() => handleDelete(slide)}
+                      onClick={() => handleDeleteClick(slide)}
                       className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer border border-rose-200"
                       title="Delete Slide"
                     >
@@ -769,15 +813,36 @@ export default function HeroSlideManager({ toast }) {
                   }`}>
                     {form.banner_type === 'full_image' ? (
                       <>
-                        <img
-                          src={form.image_url}
-                          alt="Preview"
-                          className="absolute inset-0 w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = HERO_PHOTO_PRESETS[0].url;
-                          }}
-                        />
+                        {form.fit_mode === 'contain' ? (
+                          <>
+                            {/* Ambient Blurred Backdrop */}
+                            <div 
+                              className="absolute inset-0 bg-cover bg-center filter blur-md opacity-40 scale-110"
+                              style={{ backgroundImage: `url(${form.image_url})` }}
+                            />
+                            <div className="absolute inset-0 bg-black/20" />
+                            {/* Uncropped Full Graphic */}
+                            <img
+                              src={form.image_url}
+                              alt="Preview"
+                              className="relative z-10 w-full h-full object-contain drop-shadow-md"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = HERO_PHOTO_PRESETS[0].url;
+                              }}
+                            />
+                          </>
+                        ) : (
+                          <img
+                            src={form.image_url}
+                            alt="Preview"
+                            className="absolute inset-0 w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = HERO_PHOTO_PRESETS[0].url;
+                            }}
+                          />
+                        )}
                         {!form.hide_text ? (
                           <>
                             <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-transparent z-10" />
@@ -907,24 +972,86 @@ export default function HeroSlideManager({ toast }) {
                     </button>
                   </div>
 
-                  {/* If Full Image: Show Hide Text Overlay Toggle */}
+                  {/* If Full Image: Show Hide Text Overlay Toggle & Fit Mode */}
                   {form.banner_type === 'full_image' && (
-                    <div className="p-3 bg-white rounded-xl border border-orange-200 flex items-start gap-3 mt-1 shadow-2xs">
-                      <input
-                        type="checkbox"
-                        id="hide_text_checkbox"
-                        checked={form.hide_text}
-                        onChange={(e) => setForm(prev => ({ ...prev, hide_text: e.target.checked }))}
-                        className="w-4 h-4 rounded text-[#EA4C2A] accent-[#EA4C2A] mt-0.5 cursor-pointer shrink-0"
-                      />
-                      <label htmlFor="hide_text_checkbox" className="text-xs cursor-pointer select-none">
-                        <span className="font-black text-slate-900 block">
-                          My banner image already has text & design (Hide HTML text overlay)
-                        </span>
-                        <span className="text-slate-500 font-medium text-[11px] block mt-0.5">
-                          Turn this on if your image is a ready-made Canva graphic with typography baked in. Tapping anywhere on the banner will open your target menu link.
-                        </span>
-                      </label>
+                    <div className="space-y-2.5">
+                      <div className="p-3 bg-white rounded-xl border border-orange-200 flex items-start gap-3 mt-1 shadow-2xs">
+                        <input
+                          type="checkbox"
+                          id="hide_text_checkbox"
+                          checked={form.hide_text}
+                          onChange={(e) => setForm(prev => ({ ...prev, hide_text: e.target.checked }))}
+                          className="w-4 h-4 rounded text-[#EA4C2A] accent-[#EA4C2A] mt-0.5 cursor-pointer shrink-0"
+                        />
+                        <label htmlFor="hide_text_checkbox" className="text-xs cursor-pointer select-none">
+                          <span className="font-black text-slate-900 block">
+                            My banner image already has text & design (Hide HTML text overlay)
+                          </span>
+                          <span className="text-slate-500 font-medium text-[11px] block mt-0.5">
+                            Turn this on if your image is a ready-made Canva graphic with typography baked in. Tapping anywhere on the banner will open your target menu link.
+                          </span>
+                        </label>
+                      </div>
+
+                      {/* Fitting Mode: Fit Whole Graphic vs Cover */}
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                            <Maximize2 size={13} className="text-[#EA4C2A]" />
+                            <span>Graphic Fit & Sizing Mode</span>
+                          </label>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            {form.fit_mode === 'contain' ? '100% Uncropped (Ambient)' : 'Edge-to-Edge Fill (Cover)'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setForm(prev => ({ ...prev, fit_mode: 'contain' }))}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                              form.fit_mode === 'contain'
+                                ? 'border-[#EA4C2A] bg-orange-50/80 ring-2 ring-orange-500/25'
+                                : 'border-slate-300 bg-white hover:border-slate-400'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                <span>🔍</span>
+                                <span>Fit Whole Graphic (No Crop)</span>
+                              </span>
+                              {form.fit_mode === 'contain' && (
+                                <span className="text-[10px] font-black text-[#EA4C2A] bg-orange-100 px-2 py-0.5 rounded-full">Active</span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium mt-1">
+                              Shows 100% of your graphic/text with a soft ambient backdrop. Zero cropping on any screen size.
+                            </p>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setForm(prev => ({ ...prev, fit_mode: 'cover' }))}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                              form.fit_mode === 'cover'
+                                ? 'border-[#EA4C2A] bg-orange-50/80 ring-2 ring-orange-500/25'
+                                : 'border-slate-300 bg-white hover:border-slate-400'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                <span>📐</span>
+                                <span>Fill Entire Surface (Cover)</span>
+                              </span>
+                              {form.fit_mode === 'cover' && (
+                                <span className="text-[10px] font-black text-[#EA4C2A] bg-orange-100 px-2 py-0.5 rounded-full">Active</span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium mt-1">
+                              Fills the full banner container edge-to-edge. Edges may be cropped slightly on different screen aspect ratios.
+                            </p>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1175,6 +1302,63 @@ export default function HeroSlideManager({ toast }) {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 5. In-App Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmSlide && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-3xl border border-slate-300 shadow-2xl max-w-md w-full overflow-hidden text-slate-900 p-6"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 text-center">
+                Delete Banner Slide?
+              </h3>
+              <p className="text-xs text-slate-600 text-center mt-2 leading-relaxed">
+                Are you sure you want to permanently delete <strong className="text-slate-900">"{deleteConfirmSlide.title || 'Promotional Banner'}"</strong>? It will be removed immediately from the live customer app.
+              </p>
+
+              {deleteConfirmSlide.image_url && (
+                <div className="mt-4 rounded-xl overflow-hidden border border-slate-200 h-24 bg-slate-100">
+                  <img
+                    src={deleteConfirmSlide.image_url}
+                    alt={deleteConfirmSlide.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+
+              <div className="mt-6 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmSlide(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={deletingId === deleteConfirmSlide.id}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                >
+                  {deletingId === deleteConfirmSlide.id ? (
+                    <RotateCw size={14} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={14} />
+                  )}
+                  <span>Yes, Delete Slide</span>
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

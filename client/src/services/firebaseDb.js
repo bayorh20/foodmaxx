@@ -2221,13 +2221,32 @@ export const DEFAULT_HERO_SLIDES = [
 export async function getLiveHeroSlides() {
   try {
     const snap = await getDocs(collection(db, COLL_HERO_SLIDES));
+    let isInitialized = false;
+    try {
+      isInitialized = localStorage.getItem('fmx_hero_slides_initialized') === 'true';
+    } catch (e) {}
+
     if (snap.empty) {
+      if (isInitialized) return [];
+      // Auto-seed defaults into Firestore as real documents
+      for (const d of DEFAULT_HERO_SLIDES) {
+        await setDoc(doc(db, COLL_HERO_SLIDES, d.id), d, { merge: true });
+      }
+      try { localStorage.setItem('fmx_hero_slides_initialized', 'true'); } catch {}
       return DEFAULT_HERO_SLIDES;
     }
+
+    try { localStorage.setItem('fmx_hero_slides_initialized', 'true'); } catch {}
     const slides = [];
     snap.forEach(d => slides.push({ id: d.id, ...d.data() }));
     slides.sort((a, b) => (Number(a.sort_order) || 99) - (Number(b.sort_order) || 99));
-    return slides.length > 0 ? slides : DEFAULT_HERO_SLIDES;
+
+    // Filter out deleted slides
+    let deletedIds = [];
+    try { deletedIds = JSON.parse(localStorage.getItem('fmx_deleted_hero_slides') || '[]'); } catch {}
+    const finalSlides = slides.filter(s => !deletedIds.includes(s.id));
+
+    return finalSlides;
   } catch (err) {
     console.warn('getLiveHeroSlides error:', err);
     try {
@@ -2241,20 +2260,60 @@ export async function getLiveHeroSlides() {
 export function subscribeToLiveHeroSlides(callback) {
   try {
     const q = query(collection(db, COLL_HERO_SLIDES));
-    return onSnapshot(q, (snapshot) => {
+    return onSnapshot(q, async (snapshot) => {
+      let isInitialized = false;
+      try {
+        isInitialized = localStorage.getItem('fmx_hero_slides_initialized') === 'true';
+      } catch (e) {}
+
       if (snapshot.empty) {
+        if (isInitialized) {
+          // Admin deliberately deleted all slides
+          callback([]);
+          return;
+        }
+        // First-time visit: auto-seed defaults into Firestore as real documents!
+        try {
+          for (const d of DEFAULT_HERO_SLIDES) {
+            await setDoc(doc(db, COLL_HERO_SLIDES, d.id), d, { merge: true });
+          }
+          await setDoc(doc(db, COLL_SETTINGS, 'hero_slides_config'), { initialized: true }, { merge: true });
+          localStorage.setItem('fmx_hero_slides_initialized', 'true');
+        } catch (seedErr) {
+          console.warn('Auto-seed hero slides notice:', seedErr);
+        }
         callback(DEFAULT_HERO_SLIDES);
         return;
       }
+
+      try {
+        localStorage.setItem('fmx_hero_slides_initialized', 'true');
+      } catch (e) {}
+
       const slides = [];
       snapshot.forEach(d => slides.push({ id: d.id, ...d.data() }));
       slides.sort((a, b) => (Number(a.sort_order) || 99) - (Number(b.sort_order) || 99));
+
+      // Filter out any explicitly deleted slides to prevent resurrecting
+      let deletedIds = [];
       try {
-        localStorage.setItem('fmx_hero_slides', JSON.stringify(slides));
+        deletedIds = JSON.parse(localStorage.getItem('fmx_deleted_hero_slides') || '[]');
+      } catch (e) {}
+      const finalSlides = slides.filter(s => !deletedIds.includes(s.id));
+
+      try {
+        localStorage.setItem('fmx_hero_slides', JSON.stringify(finalSlides));
       } catch {}
-      callback(slides.length > 0 ? slides : DEFAULT_HERO_SLIDES);
+      callback(finalSlides);
     }, (err) => {
       console.warn('subscribeToLiveHeroSlides snapshot error:', err);
+      try {
+        const stored = localStorage.getItem('fmx_hero_slides');
+        if (stored) {
+          callback(JSON.parse(stored));
+          return;
+        }
+      } catch {}
       callback(DEFAULT_HERO_SLIDES);
     });
   } catch (err) {
@@ -2277,6 +2336,13 @@ export async function createLiveHeroSlide(slideData) {
       updated_at: new Date().toISOString()
     };
     await setDoc(docRef, payload, { merge: true });
+    // Also remove from deleted IDs list if recreating
+    try {
+      const deleted = JSON.parse(localStorage.getItem('fmx_deleted_hero_slides') || '[]');
+      const filtered = deleted.filter(d => d !== id);
+      localStorage.setItem('fmx_deleted_hero_slides', JSON.stringify(filtered));
+      localStorage.setItem('fmx_hero_slides_initialized', 'true');
+    } catch (e) {}
     return payload;
   } catch (err) {
     console.error('createLiveHeroSlide error:', err);
@@ -2292,6 +2358,9 @@ export async function updateLiveHeroSlide(slideId, updates) {
       updated_at: new Date().toISOString()
     };
     await setDoc(docRef, payload, { merge: true });
+    try {
+      localStorage.setItem('fmx_hero_slides_initialized', 'true');
+    } catch (e) {}
     return { id: slideId, ...payload };
   } catch (err) {
     console.error('updateLiveHeroSlide error:', err);
@@ -2301,8 +2370,39 @@ export async function updateLiveHeroSlide(slideId, updates) {
 
 export async function deleteLiveHeroSlide(slideId) {
   try {
-    const docRef = doc(db, COLL_HERO_SLIDES, slideId);
-    await deleteDoc(docRef);
+    // 1. Mark as deleted in local storage immediately so it can never be resurrected
+    try {
+      const deleted = JSON.parse(localStorage.getItem('fmx_deleted_hero_slides') || '[]');
+      if (!deleted.includes(slideId)) {
+        deleted.push(slideId);
+        localStorage.setItem('fmx_deleted_hero_slides', JSON.stringify(deleted));
+      }
+      const stored = JSON.parse(localStorage.getItem('fmx_hero_slides') || '[]');
+      const updated = stored.filter(s => s.id !== slideId);
+      localStorage.setItem('fmx_hero_slides', JSON.stringify(updated));
+      localStorage.setItem('fmx_hero_slides_initialized', 'true');
+      window.dispatchEvent(new CustomEvent('fmx_hero_slides_updated', { detail: updated }));
+    } catch (e) {}
+
+    // 2. Mark initialized in settings so empty collection won't respawn defaults
+    try {
+      const cfgRef = doc(db, COLL_SETTINGS, 'hero_slides_config');
+      await setDoc(cfgRef, { initialized: true, updated_at: new Date().toISOString() }, { merge: true });
+    } catch (e) {}
+
+    // 3. Check if Firestore had only virtual defaults or real docs
+    const snap = await getDocs(collection(db, COLL_HERO_SLIDES));
+    if (snap.empty) {
+      // If Firestore was empty and user deleted one default slide, seed the REMAINING ones!
+      const remaining = DEFAULT_HERO_SLIDES.filter(s => s.id !== slideId);
+      for (const s of remaining) {
+        await setDoc(doc(db, COLL_HERO_SLIDES, s.id), s, { merge: true });
+      }
+    } else {
+      // Physically delete the document from Firestore
+      const docRef = doc(db, COLL_HERO_SLIDES, slideId);
+      await deleteDoc(docRef);
+    }
     return true;
   } catch (err) {
     console.error('deleteLiveHeroSlide error:', err);

@@ -19,11 +19,15 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification?.title || payload.data?.title || 'FoodMaxx Order Update';
+  const photo = payload.notification?.image || payload.data?.image || payload.data?.imageUrl || undefined;
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.body || 'You have a new update from FoodMaxx.',
     icon: payload.notification?.icon || '/foodmaxx-logo.png',
     badge: '/favicon.svg',
-    vibrate: [200, 100, 200],
+    image: photo,
+    requireInteraction: true,
+    renotify: true,
+    vibrate: [300, 150, 300, 150, 300],
     data: {
       url: payload.data?.url || payload.fcmOptions?.link || '/',
       timestamp: Date.now(),

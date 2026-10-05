@@ -109,55 +109,102 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ============================================================
-// WEB PUSH & BACKGROUND NOTIFICATION HANDLERS
+// WEB PUSH & BACKGROUND NOTIFICATION HANDLERS (WORKS EVEN WHEN APP IS CLOSED)
 // Touching notification forces app to open and focus immediately.
 // No website links are shown to the user.
 // ============================================================
 self.addEventListener('push', (event) => {
-  let data = {
-    title: 'FoodMaxx Update',
-    body: 'You have a new update on your FoodMaxx order.',
-    icon: '/foodmaxx-logo.png',
-    badge: '/favicon.svg',
-    url: '/'
-  };
+  const promise = (async () => {
+    let data = {
+      title: 'FoodMaxx Kitchen Update 🔔',
+      body: 'You have a new update on your FoodMaxx order.',
+      icon: '/foodmaxx-logo.png',
+      badge: '/favicon.svg',
+      url: '/'
+    };
 
-  try {
+    let hasData = false;
+
     if (event.data) {
-      const payload = event.data.json();
-      data = { ...data, ...payload };
-    }
-  } catch (e) {
-    if (event.data) {
-      data.body = event.data.text();
-    }
-  }
+      try {
+        const payload = event.data.json();
+        // Support FCM structure { notification: {}, data: {} } and flat Web Push structure
+        const notif = payload.notification || {};
+        const extra = payload.data || {};
 
-  // Strip any raw website URLs from the visible body so links are never shown
-  let cleanBody = String(data.body || '').replace(/https?:\/\/[^\s]+/gi, '').trim();
-
-  const options = {
-    body: cleanBody,
-    icon: data.icon || '/foodmaxx-logo.png',
-    badge: data.badge || '/favicon.svg',
-    image: data.image || data.imageUrl || data.image_url || undefined,
-    tag: data.tag || `fmx_order_${Date.now()}`,
-    renotify: true,
-    requireInteraction: true,
-    vibrate: [200, 100, 200, 100, 200],
-    data: {
-      url: data.url || '/',
-      timestamp: Date.now()
+        data.title = notif.title || extra.title || payload.title || data.title;
+        data.body = notif.body || extra.body || payload.body || payload.message || data.body;
+        data.icon = notif.icon || extra.icon || payload.icon || '/foodmaxx-logo.png';
+        data.image = notif.image || extra.image || extra.imageUrl || payload.image_url || undefined;
+        data.url = extra.url || payload.url || notif.click_action || '/';
+        data.tag = extra.tag || payload.tag || `fmx_${Date.now()}`;
+        hasData = true;
+      } catch (e) {
+        try {
+          const txt = event.data.text();
+          if (txt) {
+            data.body = txt;
+            hasData = true;
+          }
+        } catch {}
+      }
     }
-  };
 
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+    // If push arrived with empty payload (tickle push), fetch latest notification from Firestore REST API
+    if (!hasData) {
+      try {
+        const res = await fetch('https://firestore.googleapis.com/v1/projects/foodmaxxapp/databases/(default)/documents/notification_logs?pageSize=1');
+        if (res.ok) {
+          const json = await res.json();
+          const doc = json.documents?.[0];
+          if (doc && doc.fields) {
+            const fields = doc.fields;
+            data.title = fields.title?.stringValue || data.title;
+            data.body = fields.message?.stringValue || data.body;
+            data.url = fields.url?.stringValue || '/';
+            if (fields.image_url?.stringValue && fields.image_url.stringValue !== '/foodmaxx-logo.png') {
+              data.image = fields.image_url.stringValue;
+            }
+            data.tag = doc.name || `fmx_broadcast_${Date.now()}`;
+          }
+        }
+      } catch (fetchErr) {
+        console.warn('[SW Push] Firestore fallback fetch notice:', fetchErr);
+      }
+    }
+
+    // Strip any raw website URLs from the visible body so links are never shown
+    const cleanBody = String(data.body || '').replace(/https?:\/\/[^\s]+/gi, '').trim();
+
+    const options = {
+      body: cleanBody,
+      icon: data.icon || '/foodmaxx-logo.png',
+      badge: data.badge || '/favicon.svg',
+      image: data.image || undefined,
+      tag: data.tag || `fmx_order_${Date.now()}`,
+      renotify: true,
+      requireInteraction: true,
+      vibrate: [300, 150, 300, 150, 300],
+      actions: [
+        { action: 'open', title: 'Open FoodMaxx 🛵' },
+        { action: 'close', title: 'Dismiss' }
+      ],
+      data: {
+        url: data.url || '/',
+        timestamp: Date.now()
+      }
+    };
+
+    return self.registration.showNotification(data.title, options);
+  })();
+
+  event.waitUntil(promise);
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
+  if (event.action === 'close') return;
 
   const destPath = event.notification.data?.url || '/';
   const targetUrl = new URL(destPath, self.location.origin).href;
@@ -182,6 +229,24 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 self.addEventListener('notificationclose', (event) => {
-  // Notification dismissed
+  // Notification dismissed by user
 });
+
+// Allow client scripts to command background notifications (e.g. 5-second lockscreen test)
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+
+  if (event.data.type === 'SHOW_NOTIFICATION') {
+    const { title, options } = event.data;
+    event.waitUntil(self.registration.showNotification(title || 'FoodMaxx Update', options || {}));
+  }
+
+  if (event.data.type === 'SCHEDULE_NOTIFICATION') {
+    const { title, options, delayMs } = event.data;
+    setTimeout(() => {
+      self.registration.showNotification(title || '🔔 FoodMaxx Alert', options || {});
+    }, delayMs || 5000);
+  }
+});
+
 

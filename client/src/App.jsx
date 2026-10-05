@@ -3043,22 +3043,42 @@ function PromoBanner({ onOrderNow, appCopy }) {
     >
       <div 
         onClick={handleCtaClick}
-        className={`rounded-2xl relative overflow-hidden flex items-center min-h-[105px] sm:min-h-[120px] md:min-h-[135px] shadow-lg shadow-orange-500/15 transition-all duration-500 group cursor-pointer ${
-          isFullImage ? 'bg-slate-900 justify-start' : `bg-gradient-to-r ${gradientClass} px-4 py-3 sm:px-5 sm:py-3.5 justify-between`
+        className={`rounded-2xl relative overflow-hidden flex items-center shadow-lg shadow-orange-500/15 transition-all duration-500 group cursor-pointer ${
+          isFullImage 
+            ? 'bg-slate-950 justify-start w-full min-h-[145px] xs:min-h-[160px] sm:min-h-[185px] md:min-h-[210px] max-h-[260px] aspect-[2.35/1] sm:aspect-[2.7/1]' 
+            : `bg-gradient-to-r ${gradientClass} px-4 py-3 sm:px-5 sm:py-3.5 justify-between min-h-[105px] sm:min-h-[120px] md:min-h-[135px]`
         }`}
       >
         {isFullImage ? (
           <>
-            {/* Full-Bleed Whole Banner Image */}
-            <img 
-              key={imageUrl}
-              onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80'; }} 
-              src={imageUrl} 
-              alt={title} 
-              className="absolute inset-0 w-full h-full object-cover animate-fade-in" 
-              loading="eager"
-              decoding="async"
-            />
+            {/* If fit_mode === 'contain': uncropped whole flyer with soft blurred ambient backdrop */}
+            {currentSlide.fit_mode === 'contain' ? (
+              <>
+                <div 
+                  className="absolute inset-0 bg-cover bg-center filter blur-lg opacity-40 scale-110 pointer-events-none"
+                  style={{ backgroundImage: `url(${imageUrl})` }}
+                />
+                <img 
+                  key={imageUrl}
+                  onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80'; }} 
+                  src={imageUrl} 
+                  alt={title} 
+                  className="relative z-10 w-full h-full object-contain animate-fade-in pointer-events-none drop-shadow-md" 
+                  loading="eager"
+                  decoding="async"
+                />
+              </>
+            ) : (
+              <img 
+                key={imageUrl}
+                onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80'; }} 
+                src={imageUrl} 
+                alt={title} 
+                className="absolute inset-0 w-full h-full object-cover object-center animate-fade-in" 
+                loading="eager"
+                decoding="async"
+              />
+            )}
 
             {!hideText && (
               <>
