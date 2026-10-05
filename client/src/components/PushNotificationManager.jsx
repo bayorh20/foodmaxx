@@ -437,7 +437,20 @@ export default function PushNotificationManager({ toast }) {
           </div>
         </div>
 
-        {permissionStatus !== 'granted' && (
+        {permissionStatus === 'denied' ? (
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl">
+              Blocked in Browser/Device Settings
+            </span>
+            <button
+              type="button"
+              onClick={() => alert("How to enable FoodMaxx push notifications:\n\n1. In Chrome / Mobile browser: Tap the Settings/Tune icon on the left of the URL bar (next to foodmaxxapp.web.app).\n2. Tap 'Permissions' -> 'Notifications' -> choose 'Allow'.\n3. On Android phone: Go to Android Settings -> Apps -> FoodMaxx -> Notifications -> Turn ON.\n4. Reload this page.")}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 text-white font-bold text-xs cursor-pointer hover:bg-black"
+            >
+              How to Unblock 🔓
+            </button>
+          </div>
+        ) : permissionStatus !== 'granted' ? (
           <button
             type="button"
             onClick={handleSubscribeCurrentDevice}
@@ -447,7 +460,7 @@ export default function PushNotificationManager({ toast }) {
             <Bell size={15} />
             <span>{subscribingSelf ? 'Enabling...' : 'Subscribe This Device (1-Click)'}</span>
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* 3. SUBSCRIBER METRICS CARDS */}

@@ -3030,6 +3030,9 @@ function PromoBanner({ onOrderNow, appCopy }) {
     touchStartXRef.current = null;
   };
 
+  const isFullImage = currentSlide.banner_type === 'full_image' || !!currentSlide.full_bleed;
+  const hideText = isFullImage && !!currentSlide.hide_text;
+
   return (
     <div 
       className="px-4 sm:px-0 mb-9 sm:mb-12 w-full select-none"
@@ -3039,55 +3042,120 @@ function PromoBanner({ onOrderNow, appCopy }) {
       onTouchEnd={handleTouchEnd}
     >
       <div 
-        className={`bg-gradient-to-r ${gradientClass} rounded-2xl px-4 py-3 sm:px-5 sm:py-3.5 relative overflow-hidden flex items-center justify-between min-h-[96px] sm:min-h-[104px] shadow-lg shadow-orange-500/15 transition-all duration-500 group`}
+        onClick={handleCtaClick}
+        className={`rounded-2xl relative overflow-hidden flex items-center min-h-[105px] sm:min-h-[120px] md:min-h-[135px] shadow-lg shadow-orange-500/15 transition-all duration-500 group cursor-pointer ${
+          isFullImage ? 'bg-slate-900 justify-start' : `bg-gradient-to-r ${gradientClass} px-4 py-3 sm:px-5 sm:py-3.5 justify-between`
+        }`}
       >
-        {/* Left Content */}
-        <div className="relative z-10 max-w-[68%] sm:max-w-[72%] flex flex-col justify-center">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span 
-              className="text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs"
-              style={{ backgroundColor: badgeBg }}
-            >
-              {badge}
-            </span>
-            {subtitle && (
-              <span className="text-white/90 text-[10px] sm:text-[11px] font-medium hidden xs:inline truncate max-w-[200px]">
-                • {subtitle}
-              </span>
-            )}
-          </div>
+        {isFullImage ? (
+          <>
+            {/* Full-Bleed Whole Banner Image */}
+            <img 
+              key={imageUrl}
+              onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80'; }} 
+              src={imageUrl} 
+              alt={title} 
+              className="absolute inset-0 w-full h-full object-cover animate-fade-in" 
+              loading="eager"
+              decoding="async"
+            />
 
-          <h2 className="text-white text-sm sm:text-base md:text-lg font-black leading-tight mt-1 mb-1 line-clamp-1">
-            {title.replace('\n', ' ')}
-          </h2>
+            {!hideText && (
+              <>
+                {/* Legibility Gradient Scrim */}
+                <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-transparent z-10 pointer-events-none" />
 
-          <div className="flex items-center gap-2 mt-0.5">
-            <button 
-              onClick={handleCtaClick} 
-              className="bg-slate-950 hover:bg-black text-white text-[10px] sm:text-xs font-bold py-1 px-3.5 sm:px-4 rounded-full active:scale-95 transition-transform cursor-pointer shadow-sm hover:shadow"
-            >
-              {ctaText}
-            </button>
-            {subtitle && (
-              <span className="text-white/80 text-[10px] xs:hidden truncate max-w-[120px]">
-                {subtitle}
-              </span>
+                {/* Left Content Overlay */}
+                <div className="relative z-20 max-w-[70%] sm:max-w-[75%] px-4 py-3 sm:px-5 sm:py-3.5 flex flex-col justify-center">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span 
+                      className="text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs"
+                      style={{ backgroundColor: badgeBg }}
+                    >
+                      {badge}
+                    </span>
+                    {subtitle && (
+                      <span className="text-white/90 text-[10px] sm:text-[11px] font-medium hidden xs:inline truncate max-w-[200px] drop-shadow-sm">
+                        • {subtitle}
+                      </span>
+                    )}
+                  </div>
+
+                  <h2 className="text-white text-sm sm:text-base md:text-lg font-black leading-tight mt-1 mb-1 line-clamp-1 drop-shadow-md">
+                    {title.replace('\n', ' ')}
+                  </h2>
+
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <button 
+                      type="button"
+                      onClick={handleCtaClick} 
+                      className="bg-[#EA4C2A] hover:bg-[#D43B1B] text-white text-[10px] sm:text-xs font-bold py-1 px-3.5 sm:px-4 rounded-full active:scale-95 transition-transform cursor-pointer shadow-md inline-flex items-center gap-1"
+                    >
+                      {ctaText}
+                    </button>
+                    {subtitle && (
+                      <span className="text-white/80 text-[10px] xs:hidden truncate max-w-[120px] drop-shadow-sm">
+                        {subtitle}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
-          </div>
-        </div>
-        
-        {/* Slide Photo Artwork */}
-        <div className="absolute -right-2 -bottom-2 w-28 h-28 sm:w-32 sm:h-32 rotate-[-4deg] pointer-events-none drop-shadow-xl shrink-0 transition-transform duration-500 group-hover:scale-105">
-          <img 
-            key={imageUrl}
-            onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=240&q=75'; }} 
-            src={imageUrl} 
-            alt={title} 
-            className="w-full h-full object-cover rounded-2xl shadow-lg border border-white/20 animate-fade-in" 
-            loading="eager"
-            decoding="async"
-          />
-        </div>
+          </>
+        ) : (
+          <>
+            {/* Split Card Layout */}
+            {/* Left Content */}
+            <div className="relative z-10 max-w-[68%] sm:max-w-[72%] flex flex-col justify-center">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span 
+                  className="text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs"
+                  style={{ backgroundColor: badgeBg }}
+                >
+                  {badge}
+                </span>
+                {subtitle && (
+                  <span className="text-white/90 text-[10px] sm:text-[11px] font-medium hidden xs:inline truncate max-w-[200px]">
+                    • {subtitle}
+                  </span>
+                )}
+              </div>
+
+              <h2 className="text-white text-sm sm:text-base md:text-lg font-black leading-tight mt-1 mb-1 line-clamp-1">
+                {title.replace('\n', ' ')}
+              </h2>
+
+              <div className="flex items-center gap-2 mt-0.5">
+                <button 
+                  type="button"
+                  onClick={handleCtaClick} 
+                  className="bg-slate-950 hover:bg-black text-white text-[10px] sm:text-xs font-bold py-1 px-3.5 sm:px-4 rounded-full active:scale-95 transition-transform cursor-pointer shadow-sm hover:shadow"
+                >
+                  {ctaText}
+                </button>
+                {subtitle && (
+                  <span className="text-white/80 text-[10px] xs:hidden truncate max-w-[120px]">
+                    {subtitle}
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {/* Slide Photo Artwork */}
+            <div className="absolute -right-2 -bottom-2 w-28 h-28 sm:w-32 sm:h-32 rotate-[-4deg] pointer-events-none drop-shadow-xl shrink-0 transition-transform duration-500 group-hover:scale-105">
+              <img 
+                key={imageUrl}
+                onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=240&q=75'; }} 
+                src={imageUrl} 
+                alt={title} 
+                className="w-full h-full object-cover rounded-2xl shadow-lg border border-white/20 animate-fade-in" 
+                loading="eager"
+                decoding="async"
+              />
+            </div>
+          </>
+        )}
 
         {/* Carousel Navigation Arrows (Desktop / Hover) */}
         {activeSlides.length > 1 && (
@@ -3096,7 +3164,7 @@ function PromoBanner({ onOrderNow, appCopy }) {
               type="button"
               onClick={handlePrev}
               aria-label="Previous slide"
-              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/30 hover:bg-black/60 text-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-pointer backdrop-blur-xs"
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/40 hover:bg-black/70 text-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30 cursor-pointer backdrop-blur-xs shadow-xs"
             >
               <ChevronLeft size={14} />
             </button>
@@ -3104,7 +3172,9 @@ function PromoBanner({ onOrderNow, appCopy }) {
               type="button"
               onClick={handleNext}
               aria-label="Next slide"
-              className="absolute right-28 sm:right-32 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/30 hover:bg-black/60 text-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-pointer backdrop-blur-xs"
+              className={`absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/40 hover:bg-black/70 text-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30 cursor-pointer backdrop-blur-xs shadow-xs ${
+                isFullImage ? 'right-2' : 'right-28 sm:right-32'
+              }`}
             >
               <ChevronRight size={14} />
             </button>
@@ -3113,15 +3183,15 @@ function PromoBanner({ onOrderNow, appCopy }) {
 
         {/* Dot Indicators */}
         {activeSlides.length > 1 && (
-          <div className="absolute bottom-1.5 left-4 sm:left-5 flex items-center gap-1 z-20">
+          <div className="absolute bottom-2 left-4 sm:left-5 flex items-center gap-1 z-30">
             {activeSlides.map((slide, idx) => (
               <button
                 key={slide.id || idx}
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setCurrentIdx(idx); }}
                 aria-label={`Go to slide ${idx + 1}`}
-                className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                  currentIdx === idx ? 'w-5 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'
+                className={`h-1.5 rounded-full transition-all cursor-pointer shadow-xs ${
+                  currentIdx === idx ? 'w-5 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/80'
                 }`}
               />
             ))}

@@ -328,6 +328,20 @@ export async function triggerLocalPushNotification(title, options = {}) {
   };
 
   try {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        try {
+          const perm = await Notification.requestPermission();
+          localStorage.setItem(PUSH_PERMISSION_KEY, perm);
+          window.dispatchEvent(new CustomEvent('fmx_notification_permission_changed', { detail: perm }));
+        } catch {}
+      }
+      if (Notification.permission !== 'granted') {
+        console.warn('[FoodMaxx Push] Notification permission not granted:', Notification.permission);
+        return false;
+      }
+    }
+
     if ('serviceWorker' in navigator) {
       const reg = await navigator.serviceWorker.ready.catch(() => null);
       if (reg && reg.showNotification) {
@@ -490,11 +504,18 @@ export async function autoInitPushNotifications(userId = null) {
   if (Capacitor.isNativePlatform()) {
     try {
       await configureNativePushListeners(userId);
-      const perm = await PushNotifications.checkPermissions();
-      if (perm.receive === 'granted') {
-        await PushNotifications.register().catch(e => console.warn('[FoodMaxx Push] Auto-init register notice:', e));
+      let perm = await PushNotifications.checkPermissions();
+      if (perm.receive !== 'granted') {
+        perm = await PushNotifications.requestPermissions();
       }
-    } catch {}
+      if (perm.receive === 'granted') {
+        localStorage.setItem(PUSH_PERMISSION_KEY, 'granted');
+        await PushNotifications.register().catch(e => console.warn('[FoodMaxx Push] Auto-init register notice:', e));
+        await ensureDeviceRegistered(userId);
+      }
+    } catch (e) {
+      console.warn('[FoodMaxx Push] Native init error:', e);
+    }
     return;
   }
 

@@ -77,6 +77,8 @@ export default function HeroSlideManager({ toast }) {
   const [saving, setSaving] = useState(false);
   const [activePreviewIdx, setActivePreviewIdx] = useState(0);
   const fileInputRef = useRef(null);
+  const quickFileInputRef = useRef(null);
+  const [quickTargetSlideId, setQuickTargetSlideId] = useState(null);
 
   // Form State
   const [form, setForm] = useState({
@@ -85,6 +87,8 @@ export default function HeroSlideManager({ toast }) {
     badge: 'SPECIAL OFFER',
     badge_bg: '#EA4C2A',
     image_url: HERO_PHOTO_PRESETS[0].url,
+    banner_type: 'full_image', // 'full_image' (whole banner graphic) | 'split' (gradient + dish cutout)
+    hide_text: false,
     cta_text: 'Order Now →',
     cta_link: 'all',
     gradient: HERO_GRADIENT_PRESETS[0].class,
@@ -113,6 +117,8 @@ export default function HeroSlideManager({ toast }) {
       badge: 'SPECIAL OFFER',
       badge_bg: '#EA4C2A',
       image_url: HERO_PHOTO_PRESETS[Math.floor(Math.random() * HERO_PHOTO_PRESETS.length)].url,
+      banner_type: 'full_image',
+      hide_text: false,
       cta_text: 'Order Now →',
       cta_link: 'all',
       gradient: HERO_GRADIENT_PRESETS[0].class,
@@ -131,6 +137,8 @@ export default function HeroSlideManager({ toast }) {
       badge: slide.badge || 'SPECIAL OFFER',
       badge_bg: slide.badge_bg || '#EA4C2A',
       image_url: slide.image_url || HERO_PHOTO_PRESETS[0].url,
+      banner_type: slide.banner_type || 'split',
+      hide_text: !!slide.hide_text,
       cta_text: slide.cta_text || 'Order Now →',
       cta_link: slide.cta_link || 'all',
       gradient: slide.gradient || HERO_GRADIENT_PRESETS[0].class,
@@ -140,7 +148,70 @@ export default function HeroSlideManager({ toast }) {
     setModalOpen(true);
   };
 
-  // Compress & set uploaded photo via Canvas
+  // Quick 1-click replace of any slide's banner image from slide list
+  const handleTriggerQuickReplace = (slideId) => {
+    setQuickTargetSlideId(slideId);
+    if (quickFileInputRef.current) {
+      quickFileInputRef.current.value = '';
+      quickFileInputRef.current.click();
+    }
+  };
+
+  const handleQuickPhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !quickTargetSlideId) return;
+
+    if (!file.type.startsWith('image/')) {
+      if (typeof toast === 'function') toast('Please select an image file (JPG, PNG, WebP)', 'error');
+      return;
+    }
+
+    const targetId = quickTargetSlideId;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const maxW = 1200;
+        const maxH = 650;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxW || height > maxH) {
+          if (width / height > maxW / maxH) {
+            height = Math.round((height * maxW) / width);
+            width = maxW;
+          } else {
+            width = Math.round((width * maxH) / height);
+            height = maxH;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        try {
+          await updateLiveHeroSlide(targetId, {
+            image_url: compressedDataUrl,
+            banner_type: 'full_image'
+          });
+          if (typeof toast === 'function') toast('Whole banner image replaced and published live! 🚀', 'success');
+        } catch (err) {
+          console.error('Error replacing banner image:', err);
+          if (typeof toast === 'function') toast('Failed to update banner image', 'error');
+        } finally {
+          setQuickTargetSlideId(null);
+        }
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Compress & set uploaded photo via Canvas for modal
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -155,8 +226,8 @@ export default function HeroSlideManager({ toast }) {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const maxW = 900;
-        const maxH = 600;
+        const maxW = 1200;
+        const maxH = 650;
         let width = img.width;
         let height = img.height;
 
@@ -176,9 +247,9 @@ export default function HeroSlideManager({ toast }) {
         ctx.drawImage(img, 0, 0, width, height);
 
         // Compress to lightweight high-quality JPEG
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
         setForm(prev => ({ ...prev, image_url: compressedDataUrl }));
-        if (typeof toast === 'function') toast('Photo uploaded & optimized successfully! 📸', 'success');
+        if (typeof toast === 'function') toast('Banner graphic uploaded & optimized successfully! 📸', 'success');
       };
       img.src = event.target.result;
     };
@@ -188,23 +259,29 @@ export default function HeroSlideManager({ toast }) {
   // Save or update slide
   const handleSaveSlide = async (e) => {
     e.preventDefault();
-    if (!form.title.trim()) {
-      if (typeof toast === 'function') toast('Please enter a headline title for the slide', 'error');
+    const resolvedTitle = form.title.trim() || (form.hide_text ? 'Promotional Banner Graphic' : '');
+    if (!resolvedTitle) {
+      if (typeof toast === 'function') toast('Please enter a headline title or label for the slide', 'error');
       return;
     }
 
     if (!form.image_url) {
-      if (typeof toast === 'function') toast('Please upload or select a food photo for the banner', 'error');
+      if (typeof toast === 'function') toast('Please upload or select an image for the banner', 'error');
       return;
     }
+
+    const payload = {
+      ...form,
+      title: resolvedTitle
+    };
 
     setSaving(true);
     try {
       if (editingSlide?.id) {
-        await updateLiveHeroSlide(editingSlide.id, form);
+        await updateLiveHeroSlide(editingSlide.id, payload);
         if (typeof toast === 'function') toast('Hero slide updated & published live! ✨', 'success');
       } else {
-        await createLiveHeroSlide(form);
+        await createLiveHeroSlide(payload);
         if (typeof toast === 'function') toast('New hero slide created & published live! 🚀', 'success');
       }
       setModalOpen(false);
@@ -343,47 +420,110 @@ export default function HeroSlideManager({ toast }) {
           )}
         </div>
 
+        {/* Hidden Quick Replace File Input */}
+        <input
+          type="file"
+          ref={quickFileInputRef}
+          onChange={handleQuickPhotoUpload}
+          accept="image/*"
+          className="hidden"
+        />
+
         {/* The Live Rendered Banner Card */}
         {previewSlide ? (
           <div className="max-w-xl mx-auto w-full">
-            <div className={`bg-gradient-to-r ${previewSlide.gradient || 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]'} rounded-2xl px-5 py-4 relative overflow-hidden flex items-center justify-between min-h-[105px] shadow-xl border border-white/15`}>
-              <div className="relative z-10 max-w-[70%] sm:max-w-[75%] flex flex-col justify-center">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className="bg-white/25 backdrop-blur-xs text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-white/20">
-                    {previewSlide.badge || 'SPECIAL OFFER'}
-                  </span>
-                </div>
+            <div className={`rounded-2xl relative overflow-hidden flex items-center min-h-[110px] sm:min-h-[125px] shadow-xl border border-white/15 transition-all ${
+              previewSlide.banner_type === 'full_image'
+                ? 'bg-slate-900 justify-start'
+                : `bg-gradient-to-r ${previewSlide.gradient || 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]'} px-5 py-4 justify-between`
+            }`}>
+              {previewSlide.banner_type === 'full_image' ? (
+                <>
+                  <img
+                    src={previewSlide.image_url}
+                    alt={previewSlide.title}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = HERO_PHOTO_PRESETS[0].url;
+                    }}
+                  />
+                  {!previewSlide.hide_text ? (
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-transparent z-10" />
+                      <div className="relative z-20 max-w-[70%] sm:max-w-[75%] px-5 py-4 flex flex-col justify-center">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="bg-white/25 backdrop-blur-xs text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-white/20">
+                            {previewSlide.badge || 'SPECIAL OFFER'}
+                          </span>
+                        </div>
 
-                <h3 className="text-white text-base sm:text-lg font-black leading-tight truncate drop-shadow-xs">
-                  {previewSlide.title || 'Fresh Meals, Fast Delivery'}
-                </h3>
+                        <h3 className="text-white text-base sm:text-lg font-black leading-tight truncate drop-shadow-md">
+                          {previewSlide.title || 'Fresh Meals, Fast Delivery'}
+                        </h3>
 
-                <p className="text-white/90 text-xs font-medium line-clamp-1 mt-0.5 drop-shadow-xs">
-                  {previewSlide.subtitle || 'Hot & delicious Nigerian meals delivered to your doorstep.'}
-                </p>
+                        <p className="text-white/90 text-xs font-medium line-clamp-1 mt-0.5 drop-shadow-sm">
+                          {previewSlide.subtitle || 'Hot & delicious Nigerian meals delivered to your doorstep.'}
+                        </p>
 
-                <div className="flex items-center gap-2 mt-2.5">
-                  <span className="bg-slate-950 hover:bg-black text-white text-xs font-bold py-1 px-4 rounded-full shadow-md inline-flex items-center gap-1">
-                    {previewSlide.cta_text || 'Order Now →'}
-                  </span>
-                  <span className="text-[10px] text-white/75 font-semibold">
-                    Target: #{previewSlide.cta_link || 'all'}
-                  </span>
-                </div>
-              </div>
+                        <div className="flex items-center gap-2 mt-2.5">
+                          <span className="bg-[#EA4C2A] text-white text-xs font-bold py-1 px-4 rounded-full shadow-md inline-flex items-center gap-1">
+                            {previewSlide.cta_text || 'Order Now →'}
+                          </span>
+                          <span className="text-[10px] text-white/75 font-semibold drop-shadow-xs">
+                            Target: #{previewSlide.cta_link || 'all'}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="absolute top-2 right-2 z-20 bg-black/75 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20 shadow-sm flex items-center gap-1.5">
+                      <span>🖼️</span>
+                      <span>Whole Flyer Banner (No HTML Text Overlay)</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="relative z-10 max-w-[70%] sm:max-w-[75%] flex flex-col justify-center">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="bg-white/25 backdrop-blur-xs text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-white/20">
+                        {previewSlide.badge || 'SPECIAL OFFER'}
+                      </span>
+                    </div>
 
-              {/* Uploaded / Selected Food Artwork */}
-              <div className="absolute -right-3 -bottom-3 w-28 h-28 sm:w-32 sm:h-32 rotate-[-6deg] drop-shadow-2xl shrink-0">
-                <img
-                  src={previewSlide.image_url}
-                  alt={previewSlide.title}
-                  className="w-full h-full object-cover rounded-2xl shadow-xl border-2 border-white/30"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = HERO_PHOTO_PRESETS[0].url;
-                  }}
-                />
-              </div>
+                    <h3 className="text-white text-base sm:text-lg font-black leading-tight truncate drop-shadow-xs">
+                      {previewSlide.title || 'Fresh Meals, Fast Delivery'}
+                    </h3>
+
+                    <p className="text-white/90 text-xs font-medium line-clamp-1 mt-0.5 drop-shadow-xs">
+                      {previewSlide.subtitle || 'Hot & delicious Nigerian meals delivered to your doorstep.'}
+                    </p>
+
+                    <div className="flex items-center gap-2 mt-2.5">
+                      <span className="bg-slate-950 hover:bg-black text-white text-xs font-bold py-1 px-4 rounded-full shadow-md inline-flex items-center gap-1">
+                        {previewSlide.cta_text || 'Order Now →'}
+                      </span>
+                      <span className="text-[10px] text-white/75 font-semibold">
+                        Target: #{previewSlide.cta_link || 'all'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Uploaded / Selected Food Artwork */}
+                  <div className="absolute -right-3 -bottom-3 w-28 h-28 sm:w-32 sm:h-32 rotate-[-6deg] drop-shadow-2xl shrink-0">
+                    <img
+                      src={previewSlide.image_url}
+                      alt={previewSlide.title}
+                      className="w-full h-full object-cover rounded-2xl shadow-xl border-2 border-white/30"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = HERO_PHOTO_PRESETS[0].url;
+                      }}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -428,127 +568,151 @@ export default function HeroSlideManager({ toast }) {
           </div>
         ) : (
           <div className="space-y-3">
-            {slides.map((slide, idx) => (
-              <div
-                key={slide.id || idx}
-                className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                  slide.active !== false
-                    ? 'bg-white border-slate-300 hover:border-slate-400 shadow-xs'
-                    : 'bg-slate-50/75 border-slate-200 opacity-60'
-                }`}
-              >
-                {/* Left: Ordering + Image Thumbnail + Info */}
-                <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                  {/* Sorting Buttons */}
-                  <div className="flex flex-col gap-1 shrink-0">
+            {slides.map((slide, idx) => {
+              const isFull = slide.banner_type === 'full_image';
+              return (
+                <div
+                  key={slide.id || idx}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                    slide.active !== false
+                      ? 'bg-white border-slate-300 hover:border-slate-400 shadow-xs'
+                      : 'bg-slate-50/75 border-slate-200 opacity-60'
+                  }`}
+                >
+                  {/* Left: Ordering + Image Thumbnail + Info */}
+                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                    {/* Sorting Buttons */}
+                    <div className="flex flex-col gap-1 shrink-0">
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => handleMove(idx, -1)}
+                        className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 transition-colors"
+                        title="Move Up"
+                      >
+                        <ArrowUp size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === slides.length - 1}
+                        onClick={() => handleMove(idx, 1)}
+                        className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 transition-colors"
+                        title="Move Down"
+                      >
+                        <ArrowDown size={13} />
+                      </button>
+                    </div>
+
+                    {/* Thumbnail */}
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200 relative group">
+                      <img
+                        src={slide.image_url}
+                        alt={slide.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = HERO_PHOTO_PRESETS[0].url;
+                        }}
+                      />
+                      <div className="absolute top-1 left-1 bg-black/70 text-white font-mono text-[9px] px-1 rounded font-bold">
+                        #{idx + 1}
+                      </div>
+                    </div>
+
+                    {/* Text Details */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-50 text-orange-800 border border-orange-200">
+                          {slide.badge || 'PROMO'}
+                        </span>
+
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          isFull
+                            ? 'bg-amber-50 text-amber-900 border-amber-300'
+                            : 'bg-indigo-50 text-indigo-900 border-indigo-200'
+                        }`}>
+                          {isFull ? (slide.hide_text ? '🖼️ Whole Flyer (No text)' : '🖼️ Full Banner') : '🎴 Split Card'}
+                        </span>
+
+                        {slide.active === false ? (
+                          <span className="text-[10px] font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
+                            Hidden (Inactive)
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Live on Home Screen
+                          </span>
+                        )}
+                      </div>
+
+                      <h5 className="font-black text-sm text-slate-900 mt-1 truncate">
+                        {slide.title}
+                      </h5>
+
+                      <p className="text-xs text-slate-500 truncate mt-0.5">
+                        {slide.subtitle || (isFull && slide.hide_text ? 'Whole graphic banner displayed edge-to-edge' : 'No subtitle provided')}
+                      </p>
+
+                      <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-600 font-semibold">
+                        <span>CTA: <strong className="text-slate-900">{slide.cta_text || 'Order Now →'}</strong></span>
+                        <span>Target: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[#EA4C2A]">{slide.cta_link || 'all'}</code></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Actions */}
+                  <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 flex-wrap">
+                    {/* Active Toggle Switch */}
                     <button
                       type="button"
-                      disabled={idx === 0}
-                      onClick={() => handleMove(idx, -1)}
-                      className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 transition-colors"
-                      title="Move Up"
+                      onClick={() => handleToggleActive(slide)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        slide.active !== false
+                          ? 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300'
+                      }`}
+                      title={slide.active !== false ? 'Hide from customer app' : 'Publish to customer app'}
                     >
-                      <ArrowUp size={13} />
+                      {slide.active !== false ? <Eye size={14} /> : <EyeOff size={14} />}
+                      <span>{slide.active !== false ? 'Active' : 'Hidden'}</span>
                     </button>
+
+                    {/* Quick 1-Click Replace Banner Button */}
                     <button
                       type="button"
-                      disabled={idx === slides.length - 1}
-                      onClick={() => handleMove(idx, 1)}
-                      className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 transition-colors"
-                      title="Move Down"
+                      onClick={() => handleTriggerQuickReplace(slide.id)}
+                      className="px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#EA4C2A] font-bold text-xs transition-colors cursor-pointer border border-orange-200 flex items-center gap-1.5 shadow-2xs"
+                      title="Replace this slide's whole banner image from device"
                     >
-                      <ArrowDown size={13} />
+                      <Upload size={13} />
+                      <span>Replace Banner</span>
+                    </button>
+
+                    {/* Edit Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(slide)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors cursor-pointer border border-slate-300 flex items-center gap-1.5"
+                      title="Edit Slide Details"
+                    >
+                      <Edit3 size={13} />
+                      <span>Edit</span>
+                    </button>
+
+                    {/* Delete Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(slide)}
+                      className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer border border-rose-200"
+                      title="Delete Slide"
+                    >
+                      <Trash2 size={15} />
                     </button>
                   </div>
-
-                  {/* Thumbnail */}
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200 relative group">
-                    <img
-                      src={slide.image_url}
-                      alt={slide.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = HERO_PHOTO_PRESETS[0].url;
-                      }}
-                    />
-                    <div className="absolute top-1 left-1 bg-black/70 text-white font-mono text-[9px] px-1 rounded font-bold">
-                      #{idx + 1}
-                    </div>
-                  </div>
-
-                  {/* Text Details */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-50 text-orange-800 border border-orange-200">
-                        {slide.badge || 'PROMO'}
-                      </span>
-                      {slide.active === false ? (
-                        <span className="text-[10px] font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
-                          Hidden (Inactive)
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                          Live on Home Screen
-                        </span>
-                      )}
-                    </div>
-
-                    <h5 className="font-black text-sm text-slate-900 mt-1 truncate">
-                      {slide.title}
-                    </h5>
-
-                    <p className="text-xs text-slate-500 truncate mt-0.5">
-                      {slide.subtitle || 'No subtitle provided'}
-                    </p>
-
-                    <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-600 font-semibold">
-                      <span>CTA: <strong className="text-slate-900">{slide.cta_text || 'Order Now →'}</strong></span>
-                      <span>Target: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[#EA4C2A]">{slide.cta_link || 'all'}</code></span>
-                    </div>
-                  </div>
                 </div>
-
-                {/* Right: Actions */}
-                <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
-                  {/* Active Toggle Switch */}
-                  <button
-                    type="button"
-                    onClick={() => handleToggleActive(slide)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
-                      slide.active !== false
-                        ? 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300'
-                    }`}
-                    title={slide.active !== false ? 'Hide from customer app' : 'Publish to customer app'}
-                  >
-                    {slide.active !== false ? <Eye size={14} /> : <EyeOff size={14} />}
-                    <span>{slide.active !== false ? 'Active' : 'Hidden'}</span>
-                  </button>
-
-                  {/* Edit Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(slide)}
-                    className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors cursor-pointer border border-slate-300"
-                    title="Edit Slide"
-                  >
-                    <Edit3 size={15} />
-                  </button>
-
-                  {/* Delete Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(slide)}
-                    className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer border border-rose-200"
-                    title="Delete Slide"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -589,50 +753,191 @@ export default function HeroSlideManager({ toast }) {
               <form onSubmit={handleSaveSlide} className="p-5 overflow-y-auto space-y-5 flex-1">
                 {/* Live Real-Time Mini Preview Inside Modal */}
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                    Live Mobile Preview
-                  </label>
-                  <div className={`bg-gradient-to-r ${form.gradient || 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]'} rounded-2xl px-4 py-3 relative overflow-hidden flex items-center justify-between min-h-[90px] shadow-md border border-white/20`}>
-                    <div className="relative z-10 max-w-[70%] flex flex-col justify-center">
-                      <span className="bg-white/25 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full w-fit mb-1 border border-white/20">
-                        {form.badge || 'PROMO'}
-                      </span>
-                      <h4 className="text-white text-sm sm:text-base font-black leading-tight truncate">
-                        {form.title || 'Slide Title Appears Here'}
-                      </h4>
-                      <p className="text-white/85 text-[11px] font-medium line-clamp-1 mt-0.5">
-                        {form.subtitle || 'Slide subtitle description goes here.'}
-                      </p>
-                      <div className="mt-2">
-                        <span className="bg-slate-950 text-white text-[10px] font-bold py-1 px-3 rounded-full shadow-xs">
-                          {form.cta_text || 'Order Now →'}
-                        </span>
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
+                      Live Customer App Preview
+                    </label>
+                    <span className="text-[11px] font-bold text-[#EA4C2A]">
+                      {form.banner_type === 'full_image' ? (form.hide_text ? 'Full Graphic (No HTML Text)' : 'Full Banner + Text Overlay') : 'Split Card (Dish Cutout)'}
+                    </span>
+                  </div>
 
-                    <div className="absolute -right-2 -bottom-2 w-24 h-24 rotate-[-6deg] drop-shadow-xl shrink-0">
-                      <img
-                        src={form.image_url}
-                        alt="Preview"
-                        className="w-full h-full object-cover rounded-xl shadow-lg border border-white/30"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = HERO_PHOTO_PRESETS[0].url;
-                        }}
-                      />
-                    </div>
+                  <div className={`rounded-2xl relative overflow-hidden flex items-center min-h-[96px] sm:min-h-[110px] shadow-md border border-slate-200 transition-all ${
+                    form.banner_type === 'full_image'
+                      ? 'bg-slate-900 justify-start'
+                      : `bg-gradient-to-r ${form.gradient || 'from-[#FF5525] via-[#FF6036] to-[#EA4C2A]'} px-4 py-3 justify-between`
+                  }`}>
+                    {form.banner_type === 'full_image' ? (
+                      <>
+                        <img
+                          src={form.image_url}
+                          alt="Preview"
+                          className="absolute inset-0 w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = HERO_PHOTO_PRESETS[0].url;
+                          }}
+                        />
+                        {!form.hide_text ? (
+                          <>
+                            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-transparent z-10" />
+                            <div className="relative z-20 max-w-[70%] px-4 py-3 flex flex-col justify-center">
+                              <span className="bg-white/25 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full w-fit mb-1 border border-white/20">
+                                {form.badge || 'PROMO'}
+                              </span>
+                              <h4 className="text-white text-sm sm:text-base font-black leading-tight truncate drop-shadow-md">
+                                {form.title || 'Slide Title Appears Here'}
+                              </h4>
+                              <p className="text-white/85 text-[11px] font-medium line-clamp-1 mt-0.5 drop-shadow-sm">
+                                {form.subtitle || 'Slide subtitle description goes here.'}
+                              </p>
+                              <div className="mt-2">
+                                <span className="bg-[#EA4C2A] text-white text-[10px] font-bold py-1 px-3 rounded-full shadow-xs inline-flex items-center gap-1">
+                                  {form.cta_text || 'Order Now →'}
+                                </span>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="absolute top-2 right-2 z-20 bg-black/75 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20 flex items-center gap-1">
+                            <span>🖼️ Whole Flyer Mode (Clean graphic, no text overlay)</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="relative z-10 max-w-[70%] flex flex-col justify-center">
+                          <span className="bg-white/25 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full w-fit mb-1 border border-white/20">
+                            {form.badge || 'PROMO'}
+                          </span>
+                          <h4 className="text-white text-sm sm:text-base font-black leading-tight truncate">
+                            {form.title || 'Slide Title Appears Here'}
+                          </h4>
+                          <p className="text-white/85 text-[11px] font-medium line-clamp-1 mt-0.5">
+                            {form.subtitle || 'Slide subtitle description goes here.'}
+                          </p>
+                          <div className="mt-2">
+                            <span className="bg-slate-950 text-white text-[10px] font-bold py-1 px-3 rounded-full shadow-xs">
+                              {form.cta_text || 'Order Now →'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="absolute -right-2 -bottom-2 w-24 h-24 rotate-[-6deg] drop-shadow-xl shrink-0">
+                          <img
+                            src={form.image_url}
+                            alt="Preview"
+                            className="w-full h-full object-cover rounded-xl shadow-lg border border-white/30"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = HERO_PHOTO_PRESETS[0].url;
+                            }}
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {/* Photo Upload Area */}
+                {/* 1. Presentation Style Selector */}
+                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                      <Layers size={14} className="text-[#EA4C2A]" />
+                      <span>1. Choose Banner Presentation Style</span>
+                    </label>
+                    <span className="text-[11px] font-bold text-slate-500">
+                      Edge-to-Edge or Split Card
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Option A: Full Graphic Banner */}
+                    <button
+                      type="button"
+                      onClick={() => setForm(prev => ({ ...prev, banner_type: 'full_image' }))}
+                      className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        form.banner_type === 'full_image'
+                          ? 'border-[#EA4C2A] bg-orange-50/70 ring-2 ring-orange-500/25'
+                          : 'border-slate-300 bg-white hover:border-slate-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🖼️</span>
+                          <div>
+                            <p className="text-xs font-black text-slate-900">Whole Banner Graphic</p>
+                            <p className="text-[10px] font-bold text-[#EA4C2A]">Edge-to-Edge Flyer / Poster</p>
+                          </div>
+                        </div>
+                        {form.banner_type === 'full_image' && (
+                          <span className="w-5 h-5 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center text-[10px] font-black">✓</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-medium mt-2">
+                        Your uploaded image fills the entire banner container (100% width & height). Ideal for Canva promotional flyers.
+                      </p>
+                    </button>
+
+                    {/* Option B: Split Card Layout */}
+                    <button
+                      type="button"
+                      onClick={() => setForm(prev => ({ ...prev, banner_type: 'split' }))}
+                      className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        form.banner_type === 'split'
+                          ? 'border-[#EA4C2A] bg-orange-50/70 ring-2 ring-orange-500/25'
+                          : 'border-slate-300 bg-white hover:border-slate-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🎴</span>
+                          <div>
+                            <p className="text-xs font-black text-slate-900">Split Card Layout</p>
+                            <p className="text-[10px] font-bold text-slate-500">Dish Cutout + Colored Gradient</p>
+                          </div>
+                        </div>
+                        {form.banner_type === 'split' && (
+                          <span className="w-5 h-5 rounded-full bg-[#EA4C2A] text-white flex items-center justify-center text-[10px] font-black">✓</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-medium mt-2">
+                        Colored gradient background on left with headline text, and an angled dish cutout photo floating on right.
+                      </p>
+                    </button>
+                  </div>
+
+                  {/* If Full Image: Show Hide Text Overlay Toggle */}
+                  {form.banner_type === 'full_image' && (
+                    <div className="p-3 bg-white rounded-xl border border-orange-200 flex items-start gap-3 mt-1 shadow-2xs">
+                      <input
+                        type="checkbox"
+                        id="hide_text_checkbox"
+                        checked={form.hide_text}
+                        onChange={(e) => setForm(prev => ({ ...prev, hide_text: e.target.checked }))}
+                        className="w-4 h-4 rounded text-[#EA4C2A] accent-[#EA4C2A] mt-0.5 cursor-pointer shrink-0"
+                      />
+                      <label htmlFor="hide_text_checkbox" className="text-xs cursor-pointer select-none">
+                        <span className="font-black text-slate-900 block">
+                          My banner image already has text & design (Hide HTML text overlay)
+                        </span>
+                        <span className="text-slate-500 font-medium text-[11px] block mt-0.5">
+                          Turn this on if your image is a ready-made Canva graphic with typography baked in. Tapping anywhere on the banner will open your target menu link.
+                        </span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Photo Upload Area */}
                 <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
                       <Upload size={14} className="text-[#EA4C2A]" />
-                      <span>1. Upload Food Photography</span>
+                      <span>2. Upload Banner Graphic or Photo</span>
                     </label>
                     <span className="text-[11px] font-semibold text-slate-500">
-                      JPG, PNG, WebP (Auto-compressed)
+                      JPG, PNG, WebP (Auto-compressed to 1200px)
                     </span>
                   </div>
 
@@ -651,7 +956,7 @@ export default function HeroSlideManager({ toast }) {
                       className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white border border-slate-300 hover:border-slate-400 font-bold text-xs text-slate-900 flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors shrink-0"
                     >
                       <Upload size={15} className="text-[#EA4C2A]" />
-                      <span>Upload from Device / Phone Camera</span>
+                      <span>Upload from Device / Phone Camera / Canva</span>
                     </button>
 
                     <span className="text-xs text-slate-400 font-bold">OR</span>
@@ -671,10 +976,10 @@ export default function HeroSlideManager({ toast }) {
                         <img 
                           src={form.image_url} 
                           alt="Selected" 
-                          className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0" 
+                          className="w-10 h-8 rounded-lg object-cover border border-slate-200 shrink-0" 
                         />
                         <span className="text-slate-700 font-semibold truncate">
-                          {form.image_url.startsWith('data:') ? 'Custom photo uploaded from device' : form.image_url}
+                          {form.image_url.startsWith('data:') ? 'Custom banner uploaded from device' : form.image_url}
                         </span>
                       </div>
                       <button
@@ -688,64 +993,87 @@ export default function HeroSlideManager({ toast }) {
                   )}
                 </div>
 
-                {/* Text Information */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Headline Title */}
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-black text-slate-700 mb-1">
-                      Headline Title <span className="text-rose-500">*</span>
+                {/* 3. Text Information & Target Action */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                      <Tag size={14} className="text-[#EA4C2A]" />
+                      <span>3. Slide Details & Action Target</span>
                     </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Smoky Firewood Jollof & Asun"
-                      value={form.title}
-                      onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-hidden focus:border-[#EA4C2A]"
-                    />
                   </div>
 
-                  {/* Subtitle / Offer Details */}
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-black text-slate-700 mb-1">
-                      Subtitle / Promotion Offer Description
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Authentic party jollof with crispy plantain & grilled beef"
-                      value={form.subtitle}
-                      onChange={(e) => setForm(prev => ({ ...prev, subtitle: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-hidden focus:border-[#EA4C2A]"
-                    />
-                  </div>
+                  {form.banner_type === 'full_image' && form.hide_text && (
+                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+                      <Sparkles size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="font-black">Notice:</strong> Because you checked <em>"My banner image already has text & design"</em>, HTML text won't be rendered on top of your graphic. The <strong>Headline Title</strong> below is used as your admin reference name, and <strong>Click Action</strong> controls what opens when customers tap anywhere on the whole banner!
+                      </div>
+                    </div>
+                  )}
 
-                  {/* Badge Text */}
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">
-                      Promotional Tag / Badge
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. SPECIAL OFFER, HOT DEAL, NEW DISH"
-                      value={form.badge}
-                      onChange={(e) => setForm(prev => ({ ...prev, badge: e.target.value.toUpperCase() }))}
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 uppercase focus:outline-hidden focus:border-[#EA4C2A]"
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Headline Title */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black text-slate-700 mb-1">
+                        {form.hide_text ? 'Slide Name / Admin Reference' : 'Headline Title'} {!form.hide_text && <span className="text-rose-500">*</span>}
+                      </label>
+                      <input
+                        type="text"
+                        required={!form.hide_text}
+                        placeholder={form.hide_text ? "e.g. Weekend Flash Sale Canva Flyer" : "e.g. Smoky Firewood Jollof & Asun"}
+                        value={form.title}
+                        onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-hidden focus:border-[#EA4C2A]"
+                      />
+                    </div>
 
-                  {/* CTA Button Text */}
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">
-                      Call to Action (CTA) Button Text
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Order Now →"
-                      value={form.cta_text}
-                      onChange={(e) => setForm(prev => ({ ...prev, cta_text: e.target.value }))}
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:border-[#EA4C2A]"
-                    />
-                  </div>
+                    {/* Subtitle / Offer Details */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Subtitle / Promotion Offer Description</span>
+                        {form.hide_text && <span className="text-[10px] text-slate-400 font-bold">(Not shown on full flyer)</span>}
+                      </label>
+                      <input
+                        type="text"
+                        disabled={form.hide_text}
+                        placeholder="e.g. Authentic party jollof with crispy plantain & grilled beef"
+                        value={form.subtitle}
+                        onChange={(e) => setForm(prev => ({ ...prev, subtitle: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 disabled:opacity-50 disabled:bg-slate-100 focus:outline-hidden focus:border-[#EA4C2A]"
+                      />
+                    </div>
+
+                    {/* Badge Text */}
+                    <div>
+                      <label className="block text-xs font-black text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Promotional Tag / Badge</span>
+                        {form.hide_text && <span className="text-[10px] text-slate-400 font-bold">(Not shown)</span>}
+                      </label>
+                      <input
+                        type="text"
+                        disabled={form.hide_text}
+                        placeholder="e.g. SPECIAL OFFER, HOT DEAL, NEW DISH"
+                        value={form.badge}
+                        onChange={(e) => setForm(prev => ({ ...prev, badge: e.target.value.toUpperCase() }))}
+                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 uppercase disabled:opacity-50 disabled:bg-slate-100 focus:outline-hidden focus:border-[#EA4C2A]"
+                      />
+                    </div>
+
+                    {/* CTA Button Text */}
+                    <div>
+                      <label className="block text-xs font-black text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Button Text (CTA)</span>
+                        {form.hide_text && <span className="text-[10px] text-slate-400 font-bold">(Not shown)</span>}
+                      </label>
+                      <input
+                        type="text"
+                        disabled={form.hide_text}
+                        placeholder="e.g. Order Now →"
+                        value={form.cta_text}
+                        onChange={(e) => setForm(prev => ({ ...prev, cta_text: e.target.value }))}
+                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 disabled:opacity-50 disabled:bg-slate-100 focus:outline-hidden focus:border-[#EA4C2A]"
+                      />
+                    </div>
 
                   {/* Target Action / Destination */}
                   <div>
@@ -782,8 +1110,9 @@ export default function HeroSlideManager({ toast }) {
                     />
                   </div>
                 </div>
+              </div>
 
-                {/* Background Gradient Selection */}
+              {/* Background Gradient Selection */}
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1.5">
                     <Palette size={14} className="text-[#EA4C2A]" />
