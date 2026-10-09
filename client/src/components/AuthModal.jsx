@@ -3,46 +3,62 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Mail, Lock, User, Phone, Eye, EyeOff, Check, AlertCircle,
   Sparkles, RefreshCw, ArrowRight, ShieldCheck, Heart, KeyRound,
-  CheckCircle2, HelpCircle, MessageSquare
+  CheckCircle2, HelpCircle, MessageSquare, Compass
 } from 'lucide-react';
 import { triggerHaptic, playNativeSound } from '../services/nativeMobile';
 import { api } from '../services/api';
 import {
   getHappyAvatar,
-  getRandomHappyAvatar,
-  HAPPY_FEMALE_AVATARS,
-  HAPPY_MALE_AVATARS,
-  detectGender
+  getRandomHappyAvatar
 } from '../utils/avatarUtils';
-import { generateAIAvatar, generateAIAvatarForUser } from '../services/aiAvatarService';
+import { generateAIAvatar } from '../services/aiAvatarService';
 
+/**
+ * Standard Explicit Authentication Modal
+ * 
+ * Hierarchy:
+ * Welcome back (or Create your account)
+ * [ Continue with Google ]
+ * or
+ * [ Phone Number / Email ]
+ * [ Password ] (with show/hide)
+ * [ Sign In ]
+ * Forgot Password?
+ * Don't have an account? Create Account
+ * [ Continue as Guest ]
+ */
 export default function AuthModal({
   open,
   onClose,
   initialMode = 'login', // 'login' | 'register'
   onSuccess,
+  onGuest,
   isDark = false
 }) {
   const [mode, setMode] = useState(initialMode);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [capsLockActive, setCapsLockActive] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [termsAccepted, setTermsAccepted] = useState(true);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
 
   // Sign In state
-  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPhone, setLoginPhone] = useState(''); // 11-digit phone number only
   const [loginPassword, setLoginPassword] = useState('');
 
   // Sign Up state
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  const [regPhone, setRegPhone] = useState('');
+  const [regPhone, setRegPhone] = useState(''); // 11-digit phone number only
   const [regPassword, setRegPassword] = useState('');
-  const [regGender, setRegGender] = useState('auto'); // 'auto' | 'female' | 'male'
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regGender, setRegGender] = useState('auto');
   const [regAvatarUrl, setRegAvatarUrl] = useState(() => getRandomHappyAvatar('female').url);
 
   // Sync mode with prop if opened with specific initialMode
@@ -51,22 +67,31 @@ export default function AuthModal({
       setMode(initialMode);
       setErrorMsg('');
       setShowPassword(false);
+      setShowConfirmPassword(false);
     }
   }, [open, initialMode]);
 
-  // Password strength calculation
-  const passwordStrength = useMemo(() => {
-    if (!regPassword) return { score: 0, label: 'None', color: 'bg-slate-200' };
-    let score = 0;
-    if (regPassword.length >= 6) score++;
-    if (regPassword.length >= 8) score++;
-    if (/[A-Z]/.test(regPassword) && /[a-z]/.test(regPassword)) score++;
-    if (/[0-9]/.test(regPassword) || /[^A-Za-z0-9]/.test(regPassword)) score++;
+  // Helper to handle strictly numeric 11-digit phone inputs
+  const handlePhoneChange = (setter) => (e) => {
+    const raw = e.target.value;
+    const digitsOnly = raw.replace(/\D/g, '').slice(0, 11);
+    setter(digitsOnly);
+  };
 
-    if (score <= 1) return { score: 1, label: 'Weak', color: 'bg-red-500' };
-    if (score === 2) return { score: 2, label: 'Fair', color: 'bg-amber-500' };
-    if (score === 3) return { score: 3, label: 'Good', color: 'bg-blue-500' };
-    return { score: 4, label: 'Strong', color: 'bg-emerald-500' };
+  // Simplified password validation: minimum 4 characters
+  const passwordValidation = useMemo(() => {
+    const min4 = regPassword.length >= 4;
+    const matchesConfirm = !regConfirmPassword || regPassword === regConfirmPassword;
+    const isValid = min4 && (regConfirmPassword ? regPassword === regConfirmPassword : true);
+    return { min4, matchesConfirm, isValid };
+  }, [regPassword, regConfirmPassword]);
+
+  // Simple password strength indicator
+  const passwordStrength = useMemo(() => {
+    if (!regPassword) return { score: 0, label: 'Enter password', color: 'bg-slate-200' };
+    if (regPassword.length < 4) return { score: 1, label: 'Too short', color: 'bg-red-500' };
+    if (regPassword.length < 6) return { score: 2, label: 'Simple & Good', color: 'bg-emerald-500' };
+    return { score: 3, label: 'Strong', color: 'bg-emerald-600' };
   }, [regPassword]);
 
   // Check CapsLock on keydown/keyup
@@ -76,14 +101,55 @@ export default function AuthModal({
     }
   };
 
-  // Handle Sign In submission
+  // 1. Google OAuth flow
+  const handleGoogleSignIn = async () => {
+    setErrorMsg('');
+    setGoogleLoading(true);
+    triggerHaptic('medium');
+    try {
+      const res = await api.loginWithGoogle();
+      if (res?.success && res.user) {
+        triggerHaptic('success');
+        playNativeSound('success');
+        if (onSuccess) onSuccess(res.user);
+        onClose();
+      } else if (res?.pendingRedirect) {
+        // Redirect flow started, no error
+      } else {
+        setErrorMsg('Google Sign-In could not be completed.');
+      }
+    } catch (err) {
+      console.error('Google Sign-In error:', err);
+      if (err?.code === 'auth/operation-not-allowed') {
+        setErrorMsg('Google Sign-In is not enabled yet in Firebase Console (Authentication > Sign-in method > Google). Please enable it in the console, or sign in using your Phone & Password.');
+      } else if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+        setErrorMsg('Sign-in was cancelled. Please try again or sign in with your Phone number.');
+      } else if (err?.code === 'auth/popup-blocked') {
+        setErrorMsg('Browser popup was blocked. Please allow popups or use phone & password sign in.');
+      } else if (err?.code === 'auth/unauthorized-domain') {
+        setErrorMsg('This web domain is not yet authorized in Firebase Console -> Auth -> Authorized domains. Please sign in with your Phone & Password.');
+      } else if (err?.code === 'auth/network-request-failed') {
+        setErrorMsg('Network error connecting to Google. Please check your internet connection.');
+      } else {
+        setErrorMsg(err?.message || 'Google authentication failed. You can sign in with your Phone number.');
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  // 2. Handle Standard Sign In
   const handleLoginSubmit = async (e) => {
     if (e) e.preventDefault();
     setErrorMsg('');
 
-    const cleanEmail = loginEmail.trim();
-    if (!cleanEmail) {
-      setErrorMsg('Please enter your email address.');
+    const cleanPhoneDigits = loginPhone.replace(/\D/g, '');
+    if (!cleanPhoneDigits) {
+      setErrorMsg('Please enter your 11-digit phone number.');
+      return;
+    }
+    if (cleanPhoneDigits.length !== 11) {
+      setErrorMsg(`Phone number must be exactly 11 digits (currently ${cleanPhoneDigits.length} digits).`);
       return;
     }
     if (!loginPassword) {
@@ -94,14 +160,14 @@ export default function AuthModal({
     setLoading(true);
     triggerHaptic('selection');
     try {
-      const res = await api.login(cleanEmail, loginPassword);
+      const res = await api.login(cleanPhoneDigits, loginPassword);
       if (res?.success) {
         triggerHaptic('success');
         playNativeSound('success');
         if (onSuccess) onSuccess(res.user);
         onClose();
       } else {
-        setErrorMsg(res?.message || 'Invalid email or password.');
+        setErrorMsg(res?.message || 'Invalid credentials. Please try again.');
       }
     } catch (err) {
       setErrorMsg(err?.message || 'Unable to sign in. Please try again.');
@@ -110,25 +176,37 @@ export default function AuthModal({
     }
   };
 
-  // Handle Sign Up submission
+  // 3. Handle Standard Registration
   const handleRegisterSubmit = async (e) => {
     if (e) e.preventDefault();
     setErrorMsg('');
 
     const cleanName = regName.trim();
-    const cleanEmail = regEmail.trim();
-    const cleanPhone = regPhone.trim();
+    const cleanPhoneDigits = regPhone.replace(/\D/g, '');
+    const cleanEmail = regEmail?.trim() || `${cleanPhoneDigits || Date.now()}@foodmaxx.ng`;
 
-    if (!cleanName) {
+    if (!cleanName || cleanName.length < 2) {
       setErrorMsg('Please enter your full name.');
       return;
     }
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      setErrorMsg('Please enter a valid email address.');
+    if (!cleanPhoneDigits) {
+      setErrorMsg('Please enter your phone number.');
       return;
     }
-    if (!regPassword || regPassword.length < 6) {
-      setErrorMsg('Password must be at least 6 characters long.');
+    if (cleanPhoneDigits.length !== 11) {
+      setErrorMsg(`Phone number must be exactly 11 digits (currently ${cleanPhoneDigits.length} digits).`);
+      return;
+    }
+    if (!regPassword || regPassword.length < 4) {
+      setErrorMsg('Password must be at least 4 characters.');
+      return;
+    }
+    if (regConfirmPassword && regPassword !== regConfirmPassword) {
+      setErrorMsg('Passwords do not match.');
+      return;
+    }
+    if (!termsAccepted) {
+      setErrorMsg('Please accept the Terms of Service & Privacy Policy.');
       return;
     }
 
@@ -139,7 +217,7 @@ export default function AuthModal({
       const res = await api.register({
         full_name: cleanName,
         email: cleanEmail,
-        phone: cleanPhone ? (cleanPhone.startsWith('0') ? cleanPhone : `0${cleanPhone}`) : '',
+        phone: cleanPhoneDigits,
         password: regPassword,
         avatar_url: avatar,
         gender: regGender,
@@ -161,8 +239,7 @@ export default function AuthModal({
     }
   };
 
-
-  // Shuffle AI foodie avatar
+  // Shuffle foodie avatar
   const handleShuffleAvatar = () => {
     triggerHaptic('selection');
     const randomSeed = `${regName || 'FoodMaxx'}_shuffle_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
@@ -171,19 +248,35 @@ export default function AuthModal({
   };
 
   // Send password reset
-  const handleForgotSubmit = (e) => {
+  const handleForgotSubmit = async (e) => {
     e.preventDefault();
     if (!forgotEmail || !forgotEmail.includes('@')) {
+      setErrorMsg('Please enter a valid email for reset.');
       return;
     }
-    setForgotSent(true);
-    triggerHaptic('success');
+    try {
+      await api.resetPassword(forgotEmail);
+      setForgotSent(true);
+      triggerHaptic('success');
+    } catch (err) {
+      setErrorMsg(err?.message || 'Could not send reset email.');
+    }
+  };
+
+  // Handle Continue as Guest
+  const handleContinueAsGuest = () => {
+    triggerHaptic('selection');
+    try {
+      localStorage.setItem('fmx_onboarded', 'true');
+    } catch {}
+    if (onGuest) onGuest();
+    onClose();
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200">
       <div
         className={`w-full max-w-md max-h-[95vh] sm:max-h-[90vh] rounded-t-[32px] sm:rounded-[32px] overflow-hidden shadow-2xl flex flex-col border ${
           isDark ? 'bg-[#12141A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
@@ -206,7 +299,7 @@ export default function AuthModal({
                   FOODMAXX IBADAN
                 </span>
                 <h3 className="text-base font-black tracking-tight leading-tight mt-0.5">
-                  {mode === 'login' ? 'Sign In' : 'Create Account'}
+                  {mode === 'login' ? 'Welcome back' : 'Create Account'}
                 </h3>
               </div>
             </div>
@@ -251,7 +344,7 @@ export default function AuthModal({
               }`}
             >
               <Sparkles size={13} />
-              <span>Register</span>
+              <span>Create Account</span>
             </button>
           </div>
         </div>
@@ -266,25 +359,89 @@ export default function AuthModal({
             </div>
           )}
 
+          {/* 1. GOOGLE SIGN-IN BUTTON */}
+          <button
+            type="button"
+            disabled={googleLoading || loading}
+            onClick={handleGoogleSignIn}
+            className={`w-full py-3.5 px-4 rounded-2xl border font-bold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all active:scale-[0.99] cursor-pointer shadow-xs disabled:opacity-50 ${
+              isDark
+                ? 'bg-white/5 border-white/15 text-white hover:bg-white/10'
+                : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            {googleLoading ? (
+              <>
+                <RefreshCw size={16} className="animate-spin text-[#EA4C2A]" />
+                <span>Connecting to Google...</span>
+              </>
+            ) : (
+              <>
+                {/* Official Google 'G' icon */}
+                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                <span>Continue with Google</span>
+              </>
+            )}
+          </button>
+
+          {/* DIVIDER */}
+          <div className="flex items-center gap-3 my-2 select-none">
+            <div className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">or</span>
+            <div className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+          </div>
+
           {/* ========================================================= */}
           {/* FORM 1: SIGN IN                                           */}
           {/* ========================================================= */}
           {mode === 'login' && (
             <form onSubmit={handleLoginSubmit} className="space-y-4" onKeyDown={handleKeyDown}>
               <div>
-                <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Phone Number
+                  </label>
+                  <span className="text-[11px] font-bold text-slate-400">
+                    {loginPhone.length}/11 digits
+                  </span>
+                </div>
+                <div className="relative flex">
+                  <div className={`flex items-center gap-1.5 px-3 py-3 border border-r-0 rounded-l-2xl text-xs font-black shrink-0 ${
+                    isDark ? 'bg-white/10 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+                  }`}>
+                    <span className="text-base leading-none">🇳🇬</span>
+                    <span>+234</span>
+                  </div>
                   <input
-                    type="email"
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     autoFocus
                     required
-                    placeholder="e.g. adekunle@gmail.com"
-                    value={loginEmail}
-                    onChange={e => setLoginEmail(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                    maxLength={11}
+                    placeholder="08012345678"
+                    value={loginPhone}
+                    onChange={handlePhoneChange(setLoginPhone)}
+                    className={`w-full px-3.5 py-3 border rounded-r-2xl text-xs sm:text-sm font-bold tracking-wider outline-none focus:border-[#EA4C2A] transition-colors ${
+                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                   />
                 </div>
               </div>
@@ -298,7 +455,7 @@ export default function AuthModal({
                     type="button"
                     onClick={() => {
                       setForgotOpen(true);
-                      setForgotEmail(loginEmail);
+                      setForgotEmail('');
                       setForgotSent(false);
                     }}
                     className="text-[11px] font-bold text-[#EA4C2A] hover:underline cursor-pointer"
@@ -314,7 +471,9 @@ export default function AuthModal({
                     placeholder="Enter your password"
                     value={loginPassword}
                     onChange={e => setLoginPassword(e.target.value)}
-                    className={`w-full pl-10 pr-10 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                    className={`w-full pl-10 pr-10 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${
+                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                   />
                   <button
                     type="button"
@@ -360,16 +519,15 @@ export default function AuthModal({
                   </>
                 ) : (
                   <>
-                    <span>Sign In to FoodMaxx</span>
+                    <span>Sign In</span>
                     <ArrowRight size={16} />
                   </>
                 )}
               </button>
 
-
               {/* Switch to Register */}
-              <p className="text-center text-xs text-slate-500 dark:text-slate-400 pt-2">
-                New to FoodMaxx?{' '}
+              <p className="text-center text-xs text-slate-500 dark:text-slate-400 pt-1">
+                Don't have an account?{' '}
                 <button
                   type="button"
                   onClick={() => {
@@ -378,7 +536,7 @@ export default function AuthModal({
                   }}
                   className="font-black text-[#EA4C2A] hover:underline cursor-pointer"
                 >
-                  Create an account 🎉
+                  Create Account
                 </button>
               </p>
             </form>
@@ -389,92 +547,6 @@ export default function AuthModal({
           {/* ========================================================= */}
           {mode === 'register' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-4" onKeyDown={handleKeyDown}>
-              {/* Customer Avatar & Gender Picker */}
-              <div className={`p-3.5 rounded-2xl border space-y-2 ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200/80'}`}>
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    Choose Your Happy Avatar
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleShuffleAvatar}
-                    className="text-[11px] font-bold text-[#EA4C2A] hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <RefreshCw size={11} />
-                    <span>Shuffle</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {/* Avatar Photo with subtle ring */}
-                  <div className="relative shrink-0">
-                    <img
-                      src={regAvatarUrl}
-                      alt="Your Avatar"
-                      className="w-13 h-13 rounded-2xl object-cover ring-2 ring-[#EA4C2A] shadow-md shadow-[#EA4C2A]/20"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleShuffleAvatar}
-                      title="Click to randomize"
-                      className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full text-[#EA4C2A] border border-[#EA4C2A]/30 flex items-center justify-center shadow-xs active:rotate-180 transition-transform cursor-pointer ${isDark ? 'bg-[#1E222D]' : 'bg-white'}`}
-                    >
-                      <RefreshCw size={10} />
-                    </button>
-                  </div>
-
-                  <div className="flex-1">
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-1.5 font-semibold">
-                      Select preference:
-                    </p>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRegGender('female');
-                          setRegAvatarUrl(getRandomHappyAvatar('female').url);
-                        }}
-                        className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
-                          regGender === 'female'
-                            ? 'bg-[#EC4899] text-white shadow-xs'
-                            : `${isDark ? 'bg-white/10 text-slate-300 border-white/10' : 'bg-white text-slate-700 border-slate-200'} border`
-                        }`}
-                      >
-                        👩 Female
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRegGender('male');
-                          setRegAvatarUrl(getRandomHappyAvatar('male').url);
-                        }}
-                        className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
-                          regGender === 'male'
-                            ? 'bg-[#0AA5FF] text-white shadow-xs'
-                            : `${isDark ? 'bg-white/10 text-slate-300 border-white/10' : 'bg-white text-slate-700 border-slate-200'} border`
-                        }`}
-                      >
-                        👨 Male
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRegGender('auto');
-                          setRegAvatarUrl(getRandomHappyAvatar('all').url);
-                        }}
-                        className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
-                          regGender === 'auto'
-                            ? 'bg-[#EA4C2A] text-white shadow-xs'
-                            : `${isDark ? 'bg-white/10 text-slate-300 border-white/10' : 'bg-white text-slate-700 border-slate-200'} border`
-                        }`}
-                      >
-                        🎲 Surprise
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Full Name */}
               <div>
                 <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -487,52 +559,43 @@ export default function AuthModal({
                     required
                     placeholder="e.g. Bukola Adebayo"
                     value={regName}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setRegName(val);
-                      if (regGender === 'auto' && val.length >= 2) {
-                        setRegAvatarUrl(getHappyAvatar(val, 'auto'));
-                      }
-                    }}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                  />
-                </div>
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. bukola@gmail.com"
-                    value={regEmail}
-                    onChange={e => setRegEmail(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                    onChange={e => setRegName(e.target.value)}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${
+                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                   />
                 </div>
               </div>
 
               {/* Phone (Nigerian Prefix) */}
               <div>
-                <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                  Phone Number (For Delivery SMS & WhatsApp)
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Phone Number
+                  </label>
+                  <span className="text-[11px] font-bold text-slate-400">
+                    {regPhone.length}/11 digits
+                  </span>
+                </div>
                 <div className="relative flex">
-                  <div className={`flex items-center gap-1 px-3 py-3 border border-r-0 rounded-l-2xl text-xs font-black shrink-0 ${isDark ? 'bg-white/10 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
-                    <span>🇳🇬</span>
+                  <div className={`flex items-center gap-1.5 px-3 py-3 border border-r-0 rounded-l-2xl text-xs font-black shrink-0 ${
+                    isDark ? 'bg-white/10 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+                  }`}>
+                    <span className="text-base leading-none">🇳🇬</span>
                     <span>+234</span>
                   </div>
                   <input
                     type="tel"
-                    placeholder="816 600 4281"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    required
+                    maxLength={11}
+                    placeholder="08012345678"
                     value={regPhone}
-                    onChange={e => setRegPhone(e.target.value)}
-                    className={`w-full px-3 py-3 border rounded-r-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                    onChange={handlePhoneChange(setRegPhone)}
+                    className={`w-full px-3.5 py-3 border rounded-r-2xl text-xs sm:text-sm font-bold tracking-wider outline-none focus:border-[#EA4C2A] transition-colors ${
+                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                   />
                 </div>
               </div>
@@ -540,17 +603,19 @@ export default function AuthModal({
               {/* Password */}
               <div>
                 <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                  Create Password
+                  Password
                 </label>
                 <div className="relative">
                   <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    placeholder="Min. 6 characters"
+                    placeholder="Enter password (min. 4 characters)"
                     value={regPassword}
                     onChange={e => setRegPassword(e.target.value)}
-                    className={`w-full pl-10 pr-10 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                    className={`w-full pl-10 pr-10 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${
+                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                   />
                   <button
                     type="button"
@@ -561,46 +626,79 @@ export default function AuthModal({
                   </button>
                 </div>
 
-                {/* Password Strength Meter */}
-                {regPassword && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex gap-1.5 h-1.5">
-                      {[1, 2, 3, 4].map(step => (
-                        <div
-                          key={step}
-                          className={`flex-1 rounded-full transition-all ${
-                            step <= passwordStrength.score ? passwordStrength.color : 'bg-slate-200 dark:bg-white/10'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <div className="flex justify-between text-[10px] text-slate-400 font-semibold">
-                      <span>Security: {passwordStrength.label}</span>
-                      <span>{passwordStrength.score >= 3 ? '✓ Secure' : 'Try adding numbers or symbols'}</span>
-                    </div>
+                {/* Simple Password Helper */}
+                <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 size={12} className={regPassword.length >= 4 ? 'text-emerald-500' : 'text-slate-300'} />
+                    <span className={regPassword.length >= 4 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : ''}>
+                      {regPassword.length >= 4 ? 'Password ready' : 'Min. 4 characters'}
+                    </span>
                   </div>
-                )}
+                  {regPassword && (
+                    <span className="font-semibold text-slate-500 dark:text-slate-400">
+                      {passwordStrength.label}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* Terms note */}
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                By creating an account, you agree to FoodMaxx's Terms of Service and Privacy Policy.
-              </p>
+              {/* Confirm Password */}
+              <div>
+                <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    placeholder="Re-enter your password"
+                    value={regConfirmPassword}
+                    onChange={e => setRegConfirmPassword(e.target.value)}
+                    className={`w-full pl-10 pr-10 py-3 border rounded-2xl text-xs sm:text-sm font-bold outline-none focus:border-[#EA4C2A] transition-colors ${
+                      isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Terms & Privacy Checkbox */}
+              <div className="pt-1">
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={termsAccepted}
+                    onChange={e => setTermsAccepted(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 rounded-md accent-[#EA4C2A] cursor-pointer shrink-0"
+                  />
+                  <span className="text-xs text-slate-600 dark:text-slate-400 leading-snug">
+                    I agree to FoodMaxx's Terms of Service and Privacy Policy.
+                  </span>
+                </label>
+              </div>
 
               {/* Primary Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !regPassword || regPassword.length < 4 || !termsAccepted}
                 className="w-full py-4 bg-[#EA4C2A] hover:bg-[#D43B1B] active:scale-[0.99] disabled:opacity-50 text-white font-black text-sm rounded-2xl shadow-xl shadow-[#EA4C2A]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {loading ? (
                   <>
                     <RefreshCw size={16} className="animate-spin" />
-                    <span>Creating Your Account...</span>
+                    <span>Creating Account...</span>
                   </>
                 ) : (
                   <>
-                    <span>Create Account & Start Ordering</span>
+                    <span>Create Account</span>
                     <ArrowRight size={16} />
                   </>
                 )}
@@ -623,10 +721,26 @@ export default function AuthModal({
             </form>
           )}
 
+          {/* GUEST MODE OPTION */}
+          <div className="pt-2 border-t border-slate-100 dark:border-white/10 text-center">
+            <button
+              type="button"
+              onClick={handleContinueAsGuest}
+              className={`w-full py-3 px-4 rounded-2xl text-xs font-black transition-colors flex items-center justify-center gap-2 cursor-pointer ${
+                isDark
+                  ? 'bg-white/5 hover:bg-white/10 text-slate-300'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+            >
+              <Compass size={14} />
+              <span>Continue as Guest</span>
+            </button>
+          </div>
+
           {/* Security guarantee footer */}
-          <div className="pt-2 flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-bold">
+          <div className="pt-1 flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-bold">
             <ShieldCheck size={13} className="text-emerald-500" />
-            <span>256-bit SSL Encrypted · 100% Safe & Secure</span>
+            <span>256-bit Encrypted · Secure Authentication</span>
           </div>
         </div>
 
@@ -668,7 +782,7 @@ export default function AuthModal({
               ) : (
                 <form onSubmit={handleForgotSubmit} className="space-y-4">
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Enter your registered email address and we'll send you a password reset code.
+                    Enter your registered email address and we'll send you password reset instructions.
                   </p>
                   <div className="relative">
                     <Mail size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
@@ -709,27 +823,26 @@ export default function AuthModal({
   );
 }
 
-/**
- * Standard wrappers to maintain 100% backward-compatibility with App.jsx
- */
-export function LoginModal({ open, onClose, onSwitchRegister }) {
+export function LoginModal({ open, onClose, onSwitchRegister, onSuccess, onGuest }) {
   return (
     <AuthModal
       open={open}
       onClose={onClose}
       initialMode="login"
-      onSuccess={onClose}
+      onSuccess={onSuccess || onClose}
+      onGuest={onGuest}
     />
   );
 }
 
-export function RegisterModal({ open, onClose, onSwitchLogin }) {
+export function RegisterModal({ open, onClose, onSwitchLogin, onSuccess, onGuest }) {
   return (
     <AuthModal
       open={open}
       onClose={onClose}
       initialMode="register"
-      onSuccess={onClose}
+      onSuccess={onSuccess || onClose}
+      onGuest={onGuest}
     />
   );
 }

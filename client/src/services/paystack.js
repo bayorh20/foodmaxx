@@ -1,7 +1,9 @@
-// Environment or default Paystack configuration
-const FALLBACK_PAYSTACK_KEY = 'pk_test_0d51ae7f44721724cc8375bb68e04b306ef70928';
+const LIVE_PAYSTACK_KEY = 'pk_live_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a';
+const TEST_PAYSTACK_KEY = 'pk_test_0d51ae7f44721724cc8375bb68e04b306ef70928';
 const ENV_PAYSTACK_KEY = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) || '';
-const DEFAULT_PAYSTACK_KEY = ENV_PAYSTACK_KEY || FALLBACK_PAYSTACK_KEY;
+const DEFAULT_PAYSTACK_KEY = (ENV_PAYSTACK_KEY && ENV_PAYSTACK_KEY.trim().startsWith('pk_'))
+  ? ENV_PAYSTACK_KEY.trim()
+  : LIVE_PAYSTACK_KEY;
 
 const memoryStore = {};
 const safeStorage = {
@@ -48,10 +50,7 @@ export function getStoredPaystackConfig() {
     const stored = localStorage.getItem('fmx_paystack_config');
     if (stored) {
       const parsed = JSON.parse(stored);
-      let activeKey = (parsed.publicKey || ENV_PAYSTACK_KEY || DEFAULT_PAYSTACK_KEY).trim();
-      if (activeKey === 'pk_test_d3a8b4172f3e44955b2046ff03b55237b6cf3e1a') {
-        activeKey = DEFAULT_PAYSTACK_KEY;
-      }
+      const activeKey = (parsed.publicKey || ENV_PAYSTACK_KEY || DEFAULT_PAYSTACK_KEY).trim();
       return {
         publicKey: activeKey,
         isLive: parsed.isLive !== undefined ? parsed.isLive : activeKey.startsWith('pk_live_'),
@@ -95,6 +94,31 @@ export function savePaystackConfig(config) {
 }
 
 /**
+ * Dynamically load Paystack inline script if not yet loaded
+ */
+function loadPaystackScript() {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') return resolve(false);
+    if (window.PaystackPop) return resolve(true);
+
+    const existingScript = document.querySelector('script[src*="paystack.co"]');
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(Boolean(window.PaystackPop)));
+      existingScript.addEventListener('error', () => resolve(false));
+      setTimeout(() => resolve(Boolean(window.PaystackPop)), 2500);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.async = true;
+    script.onload = () => resolve(Boolean(window.PaystackPop));
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+}
+
+/**
  * Launch Real Official Paystack Native Inline Checkout
  */
 export async function launchRealPaystack({
@@ -107,36 +131,65 @@ export async function launchRealPaystack({
   metadata = {},
   onSuccess,
   onCancel,
-  onError
+  onError,
+  onFallback
 }) {
   const config = getStoredPaystackConfig();
   const activeKey = (key || config.publicKey || DEFAULT_PAYSTACK_KEY).trim();
   const amountInKobo = Math.round(Number(amount) * 100);
 
+  const fallbackPayload = {
+    key: activeKey,
+    email: (email && email.includes('@')) ? email.trim() : `${(phone || 'customer').replace(/\D/g, '') || 'diner'}@foodmaxx.ng`,
+    amount,
+    reference: reference || `FMX_PSTK_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`,
+    customerName,
+    phone,
+    metadata,
+    onSuccess,
+    onCancel
+  };
+
+  const triggerFallback = () => {
+    if (typeof onFallback === 'function') {
+      onFallback(fallbackPayload);
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('fmx_open_paystack_modal', {
+        detail: fallbackPayload
+      }));
+    }
+  };
+
   if (!activeKey) {
-    if (onError) onError(new Error('Paystack Public Key is missing. Configure it in Admin Settings.'));
+    triggerFallback();
     return;
   }
 
-  if (!email) {
-    if (onError) onError(new Error('Customer email is required for Paystack checkout.'));
-    return;
-  }
+  // Ensure valid email for Paystack (fallback if phone-only guest)
+  const cleanEmail = fallbackPayload.email;
 
   if (!amountInKobo || amountInKobo <= 0) {
     if (onError) onError(new Error('Invalid order amount for Paystack checkout.'));
     return;
   }
 
-  const txRef = reference || `FMX_PSTK_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
+  const txRef = fallbackPayload.reference;
 
-  // Priority 1: Main native Paystack Screen (window.PaystackPop.setup)
-  // This is the default, standard native Paystack iframe popup known across all Paystack apps
+  // Try loading external inline script
+  try {
+    await loadPaystackScript();
+  } catch (loadErr) {
+    console.warn('Paystack script load error:', loadErr);
+  }
+
+  // Method A: window.PaystackPop.setup (Official standard inline popup v1)
   if (typeof window !== 'undefined' && window.PaystackPop && typeof window.PaystackPop.setup === 'function') {
     try {
+      let isClosed = false;
       const handler = window.PaystackPop.setup({
         key: activeKey,
-        email: email.trim(),
+        email: cleanEmail,
         amount: amountInKobo,
         currency: 'NGN',
         ref: txRef,
@@ -150,6 +203,7 @@ export async function launchRealPaystack({
           ...metadata
         },
         callback: (transaction) => {
+          isClosed = true;
           if (onSuccess) {
             onSuccess({
               reference: transaction.reference || transaction.trxref || txRef,
@@ -161,64 +215,68 @@ export async function launchRealPaystack({
           }
         },
         onClose: () => {
-          if (onCancel) onCancel();
+          if (!isClosed && onCancel) {
+            onCancel();
+          }
         }
       });
-      handler.openIframe();
-      return;
+
+      if (handler && typeof handler.openIframe === 'function') {
+        handler.openIframe();
+        return;
+      }
     } catch (setupErr) {
-      console.warn('PaystackPop.setup failed, falling back to new PaystackPop:', setupErr);
+      console.warn('PaystackPop.setup encountered issue:', setupErr);
     }
   }
 
-  // Priority 2: PaystackPop instance via @paystack/inline-js
+  // Method B: PaystackPop newTransaction via @paystack/inline-js v2
   try {
-    const { default: PaystackPop } = await import('@paystack/inline-js');
-    const paystack = new PaystackPop();
-    if (typeof paystack.checkout === 'function') {
-      paystack.checkout({
-        key: activeKey,
-        email: email.trim(),
-        amount: amountInKobo,
-        currency: 'NGN',
-        reference: txRef,
-        channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
-        metadata: {
-          custom_fields: [
-            { display_name: 'Customer Name', variable_name: 'customer_name', value: customerName || 'FoodMaxx Customer' },
-            { display_name: 'Customer Phone', variable_name: 'customer_phone', value: phone || '' },
-            ...(metadata.custom_fields || [])
-          ],
-          ...metadata
-        },
-        onSuccess: (transaction) => {
-          if (onSuccess) {
-            onSuccess({
-              reference: transaction.reference || txRef,
-              status: 'success',
-              trans: transaction.trans,
-              transaction: transaction.transaction,
-              message: transaction.message || 'Approved'
-            });
+    const paystackModule = await import('@paystack/inline-js');
+    const PaystackPop = paystackModule.default || paystackModule;
+    if (PaystackPop) {
+      const paystack = new PaystackPop();
+      if (typeof paystack.newTransaction === 'function') {
+        paystack.newTransaction({
+          key: activeKey,
+          email: cleanEmail,
+          amount: amountInKobo,
+          currency: 'NGN',
+          reference: txRef,
+          channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
+          metadata: {
+            custom_fields: [
+              { display_name: 'Customer Name', variable_name: 'customer_name', value: customerName || 'FoodMaxx Customer' },
+              { display_name: 'Customer Phone', variable_name: 'customer_phone', value: phone || '' },
+              ...(metadata.custom_fields || [])
+            ],
+            ...metadata
+          },
+          onSuccess: (transaction) => {
+            if (onSuccess) {
+              onSuccess({
+                reference: transaction.reference || txRef,
+                status: 'success',
+                message: transaction.message || 'Approved'
+              });
+            }
+          },
+          onCancel: () => {
+            if (onCancel) onCancel();
+          },
+          onError: (err) => {
+            console.warn('PaystackPop error event, triggering in-app fallback:', err);
+            triggerFallback();
           }
-        },
-        onCancel: () => {
-          if (onCancel) onCancel();
-        }
-      }).catch(() => {
-        window.dispatchEvent(new CustomEvent('fmx_open_paystack_modal', {
-          detail: { key: activeKey, email, amount, reference: txRef, customerName, phone, metadata, onSuccess, onCancel }
-        }));
-      });
-      return;
+        });
+        return;
+      }
     }
   } catch (err) {
-    console.warn('Paystack checkout initialization error:', err);
+    console.warn('Paystack inline-js dynamic import issue:', err);
   }
 
-  // Priority 3: Fallback interactive Paystack modal directly in app
-  window.dispatchEvent(new CustomEvent('fmx_open_paystack_modal', {
-    detail: { key: activeKey, email, amount, reference: txRef, customerName, phone, metadata, onSuccess, onCancel }
-  }));
+  // Method C: In-app Paystack Transfer & Card fallback sheet
+  triggerFallback();
 }
 

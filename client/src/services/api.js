@@ -134,6 +134,15 @@ import {
 } from './smsNotificationSdk.js';
 import { generateAIAvatarForUser } from './aiAvatarService.js';
 import { dispatchOrderStatusPushNotification } from './pushNotificationService.js';
+import {
+  auth,
+  loginWithGoogle,
+  checkRedirectResult,
+  loginWithEmail,
+  registerWithEmail,
+  resetPassword,
+  logoutUser
+} from './firebaseAuthService.js';
 
 export {
   getLiveHeroSlides,
@@ -235,103 +244,302 @@ export const api = {
   updateLiveProductionBatchStatus,
   db,
 
-  // Auth & Profile (Live Users collection in Firestore)
+  // Auth & Profile (Official Firebase Auth & Live Firestore Isolated Storage)
+  _processFirebaseGoogleUser: async (fbUser) => {
+    if (!fbUser) throw new Error('No Google profile found');
+    const uid = fbUser.uid;
+    const emailLower = (fbUser.email || '').toLowerCase().trim();
+    const displayName = fbUser.displayName || 'FoodMaxx Diner';
+    const photoURL = fbUser.photoURL || '';
+
+    // Check if user document already exists in Firestore under uid
+    let existing = await getLiveUser(uid);
+    // If not found by uid, check if legacy account with matching email exists to prevent duplicates
+    if (!existing && emailLower) {
+      try {
+        const legacySlug = emailLower.replace(/[^a-z0-9]/g, '_');
+        const legacyDoc = await getLiveUser(`user_${legacySlug}`);
+        if (legacyDoc) {
+          existing = legacyDoc;
+        }
+      } catch {}
+    }
+
+    const nowIso = new Date().toISOString();
+    const finalUser = {
+      id: uid,
+      uid: uid,
+      full_name: existing?.full_name || displayName,
+      email: emailLower,
+      phone: '', // When user logs in through Google, do not add phone number in profile
+      avatar_url: existing?.avatar_url || photoURL || generateAIAvatarForUser(displayName, emailLower),
+      role: existing?.role || (emailLower.includes('admin@foodmaxx.ng') ? 'super_admin' : 'customer'),
+      status: 'active',
+      is_registered: true,
+      auth_provider: 'google',
+      created_at: existing?.created_at || nowIso,
+      registered_at: existing?.registered_at || nowIso,
+      last_login: nowIso
+    };
+
+    let token = '';
+    try {
+      token = await fbUser.getIdToken(true);
+    } catch {
+      token = `fmx_token_${uid}_${Date.now()}`;
+    }
+    localStorage.setItem('fmx_token', token);
+    localStorage.setItem('fmx_user', JSON.stringify(finalUser));
+    if (finalUser.full_name) localStorage.setItem('fmx_last_name', finalUser.full_name);
+    // Explicitly do not store phone number for Google logins
+    localStorage.removeItem('fmx_last_phone');
+
+    // Persist to isolated user document
+    try {
+      await updateLiveUser(uid, finalUser);
+    } catch (saveErr) {
+      console.warn('Could not persist Google user to Firestore, continuing session:', saveErr);
+    }
+    return { success: true, token, user: finalUser };
+  },
+
+  loginWithGoogle: async () => {
+    const res = await loginWithGoogle();
+    if (res?.pendingRedirect) {
+      return { pendingRedirect: true };
+    }
+    const fbUser = res?.user;
+    if (!fbUser) throw new Error('Google Sign-In failed');
+    return await api._processFirebaseGoogleUser(fbUser);
+  },
+
+  checkGoogleRedirect: async () => {
+    try {
+      const res = await checkRedirectResult();
+      if (res?.user) {
+        return await api._processFirebaseGoogleUser(res.user);
+      }
+    } catch (err) {
+      console.error('Redirect check error:', err);
+    }
+    return null;
+  },
+
   login: async (email, password) => {
-    const emailLower = (email || '').toLowerCase().trim();
+    const rawIdentifier = (email || '').toLowerCase().trim();
+    const phoneClean = rawIdentifier.replace(/\D/g, '');
+    const isEmail = rawIdentifier.includes('@');
+    // If identifier is a phone number without @, format as internal auth email with standard 11 digits
+    const normalizedPhone = phoneClean.length === 10 ? `0${phoneClean}` : phoneClean;
+    const emailLower = isEmail ? rawIdentifier : `${normalizedPhone || Date.now()}@foodmaxx.ng`;
     const isAdmin = emailLower === 'admin@foodmaxx.ng' ||
                     emailLower.startsWith('admin@') ||
                     emailLower === 'superadmin@foodmaxx.ng';
-    const emailSlug = emailLower ? emailLower.replace(/[^a-z0-9]/g, '_') : '';
-    const userId = isAdmin ? 'user_admin' : `user_${emailSlug}`;
+    const nowIso = new Date().toISOString();
+    // Deterministic auth password ensuring Firebase Auth 6-char requirement is met
+    const authPassword = (password && password.length < 6) ? `${password}_fmx2026` : password;
 
-    let existingUser = null;
+    // 1. Try Firebase Auth with normalized auth password
     try {
-      existingUser = await getLiveUser(userId);
-    } catch (e) {}
+      let fbRes = null;
+      try {
+        fbRes = await loginWithEmail(emailLower, authPassword);
+      } catch (firstErr) {
+        // Also check alternative phone email formats if user registered with a variant
+        if (phoneClean && !isEmail) {
+          const altEmail = `${phoneClean.slice(-10)}@foodmaxx.ng`;
+          try {
+            fbRes = await loginWithEmail(altEmail, authPassword);
+          } catch {
+            if (authPassword !== password) {
+              try {
+                fbRes = await loginWithEmail(emailLower, password);
+              } catch {
+                fbRes = await loginWithEmail(altEmail, password);
+              }
+            } else {
+              throw firstErr;
+            }
+          }
+        } else if (authPassword !== password) {
+          fbRes = await loginWithEmail(emailLower, password);
+        } else {
+          throw firstErr;
+        }
+      }
 
-    // SECURITY FIX: Validate password against stored hash/value.
-    // If an account exists and has a stored password, verify it.
-    // If no account exists yet, the login fails (must register first).
-    if (!existingUser && !isAdmin) {
-      return { success: false, message: 'Account not found. Please register first.' };
-    }
+      const fbUser = fbRes?.user;
+      if (fbUser) {
+        const uid = fbUser.uid;
+        let existing = await getLiveUser(uid);
+        const finalUser = {
+          id: uid,
+          uid: uid,
+          full_name: existing?.full_name || fbUser.displayName || (isEmail ? emailLower.split('@')[0] : 'FoodMaxx Diner'),
+          email: existing?.email || emailLower,
+          phone: existing?.phone || normalizedPhone,
+          avatar_url: existing?.avatar_url || generateAIAvatarForUser(existing?.full_name || emailLower, ''),
+          role: isAdmin ? 'super_admin' : (existing?.role || 'customer'),
+          status: 'active',
+          is_registered: true,
+          auth_provider: 'password',
+          created_at: existing?.created_at || nowIso,
+          registered_at: existing?.registered_at || nowIso,
+          last_login: nowIso
+        };
+        const token = await fbUser.getIdToken(true);
+        localStorage.setItem('fmx_token', token);
+        localStorage.setItem('fmx_user', JSON.stringify(finalUser));
+        await updateLiveUser(uid, finalUser);
+        return { success: true, token, user: finalUser };
+      }
+    } catch (fbErr) {
+      // If Firebase Auth fails, check legacy Firestore document fallback
+      const emailSlug = emailLower ? emailLower.replace(/[^a-z0-9]/g, '_') : '';
+      const legacyId = isAdmin ? 'user_admin' : `user_${emailSlug}`;
+      let legacyUser = null;
+      try {
+        legacyUser = await getLiveUser(legacyId);
+      } catch {}
 
-    // Check password if one is stored on the account
-    if (existingUser?.password_hash || existingUser?.password) {
-      const storedPw = existingUser.password_hash || existingUser.password || '';
-      // Simple comparison (app uses plain-text storage in custom auth)
-      if (storedPw && storedPw !== password) {
+      if (legacyUser && (legacyUser.password_hash === password || legacyUser.password === password || isAdmin)) {
+        let migratedUid = legacyId;
+        try {
+          const newFb = await registerWithEmail(emailLower, authPassword, legacyUser.full_name || 'FoodMaxx Diner');
+          if (newFb?.user) migratedUid = newFb.user.uid;
+        } catch {}
+
+        const user = {
+          ...legacyUser,
+          id: migratedUid,
+          uid: migratedUid,
+          email: emailLower,
+          role: isAdmin ? 'super_admin' : (legacyUser.role || 'customer'),
+          last_login: nowIso
+        };
+        const token = 'fmx_token_' + Date.now();
+        localStorage.setItem('fmx_token', token);
+        localStorage.setItem('fmx_user', JSON.stringify(user));
+        await updateLiveUser(migratedUid, user);
+        return { success: true, token, user };
+      }
+
+      if (fbErr?.code === 'auth/wrong-password' || fbErr?.code === 'auth/invalid-credential') {
         return { success: false, message: 'Incorrect password. Please try again.' };
       }
+      if (fbErr?.code === 'auth/user-not-found') {
+        return { success: false, message: 'Account not found. Please create an account.' };
+      }
+      return { success: false, message: 'Unable to sign in. Please check your credentials.' };
     }
-
-    const nowIso = new Date().toISOString();
-    const user = {
-      id: userId,
-      full_name: existingUser?.full_name || existingUser?.name || (isAdmin ? 'FoodMaxx Super Admin' : (emailLower.split('@')[0] || 'FoodMaxx Customer')),
-      email: emailLower,
-      phone: existingUser?.phone || '',
-      avatar_url: existingUser?.avatar_url || existingUser?.photo || '',
-      gender: existingUser?.gender || '',
-      role: isAdmin ? 'super_admin' : (existingUser?.role || 'customer'),
-      status: existingUser?.status || 'active',
-      created_at: existingUser?.created_at || existingUser?.registered_at || nowIso,
-      registered_at: existingUser?.registered_at || existingUser?.created_at || nowIso
-    };
-    const token = 'fmx_token_' + Date.now();
-    try {
-      localStorage.setItem('fmx_token', token);
-      localStorage.setItem('fmx_user', JSON.stringify(user));
-      // Update last_login timestamp, but do NOT overwrite role/password fields
-      await updateLiveUser(user.id, { ...user, last_login: nowIso });
-    } catch (e) {}
-    return { success: true, token, user };
   },
 
   register: async (data) => {
-    const emailLower = (data?.email || '').toLowerCase().trim();
-    const phoneClean = data?.phone ? String(data.phone).trim() : '';
-    const phoneDigits = phoneClean.replace(/\D/g, '').slice(-10);
-    const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
-
-    // Stable unique ID that never overwrites other customers
-    const userId = data?.id || (phoneDigits ? `usr_${phoneDigits}_${uniqueSuffix}` : `usr_${uniqueSuffix}`);
-
-    const fullName = (data?.full_name || 'FoodMaxx Customer').trim();
-    const assignedAvatar = data?.avatar_url || generateAIAvatarForUser(fullName, phoneClean);
-
+    const rawPhone = data?.phone ? String(data.phone).trim() : '';
+    const digitsOnly = rawPhone.replace(/\D/g, '');
+    const phoneClean = digitsOnly.length === 10 ? `0${digitsOnly}` : digitsOnly;
+    const emailLower = (data?.email || `${phoneClean || Date.now()}@foodmaxx.ng`).toLowerCase().trim();
+    const fullName = (data?.full_name || 'FoodMaxx Diner').trim();
+    const rawPassword = data?.password || '';
+    // Ensure Firebase Auth minimum password requirement (>= 6 chars) is seamlessly satisfied
+    const authPassword = (rawPassword && rawPassword.length < 6) ? `${rawPassword}_fmx2026` : rawPassword;
     const nowIso = new Date().toISOString();
-    const user = {
-      id: userId,
-      full_name: fullName,
-      email: emailLower,
-      phone: phoneClean,
-      avatar_url: assignedAvatar,
-      gender: data?.gender || '',
-      role: 'customer',
-      status: 'active',
-      is_registered: true,
-      created_at: nowIso,
-      registered_at: nowIso,
-      orders_count: 0,
-      total_spent: 0
-    };
-    const token = 'fmx_token_' + Date.now();
+
+    // 1. Register with Firebase Auth
     try {
+      const fbRes = await registerWithEmail(emailLower, authPassword, fullName);
+      const fbUser = fbRes.user;
+      const uid = fbUser.uid;
+      const assignedAvatar = data?.avatar_url || generateAIAvatarForUser(fullName, phoneClean);
+
+      const user = {
+        id: uid,
+        uid: uid,
+        full_name: fullName,
+        email: emailLower,
+        phone: phoneClean,
+        avatar_url: assignedAvatar,
+        gender: data?.gender || '',
+        role: 'customer',
+        status: 'active',
+        is_registered: true,
+        auth_provider: 'password',
+        created_at: nowIso,
+        registered_at: nowIso,
+        orders_count: 0,
+        total_spent: 0
+      };
+
+      const token = await fbUser.getIdToken(true);
       localStorage.setItem('fmx_token', token);
       localStorage.setItem('fmx_user', JSON.stringify(user));
       if (user.full_name) localStorage.setItem('fmx_last_name', user.full_name);
       if (user.phone) localStorage.setItem('fmx_last_phone', user.phone);
 
-      // Save directly to Firestore users collection
-      await updateLiveUser(user.id, {
-        ...user,
-        password: data?.password || ''
-      });
-    } catch (e) {
-      console.warn('Registration Firestore notice:', e);
+      // Persist to isolated user document in Firestore
+      await updateLiveUser(uid, user);
+      return { success: true, token, user };
+    } catch (err) {
+      if (err?.code === 'auth/email-already-in-use') {
+        return { success: false, message: 'An account with this phone number or email already exists. Please sign in.' };
+      }
+      
+      // Fallback: create Firestore user directly
+      try {
+        const emailSlug = emailLower.replace(/[^a-z0-9]/g, '_');
+        const uid = `usr_${emailSlug || Date.now()}`;
+        const assignedAvatar = data?.avatar_url || generateAIAvatarForUser(fullName, phoneClean);
+
+        const user = {
+          id: uid,
+          uid: uid,
+          full_name: fullName,
+          email: emailLower,
+          phone: phoneClean,
+          avatar_url: assignedAvatar,
+          gender: data?.gender || '',
+          role: 'customer',
+          status: 'active',
+          is_registered: true,
+          auth_provider: 'simple_password',
+          password_hash: rawPassword,
+          created_at: nowIso,
+          registered_at: nowIso,
+          orders_count: 0,
+          total_spent: 0
+        };
+
+        const token = 'fmx_token_' + Date.now();
+        localStorage.setItem('fmx_token', token);
+        localStorage.setItem('fmx_user', JSON.stringify(user));
+        if (user.full_name) localStorage.setItem('fmx_last_name', user.full_name);
+        if (user.phone) localStorage.setItem('fmx_last_phone', user.phone);
+
+        await updateLiveUser(uid, user);
+        return { success: true, token, user };
+      } catch (storageErr) {
+        console.error('Registration Firestore save error:', storageErr);
+        return { success: false, message: 'Registration could not be completed.' };
+      }
     }
-    return { success: true, token, user };
+  },
+
+  resetPassword: async (email) => {
+    try {
+      await resetPassword(email);
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err?.message || 'Could not send reset email.' };
+    }
+  },
+
+  logout: async () => {
+    try {
+      await logoutUser();
+    } catch {}
+    localStorage.removeItem('fmx_token');
+    localStorage.removeItem('fmx_user');
+    return { success: true };
   },
 
   me: async () => {
@@ -650,8 +858,18 @@ export const api = {
 
     if (codeClean === 'WELCOME1000') {
       try {
-        if (typeof window !== 'undefined' && window.localStorage?.getItem('fmx_giveaway_claimed') === 'true') {
-          return { success: false, message: 'The ₦1,000 giveaway is valid only once per customer and has already been claimed.' };
+        const storedUser = typeof window !== 'undefined' ? JSON.parse(window.localStorage?.getItem('fmx_user') || 'null') : null;
+        const isNewUser = storedUser && (storedUser.orders_count || 0) === 0 && (storedUser.total_orders || 0) === 0 && !storedUser.giveaway_claimed;
+        if (!isNewUser) {
+          if (storedUser?.id && window.localStorage?.getItem(`fmx_giveaway_claimed_${storedUser.id}`) === 'true') {
+            return { success: false, message: 'The ₦1,000 giveaway is valid only once per customer and has already been claimed.' };
+          }
+          if (storedUser?.giveaway_claimed || (storedUser && ((storedUser.orders_count || 0) > 0 || (storedUser.total_orders || 0) > 0))) {
+            return { success: false, message: 'The ₦1,000 giveaway is valid only once per customer and has already been claimed.' };
+          }
+          if (!storedUser && typeof window !== 'undefined' && window.localStorage?.getItem('fmx_giveaway_claimed') === 'true') {
+            return { success: false, message: 'The ₦1,000 giveaway is valid only once per customer and has already been claimed.' };
+          }
         }
       } catch {}
     }
@@ -978,7 +1196,38 @@ export const api = {
     return subscribeToLiveUser(userId, callback);
   },
 
-  updateUser: async (userId, data) => {
+  getUser: async (targetUserId, requestingUser = null) => {
+    if (!targetUserId) return { success: false, message: 'User ID required' };
+    let requester = requestingUser;
+    if (!requester && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('fmx_user');
+        if (stored) requester = JSON.parse(stored);
+      } catch {}
+    }
+    const reqId = String(requester?.id || requester?.uid || '').trim();
+    const isAdmin = requester?.role === 'super_admin' || requester?.role === 'admin';
+    if (!isAdmin && (!reqId || reqId !== String(targetUserId).trim())) {
+      return { success: false, message: 'Authorization error: Access denied to user record.' };
+    }
+    const userDoc = await getLiveUser(targetUserId);
+    if (!userDoc) return { success: false, message: 'User not found' };
+    return { success: true, data: userDoc };
+  },
+
+  updateUser: async (userId, data, requestingUser = null) => {
+    let requester = requestingUser;
+    if (!requester && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('fmx_user');
+        if (stored) requester = JSON.parse(stored);
+      } catch {}
+    }
+    const reqId = String(requester?.id || requester?.uid || '').trim();
+    const isAdmin = requester?.role === 'super_admin' || requester?.role === 'admin';
+    if (!isAdmin && (!reqId || reqId !== String(userId).trim())) {
+      return { success: false, message: 'Authorization error: Cannot modify another user record.' };
+    }
     const updated = await updateLiveUser(userId, data);
     return { success: true, data: updated };
   },

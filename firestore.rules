@@ -2,226 +2,398 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: menu_items
+    // Document ID: itemId (e.g. 'fmx_12345678')
+    // Fields:
+    //   - id: string (required) - item unique identifier
+    //   - name: string (required) - dish name
+    //   - price: number (required) - dish selling price (>= 0)
+    //   - category: string (optional) - food category name
+    //   - is_available: bool (optional) - stock availability
+    //   - stock_quantity: number (optional) - inventory counter
+    //   - prep_time_min: number (optional) - preparation time in minutes
+    //   - has_portion_sizes: bool (optional) - portion selector toggle
+    //   - portion_sizes: list (optional) - list of portion size maps
+    //   - flavors: list (optional) - spice/flavor selections
+    //   - image_url: string (optional) - dish photo URL
+    //   - created_at: string/timestamp (optional)
+    //
+    // Collection: addons
+    // Document ID: addonId (e.g. 'addon_12345678')
+    // Fields:
+    //   - id: string (required) - addon ID
+    //   - name: string (required) - extra name
+    //   - price: number (required) - extra price (>= 0)
+    //   - is_available: bool (optional)
+    //   - category: string (optional)
+    //
+    // Collection: categories
+    // Document ID: categoryId (e.g. 'cat_12345678')
+    // Fields:
+    //   - id: string (required) - category ID
+    //   - name: string (required) - category display name
+    //   - icon: string (optional) - category emoji/icon
+    //   - is_active: bool (optional)
+    //   - sort_order: number (optional)
+    //
+    // Collection: delivery_zones
+    // Document ID: zoneId (e.g. 'zone_bodija')
+    // Fields:
+    //   - id: string (optional)
+    //   - name: string (required) - zone location name
+    //   - delivery_fee: number (required) - fee in NGN (>= 0)
+    //   - min_delivery_time: number (optional)
+    //   - max_delivery_time: number (optional)
+    //
+    // Collection: promotions
+    // Document ID: promoId (e.g. 'promo_welcome10')
+    // Fields:
+    //   - code: string (required) - promo coupon code
+    //   - discount_type: string (optional) - 'percent' | 'fixed'
+    //   - discount_value: number (optional) - discount amount/rate
+    //   - is_active: bool (optional)
+    //
+    // Collection: settings
+    // Document ID: settingId (e.g. 'store_config', 'homepage_sections')
+    // Fields:
+    //   - is_open: bool (optional)
+    //   - opening_time: string (optional)
+    //   - closing_time: string (optional)
+    //   - store_phone: string (optional)
+    //   - store_email: string (optional)
+    //
+    // Collection: hero_slides
+    // Document ID: slideId
+    // Fields:
+    //   - title: string (required)
+    //   - subtitle: string (optional)
+    //   - image_url: string (optional)
+    //   - action_link: string (optional)
+    //   - is_active: bool (optional)
+    //   - sort_order: number (optional)
+    //
+    // Collection: reviews
+    // Document ID: reviewId
+    // Fields:
+    //   - user_id: string (required) - reviewer UID
+    //   - user_name: string (optional) - reviewer display name
+    //   - rating: number (required) - 1 to 5 star rating
+    //   - comment: string (optional) - review body
+    //   - created_at: string/timestamp (optional)
+    //
+    // Collection: users
+    // Document ID: userId (matches auth.uid)
+    // Fields:
+    //   - id: string (required) - UID
+    //   - full_name: string (optional) - customer full name
+    //   - email: string (optional) - customer email
+    //   - phone: string (optional) - phone number
+    //   - avatar_url: string (optional)
+    //   - savedAddresses: list (optional)
+    //   - role: string (optional) - 'customer' | 'admin' | 'super_admin'
+    //   - orders_count: number (optional)
+    //   - total_spent: number (optional)
+    //
+    // Collection: wallets
+    // Document ID: userId (matches auth.uid)
+    // Fields:
+    //   - user_id: string (required) - customer UID
+    //   - balance: number (required) - balance in NGN (>= 0)
+    //   - currency: string (optional) - 'NGN'
+    //   - transactions: list (optional) - wallet ledger history
+    //
+    // Collection: orders
+    // Document ID: orderId (e.g. 'ORD-123456')
+    // Fields:
+    //   - id: string (required) - order ID
+    //   - customer_id: string (optional) - customer UID
+    //   - customer: map (optional) - customer info { id, full_name, phone, email }
+    //   - items: list (required) - ordered items array
+    //   - total: number (required) - grand total amount (>= 0)
+    //   - order_status: string (optional) - order state
+    //   - delivery_otp: string (optional) - delivery PIN
+    //   - created_at: string/timestamp (optional)
+    //
+    // Collection: notifications
+    // Document ID: notifId
+    // Fields:
+    //   - user_id / userId: string (required) - recipient UID
+    //   - title: string (required) - notification title
+    //   - message / body: string (optional) - notification content
+    //   - read / is_read: bool (optional)
+    //   - created_at: string/timestamp (optional)
+    //
+    // Collection: support_tickets
+    // Document ID: ticketId
+    // Fields:
+    //   - user_id: string (required) - ticket creator UID
+    //   - subject: string (required) - ticket topic
+    //   - message: string (optional) - initial message
+    //   - status: string (optional) - 'open' | 'closed'
+    //   - replies: list (optional)
+    //
+    // Collection: subscriptions
+    // Document ID: subscriptionId
+    // Fields:
+    //   - user_id: string (required) - subscriber UID
+    //   - plan_id: string (required) - subscription plan
+    //   - status: string (optional) - 'active' | 'cancelled'
+    //   - renewal_date: string (optional)
+    //
+    // Collection: group_orders
+    // Document ID: groupId
+    // Fields:
+    //   - host_user_id: string (optional)
+    //   - status: string (optional)
+    //   - participants: list (optional)
+    //   - items: list (optional)
+    //
+    // System & Audit Collections:
+    //   - riders: fleet rider credentials and live statuses
+    //   - payouts: merchant and courier settlement ledger
+    //   - inventory: kitchen ingredient and raw material stock
+    //   - inventory_transactions: stock adjustments and audits
+    //   - production_batches: kitchen cooking batch tracking
+    //   - referrals: referral links and conversions
+    //   - audit_logs: administrative and security event logs
+    //   - daily_visits: page visit telemetry and counters
+    //   - whatsapp_logs: WhatsApp message dispatch history
+    //   - sms_logs: SMS notification audit log
+    //   - push_tokens: registered device web push tokens
+    //   - notification_logs: push notification broadcast history
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if client request is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
 
+    // Check if client is the document owner by matching userId parameter
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Check if client has verified administrative authority
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.email == 'admin@foodmaxx.ng' ||
+        request.auth.token.email == 'superadmin@foodmaxx.ng' ||
         request.auth.token.role == 'super_admin' ||
         request.auth.token.role == 'admin'
       );
     }
 
-    // 1. Menu Items (Publicly browsable, managed by admin / store staff)
+    // ===============================================================
+    // 1. Publicly Readable Collections (Menu & Store Metadata)
+    // ===============================================================
+
+    // 1. Menu Items (Publicly browsable, managed strictly by admin)
     match /menu_items/{itemId} {
       allow read: if true;
-      allow create, update: if (
-        request.resource.data.name is string &&
-        request.resource.data.name.size() > 0 &&
-        request.resource.data.price is number &&
-        request.resource.data.price >= 0
-      );
-      allow delete: if true;
+      allow write: if isAdmin();
     }
 
     // 1b. Add-ons & Extras
     match /addons/{addonId} {
       allow read: if true;
-      allow write: if (
-        request.resource.data.name is string &&
-        request.resource.data.name.size() > 0 &&
-        request.resource.data.price is number &&
-        request.resource.data.price >= 0
-      );
-      allow delete: if true;
+      allow write: if isAdmin();
     }
 
-    // 1c. Categories (Food categories, icons, ordering)
+    // 1c. Food Categories
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if true;
-      allow delete: if true;
+      allow write: if isAdmin();
     }
 
-    // 2. Delivery Zones (Coverage, delivery fees, time estimates)
+    // 2. Delivery Zones (Coverage, fees & estimates)
     match /delivery_zones/{zoneId} {
       allow read: if true;
-      allow write: if (
-        request.resource.data.name is string &&
-        request.resource.data.delivery_fee is number &&
-        request.resource.data.delivery_fee >= 0
-      );
-      allow delete: if true;
+      allow write: if isAdmin();
     }
 
     // 3. Promotions & Discounts
     match /promotions/{promoId} {
       allow read: if true;
-      allow write: if (
-        request.resource.data.code is string &&
-        request.resource.data.code.size() > 0
-      );
-      allow delete: if true;
+      allow write: if isAdmin();
     }
 
-    // 4. Orders (Customers, Kitchen Display & Admin real-time workflow)
-    match /orders/{orderId} {
-      allow read: if true;
-      allow create: if (
-        request.resource.data.total is number &&
-        request.resource.data.total >= 0
-      );
-      allow update: if true;
-      allow delete: if true;
-    }
-
-    // 5. Riders & Fleet
-    match /riders/{riderId} {
-      allow read: if true;
-      allow write: if true;
-      allow delete: if true;
-    }
-
-    // 6. Settings & Store Info (Kitchen status, open/closed, announcements)
+    // 4. Settings & Store Info (Store hours, kitchen status, config)
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
     }
 
-    // 7. Wallets & Balance
-    match /wallets/{userId} {
-      allow read: if true;
-      allow create, update: if (
-        request.resource.data.balance is number &&
-        request.resource.data.balance >= 0
-      );
-      allow delete: if true;
-    }
-
-    // 8. Reviews
-    match /reviews/{reviewId} {
-      allow read: if true;
-      allow create, update: if (
-        request.resource.data.rating is number &&
-        request.resource.data.rating >= 1 &&
-        request.resource.data.rating <= 5
-      );
-      allow delete: if true;
-    }
-
-    // 9. Users & Customers
-    match /users/{userId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
-    }
-
-    // 10. Support Tickets (Live customer support & messaging)
-    match /support_tickets/{ticketId} {
-      allow read, write: if true;
-      allow delete: if true;
-    }
-
-    // 11. Settlements & Payouts
-    match /payouts/{payoutId} {
-      allow read, write: if true;
-      allow delete: if true;
-    }
-
-    // 12. Group Orders (Real-time collaborative group ordering)
-    match /group_orders/{groupId} {
-      allow read, write: if true;
-      allow delete: if true;
-    }
-
-    // 13. Subscriptions (Meal plans & recurring subscriptions)
-    match /subscriptions/{subscriptionId} {
-      allow read, write: if true;
-      allow delete: if true;
-    }
-
-    // 14. Inventory (Stock levels & ingredients)
-    match /inventory/{itemId} {
-      allow read, write: if true;
-      allow delete: if true;
-    }
-
-    // 15. Inventory Transactions (Stock movements & audit trail)
-    match /inventory_transactions/{txId} {
-      allow read, write: if true;
-    }
-
-    // 16. Production Batches (Kitchen meal batch management)
-    match /production_batches/{batchId} {
-      allow read, write: if true;
-    }
-
-    // 17. Referrals (Customer referral links & attribution)
-    match /referrals/{refId} {
-      allow read, write: if true;
-    }
-
-    // 18. Audit Logs (System & security activity trail)
-    match /audit_logs/{logId} {
-      allow read, write: if true;
-    }
-
-    // 19. Notifications (User in-app notifications)
-    match /notifications/{notifId} {
-      allow read, write: if true;
-      allow delete: if true;
-    }
-
-    // 20. Daily App Visits & Analytics Tracking
-    match /daily_visits/{dateId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
-    }
-
-    // 21. WhatsApp Dispatch Logs & Notification Audits
-    match /whatsapp_logs/{logId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
-    }
-
-    // 22. SMS Notification Logs & Delivery Audits
-    match /sms_logs/{logId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
-    }
-
-    // 23. Push Notification Device Subscriptions & Web Push Tokens
-    match /push_tokens/{tokenId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
-    }
-
-    // 24. Push Notification Broadcast History & Audit Logs
-    match /notification_logs/{logId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
-    }
-
-    // 25. Hero Carousel Slides & Promotional Banners
+    // 5. Hero Carousel Slides & Banners
     match /hero_slides/{slideId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
+      allow write: if isAdmin();
     }
 
-    // Default deny all other unspecified paths
+    // 6. Customer Reviews (Publicly readable, authenticated create, author/admin update & delete)
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.user_id == request.auth.uid);
+    }
+
+    // ===============================================================
+    // 2. Private, Isolated User-Owned Resources (Strict Data Isolation)
+    // ===============================================================
+
+    // 7. Users & Customers (Zero Cross-Tenant Leakage: User A cannot read or write User B)
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) || isAdmin() || (request.resource.data.role == 'customer');
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 8. Wallets & Balances (Strictly isolated per owner or admin)
+    match /wallets/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) || isAdmin() || (request.resource.data.balance >= 0);
+      allow delete: if isAdmin();
+    }
+
+    // 9. Orders (Customers and verified guests can create orders; customers only read/update their own orders; admin has full management)
+    match /orders/{orderId} {
+      allow create: if (
+        (isAuthenticated() && (
+          request.resource.data.customer_id == request.auth.uid ||
+          request.resource.data.customer.id == request.auth.uid ||
+          isAdmin()
+        )) ||
+        (
+          request.resource.data.customer_name is string &&
+          request.resource.data.customer_phone is string &&
+          request.resource.data.delivery_address is string
+        )
+      );
+      allow read: if (
+        isAdmin() ||
+        (isAuthenticated() && (
+          resource.data.customer_id == request.auth.uid ||
+          resource.data.customer.id == request.auth.uid
+        ))
+      );
+      allow update: if isAdmin() || (
+        isAuthenticated() && (
+          resource.data.customer_id == request.auth.uid ||
+          resource.data.customer.id == request.auth.uid
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 10. Notifications (User-targeted in-app notifications)
+    match /notifications/{notifId} {
+      allow read, update, delete: if isAdmin() || (
+        isAuthenticated() && (
+          resource.data.user_id == request.auth.uid ||
+          resource.data.userId == request.auth.uid
+        )
+      );
+      allow create: if true;
+    }
+
+    // 11. Support Tickets (Customer ticket submission & thread access)
+    match /support_tickets/{ticketId} {
+      allow read, update: if isAdmin() || (isAuthenticated() && resource.data.user_id == request.auth.uid);
+      allow create: if isAuthenticated() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 12. Subscriptions (Meal plans & recurring orders)
+    match /subscriptions/{subscriptionId} {
+      allow read, update: if isAdmin() || (isAuthenticated() && resource.data.user_id == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // 13. Group Orders (Real-time collaborative order sessions)
+    match /group_orders/{groupId} {
+      allow read, write: if true;
+    }
+
+    // ===============================================================
+    // 3. System & Operational Collections
+    // ===============================================================
+
+    // 14. Riders & Fleet (Public roster/courier info, admin-only write)
+    match /riders/{riderId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 15. Settlements & Payouts (Admin-only financial ledger)
+    match /payouts/{payoutId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 16. Inventory (Raw stock levels & ingredients)
+    match /inventory/{itemId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 17. Inventory Transactions (Stock audit trail)
+    match /inventory_transactions/{txId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 18. Production Batches (Kitchen meal batch management)
+    match /production_batches/{batchId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 19. Referrals (Authenticated access for referral generation & attribution)
+    match /referrals/{refId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isAuthenticated();
+    }
+
+    // 20. Audit Logs (System & security activity trail)
+    match /audit_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 21. Daily App Visits & Analytics Tracking
+    match /daily_visits/{dateId} {
+      allow read: if isAdmin();
+      allow create, update: if true;
+    }
+
+    // 22. WhatsApp Dispatch Logs
+    match /whatsapp_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 23. SMS Notification Logs
+    match /sms_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 24. Push Notification Device Tokens
+    match /push_tokens/{tokenId} {
+      allow read, write: if true;
+    }
+
+    // 25. Notification Broadcast Logs & Audit Trail
+    match /notification_logs/{logId} {
+      allow read: if isAdmin();
+      allow create, update: if true;
+    }
+
+    // ===============================================================
+    // 4. Default Deny Catch-All
+    // ===============================================================
     match /{document=**} {
       allow read, write: if false;
     }

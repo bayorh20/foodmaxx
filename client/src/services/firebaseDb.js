@@ -31,7 +31,7 @@ const firebaseConfig = {
   messagingSenderId: '1089997088415'
 };
 
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 // Standard high-speed Firestore instance
 let dbInstance;
@@ -1304,11 +1304,22 @@ export function processLiveCustomers(usersDocs = [], ordersDocs = []) {
 }
 
 export async function getLiveCustomers() {
-  const [usersSnap, ordersSnap] = await Promise.all([
-    getDocs(collection(db, COLL_USERS)),
-    getDocs(collection(db, COLL_ORDERS))
-  ]);
-  return processLiveCustomers(usersSnap.docs, ordersSnap.docs);
+  try {
+    const [usersSnap, ordersSnap] = await Promise.all([
+      getDocs(collection(db, COLL_USERS)).catch(err => {
+        console.warn('Live users fetch skipped (admin only):', err.message);
+        return { docs: [] };
+      }),
+      getDocs(collection(db, COLL_ORDERS)).catch(err => {
+        console.warn('Live orders fetch skipped:', err.message);
+        return { docs: [] };
+      })
+    ]);
+    return processLiveCustomers(usersSnap?.docs || [], ordersSnap?.docs || []);
+  } catch (err) {
+    console.warn('getLiveCustomers error:', err);
+    return [];
+  }
 }
 
 export function subscribeToLiveCustomers(callback) {

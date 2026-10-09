@@ -43,6 +43,8 @@ const OnboardingFlow = lazy(() => import('./components/OnboardingFlow'));
 import { getTransitionVariants } from './utils/transitionStyles';
 const TransitionStudioModal = lazy(() => import('./components/TransitionStudioModal'));
 const GroupOrderSheet = lazy(() => import('./components/GroupOrderSheet'));
+import CleanCheckoutModal from './components/CleanCheckoutModal';
+import PaystackFallbackModal from './components/PaystackFallbackModal';
 const AuthModal = lazy(() => import('./components/AuthModal'));
 const AvatarPickerModal = lazy(() => import('./components/AvatarPickerModal'));
 const CheckoutQuickRegisterModal = lazy(() => import('./components/CheckoutQuickRegisterModal'));
@@ -464,16 +466,35 @@ function CartProvider({ children }) {
     });
   }, []);
 
-  const updateQty = useCallback((idx, delta) => {
+  const updateQty = useCallback((idxOrTarget, delta) => {
     setCart(prev => {
-      if (!prev.items[idx]) return prev;
-      const newQty = prev.items[idx].qty + delta;
+      let targetIdx = -1;
+      if (typeof idxOrTarget === 'number') {
+        targetIdx = idxOrTarget;
+      } else if (typeof idxOrTarget === 'string') {
+        targetIdx = (prev.items || []).findIndex(i =>
+          (i.id && String(i.id) === String(idxOrTarget)) ||
+          (i.name && i.name.trim().toLowerCase() === idxOrTarget.trim().toLowerCase())
+        );
+      } else if (idxOrTarget && typeof idxOrTarget === 'object') {
+        targetIdx = (prev.items || []).findIndex(i =>
+          (i.id && idxOrTarget.id && String(i.id) === String(idxOrTarget.id)) ||
+          (i.name && idxOrTarget.name && i.name.trim().toLowerCase() === idxOrTarget.name.trim().toLowerCase())
+        );
+      }
+
+      if (targetIdx < 0 || !prev.items[targetIdx]) return prev;
+
+      const currentItem = prev.items[targetIdx];
+      const newQty = currentItem.qty + (typeof delta === 'number' ? delta : 1);
+
       if (newQty <= 0) {
-        const updated = prev.items.filter((_, i) => i !== idx);
+        const updated = prev.items.filter((_, i) => i !== targetIdx);
         return updated.length === 0 ? { restaurantId: 'rest_foodmaxx', restaurantName: 'FoodMaxx', items: [] } : { ...prev, items: updated };
       }
+
       const updated = [...prev.items];
-      updated[idx] = { ...updated[idx], qty: newQty };
+      updated[targetIdx] = { ...currentItem, qty: newQty };
       return { ...prev, items: updated };
     });
   }, []);
@@ -775,8 +796,8 @@ function FlyingCartDropOverlay() {
 // CUSTOMER PORTAL
 // ============================================================
 function CustomerPortal() {
-  const { user, login, logout, silentRegister, token } = useAuth();
-  const { cart, itemCount, subtotal, addItem, clearCart } = useCart();
+  const { user, login, loginWithGoogle, register, logout, token, updateUser } = useAuth();
+  const { cart, itemCount, subtotal, addItem, clearCart, updateQty } = useCart();
   const toast = useToast();
   const ws = useWS();
   const { isDark, toggleDark, setTheme } = useTheme();
@@ -1890,24 +1911,14 @@ function CustomerPortal() {
                   } catch {}
                   setAppStage('ready');
                 }}
-                onRegister={async ({ full_name, phone, address }) => {
+                onSuccess={(authenticatedUser) => {
                   try {
                     localStorage.setItem('fmx_onboarded', 'true');
-                    localStorage.setItem('fmx_last_name', full_name);
-                    localStorage.setItem('fmx_last_phone', phone);
-                    if (address) localStorage.setItem('fmx_last_delivery_address', address);
                     localStorage.setItem('fmx_splash_seen', 'true');
                     sessionStorage.setItem('fmx_splash_seen', 'true');
                   } catch {}
-                  const res = await silentRegister({ full_name, phone });
-                  if (address && res?.id) {
-                    try {
-                      await api.updateUser(res.id, { address });
-                      updateUser({ address });
-                    } catch {}
-                  }
-                  toast(`Welcome to FoodMaxx, ${full_name}! ₦1,000 credit added.`, 'success');
-                  return res;
+                  setAppStage('ready');
+                  toast(`Welcome, ${authenticatedUser?.full_name || 'FoodMaxx Diner'}!`, 'success');
                 }}
                 onGuest={() => {
                   try {
@@ -2655,25 +2666,33 @@ function CustomerPortal() {
       {/* CHECKOUT MODAL */}
       <AnimatePresence>
         {checkoutOpen && (
-          <CheckoutModal
-            key="checkout-modal"
+          <CleanCheckoutModal
+            key="clean-checkout-modal"
             open={checkoutOpen}
             onClose={() => setCheckoutOpen(false)}
-            onOpenGroupOrder={() => {
-              setCheckoutOpen(false);
-              setGroupOrderSheetOpen(true);
-            }}
+            cart={cart}
+            subtotal={subtotal}
+            updateQty={updateQty}
+            clearCart={clearCart}
+            user={user}
+            updateUser={updateUser}
             selectedZone={selectedZone}
             selectedAddress={selectedAddress}
             wallet={wallet}
-            onRefreshWallet={loadWallet}
-            onChangeAddress={() => setLocationsModalOpen(true)}
+            onOpenAuth={(initialAuthMode = 'login') => {
+              if (initialAuthMode === 'register') {
+                setRegisterOpen(true);
+              } else {
+                setLoginOpen(true);
+              }
+            }}
             onSuccess={(order) => {
               setCheckoutOpen(false);
               loadOrders();
               loadWallet();
               setPlacedOrderSuccess(order);
             }}
+            isDark={isDark}
           />
         )}
       </AnimatePresence>
@@ -3647,25 +3666,43 @@ function ParfaitShowcaseCard({ item, inCartQty = 0, onSelect, onQuickAdd, isFavo
     if (typeof onQuickAdd === 'function') {
       onQuickAdd(item);
     } else {
-      addItem(item, 1);
+      addItem('rest_foodmaxx', 'FoodMaxx', {
+        id: item.id,
+        name: item.name,
+        price: item.price || 3500,
+        qty: 1,
+        image_url: itemImage,
+        selectedSize: item.category || 'Regular'
+      });
     }
   };
 
   const handleMinus = (e) => {
     e.stopPropagation();
-    if (inCartQty <= 1) {
-      updateQty(item.id, 0);
+    const cartItems = (typeof window !== 'undefined' && window.__fmx_cart_items) ? window.__fmx_cart_items : [];
+    const targetIdx = cartItems.findIndex(ci => 
+      (ci.id && item.id && String(ci.id) === String(item.id)) || 
+      (ci.name && item.name && ci.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+    );
+    if (targetIdx >= 0) {
+      updateQty(targetIdx, -1);
     } else {
-      updateQty(item.id, inCartQty - 1);
+      updateQty(item.id || item.name, -1);
     }
   };
 
   const handlePlus = (e) => {
     e.stopPropagation();
-    if (inCartQty === 0) {
-      handleAdd(e);
+    const cartItems = (typeof window !== 'undefined' && window.__fmx_cart_items) ? window.__fmx_cart_items : [];
+    const targetIdx = cartItems.findIndex(ci => 
+      (ci.id && item.id && String(ci.id) === String(item.id)) || 
+      (ci.name && item.name && ci.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+    );
+    if (targetIdx >= 0) {
+      updateQty(targetIdx, 1);
+      trigger3dCartDrop(e, item);
     } else {
-      updateQty(item.id, inCartQty + 1);
+      handleAdd(e);
     }
   };
 
@@ -5005,14 +5042,20 @@ function ProfileTab({
     }
   };
 
-  // Check ₦1,000 giveaway status
+  // Check ₦1,000 giveaway status (strictly for this account / phone, never falsely blocking new users)
   const isGiveawayClaimed = Boolean(
     user?.giveaway_claimed ||
     (user && ((user.orders_count || 0) > 0 || (user.total_orders || 0) > 0)) ||
     (() => {
+      // If user is brand new with 0 orders, they are eligible
+      if (user && (user.orders_count || 0) === 0 && (user.total_orders || 0) === 0 && !user.giveaway_claimed) {
+        return false;
+      }
       try {
-        if (typeof window !== 'undefined' && window.localStorage?.getItem('fmx_giveaway_claimed') === 'true') return true;
+        if (user?.id && window.localStorage?.getItem(`fmx_giveaway_claimed_${user.id}`) === 'true') return true;
         if (user?.phone && window.localStorage?.getItem(`fmx_giveaway_claimed_${user.phone.replace(/\D/g, '')}`) === 'true') return true;
+        // Only check global device flag if not logged in
+        if (!user && typeof window !== 'undefined' && window.localStorage?.getItem('fmx_giveaway_claimed') === 'true') return true;
         return false;
       } catch {
         return false;
@@ -7976,10 +8019,15 @@ function CartDrawer({ open, onClose, onCheckout, selectedZone }) {
     user?.giveaway_claimed ||
     (user && ((user.orders_count || 0) > 0 || (user.total_orders || 0) > 0)) ||
     (() => {
+      // New user with 0 orders is always eligible
+      if (user && (user.orders_count || 0) === 0 && (user.total_orders || 0) === 0 && !user.giveaway_claimed) {
+        return false;
+      }
       try {
-        if (localStorage.getItem('fmx_giveaway_claimed') === 'true') return true;
-        const lp = localStorage.getItem('fmx_last_phone') || user?.phone;
-        if (lp && localStorage.getItem(`fmx_giveaway_claimed_${lp.replace(/\D/g, '')}`) === 'true') return true;
+        if (user?.id && localStorage.getItem(`fmx_giveaway_claimed_${user.id}`) === 'true') return true;
+        const lp = user?.phone ? user.phone.replace(/\D/g, '') : localStorage.getItem('fmx_last_phone')?.replace(/\D/g, '');
+        if (lp && localStorage.getItem(`fmx_giveaway_claimed_${lp}`) === 'true') return true;
+        if (!user && localStorage.getItem('fmx_giveaway_claimed') === 'true') return true;
         return false;
       } catch {
         return false;
@@ -8772,299 +8820,36 @@ function loadPaystackScript() {
 }
 
 // ============================================================
-// PAYSTACK CHECKOUT MODAL (Card, Bank Transfer, USSD)
+// PAYSTACK CHECKOUT MODAL (Imported from ./components/PaystackFallbackModal)
 // ============================================================
-function PaystackFallbackModal({ open, onClose, data, isDark, onPaymentComplete }) {
-  const [activeTab, setActiveTab] = useState('card');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [copiedAccount, setCopiedAccount] = useState(false);
 
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [storeSettings, setStoreSettings] = useState(() => getStoreDetails());
-
-  useEffect(() => {
-    let mounted = true;
-    api.getStoreSettings?.().then(res => {
-      if (mounted && res?.data) setStoreSettings(prev => ({ ...prev, ...res.data }));
-    }).catch(() => {});
-
-    const onUpdate = (e) => {
-      if (mounted && e.detail) setStoreSettings(e.detail);
-    };
-    window.addEventListener('fmx_store_details_updated', onUpdate);
-    window.addEventListener('fmx_store_settings_updated', onUpdate);
-    return () => {
-      mounted = false;
-      window.removeEventListener('fmx_store_details_updated', onUpdate);
-      window.removeEventListener('fmx_store_settings_updated', onUpdate);
-    };
-  }, []);
-
-  const bankName = storeSettings?.payout_bank_name || DEFAULT_STORE_DETAILS.payout_bank_name || 'Moniepoint';
-  const accountNumber = storeSettings?.payout_account_number || DEFAULT_STORE_DETAILS.payout_account_number || '8166004281';
-  const accountName = storeSettings?.payout_account_name || DEFAULT_STORE_DETAILS.payout_account_name || 'Foodmaxx Restaurant';
-
-  if (!open || !data) return null;
-
-  const amount = Number(data.amount) || 0;
-  const email = data.email || 'customer@foodmaxx.ng';
-  const reference = data.reference || `FMX_PSTK_${Date.now()}`;
-
-  const handleSimulatePayment = (paymentChannel = 'card') => {
-    setIsProcessing(false);
-    setIsSuccess(true);
-    triggerHaptic('success');
-    playNativeSound('success');
-    if (onPaymentComplete) {
-      onPaymentComplete({
-        reference,
-        status: 'success',
-        channel: paymentChannel
-      });
-    }
-  };
-
-  const copyAccountNumber = () => {
-    if (!accountNumber) return;
-    try {
-      if (navigator.clipboard) navigator.clipboard.writeText(accountNumber);
-    } catch {}
-    setCopiedAccount(true);
-    triggerHaptic('selection');
-    setTimeout(() => setCopiedAccount(false), 2000);
-  };
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div
-        className={`w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border ${
-          isDark ? 'bg-[#12141A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-        } relative flex flex-col`}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Paystack Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-white/10 flex items-center justify-between bg-slate-50/60 dark:bg-white/5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#0AA5FF]/10 text-[#0AA5FF] flex items-center justify-center font-black text-sm">
-              <span className="font-mono text-base font-extrabold">P</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-xs sm:text-sm tracking-tight text-slate-900 dark:text-white">Paystack</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                  <ShieldCheck size={10} /> Secured
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 truncate max-w-[200px]">{email}</p>
-            </div>
-          </div>
-
-          <div className="text-right">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Pay</span>
-            <span className="font-black text-base sm:text-lg text-slate-900 dark:text-white">
-              ₦{amount.toLocaleString()}
-            </span>
-          </div>
-        </div>
-
-        {/* Processing overlay */}
-        {isProcessing && (
-          <div className="py-14 px-6 text-center space-y-3">
-            <RefreshCw size={36} className="animate-spin text-[#0AA5FF] mx-auto" />
-            <h4 className="font-bold text-base text-slate-900 dark:text-white">Connecting with Paystack...</h4>
-            <p className="text-xs text-slate-400">Authorizing transaction with your bank. Please do not close.</p>
-          </div>
-        )}
-
-        {/* Success overlay */}
-        {isSuccess && (
-          <div className="py-14 px-6 text-center space-y-3">
-            <div className="w-14 h-14 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center mx-auto text-2xl">
-              <Check size={28} className="stroke-[3]" />
-            </div>
-            <h4 className="font-bold text-lg text-slate-900 dark:text-white">Payment Approved!</h4>
-            <p className="text-xs text-slate-400">Ref: {reference.slice(0, 18)}...</p>
-          </div>
-        )}
-
-        {/* Channels Content */}
-        {!isProcessing && !isSuccess && (
-          <div className="p-4 sm:p-5 space-y-4">
-            {/* Tabs */}
-            <div className="flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 text-xs font-bold">
-              {[
-                { id: 'card', label: '💳 Card' },
-                { id: 'transfer', label: '🏦 Bank Transfer' },
-                { id: 'ussd', label: '📱 USSD' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 py-2 rounded-lg transition-all cursor-pointer ${
-                    activeTab === tab.id
-                      ? 'bg-white dark:bg-[#1C2029] text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* TAB 1: CARD */}
-            {activeTab === 'card' && (
-              <div className="space-y-3">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-500 block mb-1">CARD NUMBER</label>
-                  <input
-                    type="text"
-                    maxLength={19}
-                    placeholder="4084 0000 0000 0000"
-                    value={cardNumber}
-                    onChange={e => {
-                      const v = e.target.value.replace(/\D/g, '').replace(/(\d{4})/g, '$1 ').trim();
-                      setCardNumber(v);
-                    }}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 font-mono text-xs text-slate-900 dark:text-white outline-none focus:border-[#0AA5FF]"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-500 block mb-1">EXPIRES</label>
-                    <input
-                      type="text"
-                      maxLength={5}
-                      placeholder="MM/YY"
-                      value={cardExpiry}
-                      onChange={e => {
-                        let v = e.target.value.replace(/\D/g, '');
-                        if (v.length >= 2) v = v.slice(0, 2) + '/' + v.slice(2, 4);
-                        setCardExpiry(v);
-                      }}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 font-mono text-xs text-slate-900 dark:text-white outline-none focus:border-[#0AA5FF]"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-500 block mb-1">CVV</label>
-                    <input
-                      type="password"
-                      maxLength={4}
-                      placeholder="123"
-                      value={cardCvv}
-                      onChange={e => setCardCvv(e.target.value.replace(/\D/g, ''))}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 font-mono text-xs text-slate-900 dark:text-white outline-none focus:border-[#0AA5FF]"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleSimulatePayment('card')}
-                  className="w-full py-3 rounded-xl bg-[#09A552] hover:bg-[#088C45] text-white font-bold text-sm shadow-md transition-transform active:scale-[0.98] cursor-pointer mt-2"
-                >
-                  Pay ₦{amount.toLocaleString()}
-                </button>
-              </div>
-            )}
-
-            {/* TAB 2: TRANSFER */}
-            {activeTab === 'transfer' && (
-              <div className="space-y-3">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2 text-xs">
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>Bank Name</span>
-                    <strong className="text-slate-900 dark:text-white">{bankName}</strong>
-                  </div>
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>Account Number</span>
-                    <div className="flex items-center gap-1.5">
-                      <strong className="font-mono text-sm text-[#0AA5FF]">
-                        {accountNumber || 'Official Merchant Line'}
-                      </strong>
-                      {accountNumber && (
-                        <button
-                          type="button"
-                          onClick={copyAccountNumber}
-                          className="p-1 rounded-md bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:opacity-80 cursor-pointer"
-                          title="Copy account number"
-                        >
-                          <Copy size={12} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>Beneficiary</span>
-                    <strong className="text-slate-900 dark:text-white">{accountName}</strong>
-                  </div>
-                </div>
-                {copiedAccount && (
-                  <p className="text-[11px] text-emerald-600 font-bold text-center">Account number copied!</p>
-                )}
-                <p className="text-[11px] text-slate-400 text-center">
-                  Transfer exactly ₦{amount.toLocaleString()} to the account above.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => handleSimulatePayment('bank_transfer')}
-                  className="w-full py-3 rounded-xl bg-[#09A552] hover:bg-[#088C45] text-white font-bold text-sm shadow-md transition-transform active:scale-[0.98] cursor-pointer"
-                >
-                  I Have Sent The Payment
-                </button>
-              </div>
-            )}
-
-            {/* TAB 3: USSD */}
-            {activeTab === 'ussd' && (
-              <div className="space-y-3 text-center">
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                  <span className="text-[11px] text-slate-400 block mb-1">Direct Bank USSD</span>
-                  <div className="font-mono font-bold text-sm text-[#0AA5FF] tracking-wider">
-                    {accountNumber ? `Transfer ₦${amount.toLocaleString()} to ${accountNumber} via your bank app or USSD` : 'Pay via your Mobile Banking App / USSD'}
-                  </div>
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Dial your bank's transfer code on your phone linked to your bank account.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => handleSimulatePayment('ussd')}
-                  className="w-full py-3 rounded-xl bg-[#09A552] hover:bg-[#088C45] text-white font-bold text-sm shadow-md transition-transform active:scale-[0.98] cursor-pointer"
-                >
-                  I Have Completed USSD Payment
-                </button>
-              </div>
-            )}
-
-            {/* Cancel link */}
-            <div className="text-center pt-1">
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-xs text-slate-400 hover:text-red-500 font-semibold cursor-pointer"
-              >
-                Cancel payment
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ============================================================
 // CHECKOUT MODAL
 // ============================================================
-function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSuccess, selectedAddress, wallet, onRefreshWallet, onChangeAddress }) {
+function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSuccess, selectedAddress, wallet, onRefreshWallet, onChangeAddress, onOpenAuth }) {
   const { cart, subtotal, clearCart, updateQty, removeItem } = useCart();
-  const { user, silentRegister, updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const { isDark } = useTheme();
+
+  return (
+    <CleanCheckoutModal
+      open={open}
+      onClose={onClose}
+      cart={cart}
+      subtotal={subtotal}
+      updateQty={updateQty}
+      clearCart={clearCart}
+      user={user}
+      updateUser={updateUser}
+      selectedZone={selectedZone}
+      selectedAddress={selectedAddress}
+      wallet={wallet}
+      onOpenAuth={onOpenAuth}
+      onSuccess={onSuccess}
+      isDark={isDark}
+    />
+  );
   const toast = useToast();
   const [paymentMethod, setPaymentMethod] = useState('paystack');
 
@@ -9157,39 +8942,19 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
   });
   const [contactEmail, setContactEmail] = useState(() => (!user ? '' : (user?.email || '')));
 
-  // Popup quick registration screen when customer is not registered
+  // Explicit Authentication required popup when guest customer checks out
   const isRegisteredCustomer = Boolean(user && (user.is_registered || user.phone));
-  const [quickRegisterOpen, setQuickRegisterOpen] = useState(false);
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
   const [checkoutAvatarPickerOpen, setCheckoutAvatarPickerOpen] = useState(false);
 
-  // Auto-show popup registration when checkout opens for an unregistered customer
-  useEffect(() => {
-    if (open && !isRegisteredCustomer) {
-      setQuickRegisterOpen(true);
-    }
-  }, [open, isRegisteredCustomer]);
-
-  const handleQuickRegisterSubmit = async ({ full_name, phone, avatar_url }) => {
-    try {
-      setContactName(full_name);
-      setContactPhone(phone);
-      try {
-        localStorage.setItem('fmx_last_name', full_name);
-        localStorage.setItem('fmx_last_phone', phone);
-      } catch {}
-
-      if (silentRegister) {
-        await silentRegister({
-          full_name,
-          phone,
-          avatar_url
-        });
-      }
-      setQuickRegisterOpen(false);
-      triggerConfetti({ particleCount: 25, spread: 50, origin: { y: 0.5 } });
-      toast(`🎉 Welcome, ${full_name}! Your AI avatar has been assigned.`, 'success');
-    } catch (e) {
-      toast(e?.message || 'Quick registration notice', 'error');
+  const handleAuthPromptSuccess = (authenticatedUser) => {
+    setAuthPromptOpen(false);
+    if (authenticatedUser) {
+      setContactName(authenticatedUser.full_name || '');
+      setContactPhone(authenticatedUser.phone || '');
+      setContactEmail(authenticatedUser.email || '');
+      if (authenticatedUser.address) setDeliveryAddress(authenticatedUser.address);
+      toast(`Signed in as ${authenticatedUser.full_name || 'Customer'}. Ready to place order!`, 'success');
     }
   };
 
@@ -9244,28 +9009,6 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
     };
   }, []);
 
-  // Instant silent registration on first input of Name
-  const triggerAutoSilentRegister = useCallback(async (nameVal, phoneVal) => {
-    const cleanName = (nameVal ?? contactName).trim();
-    const cleanPhone = (phoneVal ?? contactPhone).trim();
-    if (cleanName.length >= 2) {
-      try {
-        localStorage.setItem('fmx_last_name', cleanName);
-        if (cleanPhone) localStorage.setItem('fmx_last_phone', cleanPhone);
-      } catch {}
-      if (!user && silentRegister) {
-        try {
-          await silentRegister({
-            full_name: cleanName,
-            phone: cleanPhone || ''
-          });
-        } catch (e) {
-          console.warn('Auto silent register:', e);
-        }
-      }
-    }
-  }, [contactName, contactPhone, user, silentRegister]);
-
   // Surprise Gift
   const [isGift, setIsGift] = useState(false);
   const [recipientName, setRecipientName] = useState('');
@@ -9294,11 +9037,14 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
     user?.giveaway_claimed ||
     (user && ((user.orders_count || 0) > 0 || (user.total_orders || 0) > 0)) ||
     (() => {
+      // New user with 0 orders is eligible
+      if (user && (user.orders_count || 0) === 0 && (user.total_orders || 0) === 0 && !user.giveaway_claimed) {
+        return false;
+      }
       try {
-        if (localStorage.getItem('fmx_giveaway_claimed') === 'true') return true;
+        if (user?.id && localStorage.getItem(`fmx_giveaway_claimed_${user.id}`) === 'true') return true;
         if (currentCleanPhone && localStorage.getItem(`fmx_giveaway_claimed_${currentCleanPhone}`) === 'true') return true;
-        const lastPhone = localStorage.getItem('fmx_last_phone');
-        if (lastPhone && localStorage.getItem(`fmx_giveaway_claimed_${lastPhone}`) === 'true') return true;
+        if (!user && localStorage.getItem('fmx_giveaway_claimed') === 'true') return true;
         return false;
       } catch {
         return false;
@@ -9579,25 +9325,19 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
       }
     }
 
+    // Require explicit authentication before placing an order:
+    if (!user) {
+      setAuthPromptOpen(true);
+      return;
+    }
+
     // For wallet/free order, show quick loading; for Paystack, open instantly
     if (paymentMethod !== 'paystack' || total === 0) {
       setLoading(true);
     }
     try {
       let activeUser = user;
-      if (!activeUser && silentRegister) {
-        // Run silent registration asynchronously in background so modal opens without lag
-        silentRegister({
-          full_name: nameToUse,
-          phone: phoneToUse,
-          email: emailToUse || undefined
-        }).catch(() => {});
-        activeUser = {
-          full_name: nameToUse,
-          phone: phoneToUse,
-          email: emailToUse
-        };
-      } else if (updateUser && (nameToUse !== activeUser?.full_name || phoneToUse !== activeUser?.phone)) {
+      if (updateUser && (nameToUse !== activeUser?.full_name || phoneToUse !== activeUser?.phone)) {
         updateUser({
           full_name: nameToUse,
           phone: phoneToUse,
@@ -10462,17 +10202,16 @@ function CheckoutModal({ open, onClose, onOpenGroupOrder, selectedZone, onSucces
           )}
         </AnimatePresence>
 
-        {/* Quick 2-Field Registration Popup when user is not registered */}
+        {/* Explicit Authentication Modal when guest attempts to check out */}
         <AnimatePresence>
-          {quickRegisterOpen && (!user || !user.is_registered) && (
+          {authPromptOpen && !user && (
             <Suspense fallback={null}>
               <CheckoutQuickRegisterModal
-                open={quickRegisterOpen}
-                onClose={() => setQuickRegisterOpen(false)}
-                initialName={contactName}
-                initialPhone={contactPhone}
+                open={authPromptOpen}
+                onClose={() => setAuthPromptOpen(false)}
+                onOpenAuth={onOpenAuth}
+                onSuccess={handleAuthPromptSuccess}
                 isDark={isDark}
-                onSubmit={handleQuickRegisterSubmit}
               />
             </Suspense>
           )}
@@ -12022,7 +11761,7 @@ function SupportModal({ open, onClose, user }) {
 // ============================================================
 function LoginModal({ open, onClose, onSwitchRegister }) {
   const { isDark } = useTheme?.() || {};
-  const { login } = useAuth();
+  const { loginWithUser } = useAuth();
   if (!open) return null;
   return (
     <Suspense fallback={null}>
@@ -12030,9 +11769,9 @@ function LoginModal({ open, onClose, onSwitchRegister }) {
         open={open}
         onClose={onClose}
         initialMode="login"
-        onSuccess={async (signedInUser) => {
-          if (signedInUser?.email) {
-            await login(signedInUser.email, '', signedInUser.role);
+        onSuccess={(signedInUser) => {
+          if (signedInUser) {
+            loginWithUser(signedInUser);
           }
           onClose();
         }}
@@ -12044,7 +11783,7 @@ function LoginModal({ open, onClose, onSwitchRegister }) {
 }
 
 function RegisterModal({ open, onClose, onSwitchLogin }) {
-  const { login } = useAuth();
+  const { loginWithUser } = useAuth();
   if (!open) return null;
   return (
     <Suspense fallback={null}>
@@ -12052,9 +11791,9 @@ function RegisterModal({ open, onClose, onSwitchLogin }) {
         open={open}
         onClose={onClose}
         initialMode="register"
-        onSuccess={async (newUser) => {
-          if (newUser?.email) {
-            await login(newUser.email, '', newUser.role);
+        onSuccess={(newUser) => {
+          if (newUser) {
+            loginWithUser(newUser);
           }
           onClose();
         }}
@@ -12139,6 +11878,24 @@ function AuthProvider({ children }) {
     };
   }, []);
 
+  // Check if returning from Google Sign-In redirect
+  useEffect(() => {
+    if (api && typeof api.checkGoogleRedirect === 'function') {
+      api.checkGoogleRedirect().then(res => {
+        if (res?.success && res.user) {
+          setUser(res.user);
+          setToken(res.token);
+          initWS(res.user);
+          try {
+            window.dispatchEvent(new CustomEvent('fmx_auth_change', { detail: { action: 'login', user: res.user } }));
+          } catch {}
+        }
+      }).catch(err => {
+        console.warn('Google redirect check error:', err);
+      });
+    }
+  }, []);
+
   function initWS(user, riderData) {
     if (ws) ws.disconnect();
     const newWs = new FMXWebSocket(user.id, user.role, { riderId: riderData?.id });
@@ -12197,65 +11954,79 @@ function AuthProvider({ children }) {
     return { success: true, token: tokenVal, user: finalUser };
   }
 
-  async function silentRegister({ full_name, phone, email, address, avatar_url }) {
-    const cleanPhone = (phone || '').replace(/\D/g, '');
-    const safeEmail = email || `${cleanPhone || Date.now()}@foodmaxx.ng`;
-    const userAvatar = avatar_url || generateAIAvatarForUser(full_name, cleanPhone);
+  async function loginWithGoogle() {
     try {
-      const res = await api.register({
-        full_name,
-        phone,
-        email: safeEmail,
-        address: address || '',
-        avatar_url: userAvatar,
-        password: 'guest_' + Date.now()
+      localStorage.removeItem('fmx_last_order_id');
+      localStorage.removeItem('fmx_active_order');
+      localStorage.removeItem('fmx_cart_use_giveaway');
+      localStorage.removeItem('fmx_active_promo');
+      localStorage.removeItem('fmx_saved_addresses');
+      localStorage.removeItem('fmx_last_delivery_address');
+      localStorage.removeItem('fmx_last_name');
+      localStorage.removeItem('fmx_last_phone');
+      localStorage.removeItem('fmx_guest_name');
+      localStorage.removeItem('fmx_active_group_code');
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('fmx_last_order_') || k.startsWith('fmx_order_') || k.startsWith('fmx_user_') || k.startsWith('fmx_pid_')) {
+          localStorage.removeItem(k);
+        }
       });
-      const registeredUser = res.user || {
-        id: 'user_' + Date.now(),
-        full_name,
-        phone,
-        email: safeEmail,
-        address: address || '',
-        avatar_url: userAvatar,
-        is_registered: true,
-        role: 'customer'
-      };
-      const authToken = res.token || ('fmx_token_' + Date.now());
-      localStorage.setItem('fmx_token', authToken);
-      localStorage.setItem('fmx_user', JSON.stringify(registeredUser));
-      if (userAvatar) localStorage.setItem('fmx_user_avatar', userAvatar);
-      setToken(authToken);
-      setUser(registeredUser);
+      window.dispatchEvent(new CustomEvent('fmx_tracking_clear'));
+      window.dispatchEvent(new CustomEvent('fmx_address_clear'));
+    } catch {}
 
-      try {
-        window.dispatchEvent(new CustomEvent('fmx_auth_change', { detail: { action: 'register', user: registeredUser } }));
-      } catch {}
-
-      return registeredUser;
-    } catch (e) {
-      const localUser = {
-        id: 'user_' + Date.now(),
-        full_name,
-        phone,
-        email: safeEmail,
-        address: address || '',
-        avatar_url: userAvatar,
-        is_registered: true,
-        role: 'customer'
-      };
-      const localToken = 'fmx_token_' + Date.now();
-      localStorage.setItem('fmx_token', localToken);
-      localStorage.setItem('fmx_user', JSON.stringify(localUser));
-      if (userAvatar) localStorage.setItem('fmx_user_avatar', userAvatar);
-      setToken(localToken);
-      setUser(localUser);
-
-      try {
-        window.dispatchEvent(new CustomEvent('fmx_auth_change', { detail: { action: 'register', user: localUser } }));
-      } catch {}
-
-      return localUser;
+    const res = await api.loginWithGoogle();
+    if (res?.pendingRedirect) {
+      return res;
     }
+    if (res?.success && res.user) {
+      setUser(res.user);
+      setToken(res.token);
+      initWS(res.user);
+      try {
+        window.dispatchEvent(new CustomEvent('fmx_auth_change', { detail: { action: 'login', user: res.user } }));
+      } catch {}
+    }
+    return res;
+  }
+
+  async function register(registrationData) {
+    const res = await api.register(registrationData);
+    if (res?.success && res.user) {
+      setUser(res.user);
+      setToken(res.token);
+      initWS(res.user);
+      try {
+        window.dispatchEvent(new CustomEvent('fmx_auth_change', { detail: { action: 'register', user: res.user } }));
+      } catch {}
+    }
+    return res;
+  }
+
+  function loginWithUser(newUser, customToken) {
+    if (!newUser) return;
+    const tokenVal = customToken || localStorage.getItem('fmx_token') || ('fmx_token_' + Date.now());
+    localStorage.setItem('fmx_token', tokenVal);
+    localStorage.setItem('fmx_user', JSON.stringify(newUser));
+    if (newUser.full_name) localStorage.setItem('fmx_last_name', newUser.full_name);
+    if (newUser.phone) localStorage.setItem('fmx_last_phone', newUser.phone);
+    setUser(newUser);
+    setToken(tokenVal);
+    initWS(newUser);
+
+    // If new user has 0 orders and hasn't claimed giveaway, clear any stale device giveaway flag
+    if (!newUser.giveaway_claimed && ((newUser.orders_count || 0) === 0 && (newUser.total_orders || 0) === 0)) {
+      try {
+        localStorage.removeItem('fmx_giveaway_claimed');
+        if (newUser.phone) {
+          localStorage.removeItem(`fmx_giveaway_claimed_${newUser.phone.replace(/\D/g, '')}`);
+        }
+      } catch {}
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent('fmx_auth_change', { detail: { action: 'login', user: newUser } }));
+    } catch {}
   }
 
   function updateUser(updatedData) {
@@ -12271,6 +12042,7 @@ function AuthProvider({ children }) {
 
   function logout() {
     try {
+      api.logout().catch(() => {});
       localStorage.removeItem('fmx_token');
       localStorage.removeItem('fmx_user');
       localStorage.removeItem('fmx_cart');
@@ -12305,7 +12077,7 @@ function AuthProvider({ children }) {
   }
 
   return (
-    <AuthCtx.Provider value={{ user, token, login, logout, silentRegister, updateUser }}>
+    <AuthCtx.Provider value={{ user, token, login, loginWithUser, loginWithGoogle, register, logout, updateUser }}>
       <WSCtx.Provider value={ws}>
         {children}
       </WSCtx.Provider>
