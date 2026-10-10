@@ -121,10 +121,13 @@ export default function CleanCheckoutModal({
   const walletBalance = Number(wallet?.balance) || 0;
   const canUseWallet = user && walletBalance >= total;
 
-  // Handle phone input formatting (strictly numeric 11 digits)
+  // Handle phone input formatting (strictly numeric 11 digits with smart +234 paste support)
   const handlePhoneChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
-    setPhone(raw);
+    let raw = e.target.value.replace(/\D/g, '');
+    if (raw.startsWith('234') && raw.length >= 13) {
+      raw = '0' + raw.slice(3);
+    }
+    setPhone(raw.slice(0, 11));
     setErrorMsg('');
   };
 
@@ -187,9 +190,20 @@ export default function CleanCheckoutModal({
 
     setErrorMsg('');
 
+    if (!cart?.items || cart.items.length === 0) {
+      setErrorMsg('Your cart is empty. Please add delicious meals before checking out.');
+      return;
+    }
+
     // Validation
     const cleanName = name.trim();
-    const cleanPhone = phone.replace(/\D/g, '').slice(0, 11);
+    let cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.startsWith('234') && cleanPhone.length >= 13) {
+      cleanPhone = '0' + cleanPhone.slice(3);
+    } else if (cleanPhone.length === 10 && ['7', '8', '9'].includes(cleanPhone[0])) {
+      cleanPhone = '0' + cleanPhone;
+    }
+    cleanPhone = cleanPhone.slice(0, 11);
     const cleanAddress = address.trim();
 
     if (!cleanName) {
@@ -201,7 +215,7 @@ export default function CleanCheckoutModal({
       return;
     }
     if (cleanPhone.length !== 11) {
-      setErrorMsg(`Phone number must be exactly 11 digits (currently ${cleanPhone.length})`);
+      setErrorMsg(`Phone number must be exactly 11 digits (e.g. 08012345678, currently ${cleanPhone.length})`);
       return;
     }
     if (!cleanAddress) {

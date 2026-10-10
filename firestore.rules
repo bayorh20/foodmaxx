@@ -263,7 +263,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 9. Orders (Customers and verified guests can create orders; customers only read/update their own orders; admin has full management)
+    // 9. Orders (Customers and verified guests can create orders; guests and owners can look up specific orders by ID; list query is strictly isolated to owner/admin; admin has full management)
     match /orders/{orderId} {
       allow create: if (
         (isAuthenticated() && (
@@ -277,7 +277,15 @@ service cloud.firestore {
           request.resource.data.delivery_address is string
         )
       );
-      allow read: if (
+      allow get: if (
+        isAdmin() ||
+        (isAuthenticated() && (
+          resource.data.customer_id == request.auth.uid ||
+          resource.data.customer.id == request.auth.uid
+        )) ||
+        (resource.data.customer_phone is string)
+      );
+      allow list: if (
         isAdmin() ||
         (isAuthenticated() && (
           resource.data.customer_id == request.auth.uid ||

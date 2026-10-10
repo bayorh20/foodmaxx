@@ -8905,7 +8905,11 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
   const totalItemsCount = orderItems.reduce((sum, item) => sum + Number(item.qty || item.quantity || 1), 0);
 
   const handleCopyRef = () => {
-    navigator.clipboard?.writeText(orderRef);
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(orderRef).catch(() => {});
+      }
+    } catch {}
     setCopiedRef(true);
     if (typeof toast === 'function') toast('Order reference copied! 📋', 'success');
     setTimeout(() => setCopiedRef(false), 2000);
@@ -8913,7 +8917,11 @@ function OrderSuccessModal({ order, onTrackOrder, onContinueShopping, isDark }) 
 
   const handleCopyPin = () => {
     if (!deliveryPin) return;
-    navigator.clipboard?.writeText(deliveryPin);
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(deliveryPin).catch(() => {});
+      }
+    } catch {}
     setCopiedPin(true);
     if (typeof toast === 'function') toast('Delivery PIN copied! 🛵', 'success');
     setTimeout(() => setCopiedPin(false), 2000);
