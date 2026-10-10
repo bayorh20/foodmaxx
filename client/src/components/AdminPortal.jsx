@@ -2506,7 +2506,7 @@ function AdminVerifyOtpModal({ open, onClose, order, onVerified }) {
 
         <h2 className="text-xl font-black mb-1 text-slate-900">Verify Delivery OTP</h2>
         <p className="text-xs text-slate-600 mb-4">
-          Customer: <strong className="text-slate-900 font-bold">{order.customer?.full_name}</strong>
+          Customer: <strong className="text-slate-900 font-bold">{order.customer_name || order.customer?.full_name || 'Customer'}</strong>
         </p>
 
         <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 mb-4">
@@ -2579,19 +2579,19 @@ function AdminKitchenSlipModal({ open, onClose, order, settings }) {
         <div className="text-xs space-y-1.5 mb-4 border-b border-slate-300 pb-3">
           <div className="flex justify-between">
             <span className="font-black text-black">Order Ref:</span>
-            <span className="font-mono font-black text-red-600 text-sm">{order.order_reference}</span>
+            <span className="font-mono font-black text-red-600 text-sm">#{order.order_reference || order.id?.slice(0, 8)}</span>
           </div>
           <div className="flex justify-between text-black font-bold">
             <span>Date & Time:</span>
-            <span className="font-bold">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, {new Date(order.created_at).toLocaleDateString()}</span>
+            <span className="font-bold">{new Date(order.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, {new Date(order.created_at || Date.now()).toLocaleDateString()}</span>
           </div>
           <div className="flex justify-between">
             <span className="font-black text-black">Customer:</span>
-            <span className="font-black text-black">{order.customer?.full_name}</span>
+            <span className="font-black text-black">{order.customer_name || order.customer?.full_name || 'Customer'}</span>
           </div>
           <div className="flex justify-between text-black font-bold">
             <span>Phone:</span>
-            <span className="font-mono font-black">{order.customer?.phone}</span>
+            <span className="font-mono font-black">{order.customer_phone || order.customer?.phone || '—'}</span>
           </div>
           <div className="flex justify-between">
             <span className="font-black text-black">Zone / Area:</span>
@@ -2642,7 +2642,7 @@ function AdminKitchenSlipModal({ open, onClose, order, settings }) {
             <span className="text-[#EA4C2A] font-mono">₦{(order.total || 0).toLocaleString()}</span>
           </div>
           <div className="text-xs text-black font-bold pt-1">
-            Payment: <strong className="text-black uppercase">{order.payment_method?.toUpperCase()}</strong> · Security OTP: <strong className="font-mono text-emerald-800 font-black">{order.delivery_otp}</strong>
+            Payment: <strong className="text-black uppercase">{order.payment_method?.toUpperCase()}</strong> · Security OTP: <strong className="font-mono text-emerald-800 font-black">{order.delivery_otp || order.delivery_pin || order.pin || '----'}</strong>
           </div>
         </div>
 
@@ -3565,7 +3565,7 @@ function AdminPortal() {
   }
 
   function handleNotifyDelay(order) {
-    toast(`Delay alert dispatched to ${order.customer?.full_name || 'customer'} with updated ETA! 📲`, 'success');
+    toast(`Delay alert dispatched to ${order.customer_name || order.customer?.full_name || 'customer'} with updated ETA! 📲`, 'success');
   }
 
   function handleDispatchDelayApologyPerk(order) {
@@ -5042,7 +5042,7 @@ function AdminPortal() {
                                 #{order.order_reference?.slice(-4) || order.id?.slice(0, 4)}
                               </td>
                               <td className="py-3.5 font-bold text-slate-900 text-sm">
-                                {order.customer?.full_name || 'Customer'}
+                                {order.customer_name || order.customer?.full_name || 'Customer'}
                               </td>
                               <td className="py-3.5 font-bold text-slate-900 text-sm">
                                 {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
