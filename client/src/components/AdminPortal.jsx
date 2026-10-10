@@ -1937,12 +1937,12 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
             </div>
           </div>
 
-          {/* WhatsApp Customer Dispatch Strip */}
+          {/* WhatsApp Customer Notification Strip */}
           <div className="p-3 rounded-xl bg-emerald-950/25 border border-emerald-500/25 flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-base">📲</span>
-                <span className="font-bold text-emerald-800 text-xs">WhatsApp Customer Notification API</span>
+                <span className="font-bold text-emerald-800 text-xs">WhatsApp Customer Notification</span>
               </div>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
@@ -1968,12 +1968,12 @@ function AdminStatusChangeModal({ open, onClose, order, onStatusUpdated }) {
             </button>
           </div>
 
-          {/* SMS Customer Dispatch Strip (Termii / GSM Gateway / Native Device) */}
+          {/* SMS Customer Notification Strip (Termii / GSM / Direct Phone) */}
           <div className="p-3 rounded-xl bg-blue-950/25 border border-blue-500/25 flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-base">💬</span>
-                <span className="font-bold text-blue-800 text-xs">SMS Notification SDK (Termii / GSM)</span>
+                <span className="font-bold text-blue-800 text-xs">SMS Customer Alert (Termii / GSM)</span>
               </div>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
@@ -2463,7 +2463,7 @@ function AdminRiderAssignModal({ open, onClose, order, riders, onAssigned }) {
 }
 
 // ============================================================
-// ADMIN VERIFY OTP MODAL
+// ADMIN VERIFY DELIVERY PIN MODAL
 // ============================================================
 function AdminVerifyOtpModal({ open, onClose, order, onVerified }) {
   const toast = useToast();
@@ -2474,12 +2474,12 @@ function AdminVerifyOtpModal({ open, onClose, order, onVerified }) {
 
   async function handleVerify(directBypass = false) {
     if (!directBypass && inputOtp.trim() !== String(order.delivery_otp)) {
-      toast('Incorrect 4-digit OTP. Ask customer for code.', 'error');
+      toast('Incorrect 4-digit code. Please ask customer for their delivery PIN.', 'error');
       return;
     }
     setLoading(true);
     try {
-      await api.updateOrderStatus(order.id, 'DELIVERED', 'OTP Verified by Dispatch');
+      await api.updateOrderStatus(order.id, 'DELIVERED', 'Delivery PIN verified with customer');
       toast(`Order ${order.order_reference} marked as Delivered! 🎉`, 'success');
       onVerified();
       onClose();
@@ -2504,13 +2504,13 @@ function AdminVerifyOtpModal({ open, onClose, order, onVerified }) {
           🔑
         </div>
 
-        <h2 className="text-xl font-black mb-1 text-slate-900">Verify Delivery OTP</h2>
+        <h2 className="text-xl font-black mb-1 text-slate-900">Verify Delivery PIN</h2>
         <p className="text-xs text-slate-600 mb-4">
           Customer: <strong className="text-slate-900 font-bold">{order.customer_name || order.customer?.full_name || 'Customer'}</strong>
         </p>
 
         <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 mb-4">
-          <div className="text-[11px] text-slate-600 font-medium mb-1">Order Security OTP:</div>
+          <div className="text-[11px] text-slate-600 font-medium mb-1">Customer Delivery PIN:</div>
           <div className="text-2xl font-mono font-black tracking-widest text-emerald-700">
             {order.delivery_otp}
           </div>
@@ -2534,7 +2534,7 @@ function AdminVerifyOtpModal({ open, onClose, order, onVerified }) {
             onClick={() => handleVerify(false)}
             className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-lg shadow-emerald-600/20"
           >
-            {loading ? 'Verifying...' : 'Verify OTP & Complete Delivery'}
+            {loading ? 'Verifying...' : 'Confirm Delivery PIN & Complete Order'}
           </button>
 
           <button
@@ -2573,7 +2573,7 @@ function AdminKitchenSlipModal({ open, onClose, order, settings }) {
           <div className="flex items-center justify-center gap-2 mb-1"><img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-6 h-6 rounded-lg object-cover" /><span className="text-base font-black tracking-tighter text-black">FOODMAXX</span></div>
           {storeAddress && <div className="text-xs text-black font-bold">{storeAddress}</div>}
           {storePhone && <div className="text-xs text-black font-bold">Tel: {storePhone}</div>}
-          <div className="mt-2 text-xs font-black bg-slate-100 border border-slate-300 py-1 rounded-md text-black">KITCHEN PREP TICKET</div>
+          <div className="mt-2 text-xs font-black bg-slate-100 border border-slate-300 py-1 rounded-md text-black">KITCHEN ORDER SLIP</div>
         </div>
 
         <div className="text-xs space-y-1.5 mb-4 border-b border-slate-300 pb-3">
@@ -2642,7 +2642,7 @@ function AdminKitchenSlipModal({ open, onClose, order, settings }) {
             <span className="text-[#EA4C2A] font-mono">₦{(order.total || 0).toLocaleString()}</span>
           </div>
           <div className="text-xs text-black font-bold pt-1">
-            Payment: <strong className="text-black uppercase">{order.payment_method?.toUpperCase()}</strong> · Security OTP: <strong className="font-mono text-emerald-800 font-black">{order.delivery_otp || order.delivery_pin || order.pin || '----'}</strong>
+            Payment: <strong className="text-black uppercase">{order.payment_method?.toUpperCase()}</strong> · Delivery PIN: <strong className="font-mono text-emerald-800 font-black">{order.delivery_otp || order.delivery_pin || order.pin || '----'}</strong>
           </div>
         </div>
 
@@ -2834,7 +2834,7 @@ function AdminDeleteCustomerModal({ open, onClose, customer, onDeleted }) {
 
         <h2 className="text-xl font-black text-center mb-1 text-slate-900">Delete Customer Account</h2>
         <p className="text-xs text-rose-700 text-center mb-5 font-medium">
-          Warning: This action permanently removes this customer profile and credentials from FoodMaxx.
+          Warning: This action permanently removes this customer profile and account details from FoodMaxx.
         </p>
 
         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-5 space-y-2.5 text-xs">
@@ -3376,7 +3376,7 @@ function AdminPortal() {
   }
 
   function handleExportPayouts() {
-    const headers = ['Settlement ID', 'Date', 'Orders Count', 'Gross Amount (NGN)', 'Gateway Fees (NGN)', 'Rider Payouts (NGN)', 'Net Bank Payout (NGN)', 'Status', 'Destination Bank Account'];
+    const headers = ['Settlement ID', 'Date', 'Orders Count', 'Gross Amount (NGN)', 'Payment Processing Fees (NGN)', 'Rider Payouts (NGN)', 'Net Bank Payout (NGN)', 'Status', 'Destination Bank Account'];
     const rows = payouts.map(p => [
       p.id,
       p.date,
@@ -4074,14 +4074,14 @@ function AdminPortal() {
     const width = is80mm ? '80mm' : '58mm';
     const printWindow = window.open('', '_blank', 'width=420,height=650');
     if (!printWindow) {
-      toast('Pop-up blocked. Please allow pop-ups to print thermal receipts.', 'error');
+      toast('Pop-up was blocked. Please allow pop-ups in your browser to print receipts.', 'error');
       return;
     }
     const sampleHtml = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Sample Thermal Receipt - FoodMaxx</title>
+          <title>Sample Test Receipt - FoodMaxx</title>
           <style>
             @page { margin: 0; size: ${width} auto; }
             body { font-family: 'Courier New', monospace; font-size: 13px; font-weight: bold; margin: 10px; color: #000; }
@@ -4114,9 +4114,9 @@ function AdminPortal() {
           <div class="row bold" style="font-size: 15px;"><span>TOTAL PAID:</span><span>NGN ${(10300 + Number(settings.packaging_fee || 300) + Number(settings.service_fee || 150)).toLocaleString()}</span></div>
           <div class="row"><span>PAYMENT:</span><span>ONLINE (PAYSTACK VERIFIED)</span></div>
           <div class="line"></div>
-          <div class="center bold" style="font-size: 16px; margin: 6px 0;">DELIVERY OTP: 8294</div>
+          <div class="center bold" style="font-size: 16px; margin: 6px 0;">DELIVERY PIN: 8294</div>
           <div class="center" style="font-size: 12px;">${settings.receipt_footer_note || 'Thank you for dining with FoodMaxx!'}</div>
-          <div class="center" style="font-size: 10px; margin-top: 10px;">*** SAMPLE HARDWARE PRINT SUCCESSFUL ***</div>
+          <div class="center" style="font-size: 10px; margin-top: 10px;">*** SAMPLE TEST PRINT SUCCESSFUL ***</div>
         </body>
       </html>
     `;
@@ -4458,7 +4458,7 @@ function AdminPortal() {
               <img src="/foodmaxx-logo.png" alt="FoodMaxx" className="w-full h-full object-contain" />
             </div>
             <h2 className="text-2xl font-black tracking-tight text-slate-900">FoodMaxx Admin Portal</h2>
-            <p className="text-xs font-semibold text-slate-600 mt-1">Single-merchant operations &amp; store control</p>
+            <p className="text-xs font-semibold text-slate-600 mt-1">Restaurant management &amp; store control</p>
           </div>
 
           <form onSubmit={handleAdminSignIn} className="space-y-4">
@@ -4491,7 +4491,7 @@ function AdminPortal() {
               disabled={adminLoggingIn}
               className="w-full bg-[#EA4C2A] hover:bg-[#D93D1B] active:scale-98 text-white py-3 rounded-xl font-black text-xs transition-all shadow-md shadow-[#EA4C2A]/25 cursor-pointer disabled:opacity-50"
             >
-              {adminLoggingIn ? 'Verifying Credentials...' : 'Sign In to Admin Portal →'}
+              {adminLoggingIn ? 'Checking your sign-in...' : 'Sign In to Admin Portal →'}
             </button>
           </form>
 
@@ -5938,7 +5938,7 @@ function AdminPortal() {
                 </div>
               ) : (
                 <div className="py-8 text-center text-slate-700 font-bold text-xs">
-                  Awaiting first visit telemetry...
+                  Waiting for visitor activity...
                 </div>
               )}
 
@@ -6339,7 +6339,7 @@ function AdminPortal() {
                       </div>
 
                       <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-xl border border-slate-300">
-                        <span className="text-xs font-bold text-slate-900">Delivery OTP:</span>
+                        <span className="text-xs font-bold text-slate-900">Delivery PIN:</span>
                         <span className="font-mono font-black text-emerald-700 text-sm">{order.delivery_otp}</span>
                       </div>
                     </div>
@@ -7302,7 +7302,7 @@ function AdminPortal() {
                   { id: 'payments', label: 'Payouts & Payments', icon: CreditCard },
                   { id: 'apology', label: 'Late Delivery Apology', icon: HeartHandshake, badge: delayedOrdersCount > 0 ? `${delayedOrdersCount} Overdue` : null },
                   { id: 'alerts', label: 'Audio Chimes & WhatsApp', icon: Bell },
-                  { id: 'printer', label: 'Thermal POS & Hardware', icon: Printer },
+                  { id: 'printer', label: 'Receipt Printer & Setup', icon: Printer },
                   { id: 'security', label: 'Security & Staff PIN', icon: ShieldCheck },
                 ].map(tab => {
                   const active = settingsSubTab === tab.id;
@@ -7452,7 +7452,7 @@ function AdminPortal() {
                   <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-300 space-y-4">
                     <h4 className="font-black text-sm text-slate-900 flex items-center gap-2">
                       <Clock size={16} className="text-[#EA4C2A]" />
-                      <span>Daily Operating Hours & Cooking Buffer</span>
+                      <span>Daily Operating Hours & Cooking Prep Time</span>
                     </h4>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -7475,7 +7475,7 @@ function AdminPortal() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Kitchen Prep Buffer (Minutes)</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Extra Cooking Prep Time (Minutes)</label>
                         <input
                           type="number"
                           min={5}
@@ -7666,7 +7666,7 @@ function AdminPortal() {
                             onChange={e => setSettings({ ...settings, group_order_max_members: Number(e.target.value) })}
                             className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                           />
-                          <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Maximum members in one order session.</span>
+                          <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Maximum friends who can join one group order.</span>
                         </div>
 
                         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
@@ -7804,7 +7804,7 @@ function AdminPortal() {
                         onChange={e => setSettings({ ...settings, group_order_max_members: Number(e.target.value) })}
                         className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-black outline-none focus:border-[#EA4C2A]"
                       />
-                      <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Maximum friends in one room session.</span>
+                      <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Maximum friends who can join one group order.</span>
                     </div>
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
@@ -8258,7 +8258,7 @@ function AdminPortal() {
                       <div className="flex items-center gap-2.5">
                         <span className="text-2xl">⚡</span>
                         <div>
-                          <h4 className="font-black text-sm text-slate-900">Paystack Payment Gateway (Cards, Transfer, USSD)</h4>
+                          <h4 className="font-black text-sm text-slate-900">Paystack Online Payments (Cards, Bank Transfer, USSD)</h4>
                           <p className="text-xs text-emerald-800 font-bold flex items-center gap-1 mt-0.5">
                             <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse inline-block" />
                             Active & Ready for Checkout
@@ -8288,7 +8288,7 @@ function AdminPortal() {
                     </div>
 
                     <div className="flex items-center justify-between pt-2">
-                      <span className="text-xs text-slate-900 font-bold">Switch Gateway Environment:</span>
+                      <span className="text-xs text-slate-900 font-bold">Switch Payment Mode:</span>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -8514,7 +8514,7 @@ function AdminPortal() {
                         <span className="text-2xl">💬</span>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="font-black text-sm text-slate-900">SMS Notification Gateway SDK</h4>
+                            <h4 className="font-black text-sm text-slate-900">SMS Notification Setup (Termii & Twilio)</h4>
                             {settings.sms_provider === 'sendchamp' ? (
                               settings.sendchamp_api_key ? (
                                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
@@ -8552,7 +8552,7 @@ function AdminPortal() {
                             )}
                           </div>
                           <p className="text-xs text-slate-600 font-bold">
-                            Direct GSM transactional SMS for Nigerian diners, courier assignment alerts & delivery OTPs.
+                            Automatic text messages for order updates, courier notifications & delivery PINs.
                           </p>
                         </div>
                       </div>
@@ -8570,7 +8570,7 @@ function AdminPortal() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">SMS Gateway Provider</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">SMS Service Provider</label>
                         <select
                           value={settings.sms_provider || 'termii'}
                           onChange={e => setSettings({ ...settings, sms_provider: e.target.value })}
@@ -8614,7 +8614,7 @@ function AdminPortal() {
                             onChange={e => setSettings({ ...settings, termii_channel: e.target.value })}
                             className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                           >
-                            <option value="generic">Generic (Transactional OTP & DND Bypass)</option>
+                            <option value="generic">Standard Delivery Alerts & High-Priority SMS</option>
                             <option value="dnd">DND Priority Channel</option>
                             <option value="direct">Direct Local Carrier Route</option>
                           </select>
@@ -8625,7 +8625,7 @@ function AdminPortal() {
                     {settings.sms_provider === 'sendchamp' && (
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-bold text-slate-700">Sendchamp Secret / Live Access Key</label>
+                          <label className="block text-xs font-bold text-slate-700">Sendchamp Secret Key</label>
                           <a
                             href="https://my.sendchamp.com"
                             target="_blank"
@@ -8639,7 +8639,7 @@ function AdminPortal() {
                           type="password"
                           value={settings.sendchamp_api_key || ''}
                           onChange={e => setSettings({ ...settings, sendchamp_api_key: e.target.value })}
-                          placeholder="sendchamp_live_... or test key (from Sendchamp APIs & Webhooks)"
+                          placeholder="sendchamp_live_... or test key (from Sendchamp)"
                           className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono font-bold outline-none focus:border-[#EA4C2A]"
                         />
                       </div>
@@ -8648,7 +8648,7 @@ function AdminPortal() {
                     {(settings.sms_provider === 'termii' || !settings.sms_provider) && (
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-bold text-slate-700">Termii Secret API Key</label>
+                          <label className="block text-xs font-bold text-slate-700">Termii Secret Key</label>
                           <a
                             href="https://termii.com"
                             target="_blank"
@@ -8671,7 +8671,7 @@ function AdminPortal() {
                     {settings.sms_provider === 'twilio' && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-700">Twilio API Credentials</label>
+                          <label className="text-xs font-bold text-slate-700">Twilio Account Details</label>
                           <a
                             href="https://console.twilio.com"
                             target="_blank"
@@ -8693,22 +8693,22 @@ function AdminPortal() {
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-slate-700 mb-1">Twilio Auth Token *</label>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Twilio Secret Key / Auth Token *</label>
                             <input
                               type="password"
                               value={settings.twilio_auth_token || ''}
                               onChange={e => setSettings({ ...settings, twilio_auth_token: e.target.value })}
-                              placeholder="Auth Token / Secret"
+                              placeholder="Secret Key / Auth Token"
                               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono font-bold outline-none focus:border-[#EA4C2A]"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-slate-700 mb-1">Twilio From Number *</label>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Twilio Sender Number *</label>
                             <input
                               type="text"
                               value={settings.twilio_from_number || ''}
                               onChange={e => setSettings({ ...settings, twilio_from_number: e.target.value })}
-                              placeholder="+1XXXXXXXXXX (E.164)"
+                              placeholder="+1XXXXXXXXXX (E.164 format)"
                               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono font-bold outline-none focus:border-[#EA4C2A]"
                             />
                           </div>
@@ -8718,11 +8718,11 @@ function AdminPortal() {
 
                     {settings.sms_provider === 'native' && (
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 font-medium">
-                        📱 <strong>Direct Device SMS Mode</strong> uses the operator's native phone SMS app via the <code>sms:</code> protocol. No API key or gateway subscription required.
+                        📱 <strong>Direct Phone SMS Mode</strong> opens your device's default messaging app directly. No API keys or extra setup required.
                       </div>
                     )}
 
-                    {/* Test & Save SMS Gateway Strip */}
+                    {/* Test & Save SMS Settings Strip */}
                     <div className="pt-2 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-2 flex-1 max-w-sm">
                         <label className="text-xs font-bold text-slate-700 shrink-0">Test Recipient:</label>
@@ -8743,7 +8743,7 @@ function AdminPortal() {
                           className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95 disabled:opacity-50"
                         >
                           <Save size={13} />
-                          <span>{savingSettings ? 'Saving...' : settings.sms_provider === 'twilio' ? 'Save Twilio Config' : 'Save SMS Key'}</span>
+                          <span>{savingSettings ? 'Saving...' : settings.sms_provider === 'twilio' ? 'Save Twilio Settings' : 'Save SMS Settings'}</span>
                         </button>
 
                         <button
@@ -8775,11 +8775,11 @@ function AdminPortal() {
                                 }
                               );
                               if (res?.success) {
-                                toast(`${providerName.toUpperCase()} SMS Gateway tested and verified for ${testSmsPhone}! 🚀`, 'success');
+                                toast(`${providerName.toUpperCase()} SMS service tested and working for ${testSmsPhone}! 🚀`, 'success');
                               } else if (res?.code === 572006 || res?.data?.code === 572006) {
                                 toast('Twilio connected! Note: Claim your free phone number on console.twilio.com to send to unverified numbers', 'info');
                               } else {
-                                toast(res?.error || res?.message || 'Test SMS request dispatched', 'info');
+                                toast(res?.error || res?.message || 'Test SMS sent', 'info');
                               }
                             } catch (err) {
                               toast(err.message || 'SMS test failed', 'error');
@@ -8909,9 +8909,9 @@ function AdminPortal() {
               <div className="space-y-5">
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 space-y-6 shadow-xs">
                   <div>
-                    <h3 className="text-lg font-black text-slate-900">Thermal POS Receipt Printer & Hardware</h3>
+                    <h3 className="text-lg font-black text-slate-900">Receipt Printer & Kitchen Slip Settings</h3>
                     <p className="text-sm font-medium text-slate-600 mt-0.5">
-                      Configure Bluetooth, USB, and network thermal slip printers (58mm pocket POS and 80mm desktop thermal).
+                      Configure Bluetooth, USB, and network receipt printers (standard 58mm pocket printers and 80mm desktop printers).
                     </p>
                   </div>
 
@@ -8921,8 +8921,8 @@ function AdminPortal() {
                         🖨️
                       </div>
                       <div>
-                        <h4 className="font-black text-sm text-slate-900">Test Hardware Print Dialog</h4>
-                        <p className="text-xs font-medium text-slate-600 mt-0.5">Send a simulated order ticket to verify roll width and print margins.</p>
+                        <h4 className="font-black text-sm text-slate-900">Test Receipt Printer</h4>
+                        <p className="text-xs font-medium text-slate-600 mt-0.5">Print a test kitchen slip to verify printer paper size and clarity.</p>
                       </div>
                     </div>
 
@@ -8932,7 +8932,7 @@ function AdminPortal() {
                       className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center gap-2 cursor-pointer shadow-xs transition-all active:scale-95 shrink-0"
                     >
                       <Printer size={16} />
-                      <span>Print Sample Thermal Receipt</span>
+                      <span>Print Test Receipt Slip</span>
                     </button>
                   </div>
 
@@ -8944,8 +8944,8 @@ function AdminPortal() {
                         onChange={e => setSettings({ ...settings, thermal_paper_size: e.target.value })}
                         className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-bold outline-none focus:border-[#EA4C2A]"
                       >
-                        <option value="58mm">58mm Standard Pocket POS (Most Common in Nigeria)</option>
-                        <option value="80mm">80mm Wide Desktop Thermal Printer (Epson / Star)</option>
+                        <option value="58mm">58mm Small Pocket Printer (Most Common in Nigeria)</option>
+                        <option value="80mm">80mm Wide Desktop Printer (Standard Kitchen Slip)</option>
                       </select>
                     </div>
 
@@ -9064,9 +9064,9 @@ function AdminPortal() {
                   {/* CACHE & STORAGE PURGE */}
                   <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-black text-slate-900">Clear Local App Cache & Re-Sync</div>
+                      <div className="text-sm font-black text-slate-900">Refresh App Data & Re-Sync from Cloud</div>
                       <div className="text-xs font-medium text-slate-600 mt-0.5">
-                        Forces a clean refresh from Firebase Firestore and resets local state cache.
+                        Reloads all store data fresh from the cloud database.
                       </div>
                     </div>
                     <button
@@ -9076,12 +9076,12 @@ function AdminPortal() {
                           localStorage.removeItem('fmx_store_settings');
                           localStorage.removeItem('fmx_admin_overview');
                         } catch (e) {}
-                        toast('Cache cleared! Re-syncing with cloud...', 'info');
+                        toast('App data refreshed! Re-syncing latest data from cloud...', 'info');
                         setTimeout(() => window.location.reload(), 600);
                       }}
                       className="px-4 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-black text-xs cursor-pointer shadow-xs transition-colors shrink-0"
                     >
-                      Clear Cache & Reload
+                      Refresh Data & Reload
                     </button>
                   </div>
                 </div>
@@ -9141,13 +9141,13 @@ function AdminPortal() {
                       <div>
                         <div className="text-sm font-black">
                           {delayedOrdersCount > 0
-                            ? `${delayedOrdersCount} Live Order(s) Currently Exceeding Delivery SLA!`
+                            ? `${delayedOrdersCount} Live Order(s) Exceeding Target Delivery Time!`
                             : 'All Live Deliveries On Schedule!'}
                         </div>
                         <div className="text-xs font-bold mt-0.5">
                           {delayedOrdersCount > 0
                             ? `Orders have been cooking or in transit longer than ${settings.late_delivery_threshold_mins || 35} mins. Apology buttons are active below.`
-                            : `Kitchen prep and courier transit times are within your ${settings.late_delivery_threshold_mins || 35}-minute SLA target.`}
+                            : `Kitchen prep and courier delivery times are within your ${settings.late_delivery_threshold_mins || 35}-minute delivery promise.`}
                         </div>
                       </div>
                     </div>
@@ -9159,19 +9159,19 @@ function AdminPortal() {
                   </div>
                 </div>
 
-                {/* 2-Column: Delay Triggers & Compensation Settings */}
+                {/* 2-Column: Delay Triggers & Apology Gift Settings */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* CARD 1: DELAY TRIGGER RULES */}
                   <div className="bg-white border border-slate-300 rounded-2xl p-6 space-y-5 shadow-xs">
                     <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
                       <Clock size={18} className="text-[#EA4C2A]" />
-                      <h4 className="font-black text-base text-slate-900">Delay Triggers & SLA Rules</h4>
+                      <h4 className="font-black text-base text-slate-900">Delay Triggers & Delivery Time Limits</h4>
                     </div>
 
                     {/* Delay Threshold Input */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                        Late Delivery SLA Threshold (Minutes)
+                        Late Delivery Time Limit (Minutes)
                       </label>
                       <div className="flex items-center gap-3">
                         <input
@@ -9222,17 +9222,17 @@ function AdminPortal() {
                     </div>
                   </div>
 
-                  {/* CARD 2: COMPENSATION & GOODWILL PACK */}
+                  {/* CARD 2: APOLOGY & GIFT OFFER */}
                   <div className="bg-white border border-slate-300 rounded-2xl p-6 space-y-5 shadow-xs">
                     <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
                       <Gift size={18} className="text-[#EA4C2A]" />
-                      <h4 className="font-black text-base text-slate-900">Customer Compensation Pack</h4>
+                      <h4 className="font-black text-base text-slate-900">Customer Apology & Gift Offer</h4>
                     </div>
 
                     {/* Compensation Type Selector */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                        Goodwill Compensation Type
+                        Apology Gift Type
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         {[
@@ -9462,7 +9462,7 @@ function AdminPortal() {
                         </span>
                       </h4>
                       <p className="text-xs font-medium text-slate-600 mt-0.5">
-                        Orders exceeding your {settings.late_delivery_threshold_mins || 35}-minute SLA. Click dispatch to automatically generate the voucher and open customer WhatsApp.
+                        Orders taking longer than your {settings.late_delivery_threshold_mins || 35}-minute delivery promise. Click Send WhatsApp Apology to automatically generate the voucher and message the customer.
                       </p>
                     </div>
 
@@ -9527,7 +9527,7 @@ function AdminPortal() {
                   )}
                 </div>
 
-                {/* CARD 5: APOLOGY & GOODWILL DISPATCH AUDIT LOG */}
+                {/* CARD 5: APOLOGY & GIFT LOG */}
                 <div className="bg-white border border-slate-300 rounded-2xl p-6 sm:p-7 space-y-4 shadow-xs">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                     <div>
@@ -9535,7 +9535,7 @@ function AdminPortal() {
                         <CheckCircle size={18} className="text-emerald-700" />
                         <span>Recent Apologies & Vouchers Issued</span>
                       </h4>
-                      <p className="text-xs font-medium text-slate-600 mt-0.5">Audit log of apology compensation sent to customers.</p>
+                      <p className="text-xs font-medium text-slate-600 mt-0.5">History of apology vouchers and discounts sent to customers.</p>
                     </div>
                     <span className="text-xs font-mono font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-lg border border-slate-300">
                       {apologyHistory.length} Recorded
@@ -9543,7 +9543,7 @@ function AdminPortal() {
                   </div>
 
                   {apologyHistory.length === 0 ? (
-                    <p className="text-xs text-slate-600 font-bold py-4 text-center">No apologies have been dispatched yet.</p>
+                    <p className="text-xs text-slate-600 font-bold py-4 text-center">No apology messages have been sent yet.</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs">
@@ -9552,8 +9552,8 @@ function AdminPortal() {
                             <th className="pb-2.5 pl-1">Order Ref</th>
                             <th className="pb-2.5">Customer</th>
                             <th className="pb-2.5">Voucher Code</th>
-                            <th className="pb-2.5">Goodwill Perk</th>
-                            <th className="pb-2.5">Dispatched At</th>
+                            <th className="pb-2.5">Apology Perk</th>
+                            <th className="pb-2.5">Sent At</th>
                             <th className="pb-2.5 pr-1 text-right">Actions</th>
                           </tr>
                         </thead>

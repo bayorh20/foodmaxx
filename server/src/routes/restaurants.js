@@ -34,7 +34,7 @@ router.get('/', (req, res) => {
 
     res.json({ success: true, data: enriched });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to load restaurants' });
+    res.status(500).json({ success: false, message: 'Could not load restaurants. Please refresh.' });
   }
 });
 
@@ -89,7 +89,7 @@ router.get('/primary/flagship', (req, res) => {
 
     res.json({ success: true, data: { ...flagship, menu: menuWithOptions, menuItems: menuWithOptions, menuByCategory, reviews } });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to load flagship restaurant' });
+    res.status(500).json({ success: false, message: 'Could not load FoodMaxx kitchen menu. Please refresh.' });
   }
 });
 
@@ -118,7 +118,7 @@ router.get('/categories/global', (req, res) => {
 router.get('/:id', (req, res) => {
   try {
     const restaurant = db.findById('restaurants', req.params.id) || db.findOne('restaurants', r => r.id === 'rest_foodmaxx');
-    if (!restaurant) return res.status(404).json({ success: false, message: 'Restaurant not found' });
+    if (!restaurant) return res.status(404).json({ success: false, message: 'Restaurant could not be found.' });
 
     // Fetch menu items
     let menuItems = db.query('menu_items', i => i.restaurant_id === restaurant.id);
@@ -146,7 +146,7 @@ router.get('/:id', (req, res) => {
 
     res.json({ success: true, data: { ...restaurant, menuByCategory, reviews } });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to load restaurant' });
+    res.status(500).json({ success: false, message: 'Could not load restaurant details. Please refresh.' });
   }
 });
 
@@ -163,7 +163,7 @@ router.get('/:id/menu', (req, res) => {
     }));
     res.json({ success: true, data: withOptions });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to load menu' });
+    res.status(500).json({ success: false, message: 'Could not load menu. Please refresh.' });
   }
 });
 
@@ -172,9 +172,9 @@ router.get('/:id/menu', (req, res) => {
 router.put('/:id', requireAuth, (req, res) => {
   try {
     const restaurant = db.findById('restaurants', req.params.id);
-    if (!restaurant) return res.status(404).json({ success: false, message: 'Not found' });
+    if (!restaurant) return res.status(404).json({ success: false, message: 'Restaurant not found.' });
     if (restaurant.owner_user_id !== req.user.userId && req.user.role !== 'super_admin') {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: 'You do not have permission to edit this restaurant.' });
     }
     const allowed = ['name','description','is_open','operating_hours','delivery_fee','min_order','delivery_time_min','delivery_time_max'];
     const updates = {};
@@ -183,7 +183,7 @@ router.put('/:id', requireAuth, (req, res) => {
     global.broadcast({ type: 'RESTAURANT_UPDATED', restaurantId: req.params.id, data: updated });
     res.json({ success: true, data: updated });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Update failed' });
+    res.status(500).json({ success: false, message: 'Could not update restaurant details. Please try again.' });
   }
 });
 
@@ -191,13 +191,13 @@ router.put('/:id', requireAuth, (req, res) => {
 router.post('/:id/menu', requireAuth, (req, res) => {
   try {
     const restaurant = db.findById('restaurants', req.params.id);
-    if (!restaurant) return res.status(404).json({ success: false, message: 'Not found' });
+    if (!restaurant) return res.status(404).json({ success: false, message: 'Restaurant not found.' });
     if (restaurant.owner_user_id !== req.user.userId && req.user.role !== 'super_admin') {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: 'You do not have permission to edit this restaurant.' });
     }
     const { name, description, price, category, image_url, prep_time_min } = req.body;
     if (!name || !price || !category) {
-      return res.status(400).json({ success: false, message: 'Name, price and category required' });
+      return res.status(400).json({ success: false, message: 'Please enter the item name, price, and category.' });
     }
     const item = db.insert('menu_items', {
       restaurant_id: req.params.id,
@@ -211,7 +211,7 @@ router.post('/:id/menu', requireAuth, (req, res) => {
     global.broadcast({ type: 'MENU_UPDATED', restaurantId: req.params.id });
     res.json({ success: true, data: item });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to add item' });
+    res.status(500).json({ success: false, message: 'Could not add dish to menu. Please try again.' });
   }
 });
 
@@ -219,9 +219,9 @@ router.post('/:id/menu', requireAuth, (req, res) => {
 router.put('/:restId/menu/:itemId', requireAuth, (req, res) => {
   try {
     const restaurant = db.findById('restaurants', req.params.restId);
-    if (!restaurant) return res.status(404).json({ success: false, message: 'Not found' });
+    if (!restaurant) return res.status(404).json({ success: false, message: 'Restaurant not found.' });
     if (restaurant.owner_user_id !== req.user.userId && req.user.role !== 'super_admin') {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: 'You do not have permission to edit this restaurant.' });
     }
     const allowed = ['name','description','price','category','image_url','is_available','prep_time_min','stock_quantity','badge','portion_sizes','portion_sizes_json'];
     const updates = {};
@@ -244,7 +244,7 @@ router.put('/:restId/menu/:itemId', requireAuth, (req, res) => {
     global.broadcast({ type: 'MENU_UPDATED', restaurantId: req.params.restId });
     res.json({ success: true, data: updated });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Update failed' });
+    res.status(500).json({ success: false, message: 'Could not update menu item. Please try again.' });
   }
 });
 

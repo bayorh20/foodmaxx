@@ -7,14 +7,14 @@ const router = express.Router();
 // GET /api/riders/me - rider profile
 router.get('/me', requireAuth, (req, res) => {
   const rider = db.findOne('riders', r => r.user_id === req.user.userId);
-  if (!rider) return res.status(404).json({ success: false, message: 'Rider profile not found' });
+  if (!rider) return res.status(404).json({ success: false, message: 'Rider profile could not be found.' });
   res.json({ success: true, data: rider });
 });
 
 // POST /api/riders/toggle-status - go online/offline
 router.post('/toggle-status', requireAuth, (req, res) => {
   const rider = db.findOne('riders', r => r.user_id === req.user.userId);
-  if (!rider) return res.status(404).json({ success: false, message: 'Rider not found' });
+  if (!rider) return res.status(404).json({ success: false, message: 'Rider account not found.' });
   const updated = db.update('riders', rider.id, { is_online: !rider.is_online, is_available: !rider.is_online });
   global.broadcast({ type: 'RIDER_STATUS_CHANGED', riderId: rider.id, is_online: updated.is_online }, c => c.userRole === 'super_admin');
   res.json({ success: true, data: updated });
@@ -25,10 +25,10 @@ router.post('/accept-delivery', requireAuth, (req, res) => {
   try {
     const { order_id } = req.body;
     const rider = db.findOne('riders', r => r.user_id === req.user.userId);
-    if (!rider) return res.status(404).json({ success: false, message: 'Rider not found' });
+    if (!rider) return res.status(404).json({ success: false, message: 'Rider account not found.' });
 
     const order = db.findById('orders', order_id);
-    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (!order) return res.status(404).json({ success: false, message: 'Order details could not be found.' });
 
     // Assign rider to order
     db.update('orders', order_id, { rider_id: rider.id, order_status: 'RIDER_ASSIGNED' });
@@ -60,7 +60,7 @@ router.post('/accept-delivery', requireAuth, (req, res) => {
 
     res.json({ success: true, data: { order: db.findById('orders', order_id), restaurant } });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to accept delivery' });
+    res.status(500).json({ success: false, message: 'Could not accept delivery dispatch. Please try again.' });
   }
 });
 
@@ -68,16 +68,16 @@ router.post('/accept-delivery', requireAuth, (req, res) => {
 router.post('/decline-delivery', requireAuth, (req, res) => {
   const { order_id } = req.body;
   const rider = db.findOne('riders', r => r.user_id === req.user.userId);
-  if (!rider) return res.status(404).json({ success: false, message: 'Not found' });
+  if (!rider) return res.status(404).json({ success: false, message: 'Rider account not found.' });
   db.update('riders', rider.id, { is_available: true, active_order_id: null });
-  res.json({ success: true, message: 'Delivery declined' });
+  res.json({ success: true, message: 'Delivery dispatch declined.' });
 });
 
 // POST /api/riders/confirm-pickup
 router.post('/confirm-pickup', requireAuth, (req, res) => {
   const { order_id } = req.body;
   const order = db.findById('orders', order_id);
-  if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+  if (!order) return res.status(404).json({ success: false, message: 'Order details could not be found.' });
 
   db.update('orders', order_id, { order_status: 'RIDER_PICKED_UP' });
   db.insert('order_status_history', {
@@ -106,7 +106,7 @@ router.post('/confirm-pickup', requireAuth, (req, res) => {
 router.post('/update-location', requireAuth, (req, res) => {
   const { lat, lng } = req.body;
   const rider = db.findOne('riders', r => r.user_id === req.user.userId);
-  if (!rider) return res.status(404).json({ success: false, message: 'Not found' });
+  if (!rider) return res.status(404).json({ success: false, message: 'Rider account not found.' });
 
   db.update('riders', rider.id, { current_lat: lat, current_lng: lng });
 
@@ -130,10 +130,10 @@ router.post('/verify-otp', requireAuth, (req, res) => {
   try {
     const { order_id, otp } = req.body;
     const order = db.findById('orders', order_id);
-    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (!order) return res.status(404).json({ success: false, message: 'Order details could not be found.' });
 
     if (order.delivery_otp !== String(otp)) {
-      return res.status(400).json({ success: false, message: 'Invalid OTP. Please confirm with customer.' });
+      return res.status(400).json({ success: false, message: 'Incorrect delivery PIN. Please confirm the 4-digit code with the customer.' });
     }
 
     const rider = db.findOne('riders', r => r.user_id === req.user.userId);
@@ -143,7 +143,7 @@ router.post('/verify-otp', requireAuth, (req, res) => {
     db.insert('order_status_history', {
       order_id,
       status: 'DELIVERED',
-      notes: 'Delivery confirmed via customer OTP',
+      notes: 'Delivery confirmed via customer delivery PIN',
       updated_by_user_id: req.user.userId
     });
 
@@ -186,22 +186,22 @@ router.post('/verify-otp', requireAuth, (req, res) => {
     db.insert('notifications', {
       user_id: order.customer_id,
       title: 'Order Delivered! 🎉',
-      message: `Your order from ${db.findById('restaurants', order.restaurant_id)?.name} has been delivered. Rate your experience!`,
+      message: `Your hot meal from ${db.findById('restaurants', order.restaurant_id)?.name} has arrived! How was the food? Rate your experience!`,
       type: 'order_delivered',
       link_url: `/orders/${order_id}`,
       is_read: false
     });
 
-    res.json({ success: true, message: 'Delivery confirmed! Great work! 🎉' });
+    res.json({ success: true, message: 'Delivery confirmed with customer PIN! Great job! 🎉' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to confirm delivery' });
+    res.status(500).json({ success: false, message: 'Could not confirm delivery. Please try again.' });
   }
 });
 
 // GET /api/riders/earnings
 router.get('/earnings', requireAuth, (req, res) => {
   const rider = db.findOne('riders', r => r.user_id === req.user.userId);
-  if (!rider) return res.status(404).json({ success: false, message: 'Not found' });
+  if (!rider) return res.status(404).json({ success: false, message: 'Rider account not found.' });
 
   const wallet = db.findOne('wallets', w => w.user_id === req.user.userId);
   const transactions = db.query('wallet_transactions', t => t.user_id === req.user.userId)
@@ -236,7 +236,7 @@ router.get('/earnings', requireAuth, (req, res) => {
 // GET /api/riders/active-order - get current active order
 router.get('/active-order', requireAuth, (req, res) => {
   const rider = db.findOne('riders', r => r.user_id === req.user.userId);
-  if (!rider) return res.status(404).json({ success: false, message: 'Not found' });
+  if (!rider) return res.status(404).json({ success: false, message: 'Rider account not found.' });
 
   if (!rider.active_order_id) return res.json({ success: true, data: null });
 

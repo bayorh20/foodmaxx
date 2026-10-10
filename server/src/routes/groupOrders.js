@@ -19,7 +19,7 @@ router.post('/', (req, res) => {
     const { restaurant_id, host_name, spending_limit, payment_mode } = req.body;
     const restaurant = db.findById('restaurants', restaurant_id);
     if (!restaurant) {
-      return res.status(404).json({ success: false, message: 'Restaurant not found' });
+      return res.status(404).json({ success: false, message: 'Restaurant not found.' });
     }
 
     let code = generateGroupCode();
@@ -51,10 +51,10 @@ router.post('/', (req, res) => {
       success: true,
       data: groupOrder,
       host_participant_id: hostParticipantId,
-      message: 'Group order created! Share the code or link with friends.'
+      message: 'Group order created! Share the code or invite link with friends.'
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to start group order' });
+    res.status(500).json({ success: false, message: 'Could not start group order. Please try again.' });
   }
 });
 
@@ -64,7 +64,7 @@ router.get('/:code', (req, res) => {
     const code = req.params.code.toUpperCase();
     const group = db.findOne('group_orders', g => g.code === code);
     if (!group) {
-      return res.status(404).json({ success: false, message: 'Group order not found or expired' });
+      return res.status(404).json({ success: false, message: 'Group order could not be found or has expired.' });
     }
 
     let totalItems = 0;
@@ -91,7 +91,7 @@ router.get('/:code', (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to retrieve group order' });
+    res.status(500).json({ success: false, message: 'Could not load group order details. Please refresh.' });
   }
 });
 
@@ -101,7 +101,7 @@ router.post('/:code/join', (req, res) => {
     const code = req.params.code.toUpperCase();
     const { name, phone } = req.body;
     if (!name || !name.trim()) {
-      return res.status(400).json({ success: false, message: 'Your name is required to join' });
+      return res.status(400).json({ success: false, message: 'Please enter your name to join this group order.' });
     }
 
     const group = db.findOne('group_orders', g => g.code === code);
@@ -109,7 +109,7 @@ router.post('/:code/join', (req, res) => {
       return res.status(404).json({ success: false, message: 'Group order not found' });
     }
     if (group.status !== 'active' && group.status !== 'OPEN') {
-      return res.status(400).json({ success: false, message: 'This group order is already locked or completed' });
+      return res.status(400).json({ success: false, message: 'This group order is closed for ordering.' });
     }
 
     const participantId = `part_${uuidv4().slice(0, 8)}`;
@@ -135,10 +135,10 @@ router.post('/:code/join', (req, res) => {
       success: true,
       data: updated,
       participant_id: participantId,
-      message: `Welcome ${name}! You've joined the group order.`
+      message: `Welcome ${name}! You have joined the group order.`
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to join group order' });
+    res.status(500).json({ success: false, message: 'Could not join group order. Please try again.' });
   }
 });
 
@@ -150,12 +150,12 @@ router.post('/:code/items', (req, res) => {
 
     const group = db.findOne('group_orders', g => g.code === code);
     if (!group) return res.status(404).json({ success: false, message: 'Group order not found' });
-    if (group.status !== 'active') return res.status(400).json({ success: false, message: 'Group order is locked' });
+    if (group.status !== 'active') return res.status(400).json({ success: false, message: 'This group order is closed for adding new items.' });
 
     const participants = [...(group.participants || [])];
     const pIdx = participants.findIndex(p => p.id === participant_id);
     if (pIdx === -1) {
-      return res.status(404).json({ success: false, message: 'Participant not found in group' });
+      return res.status(404).json({ success: false, message: 'You are not listed in this group order. Please rejoin.' });
     }
 
     const participant = participants[pIdx];
@@ -187,9 +187,9 @@ router.post('/:code/items', (req, res) => {
       global.broadcast({ type: 'GROUP_ORDER_UPDATED', code, data: updated });
     }
 
-    res.json({ success: true, data: updated, message: 'Item added to group basket' });
+    res.json({ success: true, data: updated, message: 'Meal added to your group order tray!' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to add item' });
+    res.status(500).json({ success: false, message: 'Could not add item to group tray. Please try again.' });
   }
 });
 
@@ -213,9 +213,9 @@ router.delete('/:code/items/:groupItemId', (req, res) => {
       global.broadcast({ type: 'GROUP_ORDER_UPDATED', code, data: updated });
     }
 
-    res.json({ success: true, data: updated, message: 'Item removed' });
+    res.json({ success: true, data: updated, message: 'Meal removed from group tray.' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to remove item' });
+    res.status(500).json({ success: false, message: 'Could not remove item from group tray. Please try again.' });
   }
 });
 
@@ -238,7 +238,7 @@ router.post('/:code/checkout', (req, res) => {
     });
 
     if (consolidatedItems.length === 0) {
-      return res.status(400).json({ success: false, message: 'Group basket is empty! Add items first.' });
+      return res.status(400).json({ success: false, message: 'Your group tray is empty! Please add meals before checkout.' });
     }
 
     const updated = db.update('group_orders', group.id, { status: 'locked' });
@@ -255,10 +255,10 @@ router.post('/:code/checkout', (req, res) => {
         total_items: consolidatedItems.reduce((s, i) => s + i.qty, 0),
         subtotal: consolidatedItems.reduce((s, i) => s + (i.price * i.qty), 0)
       },
-      message: 'Group order locked and ready for checkout!'
+      message: 'Group order closed and ready for checkout!'
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to lock group order' });
+    res.status(500).json({ success: false, message: 'Could not close group order for checkout. Please try again.' });
   }
 });
 
@@ -300,9 +300,9 @@ router.post('/:code/pay', (req, res) => {
       global.broadcast({ type: 'GROUP_ORDER_PARTICIPANT_PAID', code, data: updated, participant_id });
     }
 
-    res.json({ success: true, data: updated, message: 'Payment recorded successfully' });
+    res.json({ success: true, data: updated, message: 'Your payment was received and recorded successfully!' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to record participant payment' });
+    res.status(500).json({ success: false, message: 'Could not record payment. Please try again.' });
   }
 });
 
@@ -326,9 +326,9 @@ router.post('/:code/status', (req, res) => {
       global.broadcast({ type: 'GROUP_ORDER_STATUS_CHANGED', code, data: updated });
     }
 
-    res.json({ success: true, data: updated, message: 'Group order status updated' });
+    res.json({ success: true, data: updated, message: 'Group order status updated successfully!' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to update group order status' });
+    res.status(500).json({ success: false, message: 'Could not update group order status. Please try again.' });
   }
 });
 

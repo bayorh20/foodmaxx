@@ -166,7 +166,7 @@ router.post('/web-push/subscribe', requireAuth, (req, res) => {
   try {
     const { subscription } = req.body;
     if (!subscription) {
-      return res.status(400).json({ success: false, error: 'Subscription object required' });
+      return res.status(400).json({ success: false, error: 'Please enable notifications in your browser.' });
     }
     // Save web push subscription for user
     db.insert('push_subscriptions', {
@@ -175,7 +175,7 @@ router.post('/web-push/subscribe', requireAuth, (req, res) => {
       subscription,
       created_at: new Date().toISOString()
     });
-    res.json({ success: true, message: 'Web push subscription registered' });
+    res.json({ success: true, message: 'Browser notifications turned on successfully!' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -193,7 +193,7 @@ router.post('/sms/send', async (req, res) => {
   try {
     const { phone, message, provider, apiKey, senderId, accountSid, authToken, from } = req.body;
     if (!phone || !message) {
-      return res.status(400).json({ success: false, error: 'Phone and message required' });
+      return res.status(400).json({ success: false, error: 'Please provide a phone number and message.' });
     }
     const result = await dispatchSms({ phone, message, provider, apiKey, senderId, accountSid, authToken, from });
     res.json({ success: result.success !== false, data: result });
@@ -209,7 +209,7 @@ router.post('/sms/send-order-status', async (req, res) => {
   try {
     const { orderId, orderRef, phone, status, message, provider, apiKey, senderId, accountSid, authToken, from } = req.body;
     if (!phone || !message) {
-      return res.status(400).json({ success: false, error: 'Phone and message required' });
+      return res.status(400).json({ success: false, error: 'Please provide a phone number and message.' });
     }
     const result = await dispatchSms({ phone, message, provider, apiKey, senderId, accountSid, authToken, from });
 
@@ -240,11 +240,11 @@ router.post('/sms/test', async (req, res) => {
   try {
     const { phone, message, provider, apiKey, senderId, accountSid, authToken, from } = req.body;
     if (!phone) {
-      return res.status(400).json({ success: false, error: 'Phone number required' });
+      return res.status(400).json({ success: false, error: 'Please provide a phone number.' });
     }
     const result = await dispatchSms({
       phone,
-      message: message || 'FoodMaxx SMS Gateway connected successfully! 🚀',
+      message: message || 'FoodMaxx SMS alerts connected successfully! 🚀',
       provider,
       apiKey,
       senderId,

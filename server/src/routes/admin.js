@@ -73,7 +73,7 @@ router.get('/overview', (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to load overview' });
+    res.status(500).json({ success: false, message: 'Could not load dashboard summary. Please refresh.' });
   }
 });
 
@@ -229,7 +229,7 @@ router.put('/restaurants/:id', (req, res) => {
   const updates = {};
   allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
   const updated = db.update('restaurants', req.params.id, updates);
-  if (!updated) return res.status(404).json({ success: false, message: 'Not found' });
+  if (!updated) return res.status(404).json({ success: false, message: 'Restaurant not found.' });
   global.broadcast({ type: 'RESTAURANT_UPDATED', restaurantId: req.params.id });
   res.json({ success: true, data: updated });
 });
@@ -263,7 +263,7 @@ router.put('/customers/:id', (req, res) => {
   const updates = {};
   allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
   const updated = db.update('users', req.params.id, updates);
-  if (!updated) return res.status(404).json({ success: false, message: 'Not found' });
+  if (!updated) return res.status(404).json({ success: false, message: 'Customer account not found.' });
   res.json({ success: true, data: updated });
 });
 
@@ -277,10 +277,10 @@ router.get('/promotions', (req, res) => {
 router.post('/promotions', (req, res) => {
   const { code, title, description, discount_type, discount_value, min_order, max_discount, start_date, end_date, usage_limit, user_limit } = req.body;
   if (!code || !discount_type || !discount_value) {
-    return res.status(400).json({ success: false, message: 'Code, type and value required' });
+    return res.status(400).json({ success: false, message: 'Please enter a promo code, discount type, and discount value.' });
   }
   const existing = db.findOne('promotions', p => p.code === code.toUpperCase());
-  if (existing) return res.status(409).json({ success: false, message: 'Promo code already exists' });
+  if (existing) return res.status(409).json({ success: false, message: 'This promo code is already in use. Please enter a different code.' });
 
   const promo = db.insert('promotions', {
     code: code.toUpperCase(), title, description,
@@ -324,7 +324,7 @@ router.get('/support-tickets', (req, res) => {
 router.post('/support-tickets/:id/reply', (req, res) => {
   const { message } = req.body;
   const ticket = db.findById('support_tickets', req.params.id);
-  if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+  if (!ticket) return res.status(404).json({ success: false, message: 'Support ticket not found.' });
 
   const admin = db.findById('users', req.user.userId);
   const msg = db.insert('support_messages', {
@@ -357,7 +357,7 @@ router.put('/settings', (req, res) => {
       db.insert('platform_settings', { setting_key: key, setting_value: String(value) });
     }
   });
-  res.json({ success: true, message: 'Settings saved' });
+  res.json({ success: true, message: 'Settings saved successfully!' });
 });
 
 // GET /api/admin/reviews
@@ -416,7 +416,7 @@ router.get('/products', (req, res) => {
 
     res.json({ success: true, data: enriched });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to load products' });
+    res.status(500).json({ success: false, message: 'Could not load menu items. Please refresh.' });
   }
 });
 
@@ -430,12 +430,12 @@ router.post('/products', (req, res) => {
     } = req.body;
 
     if (!restaurant_id || !name || !price || !category) {
-      return res.status(400).json({ success: false, message: 'Restaurant, name, price, and category are required' });
+      return res.status(400).json({ success: false, message: 'Please provide the restaurant, meal name, price, and category.' });
     }
 
     const restaurant = db.findById('restaurants', restaurant_id);
     if (!restaurant) {
-      return res.status(404).json({ success: false, message: 'Restaurant not found' });
+      return res.status(404).json({ success: false, message: 'Restaurant not found.' });
     }
 
     let resolvedPortionJson = null;
@@ -471,10 +471,10 @@ router.post('/products', (req, res) => {
         restaurant_name: restaurant.name,
         restaurant_logo: restaurant.logo_url
       },
-      message: 'Product created successfully'
+      message: 'New dish added successfully!'
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to create product' });
+    res.status(500).json({ success: false, message: 'Could not add new dish. Please try again.' });
   }
 });
 
@@ -483,7 +483,7 @@ router.put('/products/:id', (req, res) => {
   try {
     const existing = db.findById('menu_items', req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Product not found' });
+      return res.status(404).json({ success: false, message: 'Menu item not found.' });
     }
 
     const allowed = [
@@ -525,10 +525,10 @@ router.put('/products/:id', (req, res) => {
         ...updated,
         restaurant_name: restaurant?.name || 'Unknown Restaurant'
       },
-      message: 'Product updated successfully'
+      message: 'Menu item updated successfully!'
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to update product' });
+    res.status(500).json({ success: false, message: 'Could not update menu item. Please try again.' });
   }
 });
 
@@ -537,7 +537,7 @@ router.delete('/products/:id', (req, res) => {
   try {
     const existing = db.findById('menu_items', req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Product not found' });
+      return res.status(404).json({ success: false, message: 'Menu item not found.' });
     }
 
     db.remove('menu_items', req.params.id);
@@ -549,9 +549,9 @@ router.delete('/products/:id', (req, res) => {
       global.broadcast({ type: 'MENU_UPDATED', restaurantId: existing.restaurant_id });
     }
 
-    res.json({ success: true, message: 'Product deleted successfully' });
+    res.json({ success: true, message: 'Menu item removed successfully!' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to delete product' });
+    res.status(500).json({ success: false, message: 'Could not remove menu item. Please try again.' });
   }
 });
 
@@ -565,7 +565,7 @@ router.get('/addons', (req, res) => {
     const list = db.get('addons') || [];
     res.json({ success: true, data: list });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to load addons' });
+    res.status(500).json({ success: false, message: 'Could not load extra toppings/add-ons. Please refresh.' });
   }
 });
 
@@ -574,7 +574,7 @@ router.post('/addons', (req, res) => {
   try {
     const { name, price, category, image_url, description, is_available } = req.body;
     if (!name || price === undefined) {
-      return res.status(400).json({ success: false, message: 'Name and price are required' });
+      return res.status(400).json({ success: false, message: 'Please enter a name and price for the add-on.' });
     }
 
     const newAddon = db.insert('addons', {
@@ -591,9 +591,9 @@ router.post('/addons', (req, res) => {
       global.broadcast({ type: 'ADDONS_UPDATED' });
     }
 
-    res.status(201).json({ success: true, data: newAddon, message: 'Add-on created successfully' });
+    res.status(201).json({ success: true, data: newAddon, message: 'New add-on topping added successfully!' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to create addon' });
+    res.status(500).json({ success: false, message: 'Could not add new add-on topping. Please try again.' });
   }
 });
 
@@ -602,7 +602,7 @@ router.put('/addons/:id', (req, res) => {
   try {
     const existing = db.findById('addons', req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Add-on not found' });
+      return res.status(404).json({ success: false, message: 'Add-on topping not found.' });
     }
 
     const updates = { ...req.body };
@@ -615,9 +615,9 @@ router.put('/addons/:id', (req, res) => {
       global.broadcast({ type: 'ADDONS_UPDATED' });
     }
 
-    res.json({ success: true, data: updated, message: 'Add-on updated successfully' });
+    res.json({ success: true, data: updated, message: 'Add-on topping updated successfully!' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to update addon' });
+    res.status(500).json({ success: false, message: 'Could not update add-on topping. Please try again.' });
   }
 });
 
@@ -626,7 +626,7 @@ router.delete('/addons/:id', (req, res) => {
   try {
     const existing = db.findById('addons', req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Add-on not found' });
+      return res.status(404).json({ success: false, message: 'Add-on topping not found.' });
     }
 
     db.remove('addons', req.params.id);
@@ -635,9 +635,9 @@ router.delete('/addons/:id', (req, res) => {
       global.broadcast({ type: 'ADDONS_UPDATED' });
     }
 
-    res.json({ success: true, message: 'Add-on deleted successfully' });
+    res.json({ success: true, message: 'Add-on topping removed successfully!' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to delete addon' });
+    res.status(500).json({ success: false, message: 'Could not remove add-on topping. Please try again.' });
   }
 });
 
@@ -681,7 +681,7 @@ router.get('/payouts', (req, res) => {
 
     res.json({ success: true, data: payouts });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to calculate payouts' });
+    res.status(500).json({ success: false, message: 'Could not calculate bank payouts. Please refresh.' });
   }
 });
 

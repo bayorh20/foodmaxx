@@ -28,7 +28,7 @@ router.post('/paystack/verify', async (req, res) => {
   try {
     const { reference, amount } = req.body;
     if (!reference) {
-      return res.status(400).json({ success: false, message: 'Transaction reference is required' });
+      return res.status(400).json({ success: false, message: 'Payment reference is required to verify your transaction.' });
     }
 
     let verifiedData = {
@@ -59,7 +59,7 @@ router.post('/paystack/verify', async (req, res) => {
           if (pData.status !== 'success') {
             return res.status(400).json({
               success: false,
-              message: `Payment failed on Paystack with status: ${pData.status}`
+              message: `Payment was not completed on Paystack (Status: ${pData.status}). Please try again.`
             });
           }
           verifiedData = {
@@ -95,11 +95,11 @@ router.post('/paystack/verify', async (req, res) => {
         ...verifiedData,
         payment: paymentRecord
       },
-      message: 'Paystack payment verified successfully'
+      message: 'Payment verified and recorded successfully!'
     });
   } catch (err) {
     console.error('Paystack verification error:', err);
-    res.status(500).json({ success: false, message: 'Failed to verify Paystack payment' });
+    res.status(500).json({ success: false, message: 'Could not verify payment with Paystack. Please try again.' });
   }
 });
 
@@ -134,18 +134,18 @@ router.post('/payment/verify', requireAuth, (req, res) => {
 // POST /api/orders/promo/validate
 router.post('/promo/validate', (req, res) => {
   const { code, subtotal } = req.body;
-  if (!code) return res.status(400).json({ success: false, message: 'Promo code required' });
+  if (!code) return res.status(400).json({ success: false, message: 'Please enter a coupon code.' });
 
   const promo = db.findOne('promotions', p => p.code && p.code.toUpperCase() === code.toUpperCase() && p.is_active);
   if (!promo) {
-    return res.status(404).json({ success: false, message: 'Invalid or expired promo code' });
+    return res.status(404).json({ success: false, message: 'This coupon code is invalid or has expired.' });
   }
 
   const orderSubtotal = Number(subtotal) || 0;
   if (promo.min_order_amount && orderSubtotal < promo.min_order_amount) {
     return res.status(400).json({
       success: false,
-      message: `Minimum order of ₦${promo.min_order_amount.toLocaleString()} required for this promo`
+      message: `Your order must be at least ₦${promo.min_order_amount.toLocaleString()} to use this coupon.`
     });
   }
 
@@ -168,7 +168,7 @@ router.post('/promo/validate', (req, res) => {
       discount,
       free_delivery: Boolean(promo.free_delivery)
     },
-    message: 'Promo code applied!'
+    message: 'Coupon discount applied!'
   });
 });
 
@@ -215,7 +215,7 @@ router.get('/', requireAuth, (req, res) => {
     res.json({ success: true, data: enriched });
   } catch (err) {
     console.error('Error fetching orders:', err);
-    res.status(500).json({ success: false, message: 'Failed to fetch orders' });
+    res.status(500).json({ success: false, message: 'Could not load orders. Please refresh.' });
   }
 });
 
@@ -223,12 +223,12 @@ router.get('/', requireAuth, (req, res) => {
 router.get('/:id', requireAuth, (req, res) => {
   try {
     const order = db.findById('orders', req.params.id);
-    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found. Please check your order reference.' });
 
     // Authorization check
     const isAdmin = ['admin', 'super_admin', 'operations_admin'].includes(req.user.role);
     if (!isAdmin && order.customer_id !== req.user.userId && req.user.role !== 'rider' && req.user.role !== 'restaurant_owner') {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: 'You do not have permission to view this order.' });
     }
 
     const items = db.query('order_items', i => i.order_id === order.id);
@@ -266,7 +266,7 @@ router.get('/:id', requireAuth, (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching order:', err);
-    res.status(500).json({ success: false, message: 'Failed to fetch order details' });
+    res.status(500).json({ success: false, message: 'Could not load order details. Please refresh.' });
   }
 });
 
@@ -302,7 +302,7 @@ router.post('/', requireAuth, (req, res) => {
 
     const inputItems = cart_items || rawItems || [];
     if (inputItems.length === 0) {
-      return res.status(400).json({ success: false, message: 'Cart items cannot be empty' });
+      return res.status(400).json({ success: false, message: 'Your food tray is empty. Please add items before checking out.' });
     }
 
     const restaurant = db.findById('restaurants', restaurant_id) || db.findById('restaurants', 'rest_foodmaxx') || { id: 'rest_foodmaxx', name: 'FoodMaxx Kitchen & Grills', delivery_fee: 500 };
@@ -555,7 +555,7 @@ router.post('/', requireAuth, (req, res) => {
     });
   } catch (err) {
     console.error('Error placing order:', err);
-    res.status(500).json({ success: false, message: 'Failed to place order' });
+    res.status(500).json({ success: false, message: 'Could not place your order. Please try again.' });
   }
 });
 
@@ -564,7 +564,7 @@ router.post('/:id/status', requireAuth, (req, res) => {
   try {
     const { status, notes } = req.body;
     const order = db.findById('orders', req.params.id) || db.findOne('orders', o => o.order_reference === req.params.id);
-    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (!order) return res.status(404).json({ success: false, message: 'Order details could not be found.' });
 
     const updateFields = {
       order_status: status,
@@ -622,7 +622,7 @@ router.post('/:id/status', requireAuth, (req, res) => {
     res.json({ success: true, data: enrichedUpdated });
   } catch (err) {
     console.error('Error updating status:', err);
-    res.status(500).json({ success: false, message: 'Failed to update order status' });
+    res.status(500).json({ success: false, message: 'Could not update order status. Please try again.' });
   }
 });
 
@@ -631,12 +631,12 @@ router.post('/:id/verify-pin', requireAuth, (req, res) => {
   try {
     const { pin } = req.body;
     const order = db.findById('orders', req.params.id);
-    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (!order) return res.status(404).json({ success: false, message: 'Order details could not be found.' });
 
     if (!pin || pin.toString().trim() !== order.delivery_otp.toString().trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid delivery PIN. Please ask customer for the correct 4-digit code.'
+        message: 'Incorrect 4-digit delivery PIN. Please ask customer for the correct code.'
       });
     }
 
@@ -681,11 +681,11 @@ router.post('/:id/verify-pin', requireAuth, (req, res) => {
     res.json({
       success: true,
       data: updatedOrder,
-      message: 'Delivery PIN verified successfully! Order completed.'
+      message: 'Delivery PIN confirmed! Order marked as delivered.'
     });
   } catch (err) {
     console.error('Error verifying PIN:', err);
-    res.status(500).json({ success: false, message: 'Failed to verify PIN' });
+    res.status(500).json({ success: false, message: 'Could not confirm delivery PIN. Please try again.' });
   }
 });
 
@@ -700,7 +700,7 @@ router.get('/:id/messages', requireAuth, (req, res) => {
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     res.json({ success: true, data: messages });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to load messages' });
+    res.status(500).json({ success: false, message: 'Could not load order chat messages.' });
   }
 });
 
@@ -710,7 +710,7 @@ router.post('/:id/messages', requireAuth, (req, res) => {
     const { text, message } = req.body;
     const content = text || message;
     if (!content || !content.trim()) {
-      return res.status(400).json({ success: false, message: 'Message content cannot be empty' });
+      return res.status(400).json({ success: false, message: 'Please type a message before sending.' });
     }
 
     const user = db.findById('users', req.user.userId);
@@ -732,7 +732,7 @@ router.post('/:id/messages', requireAuth, (req, res) => {
 
     res.json({ success: true, data: msg });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to send message' });
+    res.status(500).json({ success: false, message: 'Could not send message. Please try again.' });
   }
 });
 
@@ -741,7 +741,7 @@ router.post('/:orderId/review', requireAuth, (req, res) => {
   try {
     const { rating, review_text, food_rating, delivery_rating } = req.body;
     const order = db.findById('orders', req.params.orderId);
-    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (!order) return res.status(404).json({ success: false, message: 'Order details could not be found.' });
 
     const user = db.findById('users', req.user.userId);
     const review = db.insert('reviews', {
@@ -767,7 +767,7 @@ router.post('/:orderId/review', requireAuth, (req, res) => {
 
     res.json({ success: true, data: review, message: 'Review submitted successfully!' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to submit review' });
+    res.status(500).json({ success: false, message: 'Could not submit your review. Please try again.' });
   }
 });
 

@@ -25,7 +25,7 @@ router.post('/initialize', requireAuth, async (req, res) => {
   try {
     const { order_id, amount, email, callback_url } = req.body;
     if (!amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: 'Valid amount is required' });
+      return res.status(400).json({ success: false, message: 'Please provide a valid payment amount.' });
     }
 
     const order = order_id ? db.findById('orders', order_id) : null;
@@ -100,7 +100,7 @@ router.post('/initialize', requireAuth, async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Payment initialization failed: ' + err.message });
+    res.status(500).json({ success: false, message: 'Could not start payment. Please check your network and try again.' });
   }
 });
 
@@ -109,7 +109,7 @@ router.post('/verify', async (req, res) => {
   try {
     const { reference, order_id } = req.body;
     if (!reference) {
-      return res.status(400).json({ success: false, message: 'Transaction reference is required' });
+      return res.status(400).json({ success: false, message: 'Payment reference code is required to verify your transaction.' });
     }
 
     let verified = false;
@@ -141,7 +141,7 @@ router.post('/verify', async (req, res) => {
           if (pData.status !== 'success') {
             return res.status(400).json({
               success: false,
-              message: `Payment not approved by Paystack (status: ${pData.status})`
+              message: `Payment was not approved by Paystack (Status: ${pData.status}). Please try again.`
             });
           }
           verified = true;
@@ -164,7 +164,7 @@ router.post('/verify', async (req, res) => {
     }
 
     if (!verified) {
-      return res.status(400).json({ success: false, message: 'Payment verification failed' });
+      return res.status(400).json({ success: false, message: 'Payment could not be verified. Please contact support if debited.' });
     }
 
     // Record or update payment record
@@ -224,10 +224,10 @@ router.post('/verify', async (req, res) => {
         ...paymentData,
         payment: paymentRecord
       },
-      message: 'Payment verified and credited successfully'
+      message: 'Payment confirmed and credited successfully!'
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Payment verification error: ' + err.message });
+    res.status(500).json({ success: false, message: 'Could not verify payment at this time. Please try again shortly.' });
   }
 });
 
@@ -239,7 +239,7 @@ router.post('/webhook', (req, res) => {
       const signature = req.headers['x-paystack-signature'];
       const hash = crypto.createHmac('sha512', secretKey).update(JSON.stringify(req.body)).digest('hex');
       if (hash !== signature) {
-        return res.status(401).json({ success: false, message: 'Invalid signature' });
+        return res.status(401).json({ success: false, message: 'Unauthorized request.' });
       }
     }
 
@@ -280,7 +280,7 @@ router.post('/webhook', (req, res) => {
 
 // Vendor: POST /api/payments/vendor/orders/:id/status
 router.post('/vendor/orders/:id/status', requireAuth, (req, res) => {
-  res.json({ success: true, message: 'Status confirmed' });
+  res.json({ success: true, message: 'Order status confirmed!' });
 });
 
 module.exports = router;

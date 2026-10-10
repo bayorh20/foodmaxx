@@ -11,7 +11,7 @@ router.post('/register', async (req, res) => {
   try {
     const { email, password, full_name, phone, role = 'customer' } = req.body;
     if (!email || !password || !full_name) {
-      return res.status(400).json({ success: false, message: 'Email, password and full name are required' });
+      return res.status(400).json({ success: false, message: 'Please provide your email, password, and full name.' });
     }
     const existing = db.findOne('users', u => u.email === email.toLowerCase());
     if (existing) {
@@ -53,7 +53,7 @@ router.post('/register', async (req, res) => {
     res.json({ success: true, token, user: safeUser });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Registration failed' });
+    res.status(500).json({ success: false, message: 'Could not create your account. Please try again.' });
   }
 });
 
@@ -62,10 +62,10 @@ router.post('/login', (req, res) => {
   try {
     const { email, password } = req.body;
     const user = db.findOne('users', u => u.email === email?.toLowerCase());
-    if (!user) return res.status(401).json({ success: false, message: 'Invalid email or password' });
-    if (user.status === 'suspended') return res.status(403).json({ success: false, message: 'Account suspended. Contact support.' });
+    if (!user) return res.status(401).json({ success: false, message: 'Incorrect email or password. Please check and try again.' });
+    if (user.status === 'suspended') return res.status(403).json({ success: false, message: 'Your account is temporarily suspended. Please contact customer support.' });
     const valid = bcrypt.compareSync(password, user.password_hash);
-    if (!valid) return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    if (!valid) return res.status(401).json({ success: false, message: 'Incorrect email or password. Please check and try again.' });
 
     const token = signToken({ userId: user.id, role: user.role, email: user.email });
     const { password_hash, ...safeUser } = user;
@@ -83,14 +83,14 @@ router.post('/login', (req, res) => {
 
     res.json({ success: true, token, user: safeUser, riderData, restaurantData });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Login failed' });
+    res.status(500).json({ success: false, message: 'Sign-in failed. Please check your connection and try again.' });
   }
 });
 
 // GET /api/auth/me
 router.get('/me', requireAuth, (req, res) => {
   const user = db.findById('users', req.user.userId);
-  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+  if (!user) return res.status(404).json({ success: false, message: 'User account not found.' });
   const { password_hash, ...safeUser } = user;
   let riderData = null;
   let restaurantData = null;
@@ -110,11 +110,11 @@ router.put('/profile', requireAuth, (req, res) => {
     if (avatar_url) updates.avatar_url = avatar_url.trim();
 
     const updated = db.update('users', req.user.userId, updates);
-    if (!updated) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!updated) return res.status(404).json({ success: false, message: 'User account not found.' });
     const { password_hash, ...safeUser } = updated;
     res.json({ success: true, user: safeUser, message: 'Profile updated successfully' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to update profile' });
+    res.status(500).json({ success: false, message: 'Could not update profile. Please try again.' });
   }
 });
 
@@ -123,19 +123,19 @@ router.put('/change-password', requireAuth, (req, res) => {
   try {
     const { current_password, new_password } = req.body;
     if (!current_password || !new_password || new_password.length < 6) {
-      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
+      return res.status(400).json({ success: false, message: 'Your new password must be at least 6 characters.' });
     }
     const user = db.findById('users', req.user.userId);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!user) return res.status(404).json({ success: false, message: 'User account not found.' });
 
     const valid = bcrypt.compareSync(current_password, user.password_hash);
-    if (!valid) return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+    if (!valid) return res.status(401).json({ success: false, message: 'The current password you entered is incorrect.' });
 
     const hash = bcrypt.hashSync(new_password, 10);
     db.update('users', user.id, { password_hash: hash });
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to change password' });
+    res.status(500).json({ success: false, message: 'Could not update password. Please try again.' });
   }
 });
 

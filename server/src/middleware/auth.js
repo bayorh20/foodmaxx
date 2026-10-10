@@ -14,7 +14,7 @@ const db = require('../config/database');
 function requireAuth(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, message: 'Authentication required' });
+    return res.status(401).json({ success: false, message: 'Please sign in to continue' });
   }
   const tokenStr = auth.slice(7).trim();
   try {
@@ -55,14 +55,14 @@ function requireAuth(req, res, next) {
       return next();
     }
 
-    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    return res.status(401).json({ success: false, message: 'Your sign-in session has expired. Please sign in again' });
   }
 }
 
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: 'You do not have permission to view this section' });
     }
     next();
   };
