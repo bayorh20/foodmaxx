@@ -1470,8 +1470,12 @@ function CustomerPortal() {
       if (Array.isArray(deviceOrders) && deviceOrders.length > 0) {
         api.getCustomerOrders(null).then(res => {
           if (cancelled) return;
-          // Only anonymous orders (no linked account) may be shown while signed out
-          const guestOnly = (res?.data || []).filter(o => !String(o.customer_id || o.customer?.id || '').trim());
+          const storedGuestId = localStorage.getItem('fmx_guest_id');
+          // Guest and device-session orders placed on this browser are visible while signed out
+          const guestOnly = (res?.data || []).filter(o => {
+            const cId = String(o.customer_id || o.customer?.id || '').trim();
+            return !cId || cId.startsWith('gst_') || cId === storedGuestId || deviceOrders.includes(o.id) || deviceOrders.includes(o.order_reference);
+          });
           setOrders(guestOnly);
         }).catch(() => {});
       }
@@ -1685,11 +1689,29 @@ function CustomerPortal() {
 
 
   async function loadOrders() {
-    if (!user) {
-      setOrders([]);
-      return;
-    }
     try {
+      if (!user) {
+        let deviceOrders = [];
+        try {
+          deviceOrders = JSON.parse(localStorage.getItem('fmx_device_orders') || '[]');
+          const lastOrd = localStorage.getItem('fmx_last_order_id');
+          if (lastOrd && !deviceOrders.includes(lastOrd)) deviceOrders.unshift(lastOrd);
+        } catch {}
+
+        if (!deviceOrders.length) {
+          setOrders([]);
+          return;
+        }
+
+        const res = await api.getCustomerOrders(null);
+        const storedGuestId = localStorage.getItem('fmx_guest_id');
+        const guestOnly = (res?.data || []).filter(o => {
+          const cId = String(o.customer_id || o.customer?.id || '').trim();
+          return !cId || cId.startsWith('gst_') || cId === storedGuestId || deviceOrders.includes(o.id) || deviceOrders.includes(o.order_reference);
+        });
+        setOrders(guestOnly);
+        return;
+      }
       const res = await api.getCustomerOrders(user);
       setOrders(res.data || []);
     } catch (e) {}
@@ -2710,7 +2732,7 @@ function CustomerPortal() {
               const o = placedOrderSuccess;
               setPlacedOrderSuccess(null);
               setActiveTab('orders');
-              setTrackingOrder(o);
+              openTrackingOrder(o);
             }}
             onContinueShopping={() => {
               setPlacedOrderSuccess(null);
