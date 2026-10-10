@@ -1148,10 +1148,6 @@ export const api = {
     return await verifyLiveOrderOtp(orderId, otp);
   },
 
-  verifyOrderPIN: async (orderId, otp) => {
-    return await verifyLiveOrderOtp(orderId, otp);
-  },
-
   // Customer Saved Addresses (Firestore collection: users)
   getSavedAddresses: async (userId = null) => {
     let effectiveId = userId;
@@ -1568,17 +1564,12 @@ export const api = {
   // WEB NOTIFICATION SYSTEM API
   // -------------------------------------------------------------
   dispatchWebNotification,
-  requestNotificationPermission,
-  getNotificationPermission,
-  notifyOrderStatusChange,
-  getStoredInAppNotifications,
   addInAppNotification,
   markInAppNotificationAsRead,
   markAllInAppNotificationsAsRead,
   clearAllInAppNotifications,
   getUnreadInAppNotificationsCount,
   isNotificationSupported,
-  syncNotificationPermission,
   isPermissionBlocked,
   flashTabTitle,
 

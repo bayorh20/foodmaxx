@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { doc, onSnapshot, collection, query, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, query, deleteDoc } from 'firebase/firestore';
 import {
   ShoppingCart, Search, Home, Compass, ClipboardList, User, Star,
   MapPin, Clock, ChevronRight, ChevronLeft, Plus, Minus, X, Check,
@@ -2948,6 +2948,7 @@ function AdminPortal() {
   const [orderSearch, setOrderSearch] = useState('');
   const [overviewOrderFilter, setOverviewOrderFilter] = useState('all'); // 'all' | 'pending' | 'preparing' | 'on_the_way'
 
+  const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState([]);
   const [productFilterCat, setProductFilterCat] = useState('all');
   const [productSearch, setProductSearch] = useState('');
@@ -6192,7 +6193,6 @@ function AdminPortal() {
                               #{order.order_reference}
                             </span>
                             <span
-                              className="text-[11px] font-black px-2.5 py-0.5 rounded-full border"
                               className={`text-[11px] font-black px-2.5 py-0.5 rounded-full border ${
   order.order_status === 'DELIVERED' ? 'bg-emerald-50 text-emerald-900 border-emerald-300' :
   order.order_status === 'PREPARING' ? 'bg-amber-50 text-amber-900 border-amber-300' :
